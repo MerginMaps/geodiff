@@ -1,3 +1,6 @@
+# GEODIFF (MIT License)
+# Copyright (C) 2019 Peter Petrik
+
 CMAKE_MINIMUM_REQUIRED(VERSION 3.10)
 PROJECT(geodiffproject)
 SET(CMAKE_CXX_VISIBILITY_PRESET hidden)
