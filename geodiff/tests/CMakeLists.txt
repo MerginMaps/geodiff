@@ -1,5 +1,5 @@
-# MDAL - Mesh Data Abstraction Library (MIT License)
-# Copyright (C) 2018 Peter Petrik (zilolv at gmail dot com)
+# GEODIFF (MIT License)
+# Copyright (C) 2019 Peter Petrik
 
 FIND_PACKAGE(Threads REQUIRED)
 FIND_PACKAGE(GTest)

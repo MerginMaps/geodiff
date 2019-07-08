@@ -1,7 +1,9 @@
 #!/usr/bin/env bash
 set -e
 
+# GEODIFF
 sudo apt-get -qq update
+sudo apt-get install libboost-all-dev
 
 # MinGW
 sudo apt-get install mingw-w64

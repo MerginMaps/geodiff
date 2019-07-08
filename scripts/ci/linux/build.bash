@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 
 set -e
+cd geodiff
 
 echo "Linux Release build"
 mkdir -p build_rel_lnx
