@@ -1,0 +1,9 @@
+/data/simple_many_features/
+build*/
+.idea
+.DS_Store
+/geodiff/tests/tmp/
+CMakeLists.txt.user
+*-shm
+*-wal
+*.pyc

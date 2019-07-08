@@ -1,0 +1,29 @@
+language: shell
+sudo: required
+
+matrix:
+  include:
+  - os: linux
+    dist: xenial
+  - os: osx
+  - os: windows
+
+env:
+  global:
+    - CTEST_EXT_COLOR_OUTPUT=TRUE
+    - CTEST_BUILD_FLAGS=-j4
+    - TRAVIS=1
+    - CTEST_MODEL=Nightly
+
+before_install:
+  - ./scripts/ci/"$TRAVIS_OS_NAME"/install.bash
+
+install:
+
+before_script:
+
+script:
+  - ./scripts/ci/"$TRAVIS_OS_NAME"/build.bash
+
+after_script:
+
