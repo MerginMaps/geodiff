@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 set -e
-
+cd geodiff
 
 OSGEO4W_DIR="C:/OSGeo4W64"
 echo "Using libraries from ${OSGEO4W_DIR}"

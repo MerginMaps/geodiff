@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 
 set -e
+cd geodiff
 
 echo "OSX native build"
 mkdir -p build_osx
