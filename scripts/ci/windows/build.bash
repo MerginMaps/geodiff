@@ -2,9 +2,6 @@
 set -e
 cd geodiff
 
-OSGEO4W_DIR="C:/OSGeo4W64"
-echo "Using libraries from ${OSGEO4W_DIR}"
-
 echo "Windows Visual Studio 15 64b build"
 mkdir -p build_win
 cd build_win
@@ -15,8 +12,9 @@ C:/Program\ Files/CMake/bin/cmake -G "Visual Studio 15 Win64" ${CMAKE_OPTIONS} \
 
 C:/Program\ Files/CMake/bin/cmake --build .
 
-export PATH="$PATH:/c/OSGeo4W64/bin:/c/Users/travis/build/lutraconsulting/geodiff/build_win/tools/Debug:/c/Users/travis/build/lutraconsulting/geodiff/build_win/mdal/Debug"
+export PATH="$PATH:/c/Users/travis/build/lutraconsulting/geodiff/geodiff/build_win/Debug/"
 echo "PATH used: $PATH"
 
-C:/Program\ Files/CMake/bin/ctest -VV
+C:/Program\ Files/CMake/bin/ctest -VV --exclude-regex "geodiffinfo_test"
 cd ..
+C:/Users/travis/build/lutraconsulting/geodiff/geodiff/build_win

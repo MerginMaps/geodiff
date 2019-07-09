@@ -8,7 +8,6 @@
 
 #include <string>
 
-
 int rebase(
   const std::string &changeset_BASE_THEIRS, //in
   const std::string &changeset_THEIRS_MODIFIED, // out

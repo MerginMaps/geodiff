@@ -7,38 +7,81 @@
 #define GEODIFFUTILS_H
 
 #include <string>
+#include <exception>
 #include "sqlite3.h"
 
-/*
- * TODO remove
-** Dynamic string object
-*/
-typedef struct Str Str;
-struct Str
+
+class GeoDiffException: public std::exception
 {
-  char *z;        /* Text of the string */
-  int nAlloc;     /* Bytes allocated in z[] */
-  int nUsed;      /* Bytes actually used in z[] */
+  public:
+    GeoDiffException( const std::string &msg );
+
+    virtual const char *what() const throw();
+  private:
+    std::string mMsg;
 };
 
-/*
-** Initialize a Str object
-* TODO remove
-*/
-void strInit( Str *p );
+/**
+ * Buffer for sqlite statements
+ */
+class Buffer
+{
+  public:
+    Buffer();
+    ~Buffer();
 
-/*
-** Free all memory held by a Str object
-* TODO remove
-*/
-void strFree( Str *p );
+    bool isEmpty() const;
 
-/*
-** Add formatted text to the end of a Str object
-**
-** TODO remove
-*/
-void strPrintf( Str *p, const char *zFormat, ... );
+    /**
+     * Populates buffer from file on disk (e.g changeset file)
+     */
+    void read( std::string filename );
+
+    /**
+     * Adds formatted text to the end of a buffer
+     */
+    void printf( const char *zFormat, ... );
+
+    void *v_buf() const;
+    const char *c_buf() const;
+    int size() const;
+
+  private:
+    void free();
+
+    char *mZ = nullptr;  /* Stream (text or binary) */
+    int mAlloc = 0;     /* Bytes allocated in mZ[] */
+    int mUsed = 0;      /* Bytes actually used in mZ[] */
+};
+
+/**
+ * Smart pointer on sqlite3_value.
+ * Can be inexpensively copied (data is shared)
+ */
+class Sqlite3Value
+{
+  public:
+    /**
+     * Creates copy of the value
+     * and takes the ownership of the new instance
+     */
+    Sqlite3Value( const sqlite3_value *val );
+    Sqlite3Value();
+    ~Sqlite3Value();
+
+    Sqlite3Value( const Sqlite3Value & ) = delete;
+    Sqlite3Value &operator=( Sqlite3Value const & ) = delete;
+
+    //! Returns if the stored value is valid pointer
+    bool isValid() const;
+
+    //! Returns raw pointer to sqlite3 value
+    sqlite3_value *value() const;
+
+  private:
+    sqlite3_value *mVal = nullptr;
+};
+
 
 std::string pOpToStr( int pOp );
 std::string conflict2Str( int c );
@@ -46,7 +89,7 @@ int changesetIter2Str( sqlite3_changeset_iter *pp );
 void errorLogCallback( void *pArg, int iErrCode, const char *zMsg );
 
 /*
-** Prepare a new SQL statement.  Print an error and abort if anything
+** Prepare a new SQL statement. Print an error and abort if anything
 ** goes wrong.
 */
 sqlite3_stmt *db_prepare( sqlite3 *db, const char *zFormat, ... );
@@ -57,19 +100,16 @@ sqlite3_stmt *db_prepare( sqlite3 *db, const char *zFormat, ... );
 */
 const char *all_tables_sql();
 
-// copy file from to location. override if exists
-void cp( const std::string &to, const std::string &from );
+//! copy file from to location. override if exists
+void filecopy( const std::string &to, const std::string &from );
+
+//! remove a file if exists
+void fileremove( const std::string &path );
+
+//! whether file exists
+bool fileexists( const std::string &path );
 
 std::string sqlite_value_2str( sqlite3_value *ppValue );
-
-
-/**
- * Reads a file content to the string
- * https://stackoverflow.com/questions/3747086/reading-the-whole-text-file-into-a-char-array-in-c
- * TODO write in C++
- */
-long slurp( char const *path, char **buf );
-
 
 // WRITE CHANGESET API
 
