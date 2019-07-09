@@ -32,8 +32,8 @@ ctest -T memcheck 2>&1 | tee memcheck.log
 
 if grep -q "Defects:" "memcheck.log"; then
   echo "Error: Show memcheck results"
-  ls -la /home/travis/build/lutraconsulting/geodiff/build_db_lnx/Testing/Temporary/MemoryChecker.*.log
-  cat /home/travis/build/lutraconsulting/geodiff/build_db_lnx/Testing/Temporary/MemoryChecker.*.log
+  ls -la /home/travis/build/lutraconsulting/geodiff/geodiff/build_db_lnx/Testing/Temporary/MemoryChecker.*.log
+  cat /home/travis/build/lutraconsulting/geodiff/geodiff/build_db_lnx/Testing/Temporary/MemoryChecker.*.log
   exit 1
 fi
 cd ..

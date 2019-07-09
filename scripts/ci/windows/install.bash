@@ -2,4 +2,6 @@
 set -e
 
 choco install miniconda3
-C:/tools/miniconda3 install -c anaconda boost
+ls -la C:/tools/miniconda3
+
+C:/tools/miniconda3/bin/conda install -c anaconda boost
