@@ -13,6 +13,10 @@
 #ifdef WIN32
 #include <windows.h>
 #include <tchar.h>
+#else
+#include <unistd.h>
+#include <errno.h>
+#include <sys/stat.h>
 #endif
 
 std::string _getEnvVar( std::string const &key, const std::string &defaultVal )

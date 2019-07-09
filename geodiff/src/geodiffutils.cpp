@@ -13,11 +13,6 @@
 #include <string.h>
 #include <assert.h>
 #include <sqlite3.h>
-#include <fcntl.h>
-#include <unistd.h>
-#include <errno.h>
-#include <sys/stat.h>
-#include <unistd.h>
 #include <exception>
 #include <fstream>
 #include <sys/stat.h>
@@ -27,6 +22,15 @@
 #include <string>
 #include <vector>
 #include <iostream>
+
+#ifdef WIN32
+#include <windows.h>
+#include <tchar.h>
+#else
+#include <unistd.h>
+#include <errno.h>
+#include <sys/stat.h>
+#endif
 
 GeoDiffException::GeoDiffException( const std::string &msg )
   : std::exception()
