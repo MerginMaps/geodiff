@@ -480,7 +480,7 @@ bool fileexists( const std::string &path )
 {
 #ifdef WIN32
   WIN32_FIND_DATA FindFileData;
-  HANDLE handle = FindFirstFile( file, &FindFileData ) ;
+  HANDLE handle = FindFirstFile( path, &FindFileData ) ;
   int found = handle != INVALID_HANDLE_VALUE;
   if ( found )
   {
