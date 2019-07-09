@@ -18,24 +18,150 @@
 #include <errno.h>
 #include <sys/stat.h>
 #include <unistd.h>
+#include <exception>
 
 #include <boost/filesystem.hpp>
 #include <string>
 #include <vector>
 #include <iostream>
 
-void strInit( Str *p )
+GeodiffException::GeodiffException( const std::string &msg )
+  : std::exception()
+  , mMsg( msg )
 {
-  p->z = 0;
-  p->nAlloc = 0;
-  p->nUsed = 0;
 }
 
-
-void strFree( Str *p )
+const char *GeodiffException::what() const throw()
 {
-  sqlite3_free( p->z );
-  strInit( p );
+  return mMsg.c_str();
+}
+
+Buffer::Buffer() = default;
+
+Buffer::~Buffer()
+{
+  free();
+}
+
+bool Buffer::isEmpty() const
+{
+  return mAlloc == 0;
+}
+
+void Buffer::free()
+{
+  if ( mZ )
+  {
+    sqlite3_free( mZ );
+    mZ = nullptr;
+    mAlloc = 0;
+    mUsed = 0;
+  }
+}
+
+void Buffer::read( std::string filename )
+{
+  // https://stackoverflow.com/questions/3747086/reading-the-whole-text-file-into-a-char-array-in-c
+
+  // clean the buffer
+  free();
+
+  /* Open the file */
+  FILE   *fp = fopen( filename.c_str(), "r" );
+  if ( nullptr == fp )
+  {
+    throw GeodiffException( "Unable to open " + filename );
+  }
+
+  /* Seek to the end of the file */
+  int rc = fseek( fp, 0L, SEEK_END );
+  if ( 0 != rc )
+  {
+    throw GeodiffException( "Unable to seek the end of " + filename );
+  }
+
+  long off_end;
+  /* Byte offset to the end of the file (size) */
+  if ( 0 > ( off_end = ftell( fp ) ) )
+  {
+    throw GeodiffException( "Unable to read file size of " + filename );
+  }
+  mAlloc = ( size_t )off_end;
+  mUsed = mAlloc;
+
+  if ( mAlloc == 0 )
+  {
+    // empty file
+    return;
+  }
+
+  /* Allocate a buffer to hold the whole file */
+  mZ = ( char * ) sqlite3_malloc( mAlloc );
+  if ( mZ == nullptr )
+  {
+    throw GeodiffException( "Out of memory to read " + filename + " to internal buffer" );
+  }
+
+  /* Rewind file pointer to start of file */
+  rewind( fp );
+
+  /* Slurp file into buffer */
+  if ( mAlloc != fread( mZ, 1, mAlloc, fp ) )
+  {
+    throw GeodiffException( "Unable to read " + filename + " to internal buffer" );
+  }
+
+  /* Close the file */
+  if ( EOF == fclose( fp ) )
+  {
+    throw GeodiffException( "Unable to close " + filename );
+  }
+}
+
+void Buffer::printf( const char *zFormat, ... )
+{
+  int nNew;
+  for ( ;; )
+  {
+    if ( mZ )
+    {
+      va_list ap;
+      va_start( ap, zFormat );
+      sqlite3_vsnprintf( mAlloc - mUsed, mZ + mUsed, zFormat, ap );
+      va_end( ap );
+      nNew = ( int )strlen( mZ + mUsed );
+    }
+    else
+    {
+      nNew = mAlloc;
+    }
+    if ( mUsed + nNew < mAlloc - 1 )
+    {
+      mUsed += nNew;
+      break;
+    }
+    mAlloc = mAlloc * 2 + 1000;
+    mZ = ( char * ) sqlite3_realloc( mZ, mAlloc );
+    if ( mZ == nullptr )
+    {
+      throw GeodiffException( "out of memory" );
+    }
+  }
+}
+
+const char *Buffer::c_buf() const
+{
+  return mZ;
+}
+
+void *Buffer::v_buf() const
+{
+  return mZ;
+}
+
+int Buffer::size() const
+{
+  return mAlloc;
 }
 
 std::string pOpToStr( int pOp )
@@ -156,49 +282,9 @@ int changesetIter2Str( sqlite3_changeset_iter *pp )
   return pnCol;
 }
 
-static void runtimeError( const char *zFormat, ... )
-{
-  // TODO do not use!
-  va_list ap;
-  // fprintf(stderr, "%s: ", zArgv0);
-  va_start( ap, zFormat );
-  vfprintf( stderr, zFormat, ap );
-  va_end( ap );
-  fprintf( stderr, "\n" );
-  exit( 1 );
-}
-
 void errorLogCallback( void *pArg, int iErrCode, const char *zMsg )
 {
   fprintf( stderr, "(%d)%s\n", iErrCode, zMsg );
-}
-
-void strPrintf( Str *p, const char *zFormat, ... )
-{
-  int nNew;
-  for ( ;; )
-  {
-    if ( p->z )
-    {
-      va_list ap;
-      va_start( ap, zFormat );
-      sqlite3_vsnprintf( p->nAlloc - p->nUsed, p->z + p->nUsed, zFormat, ap );
-      va_end( ap );
-      nNew = ( int )strlen( p->z + p->nUsed );
-    }
-    else
-    {
-      nNew = p->nAlloc;
-    }
-    if ( p->nUsed + nNew < p->nAlloc - 1 )
-    {
-      p->nUsed += nNew;
-      break;
-    }
-    p->nAlloc = p->nAlloc * 2 + 1000;
-    p->z = ( char * ) sqlite3_realloc( p->z, p->nAlloc );
-    if ( p->z == 0 ) runtimeError( "out of memory" );
-  }
 }
 
 static sqlite3_stmt *db_vprepare( sqlite3 *db, const char *zFormat, va_list ap )
@@ -208,12 +294,16 @@ static sqlite3_stmt *db_vprepare( sqlite3 *db, const char *zFormat, va_list ap )
   sqlite3_stmt *pStmt;
 
   zSql = sqlite3_vmprintf( zFormat, ap );
-  if ( zSql == 0 ) runtimeError( "out of memory" );
+  if ( zSql == 0 )
+  {
+    throw GeodiffException( "out of memory" );
+  }
+
   rc = sqlite3_prepare_v2( db, zSql, -1, &pStmt, 0 );
   if ( rc )
   {
-    runtimeError( "SQL statement error: %s\n\"%s\"", sqlite3_errmsg( db ),
-                  zSql );
+    throw GeodiffException( "SQL statement error" );
+    // throw GeodiffException( "SQL statement error: %s\n\"%s\"", sqlite3_errmsg( db ), zSql );
   }
   sqlite3_free( zSql );
   return pStmt;
@@ -245,62 +335,6 @@ void cp( const std::string &to, const std::string &from )
 {
   boost::filesystem::copy_file( from, to,
                                 boost::filesystem::copy_option::overwrite_if_exists );
-}
-
-long slurp( char const *path, char **buf )
-{
-  FILE  *fp;
-  size_t fsz;
-  long   off_end;
-  int    rc;
-
-  /* Open the file */
-  fp = fopen( path, "r" );
-  if ( NULL == fp )
-  {
-    return -1L;
-  }
-
-  /* Seek to the end of the file */
-  rc = fseek( fp, 0L, SEEK_END );
-  if ( 0 != rc )
-  {
-    return -1L;
-  }
-
-  /* Byte offset to the end of the file (size) */
-  if ( 0 > ( off_end = ftell( fp ) ) )
-  {
-    return -1L;
-  }
-  fsz = ( size_t )off_end;
-
-  /* Allocate a buffer to hold the whole file */
-  *buf = ( char * ) malloc( fsz );
-  if ( NULL == *buf )
-  {
-    return -1L;
-  }
-
-  /* Rewind file pointer to start of file */
-  rewind( fp );
-
-  /* Slurp file into buffer */
-  if ( fsz != fread( *buf, 1, fsz, fp ) )
-  {
-    free( *buf );
-    return -1L;
-  }
-
-  /* Close the file */
-  if ( EOF == fclose( fp ) )
-  {
-    free( *buf );
-    return -1L;
-  }
-
-  /* Return the file size */
-  return ( long )fsz;
 }
 
 void putsVarint( FILE *out, sqlite3_uint64 v )

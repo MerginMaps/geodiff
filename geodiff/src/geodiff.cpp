@@ -37,7 +37,8 @@ void GEODIFF_init()
 
 int GEODIFF_createChangeset( const char *base, const char *modified, const char *changeset )
 {
-  Str str;
+  Buffer sqlBuf;
+
   sqlite3 *db;
   sqlite3_session *session;
   int rc;
@@ -45,8 +46,6 @@ int GEODIFF_createChangeset( const char *base, const char *modified, const char 
   void *buf;
   FILE *f;
   sqlite3_stmt *pStmt;
-
-  strInit( &str );
 
   printf( "%s\n%s\n%s\n", modified, base, changeset );
 
@@ -57,8 +56,8 @@ int GEODIFF_createChangeset( const char *base, const char *modified, const char 
     return GEODIFF_ERROR;
   }
 
-  strPrintf( &str, "ATTACH '%s' AS aux", base );
-  rc = sqlite3_exec( db, str.z, NULL, 0, NULL );
+  sqlBuf.printf( "ATTACH '%s' AS aux", base );
+  rc = sqlite3_exec( db, sqlBuf.c_buf(), NULL, 0, NULL );
   if ( rc )
   {
     printf( "err diff 2" );
@@ -112,8 +111,6 @@ int GEODIFF_createChangeset( const char *base, const char *modified, const char 
   sqlite3session_delete( session );
   sqlite3_close( db );
 
-  strFree( &str );
-
   return GEODIFF_SUCCESS;
 }
 
@@ -134,8 +131,6 @@ int GEODIFF_applyChangeset( const char *base, const char *patched, const char *c
   nconflicts = 0;
 
   sqlite3 *db;
-  char *cbuf;
-  size_t csize;
   int rc;
   sqlite3_stmt *pStmt;
   char *name;
@@ -144,17 +139,13 @@ int GEODIFF_applyChangeset( const char *base, const char *patched, const char *c
   // TODO consider using sqlite3changeset_apply_strm streamed versions
   cp( patched, base );
 
-  csize = slurp( changeset, ( char ** ) &cbuf );
-  if ( csize == 0 )
+  // read to memory
+  Buffer cbuf;
+  cbuf.read( changeset );
+  if ( cbuf.isEmpty() )
   {
     printf( "--- no changes ---" );
     return GEODIFF_SUCCESS;
-  }
-
-  if ( csize <= 0 )
-  {
-    printf( "err slurp" );
-    return GEODIFF_ERROR;
   }
 
   rc = sqlite3_open( patched, &db );
@@ -195,7 +186,7 @@ int GEODIFF_applyChangeset( const char *base, const char *patched, const char *c
   // if(rc) RUNTIME_ERROR("sql error 3");
 
   // TODO use _v2 and data-> for rebaser!
-  rc = sqlite3changeset_apply( db, csize, cbuf, NULL, conflict_callback, NULL );
+  rc = sqlite3changeset_apply( db, cbuf.size(), cbuf.v_buf(), NULL, conflict_callback, NULL );
   if ( rc )
   {
     printf( "err sqlite3changeset_apply" );
@@ -222,30 +213,24 @@ int GEODIFF_applyChangeset( const char *base, const char *patched, const char *c
 
 int GEODIFF_listChanges( const char *changeset )
 {
-  void *buf; /* Patchset or changeset */
-  int size;  /* And its size */
   int rc;
   sqlite3_changeset_iter *pp;
   int nchanges = 0;
 
   printf( "CHANGES:\n" );
-  size = slurp( changeset, ( char ** ) &buf );
-  if ( size == 0 )
-  {
-    printf( " -- no changes! --\n" );
-    return nchanges;
-  }
 
-  if ( size <= 0 )
+  Buffer buf;
+  buf.read( changeset );
+  if ( buf.isEmpty() )
   {
-    printf( "err list 1" );
-    return -1;
+    printf( "--- no changes ---" );
+    return GEODIFF_SUCCESS;
   }
 
   rc = sqlite3changeset_start(
          &pp,
-         size,
-         buf
+         buf.size(),
+         buf.v_buf()
        );
   if ( rc != SQLITE_OK )
   {
@@ -260,7 +245,6 @@ int GEODIFF_listChanges( const char *changeset )
   }
 
   sqlite3changeset_finalize( pp );
-  free( buf );
   return nchanges;
 }
 

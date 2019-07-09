@@ -355,14 +355,14 @@ int _get_primary_key( sqlite3_changeset_iter *pp, int pOp )
   }
 }
 
-int _parse_old_changeset( void *buf_BASE_THEIRS, int size_BASE_THEIRS, MapIds &inserted, MapIds &deleted, SqOperations &updated )
+int _parse_old_changeset( const Buffer &buf_BASE_THEIRS, MapIds &inserted, MapIds &deleted, SqOperations &updated )
 {
   sqlite3_changeset_iter *pp;
 
   int rc = sqlite3changeset_start(
              &pp,
-             size_BASE_THEIRS,
-             buf_BASE_THEIRS
+             buf_BASE_THEIRS.size(),
+             buf_BASE_THEIRS.v_buf()
            );
   if ( rc != SQLITE_OK )
   {
@@ -410,8 +410,10 @@ int _parse_old_changeset( void *buf_BASE_THEIRS, int size_BASE_THEIRS, MapIds &i
   return GEODIFF_SUCCESS;
 }
 
-int _find_mapping_for_new_changeset( void *buf, int size,
-                                     const MapIds &inserted, const MapIds &deleted, MappingIds &mapping )
+int _find_mapping_for_new_changeset( const Buffer &buf,
+                                     const MapIds &inserted,
+                                     const MapIds &deleted,
+                                     MappingIds &mapping )
 {
   std::map<std::string, int> freeIndices;
   for ( auto mapId : inserted )
@@ -422,8 +424,8 @@ int _find_mapping_for_new_changeset( void *buf, int size,
   sqlite3_changeset_iter *pp;
   int rc = sqlite3changeset_start(
              &pp,
-             size,
-             buf
+             buf.size(),
+             buf.v_buf()
            );
   if ( rc != SQLITE_OK )
   {
@@ -475,13 +477,13 @@ int _find_mapping_for_new_changeset( void *buf, int size,
   return GEODIFF_SUCCESS;
 }
 
-int _prepare_new_changeset( void *buf, int size, const std::string &changesetNew, const MappingIds &mapping, const SqOperations &updated )
+int _prepare_new_changeset( const Buffer &buf, const std::string &changesetNew, const MappingIds &mapping, const SqOperations &updated )
 {
   sqlite3_changeset_iter *pp;
   int rc = sqlite3changeset_start(
              &pp,
-             size,
-             buf
+             buf.size(),
+             buf.v_buf()
            );
   if ( rc != SQLITE_OK )
   {
@@ -701,48 +703,32 @@ int rebase( const std::string &changeset_BASE_THEIRS,
             const std::string &changeset_BASE_MODIFIED )
 
 {
-  void *buf_BASE_THEIRS; /* Patchset or changeset */
-  int size_BASE_THEIRS;  /* And its size */
-  size_BASE_THEIRS = slurp( changeset_BASE_THEIRS.c_str(), ( char ** ) &buf_BASE_THEIRS );
-  if ( size_BASE_THEIRS == 0 )
+  Buffer buf_BASE_THEIRS;
+  if ( buf_BASE_THEIRS.isEmpty() )
   {
     printf( " -- no rabase needed! --\n" );
     boost::filesystem::copy( changeset_BASE_MODIFIED, changeset_THEIRS_MODIFIED );
     return GEODIFF_SUCCESS;
   }
 
-  if ( size_BASE_THEIRS <= 0 )
-  {
-    printf( "err list BASE_THEIRS" );
-    return GEODIFF_ERROR;
-  }
-
-  void *buf_BASE_MODIFIED; /* Patchset or changeset */
-  int size_BASE_MODIFIED;  /* And its size */
-  size_BASE_MODIFIED = slurp( changeset_BASE_MODIFIED.c_str(), ( char ** ) &buf_BASE_MODIFIED );
-  if ( size_BASE_MODIFIED == 0 )
+  Buffer buf_BASE_MODIFIED;
+  if ( buf_BASE_MODIFIED.isEmpty() )
   {
     printf( " -- no rabase needed! --\n" );
     boost::filesystem::copy( changeset_BASE_THEIRS, changeset_THEIRS_MODIFIED );
     return GEODIFF_SUCCESS;
   }
 
-  if ( size_BASE_MODIFIED <= 0 )
-  {
-    printf( "err list BASE_MODIFIED" );
-    return GEODIFF_ERROR;
-  }
-
   MapIds inserted;
   MapIds deleted;
   SqOperations updated;
-  _parse_old_changeset( buf_BASE_THEIRS, size_BASE_THEIRS, inserted, deleted, updated );
+  _parse_old_changeset( buf_BASE_THEIRS, inserted, deleted, updated );
 
   MappingIds mapping;
-  _find_mapping_for_new_changeset( buf_BASE_MODIFIED, size_BASE_MODIFIED, inserted, deleted, mapping );
+  _find_mapping_for_new_changeset( buf_BASE_MODIFIED, inserted, deleted, mapping );
 
   // finally
-  _prepare_new_changeset( buf_BASE_MODIFIED, size_BASE_MODIFIED, changeset_THEIRS_MODIFIED, mapping, updated );
+  _prepare_new_changeset( buf_BASE_MODIFIED, changeset_THEIRS_MODIFIED, mapping, updated );
 
   // free
   free( updated );
