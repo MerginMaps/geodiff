@@ -7,6 +7,7 @@
 #include "geodiffutils.hpp"
 #include "geodiff.h"
 
+#include <memory>
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdarg.h>

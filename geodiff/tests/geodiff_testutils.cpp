@@ -29,10 +29,10 @@ std::string testdir()
 std::string tmpdir()
 {
 #ifdef WIN32
-  UINT uRetVal;
+  ;
   TCHAR lpTempPathBuffer[MAX_PATH];
 
-  dwRetVal = GetTempPath( MAX_PATH, lpTempPathBuffer );
+  DWORD dwRetVal = GetTempPath( MAX_PATH, lpTempPathBuffer );
   if ( dwRetVal > MAX_PATH || ( dwRetVal == 0 ) )
   {
     return std::string( "C:/temp/" );
