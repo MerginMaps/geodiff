@@ -19,7 +19,7 @@ cd build_db_lnx
 cmake ${CMAKE_OPTIONS} \
       -DCMAKE_BUILD_TYPE=Debug \
       -DMEMORYCHECK_COMMAND_OPTIONS="--leak-check=yes --show-leak-kinds=definite --gen-suppressions=all --track-origins=yes --num-callers=20 --leak-resolution=high --show-reachable=no" \
-      -DMEMORYCHECK_SUPPRESSIONS_FILE=../scripts/ci/linux/valgrind.supp \
+      -DMEMORYCHECK_SUPPRESSIONS_FILE=../../scripts/ci/linux/valgrind.supp \
       -DENABLE_TESTS=ON ..
 
 make # VERBOSE=1
