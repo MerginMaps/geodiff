@@ -12,8 +12,8 @@ C:/Program\ Files/CMake/bin/cmake -G "Visual Studio 15 Win64" ${CMAKE_OPTIONS} \
 
 C:/Program\ Files/CMake/bin/cmake --build .
 
-export PATH="$PATH:/c/OSGeo4W64/bin:/c/Users/travis/build/lutraconsulting/geodiff/build_win/tools/Debug:/c/Users/travis/build/lutraconsulting/geodiff/build_win/mdal/Debug"
+export PATH="$PATH:/c/OSGeo4W64/bin:/c/Users/travis/build/lutraconsulting/geodiff/geodiff/build_win/tools/Debug:/c/Users/travis/build/lutraconsulting/geodiff/geodiff/build_win/geodiff/Debug"
 echo "PATH used: $PATH"
 
-C:/Program\ Files/CMake/bin/ctest -VV
+C:/Program\ Files/CMake/bin/ctest -VV --exclude-regex "geodiffinfo_test"
 cd ..
