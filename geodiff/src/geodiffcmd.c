@@ -38,6 +38,8 @@ int main( int argc, char *argv[] )
   {
     printf( "n args: %d\n", argc );
     printf( "[create changeset] GEODIFF diff file1 file2 changeset.bin\n" );
+    printf( "[create changeset] GEODIFF diff file1 file2 changeset.bin\n" );
+
     printf( "[apply changeset] GEODIFF apply file1 file2 changeset.bin\n" );
     //TODO rebase?
     return 1;

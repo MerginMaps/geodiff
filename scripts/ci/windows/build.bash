@@ -11,7 +11,7 @@ cd build_win
 C:/Program\ Files/CMake/bin/cmake -G "Visual Studio 15 Win64" ${CMAKE_OPTIONS} \
    -DCMAKE_BUILD_TYPE=Rel \
    -DENABLE_TESTS=ON \
-   -DBOOST_ROOT=${OSGEO4W_DIR}
+   -DBOOST_ROOT=${OSGEO4W_DIR} \
    ..
 
 C:/Program\ Files/CMake/bin/cmake --build .

@@ -8,9 +8,25 @@ SET(CMAKE_VISIBILITY_INLINES_HIDDEN 1)
 SET (CMAKE_CXX_STANDARD 11)
 
 SET (ENABLE_TESTS TRUE CACHE BOOL "Build tests?")
+SET (ENABLE_COVERAGE FALSE CACHE BOOL "Enable GCOV code coverage?")
+SET (BUILD_TOOLS TRUE CACHE BOOL "Build tool executables?")
 
 FIND_PACKAGE( Boost REQUIRED COMPONENTS filesystem)
 INCLUDE_DIRECTORIES( ${Boost_INCLUDE_DIR} )
+
+#############################################################
+# Setup code coverage
+IF(ENABLE_COVERAGE)
+  IF (NOT CMAKE_BUILD_TYPE STREQUAL "Debug")
+    MESSAGE(FATAL_ERROR "gcov coverage must be run in debug build type")
+  ENDIF(NOT CMAKE_BUILD_TYPE STREQUAL "Debug")
+
+  IF(MSVC)
+    MESSAGE(FATAL_ERROR "gcov coverage is not implemented for Windows")
+  ENDIF(MSVC)
+
+  SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} --coverage")
+ENDIF(ENABLE_COVERAGE)
 
 # Get SQLITE3 dependency
 # We want to build it from source
@@ -43,8 +59,10 @@ TARGET_INCLUDE_DIRECTORIES(geodiff PRIVATE ${sqlite3_dir})
 TARGET_LINK_LIBRARIES(geodiff PRIVATE ${Boost_LIBRARIES} dl)
 
 # command line tool
-ADD_EXECUTABLE(geodiffcmd src/geodiffcmd.c)
-TARGET_LINK_LIBRARIES(geodiffcmd PUBLIC geodiff )
+IF (BUILD_TOOLS)
+  ADD_EXECUTABLE(geodiffcmd src/geodiffcmd.c)
+  TARGET_LINK_LIBRARIES(geodiffcmd PUBLIC geodiff )
+ENDIF (BUILD_TOOLS)
 
 # tests
 IF (ENABLE_TESTS)
