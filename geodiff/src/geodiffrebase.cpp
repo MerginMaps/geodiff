@@ -211,8 +211,6 @@ void _insert( SqOperations &mapIds, const std::string &table, int id, sqlite3_ch
     if ( pOp == SQLITE_UPDATE || pOp == SQLITE_INSERT )
     {
       rc = sqlite3changeset_new( pp, i, &ppValue );
-      ppValue = sqlite3_value_dup( ppValue );
-
       assert( rc == SQLITE_OK );
       newValues[i].reset( new Sqlite3Value( ppValue ) );
     }
