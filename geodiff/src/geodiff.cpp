@@ -15,11 +15,6 @@
 #include <assert.h>
 #include <sqlite3.h>
 #include <fcntl.h>
-#include <unistd.h>
-#include <errno.h>
-#include <sys/stat.h>
-#include <unistd.h>
-
 #include <iostream>
 #include <string>
 #include <vector>

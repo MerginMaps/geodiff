@@ -478,7 +478,19 @@ void fileremove( const std::string &path )
 
 bool fileexists( const std::string &path )
 {
+#ifdef WIN32
+  WIN32_FIND_DATA FindFileData;
+  HANDLE handle = FindFirstFile( file, &FindFileData ) ;
+  int found = handle != INVALID_HANDLE_VALUE;
+  if ( found )
+  {
+    //FindClose(&handle); this will crash
+    FindClose( handle );
+  }
+  return found;
+#else
   // https://stackoverflow.com/a/12774387/2838364
   struct stat buffer;
   return ( stat( path.c_str(), &buffer ) == 0 );
+#endif
 }
