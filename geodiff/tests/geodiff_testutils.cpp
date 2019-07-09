@@ -10,6 +10,7 @@
 #include <vector>
 #include <math.h>
 #include <assert.h>
+#include <boost/filesystem.hpp>
 
 std::string testdir()
 {
@@ -18,7 +19,7 @@ std::string testdir()
 
 std::string tmpdir()
 {
-  return TEST_TMP_DIR;
+  return boost::filesystem::temp_directory_path().string();
 }
 
 std::string test_file( std::string basename )

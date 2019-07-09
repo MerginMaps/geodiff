@@ -14,3 +14,6 @@ cmake ${CMAKE_OPTIONS} \
 make
 
 ctest -VV
+
+cd ../../pygeodiff
+GEODIFFLIB=`pwd`/../build_osx/libgeodiff.dylib nose2

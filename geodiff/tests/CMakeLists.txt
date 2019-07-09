@@ -34,7 +34,6 @@ ENDIF(NOT GTEST_FOUND)
 # data under tests/testdata in the qgis source tree.
 # the TEST_DATA_DIR variable is set in the top level CMakeLists.txt
 ADD_DEFINITIONS(-DTEST_DATA_DIR="${CMAKE_SOURCE_DIR}/tests/testdata")
-ADD_DEFINITIONS(-DTEST_TMP_DIR="${CMAKE_SOURCE_DIR}/tests/tmp")
 
 #########################################################################
 #########################################################################
@@ -54,7 +53,7 @@ MACRO (ADD_GEODIFF_TEST TESTSRC)
   STRING(REPLACE ".cpp" "" TESTNAME ${TESTNAME})
   SET (TESTNAME  "geodiff_${TESTNAME}_test")
   ADD_EXECUTABLE(${TESTNAME} ${TESTSRC} $<TARGET_OBJECTS:geodifftestutils>)
-  TARGET_LINK_LIBRARIES(${TESTNAME} gtest gmock ${CMAKE_THREAD_LIBS_INIT} geodiff)
+  TARGET_LINK_LIBRARIES(${TESTNAME} gtest gmock ${Boost_LIBRARIES} dl ${CMAKE_THREAD_LIBS_INIT} geodiff)
   ADD_TEST(${TESTNAME} ${CMAKE_CURRENT_BINARY_DIR}/${TESTNAME})
 ENDMACRO (ADD_GEODIFF_TEST)
 
@@ -68,4 +67,4 @@ FOREACH(TESTSRC ${TESTS})
 ENDFOREACH(TESTSRC)
 
 # geodiffcmd utility test
-ADD_TEST(NAME geodiffcmd_test COMMAND $<TARGET_FILE:geodiffcmd> "${TESTDATA_DIR}/base.gpkg" "${TESTDATA_DIR}/modified_1_geom.gpkg" )
+ADD_TEST(NAME geodiffcmd_test COMMAND $<TARGET_FILE:geodiffcmd> diff "${TESTDATA_DIR}/base.gpkg" "${TESTDATA_DIR}/modified_1_geom.gpkg" )

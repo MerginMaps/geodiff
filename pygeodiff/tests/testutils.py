@@ -7,6 +7,7 @@
 import unittest
 import os
 import shutil
+import tempfile
 import pygeodiff
 
 
@@ -22,7 +23,7 @@ def testdir():
 
 
 def tmpdir():
-  return os.path.join(REFDIF, "tmp" )
+  return tempfile.gettempdir()
 
 
 def check_nchanges( geodiff, changeset, expected_number_of_changes ):
@@ -40,9 +41,3 @@ class GeoDiffTests(unittest.TestCase):
         if not os.path.exists(lib):
             raise TestError("lib {} is missing ".format(lib))
         self.geodiff = pygeodiff.GeoDiff(lib)
-
-        # create temp folder
-        if os.path.exists(tmpdir()):
-            shutil.rmtree(tmpdir())
-        os.makedirs(tmpdir())
-
