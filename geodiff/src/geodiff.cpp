@@ -113,7 +113,7 @@ int GEODIFF_createChangeset( const char *base, const char *modified, const char 
   }
   catch ( GeoDiffException exc )
   {
-    printf( "%s", exc.what() );
+    printf( "%s\n", exc.what() );
     return GEODIFF_ERROR;
   }
 }
@@ -220,7 +220,7 @@ int GEODIFF_applyChangeset( const char *base, const char *patched, const char *c
   }
   catch ( GeoDiffException exc )
   {
-    printf( "%s", exc.what() );
+    printf( "%s\n", exc.what() );
     return GEODIFF_ERROR;
   }
 }
@@ -229,7 +229,6 @@ int GEODIFF_listChanges( const char *changeset )
 {
   try
   {
-
     int rc;
     sqlite3_changeset_iter *pp;
     int nchanges = 0;
@@ -267,7 +266,7 @@ int GEODIFF_listChanges( const char *changeset )
   }
   catch ( GeoDiffException exc )
   {
-    printf( "%s", exc.what() );
+    printf( "%s\n", exc.what() );
     return -1;
   }
 }
@@ -288,7 +287,7 @@ int GEODIFF_createRebasedChangeset( const char *base, const char *modified, cons
   }
   catch ( GeoDiffException exc )
   {
-    printf( "%s", exc.what() );
+    printf( "%s\n", exc.what() );
     return GEODIFF_ERROR;
   }
 }
