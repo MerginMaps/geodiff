@@ -15,10 +15,6 @@
 #include <sqlite3.h>
 #include <exception>
 #include <fstream>
-#include <sys/stat.h>
-#include <unistd.h>
-#include <string>
-#include <fstream>
 #include <string>
 #include <vector>
 #include <iostream>
