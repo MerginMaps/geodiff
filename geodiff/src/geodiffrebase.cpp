@@ -703,6 +703,11 @@ int rebase( const std::string &changeset_BASE_THEIRS,
             const std::string &changeset_BASE_MODIFIED )
 
 {
+  if ( boost::filesystem::exists( changeset_THEIRS_MODIFIED ) )
+  {
+    boost::filesystem::remove( changeset_THEIRS_MODIFIED );
+  }
+
   Buffer buf_BASE_THEIRS;
   if ( buf_BASE_THEIRS.isEmpty() )
   {
