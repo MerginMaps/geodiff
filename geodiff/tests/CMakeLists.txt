@@ -33,7 +33,8 @@ ENDIF(NOT GTEST_FOUND)
 # This define is used for tests that need to locate the test
 # data under tests/testdata in the qgis source tree.
 # the TEST_DATA_DIR variable is set in the top level CMakeLists.txt
-ADD_DEFINITIONS(-DTEST_DATA_DIR="${CMAKE_SOURCE_DIR}/tests/testdata")
+SET(TESTDIR ${CMAKE_SOURCE_DIR}/tests/testdata)
+ADD_DEFINITIONS(-DTEST_DATA_DIR="${TESTDIR}")
 
 #########################################################################
 #########################################################################
@@ -65,6 +66,3 @@ SET(TESTS
 FOREACH(TESTSRC ${TESTS})
     ADD_GEODIFF_TEST(${TESTSRC})
 ENDFOREACH(TESTSRC)
-
-# geodiffcmd utility test
-ADD_TEST(NAME geodiffcmd_test COMMAND $<TARGET_FILE:geodiffcmd> diff "${TESTDATA_DIR}/base.gpkg" "${TESTDATA_DIR}/modified_1_geom.gpkg" )
