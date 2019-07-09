@@ -42,6 +42,7 @@ std::string pathjoin( const std::string &dir, const std::string &filename )
   res = _replace( res, "//", "/" );
   res = _replace( res, "\\/", "/" );
   res = _replace( res, "\\\\", "/" );
+  res = _replace( res, "\\", "/" );
   return res;
 }
 
