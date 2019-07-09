@@ -3,6 +3,7 @@ set -e
 cd geodiff
 
 CONDA_DIR="C:/tools/miniconda3"
+C:/tools/miniconda3/condabin/activate.bat
 
 echo "Windows Visual Studio 15 64b build"
 mkdir -p build_win
