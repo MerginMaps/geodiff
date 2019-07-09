@@ -11,15 +11,6 @@ make
 CTEST_TARGET_SYSTEM=Linux-gcc; ctest -VV
 cd ..
 
-echo "MinGW Cross-compile Windows build"
-mkdir -p build_mingw
-cd build_mingw
-cmake .. -DCMAKE_TOOLCHAIN_FILE=../Toolchain-mingw32.cmake \
-         -DENABLE_TESTS=OFF \
-         ${CMAKE_OPTIONS} -DCMAKE_BUILD_TYPE=Rel
-make
-cd ..
-
 echo "Linux Valgrind"
 valgrind --version
 
