@@ -25,6 +25,16 @@ std::string _getEnvVar( std::string const &key, const std::string &defaultVal )
   return val == nullptr ? defaultVal : std::string( val );
 }
 
+std::string pathjoin( const std::string &dir, const std::string &filename )
+{
+#ifdef WIN32
+  std::string separator( "\\" );
+#else
+  std::string separator( "/" );
+#endif
+  return dir + separator + filename;
+}
+
 std::string testdir()
 {
   return TEST_DATA_DIR;

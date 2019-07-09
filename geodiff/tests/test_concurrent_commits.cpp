@@ -11,13 +11,13 @@ TEST( ConcurrentCommitsSqlite3Test, test_2_inserts )
 {
   std::cout << "geopackage 2 concurent modifications (base) -> (A) and (base) -> (B)" << std::endl;
 
-  std::string base = testdir() + "/base.gpkg";
-  std::string modifiedA = testdir() + "/" + "inserted_1_A.gpkg";
-  std::string modifiedB = testdir() + "/" + "inserted_1_B.gpkg";
-  std::string changesetbaseA = tmpdir() + "/changeset_base_to_A.bin";
-  std::string changesetAB = tmpdir() + "/changeset_A_to_B.bin";
-  std::string changesetBbase = tmpdir() + "/changeset_B_to_base.bin";
-  std::string patchedAB = tmpdir() + "/patched_AB.gpkg" ;
+  std::string base = pathjoin( testdir(), "base.gpkg" );
+  std::string modifiedA = pathjoin( testdir(), "inserted_1_A.gpkg" );
+  std::string modifiedB = pathjoin( testdir(), "inserted_1_B.gpkg" );
+  std::string changesetbaseA = pathjoin( tmpdir(), "changeset_base_to_A.bin" );
+  std::string changesetAB = pathjoin( tmpdir(), "changeset_A_to_B.bin" );
+  std::string changesetBbase = pathjoin( tmpdir(), "changeset_B_to_base.bin" );
+  std::string patchedAB = pathjoin( tmpdir(), "patched_AB.gpkg" ) ;
 
   // create changeset base to A
   ASSERT_EQ( GEODIFF_createChangeset( base.c_str(), modifiedA.c_str(), changesetbaseA.c_str() ), GEODIFF_SUCCESS );

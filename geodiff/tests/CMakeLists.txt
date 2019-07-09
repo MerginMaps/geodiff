@@ -33,7 +33,7 @@ ENDIF(NOT GTEST_FOUND)
 # This define is used for tests that need to locate the test
 # data under tests/testdata in the qgis source tree.
 # the TEST_DATA_DIR variable is set in the top level CMakeLists.txt
-SET(TESTDIR ${CMAKE_SOURCE_DIR}/tests/testdata)
+SET(TESTDIR ${CMAKE_SOURCE_DIR}/tests/testdata/)
 ADD_DEFINITIONS(-DTEST_DATA_DIR="${TESTDIR}")
 
 #########################################################################
