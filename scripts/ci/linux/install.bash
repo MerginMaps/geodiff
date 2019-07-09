@@ -3,7 +3,6 @@ set -e
 
 # GEODIFF
 sudo apt-get -qq update
-sudo apt-get install libboost-all-dev
 
 # Valgrind
 sudo apt-get install libc6-dbg gdb valgrind

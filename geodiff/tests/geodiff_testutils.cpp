@@ -10,7 +10,16 @@
 #include <vector>
 #include <math.h>
 #include <assert.h>
-#include <boost/filesystem.hpp>
+#ifdef WIN32
+#include <windows.h>
+#include <tchar.h>
+#endif
+
+std::string _getEnvVar( std::string const &key, const std::string &defaultVal )
+{
+  char *val = getenv( key.c_str() );
+  return val == nullptr ? defaultVal : std::string( val );
+}
 
 std::string testdir()
 {
@@ -19,7 +28,19 @@ std::string testdir()
 
 std::string tmpdir()
 {
-  return boost::filesystem::temp_directory_path().string();
+#ifdef WIN32
+  UINT uRetVal;
+  TCHAR lpTempPathBuffer[MAX_PATH];
+
+  dwRetVal = GetTempPath( MAX_PATH, lpTempPathBuffer );
+  if ( dwRetVal > MAX_PATH || ( dwRetVal == 0 ) )
+  {
+    return std::string( "C:/temp/" );
+  }
+  return std::string( lpTempPathBuffer );
+#else
+  return _getEnvVar( "TMPDIR", "/tmp/" );
+#endif
 }
 
 std::string test_file( std::string basename )

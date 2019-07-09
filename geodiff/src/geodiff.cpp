@@ -149,7 +149,7 @@ int GEODIFF_applyChangeset( const char *base, const char *patched, const char *c
     char *sql;
 
     // TODO consider using sqlite3changeset_apply_strm streamed versions
-    cp( patched, base );
+    filecopy( patched, base );
 
     // read to memory
     Buffer cbuf;

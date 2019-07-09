@@ -7,7 +7,6 @@
 #include "geodiffutils.hpp"
 #include "geodiff.h"
 
-#include <boost/filesystem.hpp>
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdarg.h>
@@ -699,17 +698,14 @@ int rebase( const std::string &changeset_BASE_THEIRS,
             const std::string &changeset_BASE_MODIFIED )
 
 {
-  if ( boost::filesystem::exists( changeset_THEIRS_MODIFIED ) )
-  {
-    boost::filesystem::remove( changeset_THEIRS_MODIFIED );
-  }
+  fileremove( changeset_THEIRS_MODIFIED );
 
   Buffer buf_BASE_THEIRS;
   buf_BASE_THEIRS.read( changeset_BASE_THEIRS );
   if ( buf_BASE_THEIRS.isEmpty() )
   {
     printf( " -- no rabase needed! --\n" );
-    boost::filesystem::copy( changeset_BASE_MODIFIED, changeset_THEIRS_MODIFIED );
+    filecopy( changeset_BASE_MODIFIED, changeset_THEIRS_MODIFIED );
     return GEODIFF_SUCCESS;
   }
 
@@ -718,7 +714,7 @@ int rebase( const std::string &changeset_BASE_THEIRS,
   if ( buf_BASE_MODIFIED.isEmpty() )
   {
     printf( " -- no rabase needed! --\n" );
-    boost::filesystem::copy( changeset_BASE_THEIRS, changeset_THEIRS_MODIFIED );
+    filecopy( changeset_BASE_THEIRS, changeset_THEIRS_MODIFIED );
     return GEODIFF_SUCCESS;
   }
 

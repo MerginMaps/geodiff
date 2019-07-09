@@ -100,8 +100,14 @@ sqlite3_stmt *db_prepare( sqlite3 *db, const char *zFormat, ... );
 */
 const char *all_tables_sql();
 
-// copy file from to location. override if exists
-void cp( const std::string &to, const std::string &from );
+//! copy file from to location. override if exists
+void filecopy( const std::string &to, const std::string &from );
+
+//! remove a file if exists
+void fileremove( const std::string &path );
+
+//! whether file exists
+bool fileexists( const std::string &path );
 
 std::string sqlite_value_2str( sqlite3_value *ppValue );
 

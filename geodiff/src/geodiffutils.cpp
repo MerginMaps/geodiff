@@ -19,8 +19,11 @@
 #include <sys/stat.h>
 #include <unistd.h>
 #include <exception>
-
-#include <boost/filesystem.hpp>
+#include <fstream>
+#include <sys/stat.h>
+#include <unistd.h>
+#include <string>
+#include <fstream>
 #include <string>
 #include <vector>
 #include <iostream>
@@ -372,13 +375,6 @@ const char *all_tables_sql()
     " ORDER BY name";
 }
 
-
-void cp( const std::string &to, const std::string &from )
-{
-  boost::filesystem::copy_file( from, to,
-                                boost::filesystem::copy_option::overwrite_if_exists );
-}
-
 void putsVarint( FILE *out, sqlite3_uint64 v )
 {
   int i, n;
@@ -459,4 +455,30 @@ void putValue( FILE *out, int ppValue )
   memcpy( &uX, &iX, 8 );
   putc( SQLITE_INTEGER, out );
   for ( int j = 56; j >= 0; j -= 8 ) putc( ( uX >> j ) & 0xff, out );
+}
+
+
+void filecopy( const std::string &to, const std::string &from )
+{
+  fileremove( to );
+
+  std::ifstream  src( from, std::ios::binary );
+  std::ofstream  dst( to,   std::ios::binary );
+
+  dst << src.rdbuf();
+}
+
+void fileremove( const std::string &path )
+{
+  if ( fileexists( path ) )
+  {
+    remove( path.c_str() );
+  }
+}
+
+bool fileexists( const std::string &path )
+{
+  // https://stackoverflow.com/a/12774387/2838364
+  struct stat buffer;
+  return ( stat( path.c_str(), &buffer ) == 0 );
 }
