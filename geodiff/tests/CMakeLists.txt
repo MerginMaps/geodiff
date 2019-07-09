@@ -66,3 +66,6 @@ SET(TESTS
 FOREACH(TESTSRC ${TESTS})
     ADD_GEODIFF_TEST(${TESTSRC})
 ENDFOREACH(TESTSRC)
+
+# geodiffcmd utility test
+ADD_TEST(NAME geodiffinfo_test COMMAND $<TARGET_FILE:geodiffinfo> version )

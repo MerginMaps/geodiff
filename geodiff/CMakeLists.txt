@@ -60,8 +60,8 @@ TARGET_LINK_LIBRARIES(geodiff PRIVATE ${Boost_LIBRARIES} dl)
 
 # command line tool
 IF (BUILD_TOOLS)
-  ADD_EXECUTABLE(geodiffcmd src/geodiffcmd.c)
-  TARGET_LINK_LIBRARIES(geodiffcmd PUBLIC geodiff )
+  ADD_EXECUTABLE(geodiffinfo src/geodiffinfo.cpp)
+  TARGET_LINK_LIBRARIES(geodiffinfo PUBLIC geodiff ${Boost_LIBRARIES} dl )
 ENDIF (BUILD_TOOLS)
 
 # tests

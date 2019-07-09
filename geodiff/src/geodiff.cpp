@@ -24,18 +24,18 @@
 #include <string>
 #include <vector>
 
-const char *version()
+const char *GEODIFF_version()
 {
   return "0.1.0";
 }
 
-void init()
+void GEODIFF_init()
 {
   sqlite3_config( SQLITE_CONFIG_LOG, errorLogCallback );
   sqlite3_initialize();
 }
 
-int createChangeset( const char *base, const char *modified, const char *changeset )
+int GEODIFF_createChangeset( const char *base, const char *modified, const char *changeset )
 {
   Str str;
   sqlite3 *db;
@@ -128,7 +128,7 @@ static int conflict_callback( void *ctx, int conflict, sqlite3_changeset_iter *i
   return SQLITE_CHANGESET_REPLACE;
 }
 
-int applyChangeset( const char *base, const char *patched, const char *changeset )
+int GEODIFF_applyChangeset( const char *base, const char *patched, const char *changeset )
 {
   // static variable... how ugly!!!
   nconflicts = 0;
@@ -220,30 +220,27 @@ int applyChangeset( const char *base, const char *patched, const char *changeset
   return GEODIFF_SUCCESS;
 }
 
-int listChanges( const char *changeset, int *nchanges )
+int GEODIFF_listChanges( const char *changeset )
 {
   void *buf; /* Patchset or changeset */
   int size;  /* And its size */
   int rc;
   sqlite3_changeset_iter *pp;
-
+  int nchanges = 0;
 
   printf( "CHANGES:\n" );
   size = slurp( changeset, ( char ** ) &buf );
   if ( size == 0 )
   {
-    *nchanges = 0;
     printf( " -- no changes! --\n" );
-    return GEODIFF_SUCCESS;
+    return nchanges;
   }
 
   if ( size <= 0 )
   {
     printf( "err list 1" );
-    return GEODIFF_ERROR;
+    return -1;
   }
-  *nchanges = 0;
-
 
   rc = sqlite3changeset_start(
          &pp,
@@ -253,25 +250,25 @@ int listChanges( const char *changeset, int *nchanges )
   if ( rc != SQLITE_OK )
   {
     printf( "sqlite3changeset_start error %d\n", rc );
-    return GEODIFF_ERROR;
+    return -1;
   }
 
   while ( SQLITE_ROW == sqlite3changeset_next( pp ) )
   {
     changesetIter2Str( pp );
-    *nchanges = *nchanges + 1 ;
+    nchanges = nchanges + 1 ;
   }
 
   sqlite3changeset_finalize( pp );
   free( buf );
-  return GEODIFF_SUCCESS;
+  return nchanges;
 }
 
 
-int createRebasedChangeset( const char *base, const char *modified, const char *changeset_their, const char *changeset )
+int GEODIFF_createRebasedChangeset( const char *base, const char *modified, const char *changeset_their, const char *changeset )
 {
   std::string changeset_BASE_MODIFIED = std::string( changeset ) + "_BASE_MODIFIED";
-  int rc = createChangeset( base, modified, changeset_BASE_MODIFIED.c_str() );
+  int rc = GEODIFF_createChangeset( base, modified, changeset_BASE_MODIFIED.c_str() );
   if ( rc != GEODIFF_SUCCESS )
     return rc;
 

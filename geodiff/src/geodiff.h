@@ -42,10 +42,10 @@ extern "C" {
  * Initialize library
  * Call before usage of any other function from the library
  */
-GEODIFF_EXPORT void init();
+GEODIFF_EXPORT void GEODIFF_init();
 
 //! Returns version in format X.Y.Z where xyz are positive integers
-GEODIFF_EXPORT const char *version();
+GEODIFF_EXPORT const char *GEODIFF_version();
 
 /**
  * Creates changeset file (binary) in such way that
@@ -59,7 +59,7 @@ GEODIFF_EXPORT const char *version();
  * \param changeset [output] changeset between BASE -> MODIFIED
  * \returns GEODIFF_SUCCESS on success
  */
-GEODIFF_EXPORT int createChangeset( const char *base, const char *modified, const char *changeset );
+GEODIFF_EXPORT int GEODIFF_createChangeset( const char *base, const char *modified, const char *changeset );
 
 
 /**
@@ -78,7 +78,7 @@ GEODIFF_EXPORT int createChangeset( const char *base, const char *modified, cons
  * \param changeset [output] changeset between MODIFIED_THEIR -> MODIFIED_THEIR_PLUS_MINE
  * \returns GEODIFF_SUCCESS on success
  */
-GEODIFF_EXPORT int createRebasedChangeset( const char *base, const char *modified, const char *changeset_their, const char *changeset );
+GEODIFF_EXPORT int GEODIFF_createRebasedChangeset( const char *base, const char *modified, const char *changeset_their, const char *changeset );
 
 /**
  * Applies changeset file (binary) to BASE and creates PATCHED.
@@ -88,12 +88,15 @@ GEODIFF_EXPORT int createRebasedChangeset( const char *base, const char *modifie
  * \returns GEODIFF_SUCCESS on success
  *          GEODIFF_CONFICTS if the changeset was applied but conflicts were found
  */
-GEODIFF_EXPORT int applyChangeset( const char *base,
-                                   const char *patched,
-                                   const char *changeset );
+GEODIFF_EXPORT int GEODIFF_applyChangeset( const char *base,
+    const char *patched,
+    const char *changeset );
 
-//! Lists changeset content to stdout
-GEODIFF_EXPORT int listChanges( const char *changeset, int *nchanges );
+/**
+ * Lists changeset content to stdout
+ * \returns number of changes, -1 on error
+ */
+GEODIFF_EXPORT int GEODIFF_listChanges( const char *changeset );
 
 #ifdef __cplusplus
 }

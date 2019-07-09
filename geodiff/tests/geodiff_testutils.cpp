@@ -38,7 +38,7 @@ std::string tmp_file( std::string basename )
 
 void init_test()
 {
-  init();
+  GEODIFF_init();
 }
 
 void finalize_test()
