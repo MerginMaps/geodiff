@@ -709,6 +709,7 @@ int rebase( const std::string &changeset_BASE_THEIRS,
   }
 
   Buffer buf_BASE_THEIRS;
+  buf_BASE_THEIRS.read( changeset_BASE_THEIRS );
   if ( buf_BASE_THEIRS.isEmpty() )
   {
     printf( " -- no rabase needed! --\n" );
@@ -717,6 +718,7 @@ int rebase( const std::string &changeset_BASE_THEIRS,
   }
 
   Buffer buf_BASE_MODIFIED;
+  buf_BASE_MODIFIED.read( changeset_BASE_MODIFIED );
   if ( buf_BASE_MODIFIED.isEmpty() )
   {
     printf( " -- no rabase needed! --\n" );

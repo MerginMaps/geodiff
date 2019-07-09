@@ -11,10 +11,10 @@
 #include "sqlite3.h"
 
 
-class GeodiffException: public std::exception
+class GeoDiffException: public std::exception
 {
   public:
-    GeodiffException( const std::string &msg );
+    GeoDiffException( const std::string &msg );
 
     virtual const char *what() const throw();
   private:

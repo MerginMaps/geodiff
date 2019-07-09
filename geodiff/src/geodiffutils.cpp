@@ -25,13 +25,13 @@
 #include <vector>
 #include <iostream>
 
-GeodiffException::GeodiffException( const std::string &msg )
+GeoDiffException::GeoDiffException( const std::string &msg )
   : std::exception()
   , mMsg( msg )
 {
 }
 
-const char *GeodiffException::what() const throw()
+const char *GeoDiffException::what() const throw()
 {
   return mMsg.c_str();
 }
@@ -70,21 +70,21 @@ void Buffer::read( std::string filename )
   FILE   *fp = fopen( filename.c_str(), "r" );
   if ( nullptr == fp )
   {
-    throw GeodiffException( "Unable to open " + filename );
+    throw GeoDiffException( "Unable to open " + filename );
   }
 
   /* Seek to the end of the file */
   int rc = fseek( fp, 0L, SEEK_END );
   if ( 0 != rc )
   {
-    throw GeodiffException( "Unable to seek the end of " + filename );
+    throw GeoDiffException( "Unable to seek the end of " + filename );
   }
 
   long off_end;
   /* Byte offset to the end of the file (size) */
   if ( 0 > ( off_end = ftell( fp ) ) )
   {
-    throw GeodiffException( "Unable to read file size of " + filename );
+    throw GeoDiffException( "Unable to read file size of " + filename );
   }
   mAlloc = ( size_t )off_end;
   mUsed = mAlloc;
@@ -99,7 +99,7 @@ void Buffer::read( std::string filename )
   mZ = ( char * ) sqlite3_malloc( mAlloc );
   if ( mZ == nullptr )
   {
-    throw GeodiffException( "Out of memory to read " + filename + " to internal buffer" );
+    throw GeoDiffException( "Out of memory to read " + filename + " to internal buffer" );
   }
 
   /* Rewind file pointer to start of file */
@@ -108,13 +108,13 @@ void Buffer::read( std::string filename )
   /* Slurp file into buffer */
   if ( mAlloc != fread( mZ, 1, mAlloc, fp ) )
   {
-    throw GeodiffException( "Unable to read " + filename + " to internal buffer" );
+    throw GeoDiffException( "Unable to read " + filename + " to internal buffer" );
   }
 
   /* Close the file */
   if ( EOF == fclose( fp ) )
   {
-    throw GeodiffException( "Unable to close " + filename );
+    throw GeoDiffException( "Unable to close " + filename );
   }
 }
 
@@ -144,7 +144,7 @@ void Buffer::printf( const char *zFormat, ... )
     mZ = ( char * ) sqlite3_realloc( mZ, mAlloc );
     if ( mZ == nullptr )
     {
-      throw GeodiffException( "out of memory" );
+      throw GeoDiffException( "out of memory" );
     }
   }
 }
@@ -296,13 +296,13 @@ static sqlite3_stmt *db_vprepare( sqlite3 *db, const char *zFormat, va_list ap )
   zSql = sqlite3_vmprintf( zFormat, ap );
   if ( zSql == 0 )
   {
-    throw GeodiffException( "out of memory" );
+    throw GeoDiffException( "out of memory" );
   }
 
   rc = sqlite3_prepare_v2( db, zSql, -1, &pStmt, 0 );
   if ( rc )
   {
-    throw GeodiffException( "SQL statement error" );
+    throw GeoDiffException( "SQL statement error" );
     // throw GeodiffException( "SQL statement error: %s\n\"%s\"", sqlite3_errmsg( db ), zSql );
   }
   sqlite3_free( zSql );
