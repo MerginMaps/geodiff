@@ -54,6 +54,34 @@ class Buffer
     int mUsed = 0;      /* Bytes actually used in mZ[] */
 };
 
+/**
+ * Smart pointer on sqlite3_value.
+ * Can be inexpensively copied (data is shared)
+ */
+class Sqlite3Value
+{
+  public:
+    /**
+     * Creates copy of the value
+     * and takes the ownership of the new instance
+     */
+    Sqlite3Value( const sqlite3_value *val );
+    Sqlite3Value();
+    ~Sqlite3Value();
+
+    Sqlite3Value( const Sqlite3Value & ) = delete;
+    Sqlite3Value &operator=( Sqlite3Value const & ) = delete;
+
+    //! Returns if the stored value is valid pointer
+    bool isValid() const;
+
+    //! Returns raw pointer to sqlite3 value
+    sqlite3_value *value() const;
+
+  private:
+    sqlite3_value *mVal = nullptr;
+};
+
 
 std::string pOpToStr( int pOp );
 std::string conflict2Str( int c );

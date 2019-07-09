@@ -165,7 +165,7 @@ void _print_idmap( const MappingIds &mapIds, const std::string &name )
 }
 
 // table name, id -> old values, new values
-typedef std::vector<sqlite3_value *> SqValues;
+typedef std::vector<std::shared_ptr<Sqlite3Value>> SqValues;
 typedef std::map < int, std::pair<SqValues, SqValues> > SqValuesMap;
 typedef std::map<std::string,  SqValuesMap> SqOperations;
 
@@ -214,16 +214,14 @@ void _insert( SqOperations &mapIds, const std::string &table, int id, sqlite3_ch
       ppValue = sqlite3_value_dup( ppValue );
 
       assert( rc == SQLITE_OK );
-      newValues[i] = ppValue;
+      newValues[i].reset( new Sqlite3Value( ppValue ) );
     }
 
     if ( pOp == SQLITE_UPDATE || pOp == SQLITE_DELETE )
     {
       rc = sqlite3changeset_old( pp, i, &ppValue );
-      ppValue = sqlite3_value_dup( ppValue );
-
       assert( rc == SQLITE_OK );
-      oldValues[i] = ppValue;
+      oldValues[i].reset( new Sqlite3Value( ppValue ) );
     }
   }
 
@@ -241,11 +239,6 @@ void _insert( SqOperations &mapIds, const std::string &table, int id, sqlite3_ch
     SqValuesMap &oldSet = ids->second;
     oldSet.insert( std::pair<int, std::pair<SqValues, SqValues>>( id, vals ) );
   }
-}
-
-void free( SqOperations &mapIds )
-{
-  //TODO call sqlite3_value_free();
 }
 
 SqValues _get_old( const SqOperations &mapIds, const std::string &table, int id )
@@ -566,10 +559,10 @@ int _prepare_new_changeset( const Buffer &buf, const std::string &changesetNew, 
         for ( int i = 0; i < pnCol; i++ )
         {
           // if the value was patched in the previous commit, use that one as base
-          sqlite3_value *patchedVal = patchedVals[i];
-          if ( patchedVal )
+          std::shared_ptr<Sqlite3Value> patchedVal = patchedVals[i];
+          if ( patchedVal && patchedVal->isValid() )
           {
-            value = patchedVal;
+            value = patchedVal->value();
           }
           else
           {
@@ -588,7 +581,12 @@ int _prepare_new_changeset( const Buffer &buf, const std::string &changesetNew, 
           // gpkg_ogr_contents column 1 is total number of features
           if ( strcmp( pzTab, "gpkg_ogr_contents" ) == 0 && i == 1 )
           {
-            int numberInPatched = sqlite3_value_int64( patchedVals[i] );
+            int numberInPatched = 0;
+            std::shared_ptr<Sqlite3Value> patchedVal = patchedVals[i];
+            if ( patchedVal && patchedVal->isValid() )
+            {
+              numberInPatched = sqlite3_value_int64( patchedVal->value() );
+            }
             sqlite3_value *oldValue;
             rc = sqlite3changeset_old( pp, i, &oldValue );
             assert( rc == SQLITE_OK );
@@ -736,9 +734,6 @@ int rebase( const std::string &changeset_BASE_THEIRS,
 
   // finally
   _prepare_new_changeset( buf_BASE_MODIFIED, changeset_THEIRS_MODIFIED, mapping, updated );
-
-  // free
-  free( updated );
 
   return GEODIFF_SUCCESS;
 }
