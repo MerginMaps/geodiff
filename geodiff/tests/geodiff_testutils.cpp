@@ -19,6 +19,17 @@
 #include <sys/stat.h>
 #endif
 
+std::string _replace( const std::string &str, const std::string &substr, const std::string &replacestr )
+{
+  std::string res( str );
+
+  while ( res.find( substr ) != std::string::npos )
+  {
+    res.replace( res.find( substr ), substr.size(), replacestr );
+  }
+  return res;
+}
+
 std::string _getEnvVar( std::string const &key, const std::string &defaultVal )
 {
   char *val = getenv( key.c_str() );
@@ -27,12 +38,11 @@ std::string _getEnvVar( std::string const &key, const std::string &defaultVal )
 
 std::string pathjoin( const std::string &dir, const std::string &filename )
 {
-#ifdef WIN32
-  std::string separator( "\\" );
-#else
-  std::string separator( "/" );
-#endif
-  return dir + separator + filename;
+  std::string res = dir + "/" + filename;
+  res = _replace( res, "//", "/" );
+  res = _replace( res, "\\/", "/" );
+  res = _replace( res, "\\\\", "/" );
+  return res;
 }
 
 std::string testdir()
