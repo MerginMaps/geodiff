@@ -74,7 +74,7 @@ void Buffer::read( std::string filename )
   free();
 
   /* Open the file */
-  FILE   *fp = fopen( filename.c_str(), "r" );
+  FILE *fp = fopen( filename.c_str(), "rb" );
   if ( nullptr == fp )
   {
     throw GeoDiffException( "Unable to open " + filename );
