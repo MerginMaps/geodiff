@@ -21,6 +21,6 @@ void finalize_test();
 std::string test_file( std::string basename );
 std::string tmp_file( std::string basename );
 
-bool equals( const std::string& file1, const std::string& file2 );
+bool equals( const std::string &file1, const std::string &file2 );
 
 #endif // GEODIFF_TESTUTILS_HPP
