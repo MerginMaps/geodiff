@@ -5,6 +5,11 @@
 # geodiff
 Library for handling diffs for geospatial data 
 
+## Envirmonment
+
+Output messages could be adjusted by GEODIFF_LOGGER_LEVEL environment variable. 
+See [header](https://github.com/lutraconsulting/geodiff/blob/master/geodiff/src/geodiff.h) for details
+
 ## Version update
 
 Update:
