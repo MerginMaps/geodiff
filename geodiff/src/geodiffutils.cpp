@@ -11,13 +11,13 @@
 #include <stdarg.h>
 #include <ctype.h>
 #include <string.h>
-#include <assert.h>
 #include <sqlite3.h>
 #include <exception>
 #include <fstream>
 #include <string>
 #include <vector>
 #include <iostream>
+#include <sstream>
 
 #ifdef WIN32
 #include <windows.h>
@@ -43,7 +43,10 @@ const char *GeoDiffException::what() const throw()
 // ////////////////////////////////////////////////////////////////////////
 // ////////////////////////////////////////////////////////////////////////
 
-Logger::Logger() = default;
+Logger::Logger()
+{
+  levelFromEnv();
+}
 
 Logger &Logger::instance()
 {
@@ -51,30 +54,63 @@ Logger &Logger::instance()
   return instance;
 }
 
-void Logger::info( const std::string &msg )
+Logger::LoggerLevel Logger::level() const
 {
-  log( "INFO", msg );
+  return mLevel;
+}
+
+void Logger::debug( const std::string &msg )
+{
+  log( LevelDebug, msg );
 }
 
 void Logger::warn( const std::string &msg )
 {
-  log( "WARN", msg );
+  log( LevelWarnings, msg );
 }
 
 void Logger::error( const std::string &msg )
 {
-  log( "ERROR", msg );
+  log( LevelErrors, msg );
 }
-
 
 void Logger::error( const GeoDiffException &exp )
 {
-  std::cout << "EXCEPTION: " << exp.what() << std::endl;
+  log( LevelErrors, exp.what() );
 }
 
-void Logger::log( const std::string &type, const std::string &msg )
+void Logger::info( const std::string &msg )
 {
-  std::cout << type << ":" << msg << std::endl ;
+  log( LevelInfos, msg );
+}
+
+void Logger::log( LoggerLevel level, const std::string &msg )
+{
+  if ( static_cast<int>( level ) > static_cast<int>( mLevel ) )
+    return;
+
+  std::string prefix;
+  switch ( level )
+  {
+    case LevelErrors: prefix = "Error: "; break;
+    case LevelWarnings: prefix = "Warn: "; break;
+    case LevelDebug: prefix = "Debug: "; break;
+    default: break;
+  }
+  std::cout << prefix << msg << std::endl ;
+}
+
+void Logger::levelFromEnv()
+{
+  char *val = getenv( "GEODIFF_LOGGER_LEVEL" );
+  if ( val )
+  {
+    int level = atoi( val );
+    if ( level >= LevelNothing && level <= LevelDebug )
+    {
+      mLevel = ( LoggerLevel )level;
+    }
+  }
 }
 
 // ////////////////////////////////////////////////////////////////////////
@@ -168,12 +204,12 @@ sqlite3_stmt *Sqlite3Stmt::db_vprepare( sqlite3 *db, const char *zFormat, va_lis
   sqlite3_stmt *pStmt;
 
   zSql = sqlite3_vmprintf( zFormat, ap );
-  if ( zSql == 0 )
+  if ( zSql == nullptr )
   {
     throw GeoDiffException( "out of memory" );
   }
 
-  rc = sqlite3_prepare_v2( db, zSql, -1, &pStmt, 0 );
+  rc = sqlite3_prepare_v2( db, zSql, -1, &pStmt, nullptr );
   if ( rc )
   {
     throw GeoDiffException( "SQL statement error" );
@@ -240,6 +276,75 @@ void Sqlite3ChangesetIter::close()
 
     mChangesetIter = nullptr;
   }
+}
+
+void Sqlite3ChangesetIter::oldValue( int i, sqlite3_value **val )
+{
+  int rc = sqlite3changeset_old( mChangesetIter, i, val );
+  if ( rc != SQLITE_OK )
+  {
+    throw GeoDiffException( "sqlite3changeset_old error" );
+  }
+}
+
+void Sqlite3ChangesetIter::newValue( int i, sqlite3_value **val )
+{
+  int rc = sqlite3changeset_new( mChangesetIter, i, val );
+  if ( rc != SQLITE_OK )
+  {
+    throw GeoDiffException( "sqlite3changeset_new error" );
+  }
+}
+
+std::string Sqlite3ChangesetIter::toString( sqlite3_changeset_iter *pp )
+{
+  std::ostringstream ret;
+
+  if ( !pp )
+    return std::string();
+
+  int rc;
+  const char *pzTab;
+  int pnCol;
+  int pOp;
+  int pbIndirect;
+  rc = sqlite3changeset_op(
+         pp,
+         &pzTab,
+         &pnCol,
+         &pOp,
+         &pbIndirect
+       );
+  std::string s = pOpToStr( pOp );
+  ret << " " << pzTab << " " << s << "    columns " << pnCol << "    indirect " << pbIndirect << std::endl;
+
+  sqlite3_value *ppValueOld;
+  sqlite3_value *ppValueNew;
+  for ( int i = 0; i < pnCol; ++i )
+  {
+    if ( pOp == SQLITE_UPDATE || pOp == SQLITE_INSERT )
+    {
+      rc = sqlite3changeset_new( pp, i, &ppValueNew );
+      if ( rc != SQLITE_OK )
+        throw GeoDiffException( "sqlite3changeset_new" );
+    }
+    else
+      ppValueNew = nullptr;
+
+    if ( pOp == SQLITE_UPDATE || pOp == SQLITE_DELETE )
+    {
+      rc = sqlite3changeset_old( pp, i, &ppValueOld );
+      if ( rc != SQLITE_OK )
+        throw GeoDiffException( "sqlite3changeset_old" );
+    }
+    else
+      ppValueOld = nullptr;
+
+    ret << "  " << i << ": " << Sqlite3Value::toString( ppValueOld ) << "->" << Sqlite3Value::toString( ppValueNew ) << std::endl;
+  }
+  ret << std::endl;
+  return ret.str();
+
 }
 
 
@@ -370,7 +475,7 @@ void Buffer::printf( const char *zFormat, ... )
     mZ = ( char * ) sqlite3_realloc( mZ, mAlloc );
     if ( mZ == nullptr )
     {
-      throw GeoDiffException( "out of memory" );
+      throw GeoDiffException( "out of memory in Buffer::printf" );
     }
   }
 }
@@ -435,6 +540,21 @@ sqlite3_value *Sqlite3Value::value() const
   return mVal;
 }
 
+std::string Sqlite3Value::toString( sqlite3_value *ppValue )
+{
+  if ( !ppValue )
+    return "nil";
+  std::string val = "n/a";
+  int type = sqlite3_value_type( ppValue );
+  if ( type == SQLITE_INTEGER )
+    val = std::to_string( sqlite3_value_int( ppValue ) );
+  else if ( type == SQLITE_TEXT )
+    val = std::string( reinterpret_cast<const char *>( sqlite3_value_text( ppValue ) ) );
+  else if ( type == SQLITE_FLOAT )
+    val = std::to_string( sqlite3_value_double( ppValue ) );
+  return val;
+}
+
 // ////////////////////////////////////////////////////////////////////////
 // ////////////////////////////////////////////////////////////////////////
 // ////////////////////////////////////////////////////////////////////////
@@ -492,86 +612,6 @@ std::string conflict2Str( int c )
     case SQLITE_CHANGESET_FOREIGN_KEY: return "SQLITE_CHANGESET_FOREIGN_KEY";
   }
   return std::to_string( c );
-}
-
-std::string sqlite_value_2str( sqlite3_value *ppValue )
-{
-  if ( !ppValue )
-    return "nil";
-  std::string val = "n/a";
-  int type = sqlite3_value_type( ppValue );
-  if ( type == SQLITE_INTEGER )
-    val = std::to_string( sqlite3_value_int( ppValue ) );
-  else if ( type == SQLITE_TEXT )
-    val = std::string( reinterpret_cast<const char *>( sqlite3_value_text( ppValue ) ) );
-  else if ( type == SQLITE_FLOAT )
-    val = std::to_string( sqlite3_value_double( ppValue ) );
-  return val;
-}
-
-int changesetIter2Str( sqlite3_changeset_iter *pp )
-{
-  if ( !pp )
-    return 0;
-
-  int rc;
-  const char *pzTab;
-  int pnCol;
-  int pOp;
-  int pbIndirect;
-  rc = sqlite3changeset_op(
-         pp,  /* Iterator object */
-         &pzTab,             /* OUT: Pointer to table name */
-         &pnCol,                     /* OUT: Number of columns in table */
-         &pOp,                       /* OUT: SQLITE_INSERT, DELETE or UPDATE */
-         &pbIndirect                 /* OUT: True for an 'indirect' change */
-       );
-  std::string s = pOpToStr( pOp );
-  std::cout << " " << pzTab << " " << s << "    columns " << pnCol << "    indirect " << pbIndirect << std::endl;
-
-  sqlite3_value *ppValueOld;
-  sqlite3_value *ppValueNew;
-  for ( int i = 0; i < pnCol; ++i )
-  {
-    if ( pOp == SQLITE_UPDATE || pOp == SQLITE_INSERT )
-    {
-      rc = sqlite3changeset_new( pp, i, &ppValueNew );
-      assert( rc == SQLITE_OK );
-    }
-    else
-      ppValueNew = 0;
-
-    if ( pOp == SQLITE_UPDATE || pOp == SQLITE_DELETE )
-    {
-      rc = sqlite3changeset_old( pp, i, &ppValueOld );
-      assert( rc == SQLITE_OK );
-    }
-    else
-      ppValueOld = 0;
-
-    std::cout << "  " << i << ": " << sqlite_value_2str( ppValueOld ) << "->" << sqlite_value_2str( ppValueNew ) << std::endl;
-  }
-  std::cout << std::endl;
-
-
-  return pnCol;
-}
-
-void errorLogCallback( void *pArg, int iErrCode, const char *zMsg )
-{
-  fprintf( stderr, "(%d)%s\n", iErrCode, zMsg );
-}
-
-
-const char *all_tables_sql()
-{
-  return
-    "SELECT name FROM main.sqlite_master\n"
-    " WHERE type='table' AND sql NOT LIKE 'CREATE VIRTUAL%%'\n"
-    " UNION\n"
-    "SELECT name FROM aux.sqlite_master\n"
-    " WHERE type='table' AND sql NOT LIKE 'CREATE VIRTUAL%%'\n"
-    " ORDER BY name";
 }
 
 void putsVarint( FILE *out, sqlite3_uint64 v )

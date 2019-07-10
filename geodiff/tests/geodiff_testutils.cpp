@@ -9,7 +9,6 @@
 #include "geodiff_testutils.hpp"
 #include <vector>
 #include <math.h>
-#include <assert.h>
 #ifdef WIN32
 #include <windows.h>
 #include <tchar.h>
@@ -84,6 +83,7 @@ std::string tmp_file( std::string basename )
 
 void init_test()
 {
+  setenv( "GEODIFF_LOGGER_LEVEL", "4", 1 );
   GEODIFF_init();
 }
 

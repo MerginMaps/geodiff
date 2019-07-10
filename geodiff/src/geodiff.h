@@ -39,6 +39,17 @@ extern "C" {
 #endif
 
 /**
+* NOTE:
+* the messages printed to stdout can be controlled by
+* environment variable GEODIFF_LOGGER_LEVEL
+* GEODIFF_LOGGER_LEVEL = 0 nothing is printed
+* GEODIFF_LOGGER_LEVEL = 1 errors are printed
+* GEODIFF_LOGGER_LEVEL = 2 errors and warnings are printed
+* GEODIFF_LOGGER_LEVEL = 3 errors, warnings and infos are printed
+* GEODIFF_LOGGER_LEVEL = 4 errors, warnings, infos, debug messages are printed
+*/
+
+/**
  * Initialize library
  * Call before usage of any other function from the library
  */

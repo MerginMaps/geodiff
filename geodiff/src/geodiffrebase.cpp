@@ -13,7 +13,6 @@
 #include <stdarg.h>
 #include <ctype.h>
 #include <string.h>
-#include <assert.h>
 #include <sqlite3.h>
 #include <algorithm>
 #include <functional>
@@ -23,6 +22,7 @@
 #include <map>
 #include <set>
 #include <fstream>
+#include <sstream>
 
 // table name -> ids (deleted or inserted)
 typedef std::map<std::string, std::set < int > > MapIds;
@@ -73,21 +73,26 @@ int _maximum_id( const MapIds &mapIds, const std::string &table )
 
 void _print_idmap( MapIds &mapIds, const std::string &name )
 {
+  if ( Logger::instance().level() < Logger::LevelDebug )
+    return;
+
+  std::ostringstream ret;
   std::cout << name << std::endl;
   if ( mapIds.empty() )
-    std::cout << "--none -- " << std::endl;
+    ret << "--none -- ";
 
   for ( auto it : mapIds )
   {
-    std::cout << "  " << it.first << std::endl << "    ";
+    ret << "  " << it.first << std::endl << "    ";
     if ( it.second.empty() )
-      std::cout << "--none -- ";
+      ret << "--none -- ";
     for ( auto it2 : it.second )
     {
-      std::cout << it2 << ",";
+      ret << it2 << ",";
     }
-    std::cout << std::endl;
+    ret << std::endl;
   }
+  Logger::instance().debug( ret.str() );
 }
 
 // table name -> old fid --> new fid
@@ -129,34 +134,42 @@ int _get_new( const MappingIds &mapIds, const std::string &table, int id )
   auto ids = mapIds.find( table );
   if ( ids == mapIds.end() )
   {
-    assert( false );
+    throw GeoDiffException( "internal error: _get_new" );
   }
   else
   {
     const std::map < int, int  > &oldSet = ids->second;
     auto a = oldSet.find( id );
-    assert( a != oldSet.end() );
+    if ( a == oldSet.end() )
+      throw GeoDiffException( "internal error: _get_new 2" );
     return a->second;
   }
 }
 
 void _print_idmap( const MappingIds &mapIds, const std::string &name )
 {
-  std::cout << name << std::endl;
+  if ( Logger::instance().level() < Logger::LevelDebug )
+    return;
+
+  std::ostringstream ret;
+
+  ret << name << std::endl;
   if ( mapIds.empty() )
-    std::cout << "--none -- " << std::endl;
+    ret << "--none -- " << std::endl;
 
   for ( auto it : mapIds )
   {
-    std::cout << "  " << it.first << std::endl << "    ";
+    ret << "  " << it.first << std::endl << "    ";
     if ( it.second.empty() )
-      std::cout << "--none -- ";
+      ret << "--none -- ";
     for ( auto it2 : it.second )
     {
-      std::cout << it2.first << "->" << it2.second << ",";
+      ret << it2.first << "->" << it2.second << ",";
     }
-    std::cout << std::endl;
+    ret << std::endl;
   }
+
+  Logger::instance().debug( ret.str() );
 }
 
 // table name, id -> old values, new values
@@ -179,9 +192,10 @@ bool _contains( const SqOperations &operations, const std::string &table, int id
   }
 }
 
-void _insert( SqOperations &mapIds, const std::string &table, int id, sqlite3_changeset_iter *pp )
+void _insert( SqOperations &mapIds, const std::string &table, int id, Sqlite3ChangesetIter &pp )
 {
-
+  if ( !pp.get() )
+    throw GeoDiffException( "internal error in _insert" );
 
   int rc;
   const char *pzTab;
@@ -189,7 +203,7 @@ void _insert( SqOperations &mapIds, const std::string &table, int id, sqlite3_ch
   int pOp;
   int pbIndirect;
   rc = sqlite3changeset_op(
-         pp,  /* Iterator object */
+         pp.get(),  /* Iterator object */
          &pzTab,             /* OUT: Pointer to table name */
          &pnCol,                     /* OUT: Number of columns in table */
          &pOp,                       /* OUT: SQLITE_INSERT, DELETE or UPDATE */
@@ -205,21 +219,18 @@ void _insert( SqOperations &mapIds, const std::string &table, int id, sqlite3_ch
   {
     if ( pOp == SQLITE_UPDATE || pOp == SQLITE_INSERT )
     {
-      rc = sqlite3changeset_new( pp, i, &ppValue );
-      assert( rc == SQLITE_OK );
+      pp.newValue( i, &ppValue );
       newValues[i].reset( new Sqlite3Value( ppValue ) );
     }
 
     if ( pOp == SQLITE_UPDATE || pOp == SQLITE_DELETE )
     {
-      rc = sqlite3changeset_old( pp, i, &ppValue );
-      assert( rc == SQLITE_OK );
+      pp.oldValue( i, &ppValue );
       oldValues[i].reset( new Sqlite3Value( ppValue ) );
     }
   }
 
   std::pair<SqValues, SqValues> vals( oldValues, newValues );
-
   auto ids = mapIds.find( table );
   if ( ids == mapIds.end() )
   {
@@ -239,13 +250,14 @@ SqValues _get_old( const SqOperations &mapIds, const std::string &table, int id 
   auto ids = mapIds.find( table );
   if ( ids == mapIds.end() )
   {
-    assert( false );
+    throw GeoDiffException( "internal error in _get_old" );
   }
   else
   {
     const SqValuesMap &oldSet = ids->second;
     auto a = oldSet.find( id );
-    assert( a != oldSet.end() );
+    if ( a == oldSet.end() )
+      throw GeoDiffException( "internal error: _get_old 2" );
     return a->second.first;
   }
 }
@@ -255,13 +267,14 @@ SqValues _get_new( const SqOperations &mapIds, const std::string &table, int id 
   auto ids = mapIds.find( table );
   if ( ids == mapIds.end() )
   {
-    assert( false );
+    throw GeoDiffException( "internal error in _get_new" );
   }
   else
   {
     const SqValuesMap &oldSet = ids->second;
     auto a = oldSet.find( id );
-    assert( a != oldSet.end() );
+    if ( a == oldSet.end() )
+      throw GeoDiffException( "internal error: _get_new 2" );
     return a->second.second;
   }
 }
@@ -271,24 +284,21 @@ SqValues _get_new( const SqOperations &mapIds, const std::string &table, int id 
 ///////////////////////////////////////
 ///////////////////////////////////////
 
-int _get_primary_key( sqlite3_changeset_iter *pp, int pOp )
+int _get_primary_key( Sqlite3ChangesetIter &pp, int pOp )
 {
-  unsigned char *pabPK;          /* OUT: Array of boolean - true for PK cols */
+  if ( !pp.get() )
+    throw GeoDiffException( "internal error in _get_primary_key" );
+
+  unsigned char *pabPK;
   int pnCol;
-  int rc = sqlite3changeset_pk(
-             pp,  /* Iterator object */
-             &pabPK,          /* OUT: Array of boolean - true for PK cols */
-             &pnCol           /* OUT: Number of entries in output array */
-           );
-  if ( rc == SQLITE_MISUSE )
+  int rc = sqlite3changeset_pk( pp.get(),  &pabPK, &pnCol );
+  if ( rc )
   {
-    assert( false );
+    throw GeoDiffException( "internal error in _get_primary_key" );
   }
-  assert( !rc );
 
   // lets assume for now it has only one PK and it is int...
   int pk_column_number = -1;
-
   for ( int i = 0; i < pnCol; ++i )
   {
     if ( pabPK[i] == 0x01 )
@@ -296,27 +306,28 @@ int _get_primary_key( sqlite3_changeset_iter *pp, int pOp )
       if ( pk_column_number >= 0 )
       {
         // ups primary key composite!
-        assert( false );
+        throw GeoDiffException( "internal error in _get_primary_key: support composite primary keys not implemented" );
       }
       pk_column_number = i;
     }
   }
-  assert( pk_column_number >= 0 );
+  if ( pk_column_number == -1 )
+  {
+    throw GeoDiffException( "internal error in _get_primary_key: unable to find internal key" );
+  }
 
   // now get the value
-  sqlite3_value *ppValue = 0;
+  sqlite3_value *ppValue = nullptr;
   if ( pOp == SQLITE_INSERT )
   {
-    rc = sqlite3changeset_new( pp, pk_column_number, &ppValue );
-    assert( rc == SQLITE_OK );
+    pp.newValue( pk_column_number, &ppValue );
   }
   else if ( pOp == SQLITE_DELETE || pOp == SQLITE_UPDATE )
   {
-    rc = sqlite3changeset_old( pp, pk_column_number, &ppValue );
-    assert( rc == SQLITE_OK );
+    pp.oldValue( pk_column_number, &ppValue );
   }
-
-  assert( ppValue );
+  if ( !ppValue )
+    throw GeoDiffException( "internal error in _get_primary_key: unable to get value of primary key" );
 
   int type = sqlite3_value_type( ppValue );
   if ( type == SQLITE_INTEGER )
@@ -324,7 +335,7 @@ int _get_primary_key( sqlite3_changeset_iter *pp, int pOp )
     int val = sqlite3_value_int( ppValue );
     return val;
   }
-  else   if ( type == SQLITE_TEXT )
+  else if ( type == SQLITE_TEXT )
   {
     const unsigned char *valT = sqlite3_value_text( ppValue );
     int hash = 0;
@@ -337,28 +348,16 @@ int _get_primary_key( sqlite3_changeset_iter *pp, int pOp )
   }
   else
   {
-    assert( false );
+    throw GeoDiffException( "internal error in _get_primary_key: unsuported type of primary key" );
   }
 }
 
 int _parse_old_changeset( const Buffer &buf_BASE_THEIRS, MapIds &inserted, MapIds &deleted, SqOperations &updated )
 {
-  sqlite3_changeset_iter *pp;
+  Sqlite3ChangesetIter pp;
+  pp.start( buf_BASE_THEIRS );
 
-  int rc = sqlite3changeset_start(
-             &pp,
-             buf_BASE_THEIRS.size(),
-             buf_BASE_THEIRS.v_buf()
-           );
-  if ( rc != SQLITE_OK )
-  {
-    printf( "sqlite3changeset_start error %d\n", rc );
-    return GEODIFF_ERROR;
-  }
-
-  std::cout << " PARSE OLD CHANGESET " << std::endl;
-
-  while ( SQLITE_ROW == sqlite3changeset_next( pp ) )
+  while ( SQLITE_ROW == sqlite3changeset_next( pp.get() ) )
   {
     int rc;
     const char *pzTab;
@@ -366,11 +365,11 @@ int _parse_old_changeset( const Buffer &buf_BASE_THEIRS, MapIds &inserted, MapId
     int pOp;
     int pbIndirect;
     rc = sqlite3changeset_op(
-           pp,  /* Iterator object */
-           &pzTab,             /* OUT: Pointer to table name */
-           &pnCol,                     /* OUT: Number of columns in table */
-           &pOp,                       /* OUT: SQLITE_INSERT, DELETE or UPDATE */
-           &pbIndirect                 /* OUT: True for an 'indirect' change */
+           pp.get(),
+           &pzTab,
+           &pnCol,
+           &pOp,
+           &pbIndirect
          );
 
     int pk = _get_primary_key( pp, pOp );
@@ -388,7 +387,6 @@ int _parse_old_changeset( const Buffer &buf_BASE_THEIRS, MapIds &inserted, MapId
       _insert( updated, pzTab, pk, pp );
     }
   }
-  sqlite3changeset_finalize( pp );
 
   _print_idmap( inserted, "inserted" );
   _print_idmap( deleted, "deleted" );
@@ -407,20 +405,10 @@ int _find_mapping_for_new_changeset( const Buffer &buf,
     freeIndices[mapId.first] = _maximum_id( inserted, mapId.first ) + 1;
   }
 
-  sqlite3_changeset_iter *pp;
-  int rc = sqlite3changeset_start(
-             &pp,
-             buf.size(),
-             buf.v_buf()
-           );
-  if ( rc != SQLITE_OK )
-  {
-    printf( "sqlite3changeset_start error %d\n", rc );
-    return GEODIFF_ERROR;
-  }
+  Sqlite3ChangesetIter pp;
+  pp.start( buf );
 
-  std::cout << " FIND MAPPINGS " << std::endl;
-  while ( SQLITE_ROW == sqlite3changeset_next( pp ) )
+  while ( SQLITE_ROW == sqlite3changeset_next( pp.get() ) )
   {
     int rc;
     const char *pzTab;
@@ -428,11 +416,11 @@ int _find_mapping_for_new_changeset( const Buffer &buf,
     int pOp;
     int pbIndirect;
     rc = sqlite3changeset_op(
-           pp,  /* Iterator object */
-           &pzTab,             /* OUT: Pointer to table name */
-           &pnCol,                     /* OUT: Number of columns in table */
-           &pOp,                       /* OUT: SQLITE_INSERT, DELETE or UPDATE */
-           &pbIndirect                 /* OUT: True for an 'indirect' change */
+           pp.get(),
+           &pzTab,
+           &pnCol,
+           &pOp,
+           &pbIndirect
          );
 
     if ( pOp == SQLITE_INSERT )
@@ -443,7 +431,8 @@ int _find_mapping_for_new_changeset( const Buffer &buf,
       {
         // conflict 2 concurrent updates...
         auto it = freeIndices.find( pzTab );
-        assert( it != freeIndices.end() );
+        if ( it == freeIndices.end() )
+          throw GeoDiffException( "internal error: freeIndices" );
 
         _insert_ids( mapping, pzTab, pk, it->second );
 
@@ -451,12 +440,7 @@ int _find_mapping_for_new_changeset( const Buffer &buf,
         it->second ++;
       }
     }
-
-    // TODO DELETE
-    // TODO UPDATE
-
   }
-  sqlite3changeset_finalize( pp );
 
   _print_idmap( mapping, "mapping" );
 
@@ -465,22 +449,11 @@ int _find_mapping_for_new_changeset( const Buffer &buf,
 
 int _prepare_new_changeset( const Buffer &buf, const std::string &changesetNew, const MappingIds &mapping, const SqOperations &updated )
 {
-  sqlite3_changeset_iter *pp;
-  int rc = sqlite3changeset_start(
-             &pp,
-             buf.size(),
-             buf.v_buf()
-           );
-  if ( rc != SQLITE_OK )
-  {
-    printf( "sqlite3changeset_start error %d\n", rc );
-    return GEODIFF_ERROR;
-  }
+  Sqlite3ChangesetIter pp;
+  pp.start( buf );
 
   std::map<std::string, FILE *> buffers;
-
-  std::cout << " CREATE CHANGESET" << std::endl;
-  while ( SQLITE_ROW == sqlite3changeset_next( pp ) )
+  while ( SQLITE_ROW == sqlite3changeset_next( pp.get() ) )
   {
     int rc;
     const char *pzTab;
@@ -488,26 +461,24 @@ int _prepare_new_changeset( const Buffer &buf, const std::string &changesetNew, 
     int pOp;
     int pbIndirect;
     rc = sqlite3changeset_op(
-           pp,  /* Iterator object */
-           &pzTab,             /* OUT: Pointer to table name */
-           &pnCol,                     /* OUT: Number of columns in table */
-           &pOp,                       /* OUT: SQLITE_INSERT, DELETE or UPDATE */
-           &pbIndirect                 /* OUT: True for an 'indirect' change */
+           pp.get(),
+           &pzTab,
+           &pnCol,
+           &pOp,
+           &pbIndirect
          );
 
-    // TODO merge somehow with _get_primary_key?
     unsigned char *aiFlg;
     int nCol;
     rc = sqlite3changeset_pk(
-           pp,  /* Iterator object */
+           pp.get(),  /* Iterator object */
            &aiFlg, /* OUT: Array of boolean - true for PK cols */
            &nCol /* OUT: Number of entries in output array */
          );
-    if ( rc == SQLITE_MISUSE )
+    if ( rc )
     {
-      assert( false );
+      throw GeoDiffException( "internal error in _prepare_new_changeset: sqlite3changeset_pk" );
     }
-    assert( !rc );
 
     // create buffer.... this is BAD BAD ... replace FILE* with some normal binary streams. ...
     FILE *out = nullptr;
@@ -560,17 +531,14 @@ int _prepare_new_changeset( const Buffer &buf, const std::string &changesetNew, 
           else
           {
             // otherwise the value is same for both patched nad this, so use base value
-            rc = sqlite3changeset_old( pp, i, &value );
-            assert( rc == SQLITE_OK );
+            pp.oldValue( i, &value );
           }
           putValue( out, value );
         }
 
         for ( int i = 0; i < pnCol; i++ )
         {
-          rc = sqlite3changeset_new( pp, i, &value );
-          assert( rc == SQLITE_OK );
-
+          pp.newValue( i, &value );
           // gpkg_ogr_contents column 1 is total number of features
           if ( strcmp( pzTab, "gpkg_ogr_contents" ) == 0 && i == 1 )
           {
@@ -581,8 +549,7 @@ int _prepare_new_changeset( const Buffer &buf, const std::string &changesetNew, 
               numberInPatched = sqlite3_value_int64( patchedVal->value() );
             }
             sqlite3_value *oldValue;
-            rc = sqlite3changeset_old( pp, i, &oldValue );
-            assert( rc == SQLITE_OK );
+            pp.oldValue( i, &oldValue );
             int numberInBase =  sqlite3_value_int64( oldValue );
             int numberInThis = sqlite3_value_int64( value );
             int addedFeatures = numberInThis - numberInBase;
@@ -610,14 +577,13 @@ int _prepare_new_changeset( const Buffer &buf, const std::string &changesetNew, 
 
         for ( int i = 0; i < pnCol; i++ )
         {
-          rc = sqlite3changeset_new( pp, i, &value );
-          assert( rc == SQLITE_OK );
           if ( aiFlg[i] )
           {
             putValue( out, newPk );
           }
           else
           {
+            pp.newValue( i, &value );
             putValue( out, value );
           }
         }
@@ -640,26 +606,21 @@ int _prepare_new_changeset( const Buffer &buf, const std::string &changesetNew, 
 
         for ( int i = 0; i < pnCol; i++ )
         {
-          rc = sqlite3changeset_old( pp, i, &value );
-          assert( rc == SQLITE_OK );
           if ( aiFlg[i] )
           {
             putValue( out, newPk );
           }
           else
           {
+            pp.oldValue( i, &value );
             putValue( out, value );
           }
-
-
         }
         break;
       }
     }
 
   }
-
-  sqlite3changeset_finalize( pp );
 
   // join buffers to one file (ugly ugly)
   FILE *out = fopen( changesetNew.c_str(), "wb" );
@@ -675,7 +636,8 @@ int _prepare_new_changeset( const Buffer &buf, const std::string &changesetNew, 
     fclose( buf );
     std::string temp = changesetNew + "_" + std::string( it.first );
     buf = fopen( temp.c_str(), "rb" );
-    assert( buf );
+    if ( !buf )
+      throw GeoDiffException( "unable to open " + temp );
 
     char buffer[1];; //do not be lazy, use bigger buffer
     while ( fread( buffer, 1, 1, buf ) > 0 )

@@ -9,6 +9,7 @@
 #include <string>
 #include <memory>
 #include <exception>
+
 #include "sqlite3.h"
 
 class Buffer;
@@ -22,19 +23,45 @@ class GeoDiffException: public std::exception
     std::string mMsg;
 };
 
+/**
+ * Logger
+ *
+ * the messages printed to stdout can be controlled by
+ * environment variable GEODIFF_LOGGER_LEVEL
+ * GEODIFF_LOGGER_LEVEL = 0 nothing is printed
+ * GEODIFF_LOGGER_LEVEL = 1 errors are printed
+ * GEODIFF_LOGGER_LEVEL = 2 errors and warnings are printed
+ * GEODIFF_LOGGER_LEVEL = 3 errors, warnings and infos are printed
+ * GEODIFF_LOGGER_LEVEL = 4 errors, warnings, infos, debug messages are printed
+ */
 class Logger
 {
   public:
+    enum LoggerLevel
+    {
+      LevelNothing = 0,
+      LevelErrors = 1,
+      LevelWarnings = 2,
+      LevelInfos = 3,
+      LevelDebug = 4
+    };
+
     static Logger &instance();
+    LoggerLevel level() const;
     Logger( Logger const & ) = delete;
     void operator=( Logger const & ) = delete;
-    void info( const std::string &msg );
+    void debug( const std::string &msg );
     void warn( const std::string &msg );
     void error( const std::string &msg );
+    void info( const std::string &msg );
+    //! Prints error message
     void error( const GeoDiffException &exp );
   private:
     Logger();
-    void log( const std::string &type, const std::string &msg );
+    void log( LoggerLevel level, const std::string &msg );
+    void levelFromEnv();
+
+    LoggerLevel mLevel = LevelErrors; //by default record errors
 };
 
 class Sqlite3Db
@@ -84,6 +111,12 @@ class Sqlite3ChangesetIter
     void start( const Buffer &buf );
     sqlite3_changeset_iter *get();
     void close();
+    //! do not delete, you are not owner
+    void oldValue( int i, sqlite3_value **val );
+    //! do not delete, you are not owner
+    void newValue( int i, sqlite3_value **val );
+
+    static std::string toString( sqlite3_changeset_iter *pp );
   private:
     sqlite3_changeset_iter *mChangesetIter = nullptr;
 };
@@ -157,27 +190,14 @@ class Sqlite3Value
     //! Returns raw pointer to sqlite3 value
     sqlite3_value *value() const;
 
+    static std::string toString( sqlite3_value *val );
+
   private:
     sqlite3_value *mVal = nullptr;
 };
 
-
 std::string pOpToStr( int pOp );
 std::string conflict2Str( int c );
-int changesetIter2Str( sqlite3_changeset_iter *pp );
-void errorLogCallback( void *pArg, int iErrCode, const char *zMsg );
-
-/*
-** Prepare a new SQL statement. Print an error and abort if anything
-** goes wrong.
-*/
-sqlite3_stmt *db_prepare( sqlite3 *db, const char *zFormat, ... );
-
-/*
-** Return the text of an SQL statement that itself returns the list of
-** tables to process within the database.
-*/
-const char *all_tables_sql();
 
 //! copy file from to location. override if exists
 void filecopy( const std::string &to, const std::string &from );
@@ -187,8 +207,6 @@ void fileremove( const std::string &path );
 
 //! whether file exists
 bool fileexists( const std::string &path );
-
-std::string sqlite_value_2str( sqlite3_value *ppValue );
 
 // WRITE CHANGESET API
 

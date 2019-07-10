@@ -12,21 +12,25 @@
 #include <stdarg.h>
 #include <ctype.h>
 #include <string.h>
-#include <assert.h>
 #include <sqlite3.h>
 #include <fcntl.h>
 #include <iostream>
 #include <string>
 #include <vector>
-
 const char *GEODIFF_version()
 {
   return "0.1.0";
 }
 
+void _errorLogCallback( void *pArg, int iErrCode, const char *zMsg )
+{
+  std::string msg = "SQLITE3: (" + std::to_string( iErrCode ) + ")" + zMsg;
+  Logger::instance().error( msg );
+}
+
 void GEODIFF_init()
 {
-  sqlite3_config( SQLITE_CONFIG_LOG, errorLogCallback );
+  sqlite3_config( SQLITE_CONFIG_LOG, _errorLogCallback );
   sqlite3_initialize();
 }
 
@@ -56,8 +60,14 @@ int GEODIFF_createChangeset( const char *base, const char *modified, const char 
     Sqlite3Session session;
     session.create( db, "main" );
 
+    std::string all_tables_sql = "SELECT name FROM main.sqlite_master\n"
+                                 " WHERE type='table' AND sql NOT LIKE 'CREATE VIRTUAL%%'\n"
+                                 " UNION\n"
+                                 "SELECT name FROM aux.sqlite_master\n"
+                                 " WHERE type='table' AND sql NOT LIKE 'CREATE VIRTUAL%%'\n"
+                                 " ORDER BY name";
     Sqlite3Stmt statament;
-    statament.prepare( db, "%s", all_tables_sql() );
+    statament.prepare( db, "%s", all_tables_sql.c_str() );
     while ( SQLITE_ROW == sqlite3_step( statament.get() ) )
     {
       int rc = sqlite3session_attach( session.get(), ( const char * )sqlite3_column_text( statament.get(), 0 ) );
@@ -93,8 +103,8 @@ static int conflict_callback( void *ctx, int conflict, sqlite3_changeset_iter *i
 {
   nconflicts++;
   std::string s = conflict2Str( conflict );
-  Logger::instance().warn( "CONFLICT: " + s );
-  changesetIter2Str( iterator );
+  std::string vals = Sqlite3ChangesetIter::toString( iterator );
+  Logger::instance().warn( "CONFLICT: " + s  + ": " + vals );
   return SQLITE_CHANGESET_REPLACE;
 }
 
@@ -125,7 +135,7 @@ int GEODIFF_applyChangeset( const char *base, const char *patched, const char *c
     cbuf.read( changeset );
     if ( cbuf.isEmpty() )
     {
-      Logger::instance().info( "--- no changes ---" );
+      Logger::instance().debug( "--- no changes ---" );
       return GEODIFF_SUCCESS;
     }
 
@@ -202,7 +212,8 @@ int GEODIFF_listChanges( const char *changeset )
     pp.start( buf );
     while ( SQLITE_ROW == sqlite3changeset_next( pp.get() ) )
     {
-      changesetIter2Str( pp.get() );
+      std::string msg = Sqlite3ChangesetIter::toString( pp.get() );
+      Logger::instance().info( msg );
       nchanges = nchanges + 1 ;
     }
     return nchanges;
