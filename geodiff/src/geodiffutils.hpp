@@ -10,6 +10,11 @@
 #include <exception>
 #include "sqlite3.h"
 
+class Sqlite3Db
+{
+  public:
+
+};
 
 class GeoDiffException: public std::exception
 {
@@ -19,6 +24,22 @@ class GeoDiffException: public std::exception
     virtual const char *what() const throw();
   private:
     std::string mMsg;
+};
+
+class Logger
+{
+    public:
+        static Logger& instance();
+        Logger(Logger const&) = delete;
+        void operator=(Logger const&) = delete;
+        void info( std::initializer_list<const std::string&> list );
+        void info( const std::string& msg );
+        void warn( const std::string& msg );
+        void error( const std::string& msg );
+        void error(const GeoDiffException& exp);
+    private:
+        Logger();
+        void log( const std::string& type, const std::string& msg );
 };
 
 /**
@@ -33,14 +54,26 @@ class Buffer
     bool isEmpty() const;
 
     /**
-     * Populates buffer from file on disk (e.g changeset file)
+     * Populates buffer from BINARY file on disk (e.g changeset file)
+     * Frees the existing buffer if exists
      */
-    void read( std::string filename );
+    void read( const std::string& filename );
+
+    /**
+     * Populates buffer from sqlite3 session
+     * Frees the existing buffer if exists
+     */
+    void read( sqlite3_session *session );
 
     /**
      * Adds formatted text to the end of a buffer
      */
     void printf( const char *zFormat, ... );
+
+    /**
+     * Writes buffer to disk
+     */
+    void write( const std::string& filename );
 
     void *v_buf() const;
     const char *c_buf() const;

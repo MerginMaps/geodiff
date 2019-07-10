@@ -43,6 +43,44 @@ const char *GeoDiffException::what() const throw()
 // ////////////////////////////////////////////////////////////////////////
 // ////////////////////////////////////////////////////////////////////////
 
+Logger::Logger() = default;
+
+Logger& Logger::instance()
+{
+  static Logger instance;
+  return instance;
+}
+
+void Logger::info(const std::string& msg)
+{
+  log("INFO", msg);
+}
+
+void Logger::warn(const std::string& msg)
+{
+  log("WARN", msg);
+}
+
+void Logger::error(const std::string& msg)
+{
+  log("ERROR", msg);
+}
+
+
+void Logger::error(const GeoDiffException& exp)
+{
+  std::cout << "EXCEPTION: " << exp.what() << std::endl;
+}
+
+void Logger::log(const std::string& type, const std::string& msg)
+{
+  std::cout << type << ":" << msg << std::endl ;
+}
+
+// ////////////////////////////////////////////////////////////////////////
+// ////////////////////////////////////////////////////////////////////////
+// ////////////////////////////////////////////////////////////////////////
+
 Buffer::Buffer() = default;
 
 Buffer::~Buffer()
@@ -66,7 +104,7 @@ void Buffer::free()
   }
 }
 
-void Buffer::read( std::string filename )
+void Buffer::read(const std::string& filename )
 {
   // https://stackoverflow.com/questions/3747086/reading-the-whole-text-file-into-a-char-array-in-c
 
@@ -125,6 +163,17 @@ void Buffer::read( std::string filename )
   }
 }
 
+void Buffer::read(sqlite3_session* session)
+{
+  free();
+  int rc = sqlite3session_changeset( session, &mAlloc, (void**) &mZ );
+  mUsed = mAlloc;
+  if ( rc )
+  {
+    throw GeoDiffException( "Unable to read sqlite3 session to internal buffer" );
+  }
+}
+
 void Buffer::printf( const char *zFormat, ... )
 {
   int nNew;
@@ -154,6 +203,17 @@ void Buffer::printf( const char *zFormat, ... )
       throw GeoDiffException( "out of memory" );
     }
   }
+}
+
+void Buffer::write(const std::string& filename )
+{
+  FILE* f = fopen( filename.c_str(), "wb" );
+  if ( !f )
+  {
+    throw GeoDiffException( "Unable to open " + filename + " for writing" );
+  }
+  fwrite( mZ, mAlloc, 1, f );
+  fclose( f );
 }
 
 const char *Buffer::c_buf() const

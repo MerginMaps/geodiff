@@ -39,9 +39,6 @@ int GEODIFF_createChangeset( const char *base, const char *modified, const char 
     sqlite3 *db;
     sqlite3_session *session;
     int rc;
-    int size;
-    void *buf;
-    FILE *f;
     sqlite3_stmt *pStmt;
 
     printf( "%s\n%s\n%s\n", modified, base, changeset );
@@ -49,7 +46,7 @@ int GEODIFF_createChangeset( const char *base, const char *modified, const char 
     rc = sqlite3_open( modified, &db );
     if ( rc )
     {
-      printf( "err diff 1" );
+      Logger::instance().error( "err diff 1" );
       return GEODIFF_ERROR;
     }
 
@@ -87,23 +84,9 @@ int GEODIFF_createChangeset( const char *base, const char *modified, const char 
     sqlite3_finalize( pStmt );
 
     /* Create a changeset */
-    rc = sqlite3session_changeset( session, &size, &buf );
-    if ( rc )
-    {
-      printf( "err diff 6" );
-      return GEODIFF_ERROR;
-    }
-
-    f = fopen( changeset, "w" );
-    if ( !f )
-    {
-      std::cout << "Unable to open file " << changeset << " for writing" << std::endl;
-      return GEODIFF_ERROR;
-    }
-    printf( "size: %d\n", size );
-    fwrite( buf, size, 1, f );
-    fclose( f );
-    sqlite3_free( buf );
+    Buffer changesetBuf;
+    changesetBuf.read(session);
+    changesetBuf.write( changeset );
 
     sqlite3session_delete( session );
     sqlite3_close( db );
