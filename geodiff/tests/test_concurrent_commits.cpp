@@ -18,6 +18,7 @@ TEST( ConcurrentCommitsSqlite3Test, test_2_inserts )
   std::string changesetAB = pathjoin( tmpdir(), "changeset_A_to_B.bin" );
   std::string changesetBbase = pathjoin( tmpdir(), "changeset_B_to_base.bin" );
   std::string patchedAB = pathjoin( tmpdir(), "patched_AB.gpkg" ) ;
+  std::string expected_patchedAB = pathjoin( testdir(), "merged_1_A_1_B.gpkg");
 
   // create changeset base to A
   ASSERT_EQ( GEODIFF_createChangeset( base.c_str(), modifiedA.c_str(), changesetbaseA.c_str() ), GEODIFF_SUCCESS );
@@ -33,6 +34,9 @@ TEST( ConcurrentCommitsSqlite3Test, test_2_inserts )
   // check that then new data has both features
   ASSERT_EQ( GEODIFF_createChangeset( base.c_str(), patchedAB.c_str(), changesetBbase.c_str() ), GEODIFF_SUCCESS );
   ASSERT_EQ( GEODIFF_listChanges( changesetBbase.c_str() ), 2 * 2 + 3 ); // 3 updates in total and 2 inserts for each feature
+
+  // check that it equals expected result
+  ASSERT_TRUE( equals( patchedAB, expected_patchedAB ));
 }
 
 int main( int argc, char **argv )

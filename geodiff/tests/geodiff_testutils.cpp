@@ -90,3 +90,12 @@ void init_test()
 void finalize_test()
 {
 }
+
+bool equals(const std::string& file1, const std::string& file2)
+{
+  std::string changeset = file1 + "_changeset.bin";
+  if (GEODIFF_createChangeset( file1.c_str(), file2.c_str(), changeset.c_str() ) != GEODIFF_SUCCESS)
+    return false;
+
+  return (GEODIFF_listChanges( changeset.c_str() )  == 0 );
+}
