@@ -7,20 +7,16 @@
 #define GEODIFFUTILS_H
 
 #include <string>
+#include <memory>
 #include <exception>
 #include "sqlite3.h"
 
-class Sqlite3Db
-{
-  public:
-
-};
+class Buffer;
 
 class GeoDiffException: public std::exception
 {
   public:
     GeoDiffException( const std::string &msg );
-
     virtual const char *what() const throw();
   private:
     std::string mMsg;
@@ -28,18 +24,68 @@ class GeoDiffException: public std::exception
 
 class Logger
 {
-    public:
-        static Logger& instance();
-        Logger(Logger const&) = delete;
-        void operator=(Logger const&) = delete;
-        void info( std::initializer_list<const std::string&> list );
-        void info( const std::string& msg );
-        void warn( const std::string& msg );
-        void error( const std::string& msg );
-        void error(const GeoDiffException& exp);
-    private:
-        Logger();
-        void log( const std::string& type, const std::string& msg );
+  public:
+    static Logger &instance();
+    Logger( Logger const & ) = delete;
+    void operator=( Logger const & ) = delete;
+    void info( const std::string &msg );
+    void warn( const std::string &msg );
+    void error( const std::string &msg );
+    void error( const GeoDiffException &exp );
+  private:
+    Logger();
+    void log( const std::string &type, const std::string &msg );
+};
+
+class Sqlite3Db
+{
+  public:
+    Sqlite3Db();
+    ~Sqlite3Db();
+    void open( const std::string &filename );
+    void exec( const Buffer &buf );
+
+    sqlite3 *get();
+    void close();
+  private:
+    sqlite3 *mDb = nullptr;
+};
+
+class Sqlite3Session
+{
+  public:
+    Sqlite3Session();
+    ~Sqlite3Session();
+    void create( std::shared_ptr<Sqlite3Db> db, const std::string &name );
+    sqlite3_session *get() const;
+    void close();
+  private:
+    sqlite3_session *mSession = nullptr;
+};
+
+class Sqlite3Stmt
+{
+  public:
+    Sqlite3Stmt();
+    ~Sqlite3Stmt();
+    void prepare( std::shared_ptr<Sqlite3Db> db, const char *zFormat, ... );
+    sqlite3_stmt *get();
+    void close();
+  private:
+    sqlite3_stmt *db_vprepare( sqlite3 *db, const char *zFormat, va_list ap );
+    sqlite3_stmt *mStmt = nullptr;
+};
+
+class Sqlite3ChangesetIter
+{
+  public:
+    Sqlite3ChangesetIter();
+    ~Sqlite3ChangesetIter();
+    void start( const Buffer &buf );
+    sqlite3_changeset_iter *get();
+    void close();
+  private:
+    sqlite3_changeset_iter *mChangesetIter = nullptr;
 };
 
 /**
@@ -57,13 +103,13 @@ class Buffer
      * Populates buffer from BINARY file on disk (e.g changeset file)
      * Frees the existing buffer if exists
      */
-    void read( const std::string& filename );
+    void read( const std::string &filename );
 
     /**
      * Populates buffer from sqlite3 session
      * Frees the existing buffer if exists
      */
-    void read( sqlite3_session *session );
+    void read( const Sqlite3Session &session );
 
     /**
      * Adds formatted text to the end of a buffer
@@ -73,7 +119,7 @@ class Buffer
     /**
      * Writes buffer to disk
      */
-    void write( const std::string& filename );
+    void write( const std::string &filename );
 
     void *v_buf() const;
     const char *c_buf() const;
