@@ -43,6 +43,210 @@ const char *GeoDiffException::what() const throw()
 // ////////////////////////////////////////////////////////////////////////
 // ////////////////////////////////////////////////////////////////////////
 
+Logger::Logger() = default;
+
+Logger &Logger::instance()
+{
+  static Logger instance;
+  return instance;
+}
+
+void Logger::info( const std::string &msg )
+{
+  log( "INFO", msg );
+}
+
+void Logger::warn( const std::string &msg )
+{
+  log( "WARN", msg );
+}
+
+void Logger::error( const std::string &msg )
+{
+  log( "ERROR", msg );
+}
+
+
+void Logger::error( const GeoDiffException &exp )
+{
+  std::cout << "EXCEPTION: " << exp.what() << std::endl;
+}
+
+void Logger::log( const std::string &type, const std::string &msg )
+{
+  std::cout << type << ":" << msg << std::endl ;
+}
+
+// ////////////////////////////////////////////////////////////////////////
+// ////////////////////////////////////////////////////////////////////////
+// ////////////////////////////////////////////////////////////////////////
+Sqlite3Db::Sqlite3Db() = default;
+Sqlite3Db::~Sqlite3Db()
+{
+  close();
+}
+
+void Sqlite3Db::open( const std::string &filename )
+{
+  close();
+  int rc = sqlite3_open( filename.c_str(), &mDb );
+  if ( rc )
+  {
+    throw GeoDiffException( "Unable to open " + filename + " as sqlite3 database" );
+  }
+}
+
+void Sqlite3Db::exec( const Buffer &buf )
+{
+  int rc = sqlite3_exec( get(), buf.c_buf(), NULL, 0, NULL );
+  if ( rc )
+  {
+    throw GeoDiffException( "Unable to exec buffer on sqlite3 database" );
+  }
+}
+
+sqlite3 *Sqlite3Db::get()
+{
+  return mDb;
+}
+
+void Sqlite3Db::close()
+{
+  if ( mDb )
+  {
+    sqlite3_close( mDb );
+    mDb = nullptr;
+  }
+}
+
+
+Sqlite3Session::Sqlite3Session() = default;
+
+Sqlite3Session::~Sqlite3Session()
+{
+  close();
+}
+
+void Sqlite3Session::create( std::shared_ptr<Sqlite3Db> db, const std::string &name )
+{
+  close();
+  if ( db && db->get() )
+  {
+    int rc = sqlite3session_create( db->get(), name.c_str(), &mSession );
+    if ( rc )
+    {
+      throw GeoDiffException( "Unable to open session " + name );
+    }
+  }
+}
+
+sqlite3_session *Sqlite3Session::get() const
+{
+  return mSession;
+}
+
+void Sqlite3Session::close()
+{
+  if ( mSession )
+  {
+    sqlite3session_delete( mSession );
+    mSession = nullptr;
+  }
+}
+
+Sqlite3Stmt::Sqlite3Stmt() = default;
+
+Sqlite3Stmt::~Sqlite3Stmt()
+{
+  close();
+}
+
+sqlite3_stmt *Sqlite3Stmt::db_vprepare( sqlite3 *db, const char *zFormat, va_list ap )
+{
+  char *zSql;
+  int rc;
+  sqlite3_stmt *pStmt;
+
+  zSql = sqlite3_vmprintf( zFormat, ap );
+  if ( zSql == 0 )
+  {
+    throw GeoDiffException( "out of memory" );
+  }
+
+  rc = sqlite3_prepare_v2( db, zSql, -1, &pStmt, 0 );
+  if ( rc )
+  {
+    throw GeoDiffException( "SQL statement error" );
+  }
+  sqlite3_free( zSql );
+  return pStmt;
+}
+
+void Sqlite3Stmt::prepare( std::shared_ptr<Sqlite3Db> db, const char *zFormat, ... )
+{
+  if ( db && db->get() )
+  {
+    va_list ap;
+    va_start( ap, zFormat );
+    mStmt = db_vprepare( db->get(), zFormat, ap );
+    va_end( ap );
+  }
+}
+
+sqlite3_stmt *Sqlite3Stmt::get()
+{
+  return mStmt;
+}
+
+void Sqlite3Stmt::close()
+{
+  if ( mStmt )
+  {
+    sqlite3_finalize( mStmt );
+    mStmt = nullptr;
+  }
+}
+
+Sqlite3ChangesetIter::Sqlite3ChangesetIter() = default;
+
+Sqlite3ChangesetIter::~Sqlite3ChangesetIter()
+{
+  close();
+}
+
+void Sqlite3ChangesetIter::start( const Buffer &buf )
+{
+  int rc = sqlite3changeset_start(
+             &mChangesetIter,
+             buf.size(),
+             buf.v_buf()
+           );
+  if ( rc != SQLITE_OK )
+  {
+    throw GeoDiffException( "sqlite3changeset_start error" );
+  }
+}
+
+sqlite3_changeset_iter *Sqlite3ChangesetIter::get()
+{
+  return mChangesetIter;
+}
+
+void Sqlite3ChangesetIter::close()
+{
+  if ( mChangesetIter )
+  {
+    sqlite3changeset_finalize( mChangesetIter );
+
+    mChangesetIter = nullptr;
+  }
+}
+
+
+// ////////////////////////////////////////////////////////////////////////
+// ////////////////////////////////////////////////////////////////////////
+// ////////////////////////////////////////////////////////////////////////
+
 Buffer::Buffer() = default;
 
 Buffer::~Buffer()
@@ -66,7 +270,7 @@ void Buffer::free()
   }
 }
 
-void Buffer::read( std::string filename )
+void Buffer::read( const std::string &filename )
 {
   // https://stackoverflow.com/questions/3747086/reading-the-whole-text-file-into-a-char-array-in-c
 
@@ -125,6 +329,21 @@ void Buffer::read( std::string filename )
   }
 }
 
+void Buffer::read( const Sqlite3Session &session )
+{
+  free();
+  if ( !session.get() )
+  {
+    throw GeoDiffException( "Invalid session" );
+  }
+  int rc = sqlite3session_changeset( session.get(), &mAlloc, ( void ** ) &mZ );
+  mUsed = mAlloc;
+  if ( rc )
+  {
+    throw GeoDiffException( "Unable to read sqlite3 session to internal buffer" );
+  }
+}
+
 void Buffer::printf( const char *zFormat, ... )
 {
   int nNew;
@@ -154,6 +373,17 @@ void Buffer::printf( const char *zFormat, ... )
       throw GeoDiffException( "out of memory" );
     }
   }
+}
+
+void Buffer::write( const std::string &filename )
+{
+  FILE *f = fopen( filename.c_str(), "wb" );
+  if ( !f )
+  {
+    throw GeoDiffException( "Unable to open " + filename + " for writing" );
+  }
+  fwrite( mZ, mAlloc, 1, f );
+  fclose( f );
 }
 
 const char *Buffer::c_buf() const
@@ -332,37 +562,6 @@ void errorLogCallback( void *pArg, int iErrCode, const char *zMsg )
   fprintf( stderr, "(%d)%s\n", iErrCode, zMsg );
 }
 
-static sqlite3_stmt *db_vprepare( sqlite3 *db, const char *zFormat, va_list ap )
-{
-  char *zSql;
-  int rc;
-  sqlite3_stmt *pStmt;
-
-  zSql = sqlite3_vmprintf( zFormat, ap );
-  if ( zSql == 0 )
-  {
-    throw GeoDiffException( "out of memory" );
-  }
-
-  rc = sqlite3_prepare_v2( db, zSql, -1, &pStmt, 0 );
-  if ( rc )
-  {
-    throw GeoDiffException( "SQL statement error" );
-    // throw GeodiffException( "SQL statement error: %s\n\"%s\"", sqlite3_errmsg( db ), zSql );
-  }
-  sqlite3_free( zSql );
-  return pStmt;
-}
-
-sqlite3_stmt *db_prepare( sqlite3 *db, const char *zFormat, ... )
-{
-  va_list ap;
-  sqlite3_stmt *pStmt;
-  va_start( ap, zFormat );
-  pStmt = db_vprepare( db, zFormat, ap );
-  va_end( ap );
-  return pStmt;
-}
 
 const char *all_tables_sql()
 {

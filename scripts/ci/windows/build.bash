@@ -17,4 +17,3 @@ echo "PATH used: $PATH"
 
 C:/Program\ Files/CMake/bin/ctest -VV --exclude-regex "geodiffinfo_test"
 cd ..
-C:/Users/travis/build/lutraconsulting/geodiff/geodiff/build_win

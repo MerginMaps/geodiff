@@ -700,7 +700,7 @@ int rebase( const std::string &changeset_BASE_THEIRS,
   buf_BASE_THEIRS.read( changeset_BASE_THEIRS );
   if ( buf_BASE_THEIRS.isEmpty() )
   {
-    printf( " -- no rabase needed! --\n" );
+    Logger::instance().info( " -- no rabase needed! --\n" );
     filecopy( changeset_BASE_MODIFIED, changeset_THEIRS_MODIFIED );
     return GEODIFF_SUCCESS;
   }
@@ -709,7 +709,7 @@ int rebase( const std::string &changeset_BASE_THEIRS,
   buf_BASE_MODIFIED.read( changeset_BASE_MODIFIED );
   if ( buf_BASE_MODIFIED.isEmpty() )
   {
-    printf( " -- no rabase needed! --\n" );
+    Logger::instance().info( " -- no rabase needed! --\n" );
     filecopy( changeset_BASE_THEIRS, changeset_THEIRS_MODIFIED );
     return GEODIFF_SUCCESS;
   }
@@ -722,7 +722,6 @@ int rebase( const std::string &changeset_BASE_THEIRS,
   MappingIds mapping;
   _find_mapping_for_new_changeset( buf_BASE_MODIFIED, inserted, deleted, mapping );
 
-  // finally
   _prepare_new_changeset( buf_BASE_MODIFIED, changeset_THEIRS_MODIFIED, mapping, updated );
 
   return GEODIFF_SUCCESS;
