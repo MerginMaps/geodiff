@@ -96,6 +96,7 @@ void _print_idmap( MapIds &mapIds, const std::string &name )
 }
 
 // table name -> old fid --> new fid
+const int INVALID_FID = -1;
 typedef std::map<std::string, std::map < int, int  > > MappingIds;
 
 bool _contains_old( const MappingIds &mapIds, const std::string &table, int id )
@@ -134,14 +135,14 @@ int _get_new( const MappingIds &mapIds, const std::string &table, int id )
   auto ids = mapIds.find( table );
   if ( ids == mapIds.end() )
   {
-    throw GeoDiffException( "internal error: _get_new" );
+    throw GeoDiffException( "internal error: _get_new MappingIds" );
   }
   else
   {
     const std::map < int, int  > &oldSet = ids->second;
     auto a = oldSet.find( id );
     if ( a == oldSet.end() )
-      throw GeoDiffException( "internal error: _get_new 2" );
+      throw GeoDiffException( "internal error: _get_new MappingIds" );
     return a->second;
   }
 }
@@ -250,14 +251,14 @@ SqValues _get_old( const SqOperations &mapIds, const std::string &table, int id 
   auto ids = mapIds.find( table );
   if ( ids == mapIds.end() )
   {
-    throw GeoDiffException( "internal error in _get_old" );
+    throw GeoDiffException( "internal error in _get_old SqOperations" );
   }
   else
   {
     const SqValuesMap &oldSet = ids->second;
     auto a = oldSet.find( id );
     if ( a == oldSet.end() )
-      throw GeoDiffException( "internal error: _get_old 2" );
+      throw GeoDiffException( "internal error: _get_old SqOperations" );
     return a->second.first;
   }
 }
@@ -267,14 +268,14 @@ SqValues _get_new( const SqOperations &mapIds, const std::string &table, int id 
   auto ids = mapIds.find( table );
   if ( ids == mapIds.end() )
   {
-    throw GeoDiffException( "internal error in _get_new" );
+    throw GeoDiffException( "internal error in _get_new SqOperations" );
   }
   else
   {
     const SqValuesMap &oldSet = ids->second;
     auto a = oldSet.find( id );
     if ( a == oldSet.end() )
-      throw GeoDiffException( "internal error: _get_new 2" );
+      throw GeoDiffException( "internal error: _get_new SqOperations" );
     return a->second.second;
   }
 }
@@ -429,7 +430,7 @@ int _find_mapping_for_new_changeset( const Buffer &buf,
 
       if ( _contains_id( inserted, pzTab, pk ) )
       {
-        // conflict 2 concurrent updates...
+        // conflict 2 concurrent inserts...
         auto it = freeIndices.find( pzTab );
         if ( it == freeIndices.end() )
           throw GeoDiffException( "internal error: freeIndices" );
@@ -440,11 +441,167 @@ int _find_mapping_for_new_changeset( const Buffer &buf,
         it->second ++;
       }
     }
+    else if ( pOp == SQLITE_UPDATE )
+    {
+      int pk = _get_primary_key( pp, pOp );
+
+      if ( _contains_id( deleted, pzTab, pk ) )
+      {
+        // update on deleted feature...
+        _insert_ids( mapping, pzTab, pk, INVALID_FID );
+      }
+    }
   }
 
   _print_idmap( mapping, "mapping" );
 
   return GEODIFF_SUCCESS;
+}
+
+void _handle_insert(
+  Sqlite3ChangesetIter &pp,
+  const std::string tableName,
+  int pnCol,
+  const MappingIds &mapping,
+  unsigned char *aiFlg,
+  FILE *out
+)
+{
+  // first write operation type (iType)
+  putc( SQLITE_INSERT, out );
+  putc( 0, out );
+
+  sqlite3_value *value;
+  // resolve primary key and patched primary key
+  int pk = _get_primary_key( pp, SQLITE_INSERT );
+  int newPk = pk;
+
+  if ( _contains_old( mapping, tableName, pk ) )
+  {
+    // conflict 2 concurrent updates...
+    newPk = _get_new( mapping, tableName, pk );
+  }
+
+  for ( int i = 0; i < pnCol; i++ )
+  {
+    if ( aiFlg[i] )
+    {
+      putValue( out, newPk );
+    }
+    else
+    {
+      pp.newValue( i, &value );
+      putValue( out, value );
+    }
+  }
+}
+
+void _handle_delete(
+  Sqlite3ChangesetIter &pp,
+  const std::string tableName,
+  int pnCol,
+  const MappingIds &mapping,
+  unsigned char *aiFlg,
+  FILE *out
+)
+{
+  // first write operation type (iType)
+  putc( SQLITE_DELETE, out );
+  putc( 0, out );
+
+  sqlite3_value *value;
+
+  // resolve primary key and patched primary key
+  int pk = _get_primary_key( pp, SQLITE_DELETE );
+  int newPk = pk;
+
+  if ( _contains_old( mapping, tableName, pk ) )
+  {
+    // conflict 2 concurrent updates...
+    newPk = _get_new( mapping, tableName, pk );
+  }
+
+  for ( int i = 0; i < pnCol; i++ )
+  {
+    if ( aiFlg[i] )
+    {
+      putValue( out, newPk );
+    }
+    else
+    {
+      pp.oldValue( i, &value );
+      putValue( out, value );
+    }
+  }
+}
+
+void _handle_update(
+  Sqlite3ChangesetIter &pp,
+  const std::string tableName,
+  int pnCol,
+  const MappingIds &mapping,
+  const SqOperations &updated,
+  unsigned char *aiFlg,
+  FILE *out
+)
+{
+  // get values from patched (new) master
+  int pk = _get_primary_key( pp, SQLITE_UPDATE );
+  if ( _contains_old( mapping, tableName, pk ) )
+  {
+    int newPk = _get_new( mapping, tableName, pk );
+    if ( newPk == INVALID_FID )
+      return;
+  }
+
+  SqValues patchedVals = _get_new( updated, tableName, pk );
+
+  // first write operation type (iType)
+  putc( SQLITE_UPDATE, out );
+  putc( 0, out );
+  sqlite3_value *value;
+  for ( int i = 0; i < pnCol; i++ )
+  {
+    // if the value was patched in the previous commit, use that one as base
+    std::shared_ptr<Sqlite3Value> patchedVal = patchedVals[i];
+    if ( patchedVal && patchedVal->isValid() )
+    {
+      value = patchedVal->value();
+    }
+    else
+    {
+      // otherwise the value is same for both patched and this, so use base value
+      pp.oldValue( i, &value );
+    }
+    putValue( out, value );
+  }
+
+  for ( int i = 0; i < pnCol; i++ )
+  {
+    pp.newValue( i, &value );
+    // gpkg_ogr_contents column 1 is total number of features
+    if ( strcmp( tableName.c_str(), "gpkg_ogr_contents" ) == 0 && i == 1 )
+    {
+      int numberInPatched = 0;
+      std::shared_ptr<Sqlite3Value> patchedVal = patchedVals[i];
+      if ( patchedVal && patchedVal->isValid() )
+      {
+        numberInPatched = sqlite3_value_int64( patchedVal->value() );
+      }
+      sqlite3_value *oldValue;
+      pp.oldValue( i, &oldValue );
+      int numberInBase =  sqlite3_value_int64( oldValue );
+      int numberInThis = sqlite3_value_int64( value );
+      int addedFeatures = numberInThis - numberInBase;
+      int newVal = numberInPatched + addedFeatures;
+      putValue( out, newVal );
+    }
+    else
+    {
+      putValue( out, value );
+    }
+  }
+
 }
 
 int _prepare_new_changeset( const Buffer &buf, const std::string &changesetNew, const MappingIds &mapping, const SqOperations &updated )
@@ -505,117 +662,44 @@ int _prepare_new_changeset( const Buffer &buf, const std::string &changesetNew, 
     {
       out = buffer->second;
     }
-
-    // first write operation type (iType)
-    putc( pOp, out );
-    putc( 0, out );
-
     // now save the change to changeset
-    sqlite3_value *value;
     switch ( pOp )
     {
       case SQLITE_UPDATE:
       {
-        // get values from patched (new) master
-        int pk = _get_primary_key( pp, pOp );
-        SqValues patchedVals = _get_new( updated, pzTab, pk );
-
-        for ( int i = 0; i < pnCol; i++ )
-        {
-          // if the value was patched in the previous commit, use that one as base
-          std::shared_ptr<Sqlite3Value> patchedVal = patchedVals[i];
-          if ( patchedVal && patchedVal->isValid() )
-          {
-            value = patchedVal->value();
-          }
-          else
-          {
-            // otherwise the value is same for both patched nad this, so use base value
-            pp.oldValue( i, &value );
-          }
-          putValue( out, value );
-        }
-
-        for ( int i = 0; i < pnCol; i++ )
-        {
-          pp.newValue( i, &value );
-          // gpkg_ogr_contents column 1 is total number of features
-          if ( strcmp( pzTab, "gpkg_ogr_contents" ) == 0 && i == 1 )
-          {
-            int numberInPatched = 0;
-            std::shared_ptr<Sqlite3Value> patchedVal = patchedVals[i];
-            if ( patchedVal && patchedVal->isValid() )
-            {
-              numberInPatched = sqlite3_value_int64( patchedVal->value() );
-            }
-            sqlite3_value *oldValue;
-            pp.oldValue( i, &oldValue );
-            int numberInBase =  sqlite3_value_int64( oldValue );
-            int numberInThis = sqlite3_value_int64( value );
-            int addedFeatures = numberInThis - numberInBase;
-            int newVal = numberInPatched + addedFeatures;
-            putValue( out, newVal );
-          }
-          else
-          {
-            putValue( out, value );
-          }
-        }
+        _handle_update(
+          pp,
+          pzTab,
+          pnCol,
+          mapping,
+          updated,
+          aiFlg,
+          out
+        );
         break;
       }
       case SQLITE_INSERT:
       {
-        // resolve primary key and patched primary key
-        int pk = _get_primary_key( pp, pOp );
-        int newPk = pk;
-
-        if ( _contains_old( mapping, pzTab, pk ) )
-        {
-          // conflict 2 concurrent updates...
-          newPk = _get_new( mapping, pzTab, pk );
-        }
-
-        for ( int i = 0; i < pnCol; i++ )
-        {
-          if ( aiFlg[i] )
-          {
-            putValue( out, newPk );
-          }
-          else
-          {
-            pp.newValue( i, &value );
-            putValue( out, value );
-          }
-        }
+        _handle_insert(
+          pp,
+          pzTab,
+          pnCol,
+          mapping,
+          aiFlg,
+          out
+        );
         break;
       }
       case SQLITE_DELETE:
       {
-        // TODO THIS IS PROBABLY NOT WORKING...
-        // do we need old or new primary key?
-
-        // resolve primary key and patched primary key
-        int pk = _get_primary_key( pp, pOp );
-        int newPk = pk;
-
-        if ( _contains_old( mapping, pzTab, pk ) )
-        {
-          // conflict 2 concurrent updates...
-          newPk = _get_new( mapping, pzTab, pk );
-        }
-
-        for ( int i = 0; i < pnCol; i++ )
-        {
-          if ( aiFlg[i] )
-          {
-            putValue( out, newPk );
-          }
-          else
-          {
-            pp.oldValue( i, &value );
-            putValue( out, value );
-          }
-        }
+        _handle_delete(
+          pp,
+          pzTab,
+          pnCol,
+          mapping,
+          aiFlg,
+          out
+        );
         break;
       }
     }
