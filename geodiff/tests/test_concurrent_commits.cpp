@@ -9,16 +9,20 @@
 
 TEST( ConcurrentCommitsSqlite3Test, test_2_inserts )
 {
-  std::cout << "geopackage 2 concurent modifications (base) -> (A) and (base) -> (B)" << std::endl;
+  std::cout << "geopackage 2 concurent INSERTS (base) -> (A) and (base) -> (B)" << std::endl;
+  std::cout << "both (A) and (B) are (base) with 1 extra new feature" << std::endl;
+
+  std::string testname = "2_inserts";
+  makedir( pathjoin( tmpdir(), testname ) );
 
   std::string base = pathjoin( testdir(), "base.gpkg" );
-  std::string modifiedA = pathjoin( testdir(), "inserted_1_A.gpkg" );
-  std::string modifiedB = pathjoin( testdir(), "inserted_1_B.gpkg" );
-  std::string changesetbaseA = pathjoin( tmpdir(), "changeset_base_to_A.bin" );
-  std::string changesetAB = pathjoin( tmpdir(), "changeset_A_to_B.bin" );
-  std::string changesetBbase = pathjoin( tmpdir(), "changeset_B_to_base.bin" );
-  std::string patchedAB = pathjoin( tmpdir(), "patched_AB.gpkg" ) ;
-  std::string expected_patchedAB = pathjoin( testdir(), "merged_1_A_1_B.gpkg" );
+  std::string modifiedA = pathjoin( testdir(), testname, "inserted_1_A.gpkg" );
+  std::string modifiedB = pathjoin( testdir(), testname, "inserted_1_B.gpkg" );
+  std::string changesetbaseA = pathjoin( tmpdir(), testname, "changeset_base_to_A.bin" );
+  std::string changesetAB = pathjoin( tmpdir(), testname, "changeset_A_to_B.bin" );
+  std::string changesetBbase = pathjoin( tmpdir(), testname, "changeset_B_to_base.bin" );
+  std::string patchedAB = pathjoin( tmpdir(), testname, "patched_AB.gpkg" ) ;
+  std::string expected_patchedAB = pathjoin( testdir(), testname, "merged_1_A_1_B.gpkg" );
 
   // create changeset base to A
   ASSERT_EQ( GEODIFF_createChangeset( base.c_str(), modifiedA.c_str(), changesetbaseA.c_str() ), GEODIFF_SUCCESS );

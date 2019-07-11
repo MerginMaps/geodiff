@@ -45,6 +45,13 @@ std::string pathjoin( const std::string &dir, const std::string &filename )
   return res;
 }
 
+std::string pathjoin( const std::string &dir, const std::string &dir2, const std::string &filename )
+{
+  std::string res = pathjoin( dir, dir2 );
+  res = pathjoin( res, filename );
+  return res;
+}
+
 std::string testdir()
 {
   return TEST_DATA_DIR;
@@ -102,4 +109,13 @@ bool equals( const std::string &file1, const std::string &file2 )
     return false;
 
   return ( GEODIFF_listChanges( changeset.c_str() )  == 0 );
+}
+
+void makedir( const std::string &dir )
+{
+#ifdef WIN32
+  CreateDirectory( dir.c_str(), NULL );
+#else
+  mkdir( dir.c_str(), S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH );
+#endif
 }

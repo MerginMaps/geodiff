@@ -28,10 +28,15 @@ void _errorLogCallback( void *pArg, int iErrCode, const char *zMsg )
   Logger::instance().error( msg );
 }
 
+static bool gInitialized = false;
 void GEODIFF_init()
 {
-  sqlite3_config( SQLITE_CONFIG_LOG, _errorLogCallback );
-  sqlite3_initialize();
+  if ( !gInitialized )
+  {
+    gInitialized = true;
+    sqlite3_config( SQLITE_CONFIG_LOG, _errorLogCallback );
+    sqlite3_initialize();
+  }
 }
 
 int GEODIFF_createChangeset( const char *base, const char *modified, const char *changeset )
@@ -205,7 +210,7 @@ int GEODIFF_listChanges( const char *changeset )
     if ( buf.isEmpty() )
     {
       Logger::instance().info( "--- no changes ---" );
-      return GEODIFF_SUCCESS;
+      return 0;
     }
 
     Sqlite3ChangesetIter pp;
