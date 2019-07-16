@@ -8,4 +8,4 @@
 '''
 
 from .main import GeoDiff
-from .geodifflib import GeoDiffLibError
+from .geodifflib import GeoDiffLibError, GeoDiffLibConflictError
