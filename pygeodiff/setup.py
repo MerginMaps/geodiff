@@ -8,8 +8,6 @@
 # python setup.py sdist bdist_wheel  # build in 'dist' folder
 # python-m twine upload dist/*  # 'twine' must be installed: 'pip install twine'
 
-
-import ast
 import io
 import re
 import os
@@ -28,8 +26,8 @@ def get_version():
     _version_re = re.compile(r"__version__\s+=\s+(?P<version>.*)")
     with open(main_file, "r", encoding="utf8") as f:
         match = _version_re.search(f.read())
-        version = match.group("version") if match is not None else '"unknown"'
-    return str(ast.literal_eval(version))
+        version = match.group("version").strip("'") if match is not None else "unknown"
+    return version
 
 
 setup(

@@ -35,7 +35,7 @@ def _parse_return_code(rc, msg):
     elif rc == ERROR:
         raise GeoDiffLibError(msg)
     elif rc == CONFLICT:
-        return GeoDiffLibConflictError(msg)
+        raise GeoDiffLibConflictError(msg)
 
 
 class GeoDiffLib:
