@@ -7,69 +7,206 @@
 #define GEODIFFUTILS_H
 
 #include <string>
+#include <memory>
+#include <exception>
+
 #include "sqlite3.h"
 
-/*
- * TODO remove
-** Dynamic string object
-*/
-typedef struct Str Str;
-struct Str
+class Buffer;
+
+class GeoDiffException: public std::exception
 {
-  char *z;        /* Text of the string */
-  int nAlloc;     /* Bytes allocated in z[] */
-  int nUsed;      /* Bytes actually used in z[] */
+  public:
+    GeoDiffException( const std::string &msg );
+    virtual const char *what() const throw();
+  private:
+    std::string mMsg;
 };
 
-/*
-** Initialize a Str object
-* TODO remove
-*/
-void strInit( Str *p );
+/**
+ * Logger
+ *
+ * the messages printed to stdout can be controlled by
+ * environment variable GEODIFF_LOGGER_LEVEL
+ * GEODIFF_LOGGER_LEVEL = 0 nothing is printed
+ * GEODIFF_LOGGER_LEVEL = 1 errors are printed
+ * GEODIFF_LOGGER_LEVEL = 2 errors and warnings are printed
+ * GEODIFF_LOGGER_LEVEL = 3 errors, warnings and infos are printed
+ * GEODIFF_LOGGER_LEVEL = 4 errors, warnings, infos, debug messages are printed
+ */
+class Logger
+{
+  public:
+    enum LoggerLevel
+    {
+      LevelNothing = 0,
+      LevelErrors = 1,
+      LevelWarnings = 2,
+      LevelInfos = 3,
+      LevelDebug = 4
+    };
 
-/*
-** Free all memory held by a Str object
-* TODO remove
-*/
-void strFree( Str *p );
+    static Logger &instance();
+    LoggerLevel level() const;
+    Logger( Logger const & ) = delete;
+    void operator=( Logger const & ) = delete;
+    void debug( const std::string &msg );
+    void warn( const std::string &msg );
+    void error( const std::string &msg );
+    void info( const std::string &msg );
+    //! Prints error message
+    void error( const GeoDiffException &exp );
+  private:
+    Logger();
+    void log( LoggerLevel level, const std::string &msg );
+    void levelFromEnv();
 
-/*
-** Add formatted text to the end of a Str object
-**
-** TODO remove
-*/
-void strPrintf( Str *p, const char *zFormat, ... );
+    LoggerLevel mLevel = LevelErrors; //by default record errors
+};
+
+class Sqlite3Db
+{
+  public:
+    Sqlite3Db();
+    ~Sqlite3Db();
+    void open( const std::string &filename );
+    void exec( const Buffer &buf );
+
+    sqlite3 *get();
+    void close();
+  private:
+    sqlite3 *mDb = nullptr;
+};
+
+class Sqlite3Session
+{
+  public:
+    Sqlite3Session();
+    ~Sqlite3Session();
+    void create( std::shared_ptr<Sqlite3Db> db, const std::string &name );
+    sqlite3_session *get() const;
+    void close();
+  private:
+    sqlite3_session *mSession = nullptr;
+};
+
+class Sqlite3Stmt
+{
+  public:
+    Sqlite3Stmt();
+    ~Sqlite3Stmt();
+    void prepare( std::shared_ptr<Sqlite3Db> db, const char *zFormat, ... );
+    sqlite3_stmt *get();
+    void close();
+  private:
+    sqlite3_stmt *db_vprepare( sqlite3 *db, const char *zFormat, va_list ap );
+    sqlite3_stmt *mStmt = nullptr;
+};
+
+class Sqlite3ChangesetIter
+{
+  public:
+    Sqlite3ChangesetIter();
+    ~Sqlite3ChangesetIter();
+    void start( const Buffer &buf );
+    sqlite3_changeset_iter *get();
+    void close();
+    //! do not delete, you are not owner
+    void oldValue( int i, sqlite3_value **val );
+    //! do not delete, you are not owner
+    void newValue( int i, sqlite3_value **val );
+
+    static std::string toString( sqlite3_changeset_iter *pp );
+  private:
+    sqlite3_changeset_iter *mChangesetIter = nullptr;
+};
+
+/**
+ * Buffer for sqlite statements
+ */
+class Buffer
+{
+  public:
+    Buffer();
+    ~Buffer();
+
+    bool isEmpty() const;
+
+    /**
+     * Populates buffer from BINARY file on disk (e.g changeset file)
+     * Frees the existing buffer if exists
+     */
+    void read( const std::string &filename );
+
+    /**
+     * Populates buffer from sqlite3 session
+     * Frees the existing buffer if exists
+     */
+    void read( const Sqlite3Session &session );
+
+    /**
+     * Adds formatted text to the end of a buffer
+     */
+    void printf( const char *zFormat, ... );
+
+    /**
+     * Writes buffer to disk
+     */
+    void write( const std::string &filename );
+
+    void *v_buf() const;
+    const char *c_buf() const;
+    int size() const;
+
+  private:
+    void free();
+
+    char *mZ = nullptr;  /* Stream (text or binary) */
+    int mAlloc = 0;     /* Bytes allocated in mZ[] */
+    int mUsed = 0;      /* Bytes actually used in mZ[] */
+};
+
+/**
+ * Smart pointer on sqlite3_value.
+ * Can be inexpensively copied (data is shared)
+ */
+class Sqlite3Value
+{
+  public:
+    /**
+     * Creates copy of the value
+     * and takes the ownership of the new instance
+     */
+    Sqlite3Value( const sqlite3_value *val );
+    Sqlite3Value();
+    ~Sqlite3Value();
+
+    Sqlite3Value( const Sqlite3Value & ) = delete;
+    Sqlite3Value &operator=( Sqlite3Value const & ) = delete;
+
+    //! Returns if the stored value is valid pointer
+    bool isValid() const;
+
+    //! Returns raw pointer to sqlite3 value
+    sqlite3_value *value() const;
+
+    static std::string toString( sqlite3_value *val );
+
+  private:
+    sqlite3_value *mVal = nullptr;
+};
 
 std::string pOpToStr( int pOp );
 std::string conflict2Str( int c );
-int changesetIter2Str( sqlite3_changeset_iter *pp );
-void errorLogCallback( void *pArg, int iErrCode, const char *zMsg );
 
-/*
-** Prepare a new SQL statement.  Print an error and abort if anything
-** goes wrong.
-*/
-sqlite3_stmt *db_prepare( sqlite3 *db, const char *zFormat, ... );
+//! copy file from to location. override if exists
+void filecopy( const std::string &to, const std::string &from );
 
-/*
-** Return the text of an SQL statement that itself returns the list of
-** tables to process within the database.
-*/
-const char *all_tables_sql();
+//! remove a file if exists
+void fileremove( const std::string &path );
 
-// copy file from to location. override if exists
-void cp( const std::string &to, const std::string &from );
-
-std::string sqlite_value_2str( sqlite3_value *ppValue );
-
-
-/**
- * Reads a file content to the string
- * https://stackoverflow.com/questions/3747086/reading-the-whole-text-file-into-a-char-array-in-c
- * TODO write in C++
- */
-long slurp( char const *path, char **buf );
-
+//! whether file exists
+bool fileexists( const std::string &path );
 
 // WRITE CHANGESET API
 

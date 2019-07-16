@@ -11,32 +11,553 @@
 #include <stdarg.h>
 #include <ctype.h>
 #include <string.h>
-#include <assert.h>
 #include <sqlite3.h>
-#include <fcntl.h>
-#include <unistd.h>
-#include <errno.h>
-#include <sys/stat.h>
-#include <unistd.h>
-
-#include <boost/filesystem.hpp>
+#include <exception>
+#include <fstream>
 #include <string>
 #include <vector>
 #include <iostream>
+#include <sstream>
 
-void strInit( Str *p )
+#ifdef WIN32
+#include <windows.h>
+#include <tchar.h>
+#else
+#include <unistd.h>
+#include <errno.h>
+#include <sys/stat.h>
+#endif
+
+GeoDiffException::GeoDiffException( const std::string &msg )
+  : std::exception()
+  , mMsg( msg )
 {
-  p->z = 0;
-  p->nAlloc = 0;
-  p->nUsed = 0;
+}
+
+const char *GeoDiffException::what() const throw()
+{
+  return mMsg.c_str();
+}
+
+// ////////////////////////////////////////////////////////////////////////
+// ////////////////////////////////////////////////////////////////////////
+// ////////////////////////////////////////////////////////////////////////
+
+Logger::Logger()
+{
+  levelFromEnv();
+}
+
+Logger &Logger::instance()
+{
+  static Logger instance;
+  return instance;
+}
+
+Logger::LoggerLevel Logger::level() const
+{
+  return mLevel;
+}
+
+void Logger::debug( const std::string &msg )
+{
+  log( LevelDebug, msg );
+}
+
+void Logger::warn( const std::string &msg )
+{
+  log( LevelWarnings, msg );
+}
+
+void Logger::error( const std::string &msg )
+{
+  log( LevelErrors, msg );
+}
+
+void Logger::error( const GeoDiffException &exp )
+{
+  log( LevelErrors, exp.what() );
+}
+
+void Logger::info( const std::string &msg )
+{
+  log( LevelInfos, msg );
+}
+
+void Logger::log( LoggerLevel level, const std::string &msg )
+{
+  if ( static_cast<int>( level ) > static_cast<int>( mLevel ) )
+    return;
+
+  std::string prefix;
+  switch ( level )
+  {
+    case LevelErrors: prefix = "Error: "; break;
+    case LevelWarnings: prefix = "Warn: "; break;
+    case LevelDebug: prefix = "Debug: "; break;
+    default: break;
+  }
+  std::cout << prefix << msg << std::endl ;
+}
+
+void Logger::levelFromEnv()
+{
+  char *val = getenv( "GEODIFF_LOGGER_LEVEL" );
+  if ( val )
+  {
+    int level = atoi( val );
+    if ( level >= LevelNothing && level <= LevelDebug )
+    {
+      mLevel = ( LoggerLevel )level;
+    }
+  }
+}
+
+// ////////////////////////////////////////////////////////////////////////
+// ////////////////////////////////////////////////////////////////////////
+// ////////////////////////////////////////////////////////////////////////
+Sqlite3Db::Sqlite3Db() = default;
+Sqlite3Db::~Sqlite3Db()
+{
+  close();
+}
+
+void Sqlite3Db::open( const std::string &filename )
+{
+  close();
+  int rc = sqlite3_open( filename.c_str(), &mDb );
+  if ( rc )
+  {
+    throw GeoDiffException( "Unable to open " + filename + " as sqlite3 database" );
+  }
+}
+
+void Sqlite3Db::exec( const Buffer &buf )
+{
+  int rc = sqlite3_exec( get(), buf.c_buf(), NULL, 0, NULL );
+  if ( rc )
+  {
+    throw GeoDiffException( "Unable to exec buffer on sqlite3 database" );
+  }
+}
+
+sqlite3 *Sqlite3Db::get()
+{
+  return mDb;
+}
+
+void Sqlite3Db::close()
+{
+  if ( mDb )
+  {
+    sqlite3_close( mDb );
+    mDb = nullptr;
+  }
 }
 
 
-void strFree( Str *p )
+Sqlite3Session::Sqlite3Session() = default;
+
+Sqlite3Session::~Sqlite3Session()
 {
-  sqlite3_free( p->z );
-  strInit( p );
+  close();
 }
+
+void Sqlite3Session::create( std::shared_ptr<Sqlite3Db> db, const std::string &name )
+{
+  close();
+  if ( db && db->get() )
+  {
+    int rc = sqlite3session_create( db->get(), name.c_str(), &mSession );
+    if ( rc )
+    {
+      throw GeoDiffException( "Unable to open session " + name );
+    }
+  }
+}
+
+sqlite3_session *Sqlite3Session::get() const
+{
+  return mSession;
+}
+
+void Sqlite3Session::close()
+{
+  if ( mSession )
+  {
+    sqlite3session_delete( mSession );
+    mSession = nullptr;
+  }
+}
+
+Sqlite3Stmt::Sqlite3Stmt() = default;
+
+Sqlite3Stmt::~Sqlite3Stmt()
+{
+  close();
+}
+
+sqlite3_stmt *Sqlite3Stmt::db_vprepare( sqlite3 *db, const char *zFormat, va_list ap )
+{
+  char *zSql;
+  int rc;
+  sqlite3_stmt *pStmt;
+
+  zSql = sqlite3_vmprintf( zFormat, ap );
+  if ( zSql == nullptr )
+  {
+    throw GeoDiffException( "out of memory" );
+  }
+
+  rc = sqlite3_prepare_v2( db, zSql, -1, &pStmt, nullptr );
+  if ( rc )
+  {
+    throw GeoDiffException( "SQL statement error" );
+  }
+  sqlite3_free( zSql );
+  return pStmt;
+}
+
+void Sqlite3Stmt::prepare( std::shared_ptr<Sqlite3Db> db, const char *zFormat, ... )
+{
+  if ( db && db->get() )
+  {
+    va_list ap;
+    va_start( ap, zFormat );
+    mStmt = db_vprepare( db->get(), zFormat, ap );
+    va_end( ap );
+  }
+}
+
+sqlite3_stmt *Sqlite3Stmt::get()
+{
+  return mStmt;
+}
+
+void Sqlite3Stmt::close()
+{
+  if ( mStmt )
+  {
+    sqlite3_finalize( mStmt );
+    mStmt = nullptr;
+  }
+}
+
+Sqlite3ChangesetIter::Sqlite3ChangesetIter() = default;
+
+Sqlite3ChangesetIter::~Sqlite3ChangesetIter()
+{
+  close();
+}
+
+void Sqlite3ChangesetIter::start( const Buffer &buf )
+{
+  int rc = sqlite3changeset_start(
+             &mChangesetIter,
+             buf.size(),
+             buf.v_buf()
+           );
+  if ( rc != SQLITE_OK )
+  {
+    throw GeoDiffException( "sqlite3changeset_start error" );
+  }
+}
+
+sqlite3_changeset_iter *Sqlite3ChangesetIter::get()
+{
+  return mChangesetIter;
+}
+
+void Sqlite3ChangesetIter::close()
+{
+  if ( mChangesetIter )
+  {
+    sqlite3changeset_finalize( mChangesetIter );
+
+    mChangesetIter = nullptr;
+  }
+}
+
+void Sqlite3ChangesetIter::oldValue( int i, sqlite3_value **val )
+{
+  int rc = sqlite3changeset_old( mChangesetIter, i, val );
+  if ( rc != SQLITE_OK )
+  {
+    throw GeoDiffException( "sqlite3changeset_old error" );
+  }
+}
+
+void Sqlite3ChangesetIter::newValue( int i, sqlite3_value **val )
+{
+  int rc = sqlite3changeset_new( mChangesetIter, i, val );
+  if ( rc != SQLITE_OK )
+  {
+    throw GeoDiffException( "sqlite3changeset_new error" );
+  }
+}
+
+std::string Sqlite3ChangesetIter::toString( sqlite3_changeset_iter *pp )
+{
+  std::ostringstream ret;
+
+  if ( !pp )
+    return std::string();
+
+  int rc;
+  const char *pzTab;
+  int pnCol;
+  int pOp;
+  int pbIndirect;
+  rc = sqlite3changeset_op(
+         pp,
+         &pzTab,
+         &pnCol,
+         &pOp,
+         &pbIndirect
+       );
+  std::string s = pOpToStr( pOp );
+  ret << " " << pzTab << " " << s << "    columns " << pnCol << "    indirect " << pbIndirect << std::endl;
+
+  sqlite3_value *ppValueOld;
+  sqlite3_value *ppValueNew;
+  for ( int i = 0; i < pnCol; ++i )
+  {
+    if ( pOp == SQLITE_UPDATE || pOp == SQLITE_INSERT )
+    {
+      rc = sqlite3changeset_new( pp, i, &ppValueNew );
+      if ( rc != SQLITE_OK )
+        throw GeoDiffException( "sqlite3changeset_new" );
+    }
+    else
+      ppValueNew = nullptr;
+
+    if ( pOp == SQLITE_UPDATE || pOp == SQLITE_DELETE )
+    {
+      rc = sqlite3changeset_old( pp, i, &ppValueOld );
+      if ( rc != SQLITE_OK )
+        throw GeoDiffException( "sqlite3changeset_old" );
+    }
+    else
+      ppValueOld = nullptr;
+
+    ret << "  " << i << ": " << Sqlite3Value::toString( ppValueOld ) << "->" << Sqlite3Value::toString( ppValueNew ) << std::endl;
+  }
+  ret << std::endl;
+  return ret.str();
+
+}
+
+
+// ////////////////////////////////////////////////////////////////////////
+// ////////////////////////////////////////////////////////////////////////
+// ////////////////////////////////////////////////////////////////////////
+
+Buffer::Buffer() = default;
+
+Buffer::~Buffer()
+{
+  free();
+}
+
+bool Buffer::isEmpty() const
+{
+  return mAlloc == 0;
+}
+
+void Buffer::free()
+{
+  if ( mZ )
+  {
+    sqlite3_free( mZ );
+    mZ = nullptr;
+    mAlloc = 0;
+    mUsed = 0;
+  }
+}
+
+void Buffer::read( const std::string &filename )
+{
+  // https://stackoverflow.com/questions/3747086/reading-the-whole-text-file-into-a-char-array-in-c
+
+  // clean the buffer
+  free();
+
+  /* Open the file */
+  FILE *fp = fopen( filename.c_str(), "rb" );
+  if ( nullptr == fp )
+  {
+    throw GeoDiffException( "Unable to open " + filename );
+  }
+
+  /* Seek to the end of the file */
+  int rc = fseek( fp, 0L, SEEK_END );
+  if ( 0 != rc )
+  {
+    throw GeoDiffException( "Unable to seek the end of " + filename );
+  }
+
+  long off_end;
+  /* Byte offset to the end of the file (size) */
+  if ( 0 > ( off_end = ftell( fp ) ) )
+  {
+    throw GeoDiffException( "Unable to read file size of " + filename );
+  }
+  mAlloc = ( size_t )off_end;
+  mUsed = mAlloc;
+
+  if ( mAlloc == 0 )
+  {
+    // empty file
+    return;
+  }
+
+  /* Allocate a buffer to hold the whole file */
+  mZ = ( char * ) sqlite3_malloc( mAlloc );
+  if ( mZ == nullptr )
+  {
+    throw GeoDiffException( "Out of memory to read " + filename + " to internal buffer" );
+  }
+
+  /* Rewind file pointer to start of file */
+  rewind( fp );
+
+  /* Slurp file into buffer */
+  if ( mAlloc != fread( mZ, 1, mAlloc, fp ) )
+  {
+    throw GeoDiffException( "Unable to read " + filename + " to internal buffer" );
+  }
+
+  /* Close the file */
+  if ( EOF == fclose( fp ) )
+  {
+    throw GeoDiffException( "Unable to close " + filename );
+  }
+}
+
+void Buffer::read( const Sqlite3Session &session )
+{
+  free();
+  if ( !session.get() )
+  {
+    throw GeoDiffException( "Invalid session" );
+  }
+  int rc = sqlite3session_changeset( session.get(), &mAlloc, ( void ** ) &mZ );
+  mUsed = mAlloc;
+  if ( rc )
+  {
+    throw GeoDiffException( "Unable to read sqlite3 session to internal buffer" );
+  }
+}
+
+void Buffer::printf( const char *zFormat, ... )
+{
+  int nNew;
+  for ( ;; )
+  {
+    if ( mZ )
+    {
+      va_list ap;
+      va_start( ap, zFormat );
+      sqlite3_vsnprintf( mAlloc - mUsed, mZ + mUsed, zFormat, ap );
+      va_end( ap );
+      nNew = ( int )strlen( mZ + mUsed );
+    }
+    else
+    {
+      nNew = mAlloc;
+    }
+    if ( mUsed + nNew < mAlloc - 1 )
+    {
+      mUsed += nNew;
+      break;
+    }
+    mAlloc = mAlloc * 2 + 1000;
+    mZ = ( char * ) sqlite3_realloc( mZ, mAlloc );
+    if ( mZ == nullptr )
+    {
+      throw GeoDiffException( "out of memory in Buffer::printf" );
+    }
+  }
+}
+
+void Buffer::write( const std::string &filename )
+{
+  FILE *f = fopen( filename.c_str(), "wb" );
+  if ( !f )
+  {
+    throw GeoDiffException( "Unable to open " + filename + " for writing" );
+  }
+  fwrite( mZ, mAlloc, 1, f );
+  fclose( f );
+}
+
+const char *Buffer::c_buf() const
+{
+  return mZ;
+}
+
+void *Buffer::v_buf() const
+{
+  return mZ;
+}
+
+int Buffer::size() const
+{
+  return mAlloc;
+}
+
+// ////////////////////////////////////////////////////////////////////////
+// ////////////////////////////////////////////////////////////////////////
+// ////////////////////////////////////////////////////////////////////////
+
+
+
+Sqlite3Value::Sqlite3Value() = default;
+
+Sqlite3Value::Sqlite3Value( const sqlite3_value *val )
+{
+  if ( val )
+  {
+    mVal = sqlite3_value_dup( val );
+  }
+}
+
+Sqlite3Value::~Sqlite3Value()
+{
+  if ( mVal )
+  {
+    sqlite3_value_free( mVal );
+  }
+}
+
+bool Sqlite3Value::isValid() const
+{
+  return mVal != nullptr;
+}
+
+sqlite3_value *Sqlite3Value::value() const
+{
+  return mVal;
+}
+
+std::string Sqlite3Value::toString( sqlite3_value *ppValue )
+{
+  if ( !ppValue )
+    return "nil";
+  std::string val = "n/a";
+  int type = sqlite3_value_type( ppValue );
+  if ( type == SQLITE_INTEGER )
+    val = std::to_string( sqlite3_value_int( ppValue ) );
+  else if ( type == SQLITE_TEXT )
+    val = std::string( reinterpret_cast<const char *>( sqlite3_value_text( ppValue ) ) );
+  else if ( type == SQLITE_FLOAT )
+    val = std::to_string( sqlite3_value_double( ppValue ) );
+  return val;
+}
+
+// ////////////////////////////////////////////////////////////////////////
+// ////////////////////////////////////////////////////////////////////////
+// ////////////////////////////////////////////////////////////////////////
 
 std::string pOpToStr( int pOp )
 {
@@ -91,216 +612,6 @@ std::string conflict2Str( int c )
     case SQLITE_CHANGESET_FOREIGN_KEY: return "SQLITE_CHANGESET_FOREIGN_KEY";
   }
   return std::to_string( c );
-}
-
-std::string sqlite_value_2str( sqlite3_value *ppValue )
-{
-  if ( !ppValue )
-    return "nil";
-  std::string val = "n/a";
-  int type = sqlite3_value_type( ppValue );
-  if ( type == SQLITE_INTEGER )
-    val = std::to_string( sqlite3_value_int( ppValue ) );
-  else if ( type == SQLITE_TEXT )
-    val = std::string( reinterpret_cast<const char *>( sqlite3_value_text( ppValue ) ) );
-  else if ( type == SQLITE_FLOAT )
-    val = std::to_string( sqlite3_value_double( ppValue ) );
-  return val;
-}
-
-int changesetIter2Str( sqlite3_changeset_iter *pp )
-{
-  if ( !pp )
-    return 0;
-
-  int rc;
-  const char *pzTab;
-  int pnCol;
-  int pOp;
-  int pbIndirect;
-  rc = sqlite3changeset_op(
-         pp,  /* Iterator object */
-         &pzTab,             /* OUT: Pointer to table name */
-         &pnCol,                     /* OUT: Number of columns in table */
-         &pOp,                       /* OUT: SQLITE_INSERT, DELETE or UPDATE */
-         &pbIndirect                 /* OUT: True for an 'indirect' change */
-       );
-  std::string s = pOpToStr( pOp );
-  std::cout << " " << pzTab << " " << s << "    columns " << pnCol << "    indirect " << pbIndirect << std::endl;
-
-  sqlite3_value *ppValueOld;
-  sqlite3_value *ppValueNew;
-  for ( int i = 0; i < pnCol; ++i )
-  {
-    if ( pOp == SQLITE_UPDATE || pOp == SQLITE_INSERT )
-    {
-      rc = sqlite3changeset_new( pp, i, &ppValueNew );
-      assert( rc == SQLITE_OK );
-    }
-    else
-      ppValueNew = 0;
-
-    if ( pOp == SQLITE_UPDATE || pOp == SQLITE_DELETE )
-    {
-      rc = sqlite3changeset_old( pp, i, &ppValueOld );
-      assert( rc == SQLITE_OK );
-    }
-    else
-      ppValueOld = 0;
-
-    std::cout << "  " << i << ": " << sqlite_value_2str( ppValueOld ) << "->" << sqlite_value_2str( ppValueNew ) << std::endl;
-  }
-  std::cout << std::endl;
-
-
-  return pnCol;
-}
-
-static void runtimeError( const char *zFormat, ... )
-{
-  // TODO do not use!
-  va_list ap;
-  // fprintf(stderr, "%s: ", zArgv0);
-  va_start( ap, zFormat );
-  vfprintf( stderr, zFormat, ap );
-  va_end( ap );
-  fprintf( stderr, "\n" );
-  exit( 1 );
-}
-
-void errorLogCallback( void *pArg, int iErrCode, const char *zMsg )
-{
-  fprintf( stderr, "(%d)%s\n", iErrCode, zMsg );
-}
-
-void strPrintf( Str *p, const char *zFormat, ... )
-{
-  int nNew;
-  for ( ;; )
-  {
-    if ( p->z )
-    {
-      va_list ap;
-      va_start( ap, zFormat );
-      sqlite3_vsnprintf( p->nAlloc - p->nUsed, p->z + p->nUsed, zFormat, ap );
-      va_end( ap );
-      nNew = ( int )strlen( p->z + p->nUsed );
-    }
-    else
-    {
-      nNew = p->nAlloc;
-    }
-    if ( p->nUsed + nNew < p->nAlloc - 1 )
-    {
-      p->nUsed += nNew;
-      break;
-    }
-    p->nAlloc = p->nAlloc * 2 + 1000;
-    p->z = ( char * ) sqlite3_realloc( p->z, p->nAlloc );
-    if ( p->z == 0 ) runtimeError( "out of memory" );
-  }
-}
-
-static sqlite3_stmt *db_vprepare( sqlite3 *db, const char *zFormat, va_list ap )
-{
-  char *zSql;
-  int rc;
-  sqlite3_stmt *pStmt;
-
-  zSql = sqlite3_vmprintf( zFormat, ap );
-  if ( zSql == 0 ) runtimeError( "out of memory" );
-  rc = sqlite3_prepare_v2( db, zSql, -1, &pStmt, 0 );
-  if ( rc )
-  {
-    runtimeError( "SQL statement error: %s\n\"%s\"", sqlite3_errmsg( db ),
-                  zSql );
-  }
-  sqlite3_free( zSql );
-  return pStmt;
-}
-
-sqlite3_stmt *db_prepare( sqlite3 *db, const char *zFormat, ... )
-{
-  va_list ap;
-  sqlite3_stmt *pStmt;
-  va_start( ap, zFormat );
-  pStmt = db_vprepare( db, zFormat, ap );
-  va_end( ap );
-  return pStmt;
-}
-
-const char *all_tables_sql()
-{
-  return
-    "SELECT name FROM main.sqlite_master\n"
-    " WHERE type='table' AND sql NOT LIKE 'CREATE VIRTUAL%%'\n"
-    " UNION\n"
-    "SELECT name FROM aux.sqlite_master\n"
-    " WHERE type='table' AND sql NOT LIKE 'CREATE VIRTUAL%%'\n"
-    " ORDER BY name";
-}
-
-
-void cp( const std::string &to, const std::string &from )
-{
-  boost::filesystem::copy_file( from, to,
-                                boost::filesystem::copy_option::overwrite_if_exists );
-}
-
-long slurp( char const *path, char **buf )
-{
-  FILE  *fp;
-  size_t fsz;
-  long   off_end;
-  int    rc;
-
-  /* Open the file */
-  fp = fopen( path, "r" );
-  if ( NULL == fp )
-  {
-    return -1L;
-  }
-
-  /* Seek to the end of the file */
-  rc = fseek( fp, 0L, SEEK_END );
-  if ( 0 != rc )
-  {
-    return -1L;
-  }
-
-  /* Byte offset to the end of the file (size) */
-  if ( 0 > ( off_end = ftell( fp ) ) )
-  {
-    return -1L;
-  }
-  fsz = ( size_t )off_end;
-
-  /* Allocate a buffer to hold the whole file */
-  *buf = ( char * ) malloc( fsz );
-  if ( NULL == *buf )
-  {
-    return -1L;
-  }
-
-  /* Rewind file pointer to start of file */
-  rewind( fp );
-
-  /* Slurp file into buffer */
-  if ( fsz != fread( *buf, 1, fsz, fp ) )
-  {
-    free( *buf );
-    return -1L;
-  }
-
-  /* Close the file */
-  if ( EOF == fclose( fp ) )
-  {
-    free( *buf );
-    return -1L;
-  }
-
-  /* Return the file size */
-  return ( long )fsz;
 }
 
 void putsVarint( FILE *out, sqlite3_uint64 v )
@@ -383,4 +694,42 @@ void putValue( FILE *out, int ppValue )
   memcpy( &uX, &iX, 8 );
   putc( SQLITE_INTEGER, out );
   for ( int j = 56; j >= 0; j -= 8 ) putc( ( uX >> j ) & 0xff, out );
+}
+
+
+void filecopy( const std::string &to, const std::string &from )
+{
+  fileremove( to );
+
+  std::ifstream  src( from, std::ios::binary );
+  std::ofstream  dst( to,   std::ios::binary );
+
+  dst << src.rdbuf();
+}
+
+void fileremove( const std::string &path )
+{
+  if ( fileexists( path ) )
+  {
+    remove( path.c_str() );
+  }
+}
+
+bool fileexists( const std::string &path )
+{
+#ifdef WIN32
+  WIN32_FIND_DATA FindFileData;
+  HANDLE handle = FindFirstFile( path.c_str(), &FindFileData ) ;
+  int found = handle != INVALID_HANDLE_VALUE;
+  if ( found )
+  {
+    //FindClose(&handle); this will crash
+    FindClose( handle );
+  }
+  return found;
+#else
+  // https://stackoverflow.com/a/12774387/2838364
+  struct stat buffer;
+  return ( stat( path.c_str(), &buffer ) == 0 );
+#endif
 }

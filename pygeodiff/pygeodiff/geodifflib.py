@@ -46,11 +46,11 @@ class GeoDiffLib:
         self.check_version()
 
     def init(self):
-        func = self.lib.init
+        func = self.lib.GEODIFF_init
         func()
 
     def version(self):
-        func = self.lib.version
+        func = self.lib.GEODIFF_version
         func.restype = ctypes.c_char_p
         ver = func()
         return ver.decode('utf-8')
@@ -62,7 +62,7 @@ class GeoDiffLib:
             raise GeoDiffLibVersionError("version mismatch (%s C vs %s PY)".format(cversion, pyversion))
 
     def create_changeset(self, base, modified, changeset):
-        func = self.lib.createChangeset
+        func = self.lib.GEODIFF_createChangeset
         func.argtypes = [ctypes.c_char_p, ctypes.c_char_p, ctypes.c_char_p]
         func.restype = ctypes.c_int
 
@@ -75,7 +75,7 @@ class GeoDiffLib:
         _parse_return_code(res, "createChangeset")
 
     def create_rebased_changeset(self, base, modified, changeset_their, changeset):
-        func = self.lib.createRebasedChangeset
+        func = self.lib.GEODIFF_createRebasedChangeset
         func.argtypes = [ctypes.c_char_p, ctypes.c_char_p, ctypes.c_char_p, ctypes.c_char_p]
         func.restype = ctypes.c_int
 
@@ -89,7 +89,7 @@ class GeoDiffLib:
         _parse_return_code(res, "createRebasedChangeset")
 
     def apply_changeset(self, base, patched, changeset):
-        func = self.lib.applyChangeset
+        func = self.lib.GEODIFF_applyChangeset
         func.argtypes = [ctypes.c_char_p, ctypes.c_char_p, ctypes.c_char_p]
         func.restype = ctypes.c_int
 
@@ -102,14 +102,13 @@ class GeoDiffLib:
         _parse_return_code(res, "createRebasedChangeset")
 
     def list_changes(self, base ):
-        func = self.lib.listChanges
-        func.argtypes = [ctypes.c_char_p, ctypes.POINTER(ctypes.c_int)]
+        func = self.lib.GEODIFF_listChanges
+        func.argtypes = [ctypes.c_char_p]
         func.restype = ctypes.c_int
 
         # create byte objects from the strings
         b_string1 = base.encode('utf-8')
-        nchanges = ctypes.c_int(0)
-        res = func(b_string1, ctypes.byref(nchanges))
-        _parse_return_code(res, "listChanges")
-
-        return nchanges.value
+        nchanges = func(b_string1)
+        if nchanges < 0:
+            raise GeoDiffLibError("listChanges")
+        return nchanges

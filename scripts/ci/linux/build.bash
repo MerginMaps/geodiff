@@ -11,15 +11,6 @@ make
 CTEST_TARGET_SYSTEM=Linux-gcc; ctest -VV
 cd ..
 
-echo "MinGW Cross-compile Windows build"
-mkdir -p build_mingw
-cd build_mingw
-cmake .. -DCMAKE_TOOLCHAIN_FILE=../Toolchain-mingw32.cmake \
-         -DENABLE_TESTS=OFF \
-         ${CMAKE_OPTIONS} -DCMAKE_BUILD_TYPE=Rel
-make
-cd ..
-
 echo "Linux Valgrind"
 valgrind --version
 
@@ -28,7 +19,7 @@ cd build_db_lnx
 cmake ${CMAKE_OPTIONS} \
       -DCMAKE_BUILD_TYPE=Debug \
       -DMEMORYCHECK_COMMAND_OPTIONS="--leak-check=yes --show-leak-kinds=definite --gen-suppressions=all --track-origins=yes --num-callers=20 --leak-resolution=high --show-reachable=no" \
-      -DMEMORYCHECK_SUPPRESSIONS_FILE=../scripts/ci/linux/valgrind.supp \
+      -DMEMORYCHECK_SUPPRESSIONS_FILE=../../scripts/ci/linux/valgrind.supp \
       -DENABLE_TESTS=ON ..
 
 make # VERBOSE=1
@@ -41,8 +32,8 @@ ctest -T memcheck 2>&1 | tee memcheck.log
 
 if grep -q "Defects:" "memcheck.log"; then
   echo "Error: Show memcheck results"
-  ls -la /home/travis/build/lutraconsulting/geodiff/build_db_lnx/Testing/Temporary/MemoryChecker.*.log
-  cat /home/travis/build/lutraconsulting/geodiff/build_db_lnx/Testing/Temporary/MemoryChecker.*.log
+  ls -la /home/travis/build/lutraconsulting/geodiff/geodiff/build_db_lnx/Testing/Temporary/MemoryChecker.*.log
+  cat /home/travis/build/lutraconsulting/geodiff/geodiff/build_db_lnx/Testing/Temporary/MemoryChecker.*.log
   exit 1
 fi
 cd ..

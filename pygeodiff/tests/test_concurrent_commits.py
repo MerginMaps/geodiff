@@ -5,20 +5,25 @@
 '''
 
 from .testutils import *
-
+import os
+import shutil
 
 class UnitTestsConsurrentCommits(GeoDiffTests):
     def test_2_inserts(self):
         print("********************************************************")
         print("geopackage 2 concurent modifications (base) -> (A) and (base) -> (B)")
+        testname = "2_inserts"
+        if os.path.exists(tmpdir() + "/py" + testname):
+            shutil.rmtree(tmpdir() + "/py" + testname)
+        os.makedirs(tmpdir() + "/py" + testname)
 
         base = testdir() + "/base.gpkg"
-        modifiedA = testdir() + "/" + "inserted_1_A.gpkg"
-        modifiedB = testdir() + "/" + "inserted_1_B.gpkg"
-        changesetbaseA = tmpdir() + "/changeset_base_to_A.bin"
-        changesetAB = tmpdir() + "/changeset_A_to_B.bin"
-        changesetBbase = tmpdir() + "/changeset_B_to_base.bin"
-        patchedAB = tmpdir() + "/patched_AB.gpkg"
+        modifiedA = testdir() + "/" + testname + "/" + "inserted_1_A.gpkg"
+        modifiedB = testdir() + "/" + testname + "/" + "inserted_1_B.gpkg"
+        changesetbaseA = tmpdir() + "/py" + testname + "/" + "changeset_base_to_A.bin"
+        changesetAB = tmpdir() + "/py" + testname + "/" + "changeset_A_to_B.bin"
+        changesetBbase = tmpdir() + "/py" + testname + "/" + "changeset_B_to_base.bin"
+        patchedAB = tmpdir() + "/py" + testname + "/" + "patched_AB.gpkg"
 
         print("create changeset base to A")
         self.geodiff.create_changeset(base, modifiedA, changesetbaseA)

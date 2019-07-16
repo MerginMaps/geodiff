@@ -6,7 +6,6 @@
 
 import unittest
 import os
-import shutil
 import tempfile
 import pygeodiff
 
@@ -34,6 +33,8 @@ def check_nchanges( geodiff, changeset, expected_number_of_changes ):
 
 class GeoDiffTests(unittest.TestCase):
     def setUp(self):
+        # set env
+        os.environ["GEODIFF_LOGGER_LEVEL"] = "4"
         # load lib
         lib = os.environ.get("GEODIFFLIB", None)
         if lib is None:
@@ -41,3 +42,5 @@ class GeoDiffTests(unittest.TestCase):
         if not os.path.exists(lib):
             raise TestError("lib {} is missing ".format(lib))
         self.geodiff = pygeodiff.GeoDiff(lib)
+
+

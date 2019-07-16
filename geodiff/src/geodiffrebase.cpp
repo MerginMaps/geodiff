@@ -7,19 +7,13 @@
 #include "geodiffutils.hpp"
 #include "geodiff.h"
 
-#include <boost/filesystem.hpp>
+#include <memory>
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdarg.h>
 #include <ctype.h>
 #include <string.h>
-#include <assert.h>
 #include <sqlite3.h>
-#include <fcntl.h>
-#include <unistd.h>
-#include <errno.h>
-#include <sys/stat.h>
-#include <unistd.h>
 #include <algorithm>
 #include <functional>
 #include <iostream>
@@ -28,6 +22,7 @@
 #include <map>
 #include <set>
 #include <fstream>
+#include <sstream>
 
 // table name -> ids (deleted or inserted)
 typedef std::map<std::string, std::set < int > > MapIds;
@@ -78,24 +73,30 @@ int _maximum_id( const MapIds &mapIds, const std::string &table )
 
 void _print_idmap( MapIds &mapIds, const std::string &name )
 {
+  if ( Logger::instance().level() < Logger::LevelDebug )
+    return;
+
+  std::ostringstream ret;
   std::cout << name << std::endl;
   if ( mapIds.empty() )
-    std::cout << "--none -- " << std::endl;
+    ret << "--none -- ";
 
   for ( auto it : mapIds )
   {
-    std::cout << "  " << it.first << std::endl << "    ";
+    ret << "  " << it.first << std::endl << "    ";
     if ( it.second.empty() )
-      std::cout << "--none -- ";
+      ret << "--none -- ";
     for ( auto it2 : it.second )
     {
-      std::cout << it2 << ",";
+      ret << it2 << ",";
     }
-    std::cout << std::endl;
+    ret << std::endl;
   }
+  Logger::instance().debug( ret.str() );
 }
 
 // table name -> old fid --> new fid
+const int INVALID_FID = -1;
 typedef std::map<std::string, std::map < int, int  > > MappingIds;
 
 bool _contains_old( const MappingIds &mapIds, const std::string &table, int id )
@@ -134,38 +135,46 @@ int _get_new( const MappingIds &mapIds, const std::string &table, int id )
   auto ids = mapIds.find( table );
   if ( ids == mapIds.end() )
   {
-    assert( false );
+    throw GeoDiffException( "internal error: _get_new MappingIds" );
   }
   else
   {
     const std::map < int, int  > &oldSet = ids->second;
     auto a = oldSet.find( id );
-    assert( a != oldSet.end() );
+    if ( a == oldSet.end() )
+      throw GeoDiffException( "internal error: _get_new MappingIds" );
     return a->second;
   }
 }
 
 void _print_idmap( const MappingIds &mapIds, const std::string &name )
 {
-  std::cout << name << std::endl;
+  if ( Logger::instance().level() < Logger::LevelDebug )
+    return;
+
+  std::ostringstream ret;
+
+  ret << name << std::endl;
   if ( mapIds.empty() )
-    std::cout << "--none -- " << std::endl;
+    ret << "--none -- " << std::endl;
 
   for ( auto it : mapIds )
   {
-    std::cout << "  " << it.first << std::endl << "    ";
+    ret << "  " << it.first << std::endl << "    ";
     if ( it.second.empty() )
-      std::cout << "--none -- ";
+      ret << "--none -- ";
     for ( auto it2 : it.second )
     {
-      std::cout << it2.first << "->" << it2.second << ",";
+      ret << it2.first << "->" << it2.second << ",";
     }
-    std::cout << std::endl;
+    ret << std::endl;
   }
+
+  Logger::instance().debug( ret.str() );
 }
 
 // table name, id -> old values, new values
-typedef std::vector<sqlite3_value *> SqValues;
+typedef std::vector<std::shared_ptr<Sqlite3Value>> SqValues;
 typedef std::map < int, std::pair<SqValues, SqValues> > SqValuesMap;
 typedef std::map<std::string,  SqValuesMap> SqOperations;
 
@@ -184,9 +193,10 @@ bool _contains( const SqOperations &operations, const std::string &table, int id
   }
 }
 
-void _insert( SqOperations &mapIds, const std::string &table, int id, sqlite3_changeset_iter *pp )
+void _insert( SqOperations &mapIds, const std::string &table, int id, Sqlite3ChangesetIter &pp )
 {
-
+  if ( !pp.get() )
+    throw GeoDiffException( "internal error in _insert" );
 
   int rc;
   const char *pzTab;
@@ -194,7 +204,7 @@ void _insert( SqOperations &mapIds, const std::string &table, int id, sqlite3_ch
   int pOp;
   int pbIndirect;
   rc = sqlite3changeset_op(
-         pp,  /* Iterator object */
+         pp.get(),  /* Iterator object */
          &pzTab,             /* OUT: Pointer to table name */
          &pnCol,                     /* OUT: Number of columns in table */
          &pOp,                       /* OUT: SQLITE_INSERT, DELETE or UPDATE */
@@ -210,25 +220,18 @@ void _insert( SqOperations &mapIds, const std::string &table, int id, sqlite3_ch
   {
     if ( pOp == SQLITE_UPDATE || pOp == SQLITE_INSERT )
     {
-      rc = sqlite3changeset_new( pp, i, &ppValue );
-      ppValue = sqlite3_value_dup( ppValue );
-
-      assert( rc == SQLITE_OK );
-      newValues[i] = ppValue;
+      pp.newValue( i, &ppValue );
+      newValues[i].reset( new Sqlite3Value( ppValue ) );
     }
 
     if ( pOp == SQLITE_UPDATE || pOp == SQLITE_DELETE )
     {
-      rc = sqlite3changeset_old( pp, i, &ppValue );
-      ppValue = sqlite3_value_dup( ppValue );
-
-      assert( rc == SQLITE_OK );
-      oldValues[i] = ppValue;
+      pp.oldValue( i, &ppValue );
+      oldValues[i].reset( new Sqlite3Value( ppValue ) );
     }
   }
 
   std::pair<SqValues, SqValues> vals( oldValues, newValues );
-
   auto ids = mapIds.find( table );
   if ( ids == mapIds.end() )
   {
@@ -243,23 +246,19 @@ void _insert( SqOperations &mapIds, const std::string &table, int id, sqlite3_ch
   }
 }
 
-void free( SqOperations &mapIds )
-{
-  //TODO call sqlite3_value_free();
-}
-
 SqValues _get_old( const SqOperations &mapIds, const std::string &table, int id )
 {
   auto ids = mapIds.find( table );
   if ( ids == mapIds.end() )
   {
-    assert( false );
+    throw GeoDiffException( "internal error in _get_old SqOperations" );
   }
   else
   {
     const SqValuesMap &oldSet = ids->second;
     auto a = oldSet.find( id );
-    assert( a != oldSet.end() );
+    if ( a == oldSet.end() )
+      throw GeoDiffException( "internal error: _get_old SqOperations" );
     return a->second.first;
   }
 }
@@ -269,13 +268,14 @@ SqValues _get_new( const SqOperations &mapIds, const std::string &table, int id 
   auto ids = mapIds.find( table );
   if ( ids == mapIds.end() )
   {
-    assert( false );
+    throw GeoDiffException( "internal error in _get_new SqOperations" );
   }
   else
   {
     const SqValuesMap &oldSet = ids->second;
     auto a = oldSet.find( id );
-    assert( a != oldSet.end() );
+    if ( a == oldSet.end() )
+      throw GeoDiffException( "internal error: _get_new SqOperations" );
     return a->second.second;
   }
 }
@@ -285,24 +285,21 @@ SqValues _get_new( const SqOperations &mapIds, const std::string &table, int id 
 ///////////////////////////////////////
 ///////////////////////////////////////
 
-int _get_primary_key( sqlite3_changeset_iter *pp, int pOp )
+int _get_primary_key( Sqlite3ChangesetIter &pp, int pOp )
 {
-  unsigned char *pabPK;          /* OUT: Array of boolean - true for PK cols */
+  if ( !pp.get() )
+    throw GeoDiffException( "internal error in _get_primary_key" );
+
+  unsigned char *pabPK;
   int pnCol;
-  int rc = sqlite3changeset_pk(
-             pp,  /* Iterator object */
-             &pabPK,          /* OUT: Array of boolean - true for PK cols */
-             &pnCol           /* OUT: Number of entries in output array */
-           );
-  if ( rc == SQLITE_MISUSE )
+  int rc = sqlite3changeset_pk( pp.get(),  &pabPK, &pnCol );
+  if ( rc )
   {
-    assert( false );
+    throw GeoDiffException( "internal error in _get_primary_key" );
   }
-  assert( !rc );
 
   // lets assume for now it has only one PK and it is int...
   int pk_column_number = -1;
-
   for ( int i = 0; i < pnCol; ++i )
   {
     if ( pabPK[i] == 0x01 )
@@ -310,27 +307,28 @@ int _get_primary_key( sqlite3_changeset_iter *pp, int pOp )
       if ( pk_column_number >= 0 )
       {
         // ups primary key composite!
-        assert( false );
+        throw GeoDiffException( "internal error in _get_primary_key: support composite primary keys not implemented" );
       }
       pk_column_number = i;
     }
   }
-  assert( pk_column_number >= 0 );
+  if ( pk_column_number == -1 )
+  {
+    throw GeoDiffException( "internal error in _get_primary_key: unable to find internal key" );
+  }
 
   // now get the value
-  sqlite3_value *ppValue = 0;
+  sqlite3_value *ppValue = nullptr;
   if ( pOp == SQLITE_INSERT )
   {
-    rc = sqlite3changeset_new( pp, pk_column_number, &ppValue );
-    assert( rc == SQLITE_OK );
+    pp.newValue( pk_column_number, &ppValue );
   }
   else if ( pOp == SQLITE_DELETE || pOp == SQLITE_UPDATE )
   {
-    rc = sqlite3changeset_old( pp, pk_column_number, &ppValue );
-    assert( rc == SQLITE_OK );
+    pp.oldValue( pk_column_number, &ppValue );
   }
-
-  assert( ppValue );
+  if ( !ppValue )
+    throw GeoDiffException( "internal error in _get_primary_key: unable to get value of primary key" );
 
   int type = sqlite3_value_type( ppValue );
   if ( type == SQLITE_INTEGER )
@@ -338,7 +336,7 @@ int _get_primary_key( sqlite3_changeset_iter *pp, int pOp )
     int val = sqlite3_value_int( ppValue );
     return val;
   }
-  else   if ( type == SQLITE_TEXT )
+  else if ( type == SQLITE_TEXT )
   {
     const unsigned char *valT = sqlite3_value_text( ppValue );
     int hash = 0;
@@ -351,28 +349,16 @@ int _get_primary_key( sqlite3_changeset_iter *pp, int pOp )
   }
   else
   {
-    assert( false );
+    throw GeoDiffException( "internal error in _get_primary_key: unsuported type of primary key" );
   }
 }
 
-int _parse_old_changeset( void *buf_BASE_THEIRS, int size_BASE_THEIRS, MapIds &inserted, MapIds &deleted, SqOperations &updated )
+int _parse_old_changeset( const Buffer &buf_BASE_THEIRS, MapIds &inserted, MapIds &deleted, SqOperations &updated )
 {
-  sqlite3_changeset_iter *pp;
+  Sqlite3ChangesetIter pp;
+  pp.start( buf_BASE_THEIRS );
 
-  int rc = sqlite3changeset_start(
-             &pp,
-             size_BASE_THEIRS,
-             buf_BASE_THEIRS
-           );
-  if ( rc != SQLITE_OK )
-  {
-    printf( "sqlite3changeset_start error %d\n", rc );
-    return GEODIFF_ERROR;
-  }
-
-  std::cout << " PARSE OLD CHANGESET " << std::endl;
-
-  while ( SQLITE_ROW == sqlite3changeset_next( pp ) )
+  while ( SQLITE_ROW == sqlite3changeset_next( pp.get() ) )
   {
     int rc;
     const char *pzTab;
@@ -380,11 +366,11 @@ int _parse_old_changeset( void *buf_BASE_THEIRS, int size_BASE_THEIRS, MapIds &i
     int pOp;
     int pbIndirect;
     rc = sqlite3changeset_op(
-           pp,  /* Iterator object */
-           &pzTab,             /* OUT: Pointer to table name */
-           &pnCol,                     /* OUT: Number of columns in table */
-           &pOp,                       /* OUT: SQLITE_INSERT, DELETE or UPDATE */
-           &pbIndirect                 /* OUT: True for an 'indirect' change */
+           pp.get(),
+           &pzTab,
+           &pnCol,
+           &pOp,
+           &pbIndirect
          );
 
     int pk = _get_primary_key( pp, pOp );
@@ -402,7 +388,6 @@ int _parse_old_changeset( void *buf_BASE_THEIRS, int size_BASE_THEIRS, MapIds &i
       _insert( updated, pzTab, pk, pp );
     }
   }
-  sqlite3changeset_finalize( pp );
 
   _print_idmap( inserted, "inserted" );
   _print_idmap( deleted, "deleted" );
@@ -410,8 +395,10 @@ int _parse_old_changeset( void *buf_BASE_THEIRS, int size_BASE_THEIRS, MapIds &i
   return GEODIFF_SUCCESS;
 }
 
-int _find_mapping_for_new_changeset( void *buf, int size,
-                                     const MapIds &inserted, const MapIds &deleted, MappingIds &mapping )
+int _find_mapping_for_new_changeset( const Buffer &buf,
+                                     const MapIds &inserted,
+                                     const MapIds &deleted,
+                                     MappingIds &mapping )
 {
   std::map<std::string, int> freeIndices;
   for ( auto mapId : inserted )
@@ -419,20 +406,10 @@ int _find_mapping_for_new_changeset( void *buf, int size,
     freeIndices[mapId.first] = _maximum_id( inserted, mapId.first ) + 1;
   }
 
-  sqlite3_changeset_iter *pp;
-  int rc = sqlite3changeset_start(
-             &pp,
-             size,
-             buf
-           );
-  if ( rc != SQLITE_OK )
-  {
-    printf( "sqlite3changeset_start error %d\n", rc );
-    return GEODIFF_ERROR;
-  }
+  Sqlite3ChangesetIter pp;
+  pp.start( buf );
 
-  std::cout << " FIND MAPPINGS " << std::endl;
-  while ( SQLITE_ROW == sqlite3changeset_next( pp ) )
+  while ( SQLITE_ROW == sqlite3changeset_next( pp.get() ) )
   {
     int rc;
     const char *pzTab;
@@ -440,11 +417,11 @@ int _find_mapping_for_new_changeset( void *buf, int size,
     int pOp;
     int pbIndirect;
     rc = sqlite3changeset_op(
-           pp,  /* Iterator object */
-           &pzTab,             /* OUT: Pointer to table name */
-           &pnCol,                     /* OUT: Number of columns in table */
-           &pOp,                       /* OUT: SQLITE_INSERT, DELETE or UPDATE */
-           &pbIndirect                 /* OUT: True for an 'indirect' change */
+           pp.get(),
+           &pzTab,
+           &pnCol,
+           &pOp,
+           &pbIndirect
          );
 
     if ( pOp == SQLITE_INSERT )
@@ -453,9 +430,10 @@ int _find_mapping_for_new_changeset( void *buf, int size,
 
       if ( _contains_id( inserted, pzTab, pk ) )
       {
-        // conflict 2 concurrent updates...
+        // conflict 2 concurrent inserts...
         auto it = freeIndices.find( pzTab );
-        assert( it != freeIndices.end() );
+        if ( it == freeIndices.end() )
+          throw GeoDiffException( "internal error: freeIndices" );
 
         _insert_ids( mapping, pzTab, pk, it->second );
 
@@ -463,36 +441,176 @@ int _find_mapping_for_new_changeset( void *buf, int size,
         it->second ++;
       }
     }
+    else if ( pOp == SQLITE_UPDATE )
+    {
+      int pk = _get_primary_key( pp, pOp );
 
-    // TODO DELETE
-    // TODO UPDATE
-
+      if ( _contains_id( deleted, pzTab, pk ) )
+      {
+        // update on deleted feature...
+        _insert_ids( mapping, pzTab, pk, INVALID_FID );
+      }
+    }
   }
-  sqlite3changeset_finalize( pp );
 
   _print_idmap( mapping, "mapping" );
 
   return GEODIFF_SUCCESS;
 }
 
-int _prepare_new_changeset( void *buf, int size, const std::string &changesetNew, const MappingIds &mapping, const SqOperations &updated )
+void _handle_insert(
+  Sqlite3ChangesetIter &pp,
+  const std::string tableName,
+  int pnCol,
+  const MappingIds &mapping,
+  unsigned char *aiFlg,
+  FILE *out
+)
 {
-  sqlite3_changeset_iter *pp;
-  int rc = sqlite3changeset_start(
-             &pp,
-             size,
-             buf
-           );
-  if ( rc != SQLITE_OK )
+  // first write operation type (iType)
+  putc( SQLITE_INSERT, out );
+  putc( 0, out );
+
+  sqlite3_value *value;
+  // resolve primary key and patched primary key
+  int pk = _get_primary_key( pp, SQLITE_INSERT );
+  int newPk = pk;
+
+  if ( _contains_old( mapping, tableName, pk ) )
   {
-    printf( "sqlite3changeset_start error %d\n", rc );
-    return GEODIFF_ERROR;
+    // conflict 2 concurrent updates...
+    newPk = _get_new( mapping, tableName, pk );
   }
 
-  std::map<std::string, FILE *> buffers;
+  for ( int i = 0; i < pnCol; i++ )
+  {
+    if ( aiFlg[i] )
+    {
+      putValue( out, newPk );
+    }
+    else
+    {
+      pp.newValue( i, &value );
+      putValue( out, value );
+    }
+  }
+}
 
-  std::cout << " CREATE CHANGESET" << std::endl;
-  while ( SQLITE_ROW == sqlite3changeset_next( pp ) )
+void _handle_delete(
+  Sqlite3ChangesetIter &pp,
+  const std::string tableName,
+  int pnCol,
+  const MappingIds &mapping,
+  unsigned char *aiFlg,
+  FILE *out
+)
+{
+  // first write operation type (iType)
+  putc( SQLITE_DELETE, out );
+  putc( 0, out );
+
+  sqlite3_value *value;
+
+  // resolve primary key and patched primary key
+  int pk = _get_primary_key( pp, SQLITE_DELETE );
+  int newPk = pk;
+
+  if ( _contains_old( mapping, tableName, pk ) )
+  {
+    // conflict 2 concurrent updates...
+    newPk = _get_new( mapping, tableName, pk );
+  }
+
+  for ( int i = 0; i < pnCol; i++ )
+  {
+    if ( aiFlg[i] )
+    {
+      putValue( out, newPk );
+    }
+    else
+    {
+      pp.oldValue( i, &value );
+      putValue( out, value );
+    }
+  }
+}
+
+void _handle_update(
+  Sqlite3ChangesetIter &pp,
+  const std::string tableName,
+  int pnCol,
+  const MappingIds &mapping,
+  const SqOperations &updated,
+  unsigned char *aiFlg,
+  FILE *out
+)
+{
+  // get values from patched (new) master
+  int pk = _get_primary_key( pp, SQLITE_UPDATE );
+  if ( _contains_old( mapping, tableName, pk ) )
+  {
+    int newPk = _get_new( mapping, tableName, pk );
+    if ( newPk == INVALID_FID )
+      return;
+  }
+
+  SqValues patchedVals = _get_new( updated, tableName, pk );
+
+  // first write operation type (iType)
+  putc( SQLITE_UPDATE, out );
+  putc( 0, out );
+  sqlite3_value *value;
+  for ( int i = 0; i < pnCol; i++ )
+  {
+    // if the value was patched in the previous commit, use that one as base
+    std::shared_ptr<Sqlite3Value> patchedVal = patchedVals[i];
+    if ( patchedVal && patchedVal->isValid() )
+    {
+      value = patchedVal->value();
+    }
+    else
+    {
+      // otherwise the value is same for both patched and this, so use base value
+      pp.oldValue( i, &value );
+    }
+    putValue( out, value );
+  }
+
+  for ( int i = 0; i < pnCol; i++ )
+  {
+    pp.newValue( i, &value );
+    // gpkg_ogr_contents column 1 is total number of features
+    if ( strcmp( tableName.c_str(), "gpkg_ogr_contents" ) == 0 && i == 1 )
+    {
+      int numberInPatched = 0;
+      std::shared_ptr<Sqlite3Value> patchedVal = patchedVals[i];
+      if ( patchedVal && patchedVal->isValid() )
+      {
+        numberInPatched = sqlite3_value_int64( patchedVal->value() );
+      }
+      sqlite3_value *oldValue;
+      pp.oldValue( i, &oldValue );
+      int numberInBase =  sqlite3_value_int64( oldValue );
+      int numberInThis = sqlite3_value_int64( value );
+      int addedFeatures = numberInThis - numberInBase;
+      int newVal = numberInPatched + addedFeatures;
+      putValue( out, newVal );
+    }
+    else
+    {
+      putValue( out, value );
+    }
+  }
+
+}
+
+int _prepare_new_changeset( const Buffer &buf, const std::string &changesetNew, const MappingIds &mapping, const SqOperations &updated )
+{
+  Sqlite3ChangesetIter pp;
+  pp.start( buf );
+
+  std::map<std::string, FILE *> buffers;
+  while ( SQLITE_ROW == sqlite3changeset_next( pp.get() ) )
   {
     int rc;
     const char *pzTab;
@@ -500,26 +618,24 @@ int _prepare_new_changeset( void *buf, int size, const std::string &changesetNew
     int pOp;
     int pbIndirect;
     rc = sqlite3changeset_op(
-           pp,  /* Iterator object */
-           &pzTab,             /* OUT: Pointer to table name */
-           &pnCol,                     /* OUT: Number of columns in table */
-           &pOp,                       /* OUT: SQLITE_INSERT, DELETE or UPDATE */
-           &pbIndirect                 /* OUT: True for an 'indirect' change */
+           pp.get(),
+           &pzTab,
+           &pnCol,
+           &pOp,
+           &pbIndirect
          );
 
-    // TODO merge somehow with _get_primary_key?
     unsigned char *aiFlg;
     int nCol;
     rc = sqlite3changeset_pk(
-           pp,  /* Iterator object */
+           pp.get(),  /* Iterator object */
            &aiFlg, /* OUT: Array of boolean - true for PK cols */
            &nCol /* OUT: Number of entries in output array */
          );
-    if ( rc == SQLITE_MISUSE )
+    if ( rc )
     {
-      assert( false );
+      throw GeoDiffException( "internal error in _prepare_new_changeset: sqlite3changeset_pk" );
     }
-    assert( !rc );
 
     // create buffer.... this is BAD BAD ... replace FILE* with some normal binary streams. ...
     FILE *out = nullptr;
@@ -546,127 +662,49 @@ int _prepare_new_changeset( void *buf, int size, const std::string &changesetNew
     {
       out = buffer->second;
     }
-
-    // first write operation type (iType)
-    putc( pOp, out );
-    putc( 0, out );
-
     // now save the change to changeset
-    sqlite3_value *value;
     switch ( pOp )
     {
       case SQLITE_UPDATE:
       {
-        // get values from patched (new) master
-        int pk = _get_primary_key( pp, pOp );
-        SqValues patchedVals = _get_new( updated, pzTab, pk );
-
-        for ( int i = 0; i < pnCol; i++ )
-        {
-          // if the value was patched in the previous commit, use that one as base
-          sqlite3_value *patchedVal = patchedVals[i];
-          if ( patchedVal )
-          {
-            value = patchedVal;
-          }
-          else
-          {
-            // otherwise the value is same for both patched nad this, so use base value
-            rc = sqlite3changeset_old( pp, i, &value );
-            assert( rc == SQLITE_OK );
-          }
-          putValue( out, value );
-        }
-
-        for ( int i = 0; i < pnCol; i++ )
-        {
-          rc = sqlite3changeset_new( pp, i, &value );
-          assert( rc == SQLITE_OK );
-
-          // gpkg_ogr_contents column 1 is total number of features
-          if ( strcmp( pzTab, "gpkg_ogr_contents" ) == 0 && i == 1 )
-          {
-            int numberInPatched = sqlite3_value_int64( patchedVals[i] );
-            sqlite3_value *oldValue;
-            rc = sqlite3changeset_old( pp, i, &oldValue );
-            assert( rc == SQLITE_OK );
-            int numberInBase =  sqlite3_value_int64( oldValue );
-            int numberInThis = sqlite3_value_int64( value );
-            int addedFeatures = numberInThis - numberInBase;
-            int newVal = numberInPatched + addedFeatures;
-            putValue( out, newVal );
-          }
-          else
-          {
-            putValue( out, value );
-          }
-        }
+        _handle_update(
+          pp,
+          pzTab,
+          pnCol,
+          mapping,
+          updated,
+          aiFlg,
+          out
+        );
         break;
       }
       case SQLITE_INSERT:
       {
-        // resolve primary key and patched primary key
-        int pk = _get_primary_key( pp, pOp );
-        int newPk = pk;
-
-        if ( _contains_old( mapping, pzTab, pk ) )
-        {
-          // conflict 2 concurrent updates...
-          newPk = _get_new( mapping, pzTab, pk );
-        }
-
-        for ( int i = 0; i < pnCol; i++ )
-        {
-          rc = sqlite3changeset_new( pp, i, &value );
-          assert( rc == SQLITE_OK );
-          if ( aiFlg[i] )
-          {
-            putValue( out, newPk );
-          }
-          else
-          {
-            putValue( out, value );
-          }
-        }
+        _handle_insert(
+          pp,
+          pzTab,
+          pnCol,
+          mapping,
+          aiFlg,
+          out
+        );
         break;
       }
       case SQLITE_DELETE:
       {
-        // TODO THIS IS PROBABLY NOT WORKING...
-        // do we need old or new primary key?
-
-        // resolve primary key and patched primary key
-        int pk = _get_primary_key( pp, pOp );
-        int newPk = pk;
-
-        if ( _contains_old( mapping, pzTab, pk ) )
-        {
-          // conflict 2 concurrent updates...
-          newPk = _get_new( mapping, pzTab, pk );
-        }
-
-        for ( int i = 0; i < pnCol; i++ )
-        {
-          rc = sqlite3changeset_old( pp, i, &value );
-          assert( rc == SQLITE_OK );
-          if ( aiFlg[i] )
-          {
-            putValue( out, newPk );
-          }
-          else
-          {
-            putValue( out, value );
-          }
-
-
-        }
+        _handle_delete(
+          pp,
+          pzTab,
+          pnCol,
+          mapping,
+          aiFlg,
+          out
+        );
         break;
       }
     }
 
   }
-
-  sqlite3changeset_finalize( pp );
 
   // join buffers to one file (ugly ugly)
   FILE *out = fopen( changesetNew.c_str(), "wb" );
@@ -682,7 +720,8 @@ int _prepare_new_changeset( void *buf, int size, const std::string &changesetNew
     fclose( buf );
     std::string temp = changesetNew + "_" + std::string( it.first );
     buf = fopen( temp.c_str(), "rb" );
-    assert( buf );
+    if ( !buf )
+      throw GeoDiffException( "unable to open " + temp );
 
     char buffer[1];; //do not be lazy, use bigger buffer
     while ( fread( buffer, 1, 1, buf ) > 0 )
@@ -701,51 +740,35 @@ int rebase( const std::string &changeset_BASE_THEIRS,
             const std::string &changeset_BASE_MODIFIED )
 
 {
-  void *buf_BASE_THEIRS; /* Patchset or changeset */
-  int size_BASE_THEIRS;  /* And its size */
-  size_BASE_THEIRS = slurp( changeset_BASE_THEIRS.c_str(), ( char ** ) &buf_BASE_THEIRS );
-  if ( size_BASE_THEIRS == 0 )
+  fileremove( changeset_THEIRS_MODIFIED );
+
+  Buffer buf_BASE_THEIRS;
+  buf_BASE_THEIRS.read( changeset_BASE_THEIRS );
+  if ( buf_BASE_THEIRS.isEmpty() )
   {
-    printf( " -- no rabase needed! --\n" );
-    boost::filesystem::copy( changeset_BASE_MODIFIED, changeset_THEIRS_MODIFIED );
+    Logger::instance().info( " -- no rabase needed! --\n" );
+    filecopy( changeset_BASE_MODIFIED, changeset_THEIRS_MODIFIED );
     return GEODIFF_SUCCESS;
   }
 
-  if ( size_BASE_THEIRS <= 0 )
+  Buffer buf_BASE_MODIFIED;
+  buf_BASE_MODIFIED.read( changeset_BASE_MODIFIED );
+  if ( buf_BASE_MODIFIED.isEmpty() )
   {
-    printf( "err list BASE_THEIRS" );
-    return GEODIFF_ERROR;
-  }
-
-  void *buf_BASE_MODIFIED; /* Patchset or changeset */
-  int size_BASE_MODIFIED;  /* And its size */
-  size_BASE_MODIFIED = slurp( changeset_BASE_MODIFIED.c_str(), ( char ** ) &buf_BASE_MODIFIED );
-  if ( size_BASE_MODIFIED == 0 )
-  {
-    printf( " -- no rabase needed! --\n" );
-    boost::filesystem::copy( changeset_BASE_THEIRS, changeset_THEIRS_MODIFIED );
+    Logger::instance().info( " -- no rabase needed! --\n" );
+    filecopy( changeset_BASE_THEIRS, changeset_THEIRS_MODIFIED );
     return GEODIFF_SUCCESS;
-  }
-
-  if ( size_BASE_MODIFIED <= 0 )
-  {
-    printf( "err list BASE_MODIFIED" );
-    return GEODIFF_ERROR;
   }
 
   MapIds inserted;
   MapIds deleted;
   SqOperations updated;
-  _parse_old_changeset( buf_BASE_THEIRS, size_BASE_THEIRS, inserted, deleted, updated );
+  _parse_old_changeset( buf_BASE_THEIRS, inserted, deleted, updated );
 
   MappingIds mapping;
-  _find_mapping_for_new_changeset( buf_BASE_MODIFIED, size_BASE_MODIFIED, inserted, deleted, mapping );
+  _find_mapping_for_new_changeset( buf_BASE_MODIFIED, inserted, deleted, mapping );
 
-  // finally
-  _prepare_new_changeset( buf_BASE_MODIFIED, size_BASE_MODIFIED, changeset_THEIRS_MODIFIED, mapping, updated );
-
-  // free
-  free( updated );
+  _prepare_new_changeset( buf_BASE_MODIFIED, changeset_THEIRS_MODIFIED, mapping, updated );
 
   return GEODIFF_SUCCESS;
 }
