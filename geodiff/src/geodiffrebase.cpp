@@ -24,263 +24,155 @@
 #include <fstream>
 #include <sstream>
 
-// table name -> ids (deleted or inserted)
-typedef std::map<std::string, std::set < int > > MapIds;
-
-bool _contains_id( const MapIds &mapIds, const std::string &table, int id )
-{
-  auto ids = mapIds.find( table );
-  if ( ids == mapIds.end() )
-  {
-    return false;
-  }
-  else
-  {
-    auto fid = ids->second.find( id );
-    return fid != ids->second.end();
-  }
-}
-
-void _insert_id( MapIds &mapIds, const std::string &table, int id )
-{
-  auto ids = mapIds.find( table );
-  if ( ids == mapIds.end() )
-  {
-    std::set <int> newSet;
-    newSet.insert( id );
-    mapIds[table] = newSet;
-  }
-  else
-  {
-    std::set < int > &oldSet = ids->second;
-    oldSet.insert( id );
-  }
-}
-
-int _maximum_id( const MapIds &mapIds, const std::string &table )
-{
-  auto ids = mapIds.find( table );
-  if ( ids == mapIds.end() )
-  {
-    return 0;
-  }
-  else
-  {
-    const std::set < int > &oldSet = ids->second;
-    return *std::max_element( oldSet.begin(), oldSet.end() );
-  }
-}
-
-void _print_idmap( MapIds &mapIds, const std::string &name )
-{
-  if ( Logger::instance().level() < Logger::LevelDebug )
-    return;
-
-  std::ostringstream ret;
-  std::cout << name << std::endl;
-  if ( mapIds.empty() )
-    ret << "--none -- ";
-
-  for ( auto it : mapIds )
-  {
-    ret << "  " << it.first << std::endl << "    ";
-    if ( it.second.empty() )
-      ret << "--none -- ";
-    for ( auto it2 : it.second )
-    {
-      ret << it2 << ",";
-    }
-    ret << std::endl;
-  }
-  Logger::instance().debug( ret.str() );
-}
-
-// table name -> old fid --> new fid
-const int INVALID_FID = -1;
-typedef std::map<std::string, std::map < int, int  > > MappingIds;
-
-bool _contains_old( const MappingIds &mapIds, const std::string &table, int id )
-{
-  auto mapId = mapIds.find( table );
-  if ( mapId == mapIds.end() )
-  {
-    return false;
-  }
-  else
-  {
-    const std::map < int, int  > &ids = mapId->second;
-    auto fid =  ids.find( id );
-    return fid != ids.end();
-  }
-}
-
-void _insert_ids( MappingIds &mapIds, const std::string &table, int id, int id2 )
-{
-  auto ids = mapIds.find( table );
-  if ( ids == mapIds.end() )
-  {
-    std::map < int, int  > newSet;
-    newSet.insert( std::pair<int, int>( id, id2 ) );
-    mapIds[table] = newSet;
-  }
-  else
-  {
-    std::map < int, int  > &oldSet = ids->second;
-    oldSet.insert( std::pair<int, int>( id, id2 ) );
-  }
-}
-
-int _get_new( const MappingIds &mapIds, const std::string &table, int id )
-{
-  auto ids = mapIds.find( table );
-  if ( ids == mapIds.end() )
-  {
-    throw GeoDiffException( "internal error: _get_new MappingIds" );
-  }
-  else
-  {
-    const std::map < int, int  > &oldSet = ids->second;
-    auto a = oldSet.find( id );
-    if ( a == oldSet.end() )
-      throw GeoDiffException( "internal error: _get_new MappingIds" );
-    return a->second;
-  }
-}
-
-void _print_idmap( const MappingIds &mapIds, const std::string &name )
-{
-  if ( Logger::instance().level() < Logger::LevelDebug )
-    return;
-
-  std::ostringstream ret;
-
-  ret << name << std::endl;
-  if ( mapIds.empty() )
-    ret << "--none -- " << std::endl;
-
-  for ( auto it : mapIds )
-  {
-    ret << "  " << it.first << std::endl << "    ";
-    if ( it.second.empty() )
-      ret << "--none -- ";
-    for ( auto it2 : it.second )
-    {
-      ret << it2.first << "->" << it2.second << ",";
-    }
-    ret << std::endl;
-  }
-
-  Logger::instance().debug( ret.str() );
-}
-
 // table name, id -> old values, new values
 typedef std::vector<std::shared_ptr<Sqlite3Value>> SqValues;
-typedef std::map < int, std::pair<SqValues, SqValues> > SqValuesMap;
-typedef std::map<std::string,  SqValuesMap> SqOperations;
 
-bool _contains( const SqOperations &operations, const std::string &table, int id )
+/**
+ * structure that keeps track of information needed for rebase extracted
+ * from the original changeset (for a single table)
+ */
+struct TableRebaseInfo
 {
-  auto mapId = operations.find( table );
-  if ( mapId == operations.end() )
+  std::set<int> inserted;           //!< pkeys that were inserted
+  std::set<int> deleted;            //!< pkeys that were deleted
+  std::map<int, SqValues> updated;  //!< new column values for each recorded row (identified by pkey)
+
+  void dump_set( const std::set<int> &data, const std::string &name, std::ostringstream &ret )
   {
-    return false;
-  }
-  else
-  {
-    const SqValuesMap &ids = mapId->second;
-    auto fid =  ids.find( id );
-    return fid != ids.end();
-  }
-}
-
-void _insert( SqOperations &mapIds, const std::string &table, int id, Sqlite3ChangesetIter &pp )
-{
-  if ( !pp.get() )
-    throw GeoDiffException( "internal error in _insert" );
-
-  int rc;
-  const char *pzTab;
-  int pnCol;
-  int pOp;
-  int pbIndirect;
-  rc = sqlite3changeset_op(
-         pp.get(),  /* Iterator object */
-         &pzTab,             /* OUT: Pointer to table name */
-         &pnCol,                     /* OUT: Number of columns in table */
-         &pOp,                       /* OUT: SQLITE_INSERT, DELETE or UPDATE */
-         &pbIndirect                 /* OUT: True for an 'indirect' change */
-       );
-
-  sqlite3_value *ppValue;
-
-  SqValues oldValues( pnCol );
-  SqValues newValues( pnCol );
-
-  for ( int i = 0; i < pnCol; ++i )
-  {
-    if ( pOp == SQLITE_UPDATE || pOp == SQLITE_INSERT )
+    ret << name << std::endl;
+    if ( inserted.empty() )
+      ret << "--none --";
+    else
     {
-      pp.newValue( i, &ppValue );
-      newValues[i].reset( new Sqlite3Value( ppValue ) );
+      for ( auto it : data )
+      {
+        ret << it << ",";
+      }
+    }
+    ret << std::endl;
+  }
+
+  void dump( std::ostringstream &ret )
+  {
+    dump_set( inserted, "inserted", ret );
+    dump_set( deleted, "deleted", ret );
+    // TODO: dump updated too
+  }
+};
+
+/**
+ * structure that keeps track of information needed for rebase extracted
+ * from the original changeset (for the whole database)
+ */
+struct DatabaseRebaseInfo
+{
+  std::map<std::string, TableRebaseInfo> tables;   //!< mapping for each table (key = table name)
+
+  void dump()
+  {
+    if ( Logger::instance().level() < Logger::LevelDebug )
+      return;
+
+    std::ostringstream ret;
+    for ( auto it : tables )
+    {
+      ret << "TABLE " << it.first << std::endl;
+      it.second.dump( ret );
     }
 
-    if ( pOp == SQLITE_UPDATE || pOp == SQLITE_DELETE )
+    Logger::instance().debug( ret.str() );
+  }
+};
+
+
+//! structure that keeps track of how we modify primary keys of the rebased changeset
+struct RebaseMapping
+{
+
+  // table name -> old fid --> new fid
+  std::map<std::string, std::map < int, int > > mapIds;
+
+  // special pkey value for deleted rows
+  static const int INVALID_FID = -1;
+
+  void addPkeyMapping( const std::string &table, int id, int id2 )
+  {
+    auto ids = mapIds.find( table );
+    if ( ids == mapIds.end() )
     {
-      pp.oldValue( i, &ppValue );
-      oldValues[i].reset( new Sqlite3Value( ppValue ) );
+      std::map < int, int  > newSet;
+      newSet.insert( std::pair<int, int>( id, id2 ) );
+      mapIds[table] = newSet;
+    }
+    else
+    {
+      std::map < int, int  > &oldSet = ids->second;
+      oldSet.insert( std::pair<int, int>( id, id2 ) );
     }
   }
 
-  std::pair<SqValues, SqValues> vals( oldValues, newValues );
-  auto ids = mapIds.find( table );
-  if ( ids == mapIds.end() )
+  bool hasOldPkey( const std::string &table, int id ) const
   {
-    SqValuesMap newSet;
-    newSet.insert( std::pair<int, std::pair<SqValues, SqValues>>( id, vals ) );
-    mapIds[table] = newSet;
+    auto mapId = mapIds.find( table );
+    if ( mapId == mapIds.end() )
+    {
+      return false;
+    }
+    else
+    {
+      const std::map < int, int  > &ids = mapId->second;
+      auto fid =  ids.find( id );
+      return fid != ids.end();
+    }
   }
-  else
-  {
-    SqValuesMap &oldSet = ids->second;
-    oldSet.insert( std::pair<int, std::pair<SqValues, SqValues>>( id, vals ) );
-  }
-}
 
-SqValues _get_old( const SqOperations &mapIds, const std::string &table, int id )
-{
-  auto ids = mapIds.find( table );
-  if ( ids == mapIds.end() )
+  int getNewPkey( const std::string &table, int id ) const
   {
-    throw GeoDiffException( "internal error in _get_old SqOperations" );
+    auto ids = mapIds.find( table );
+    if ( ids == mapIds.end() )
+    {
+      throw GeoDiffException( "internal error: _get_new MappingIds" );
+    }
+    else
+    {
+      const std::map < int, int  > &oldSet = ids->second;
+      auto a = oldSet.find( id );
+      if ( a == oldSet.end() )
+        throw GeoDiffException( "internal error: _get_new MappingIds" );
+      return a->second;
+    }
   }
-  else
-  {
-    const SqValuesMap &oldSet = ids->second;
-    auto a = oldSet.find( id );
-    if ( a == oldSet.end() )
-      throw GeoDiffException( "internal error: _get_old SqOperations" );
-    return a->second.first;
-  }
-}
 
-SqValues _get_new( const SqOperations &mapIds, const std::string &table, int id )
-{
-  auto ids = mapIds.find( table );
-  if ( ids == mapIds.end() )
+  void dump() const
   {
-    throw GeoDiffException( "internal error in _get_new SqOperations" );
-  }
-  else
-  {
-    const SqValuesMap &oldSet = ids->second;
-    auto a = oldSet.find( id );
-    if ( a == oldSet.end() )
-      throw GeoDiffException( "internal error: _get_new SqOperations" );
-    return a->second.second;
-  }
-}
+    if ( Logger::instance().level() < Logger::LevelDebug )
+      return;
 
-//////////////////////////////////////
+    std::ostringstream ret;
+
+    ret << "mapping" << std::endl;
+    if ( mapIds.empty() )
+      ret << "--none -- " << std::endl;
+
+    for ( auto it : mapIds )
+    {
+      ret << "  " << it.first << std::endl << "    ";
+      if ( it.second.empty() )
+        ret << "--none -- ";
+      for ( auto it2 : it.second )
+      {
+        ret << it2.first << "->" << it2.second << ",";
+      }
+      ret << std::endl;
+    }
+
+    Logger::instance().debug( ret.str() );
+  }
+
+};
+
+
+///////////////////////////////////////
 ///////////////////////////////////////
 ///////////////////////////////////////
 ///////////////////////////////////////
@@ -353,7 +245,8 @@ int _get_primary_key( Sqlite3ChangesetIter &pp, int pOp )
   }
 }
 
-int _parse_old_changeset( const Buffer &buf_BASE_THEIRS, MapIds &inserted, MapIds &deleted, SqOperations &updated )
+
+int _parse_old_changeset( const Buffer &buf_BASE_THEIRS, DatabaseRebaseInfo &dbInfo )
 {
   Sqlite3ChangesetIter pp;
   pp.start( buf_BASE_THEIRS );
@@ -362,48 +255,61 @@ int _parse_old_changeset( const Buffer &buf_BASE_THEIRS, MapIds &inserted, MapId
   {
     int rc;
     const char *pzTab;
-    int pnCol;
+    int nCol;
     int pOp;
     int pbIndirect;
     rc = sqlite3changeset_op(
-           pp.get(),
-           &pzTab,
-           &pnCol,
-           &pOp,
-           &pbIndirect
+           pp.get(),      // Iterator object
+           &pzTab,        // OUT: Pointer to table name
+           &nCol,         // OUT: Number of columns in table
+           &pOp,          // OUT: SQLITE_INSERT, DELETE or UPDATE
+           &pbIndirect    // OUT: True for an 'indirect' change
          );
 
     int pk = _get_primary_key( pp, pOp );
 
+    TableRebaseInfo& tableInfo = dbInfo.tables[pzTab];
+
     if ( pOp == SQLITE_INSERT )
     {
-      _insert_id( inserted, pzTab, pk );
+      tableInfo.inserted.insert( pk );
     }
     if ( pOp == SQLITE_DELETE )
     {
-      _insert_id( deleted, pzTab, pk );
+      tableInfo.deleted.insert( pk );
     }
     if ( pOp == SQLITE_UPDATE )
     {
-      _insert( updated, pzTab, pk, pp );
+      sqlite3_value *ppValue;
+      SqValues newValues( nCol );
+      for ( int i = 0; i < nCol; ++i )
+      {
+        pp.newValue( i, &ppValue );
+        newValues[i].reset( new Sqlite3Value( ppValue ) );
+      }
+      tableInfo.updated[pk] = newValues;
     }
   }
 
-  _print_idmap( inserted, "inserted" );
-  _print_idmap( deleted, "deleted" );
+  dbInfo.dump();
 
   return GEODIFF_SUCCESS;
 }
 
 int _find_mapping_for_new_changeset( const Buffer &buf,
-                                     const MapIds &inserted,
-                                     const MapIds &deleted,
-                                     MappingIds &mapping )
+                                     const DatabaseRebaseInfo &dbInfo,
+                                     RebaseMapping &mapping )
 {
+  // figure out first free primary key value when rebasing for each table
+  // TODO: should we consider all rows in the table instead of just the inserts? (maybe not needed - those were available in the other source too)
   std::map<std::string, int> freeIndices;
-  for ( auto mapId : inserted )
+  for ( auto mapId : dbInfo.tables )
   {
-    freeIndices[mapId.first] = _maximum_id( inserted, mapId.first ) + 1;
+    const std::set < int > &oldSet = mapId.second.inserted;
+    if ( oldSet.empty() )
+      continue;  // TODO: or set 0 to free indices??
+
+    freeIndices[mapId.first] = *std::max_element( oldSet.begin(), oldSet.end() ) + 1;
   }
 
   Sqlite3ChangesetIter pp;
@@ -424,18 +330,24 @@ int _find_mapping_for_new_changeset( const Buffer &buf,
            &pbIndirect
          );
 
+    auto tableIt = dbInfo.tables.find( pzTab );
+    if ( tableIt == dbInfo.tables.end() )
+      continue;  // this table is not in our records at all - no rebasing needed
+
+    const TableRebaseInfo& tableInfo = tableIt->second;
+
     if ( pOp == SQLITE_INSERT )
     {
       int pk = _get_primary_key( pp, pOp );
 
-      if ( _contains_id( inserted, pzTab, pk ) )
+      if ( tableInfo.inserted.find( pk ) != tableInfo.inserted.end() )
       {
         // conflict 2 concurrent inserts...
         auto it = freeIndices.find( pzTab );
         if ( it == freeIndices.end() )
           throw GeoDiffException( "internal error: freeIndices" );
 
-        _insert_ids( mapping, pzTab, pk, it->second );
+        mapping.addPkeyMapping( pzTab, pk, it->second );
 
         // increase counter
         it->second ++;
@@ -445,24 +357,25 @@ int _find_mapping_for_new_changeset( const Buffer &buf,
     {
       int pk = _get_primary_key( pp, pOp );
 
-      if ( _contains_id( deleted, pzTab, pk ) )
+      if ( tableInfo.deleted.find( pk ) != tableInfo.deleted.end() )
       {
         // update on deleted feature...
-        _insert_ids( mapping, pzTab, pk, INVALID_FID );
+        mapping.addPkeyMapping( pzTab, pk, RebaseMapping::INVALID_FID );
       }
     }
   }
 
-  _print_idmap( mapping, "mapping" );
+  mapping.dump();
 
   return GEODIFF_SUCCESS;
 }
+
 
 void _handle_insert(
   Sqlite3ChangesetIter &pp,
   const std::string tableName,
   int pnCol,
-  const MappingIds &mapping,
+  const RebaseMapping &mapping,
   unsigned char *aiFlg,
   FILE *out
 )
@@ -476,10 +389,10 @@ void _handle_insert(
   int pk = _get_primary_key( pp, SQLITE_INSERT );
   int newPk = pk;
 
-  if ( _contains_old( mapping, tableName, pk ) )
+  if ( mapping.hasOldPkey( tableName, pk ) )
   {
     // conflict 2 concurrent updates...
-    newPk = _get_new( mapping, tableName, pk );
+    newPk = mapping.getNewPkey( tableName, pk );
   }
 
   for ( int i = 0; i < pnCol; i++ )
@@ -500,7 +413,7 @@ void _handle_delete(
   Sqlite3ChangesetIter &pp,
   const std::string tableName,
   int pnCol,
-  const MappingIds &mapping,
+  const RebaseMapping &mapping,
   unsigned char *aiFlg,
   FILE *out
 )
@@ -515,10 +428,10 @@ void _handle_delete(
   int pk = _get_primary_key( pp, SQLITE_DELETE );
   int newPk = pk;
 
-  if ( _contains_old( mapping, tableName, pk ) )
+  if ( mapping.hasOldPkey( tableName, pk ) )
   {
     // conflict 2 concurrent updates...
-    newPk = _get_new( mapping, tableName, pk );
+    newPk = mapping.getNewPkey( tableName, pk );
   }
 
   for ( int i = 0; i < pnCol; i++ )
@@ -539,22 +452,26 @@ void _handle_update(
   Sqlite3ChangesetIter &pp,
   const std::string tableName,
   int pnCol,
-  const MappingIds &mapping,
-  const SqOperations &updated,
+  const RebaseMapping &mapping,
+  const TableRebaseInfo &tableInfo,
   unsigned char *aiFlg,
   FILE *out
 )
 {
   // get values from patched (new) master
   int pk = _get_primary_key( pp, SQLITE_UPDATE );
-  if ( _contains_old( mapping, tableName, pk ) )
+  if ( mapping.hasOldPkey( tableName, pk ) )
   {
-    int newPk = _get_new( mapping, tableName, pk );
-    if ( newPk == INVALID_FID )
+    int newPk = mapping.getNewPkey( tableName, pk );
+    if ( newPk == RebaseMapping::INVALID_FID )
       return;
   }
 
-  SqValues patchedVals = _get_new( updated, tableName, pk );
+  // find the previously new values (will be used as the old values in the rebased version)
+  auto a = tableInfo.updated.find( pk );
+  if ( a == tableInfo.updated.end() )
+    throw GeoDiffException( "internal error: _get_new SqOperations" );
+  SqValues patchedVals = a->second;
 
   // first write operation type (iType)
   putc( SQLITE_UPDATE, out );
@@ -604,7 +521,7 @@ void _handle_update(
 
 }
 
-int _prepare_new_changeset( const Buffer &buf, const std::string &changesetNew, const MappingIds &mapping, const SqOperations &updated )
+int _prepare_new_changeset( const Buffer &buf, const std::string &changesetNew, const RebaseMapping &mapping, const DatabaseRebaseInfo &dbInfo )
 {
   Sqlite3ChangesetIter pp;
   pp.start( buf );
@@ -667,12 +584,16 @@ int _prepare_new_changeset( const Buffer &buf, const std::string &changesetNew, 
     {
       case SQLITE_UPDATE:
       {
+        auto tablesIt = dbInfo.tables.find( pzTab );
+        if ( tablesIt == dbInfo.tables.end() )
+          throw GeoDiffException( "internal error in _get_new SqOperations" );
+
         _handle_update(
           pp,
           pzTab,
           pnCol,
           mapping,
-          updated,
+          tablesIt->second,
           aiFlg,
           out
         );
@@ -760,15 +681,16 @@ int rebase( const std::string &changeset_BASE_THEIRS,
     return GEODIFF_SUCCESS;
   }
 
-  MapIds inserted;
-  MapIds deleted;
-  SqOperations updated;
-  _parse_old_changeset( buf_BASE_THEIRS, inserted, deleted, updated );
+  // 1. go through the original changeset and extract data that will be needed in the second step
+  DatabaseRebaseInfo dbInfo;
+  _parse_old_changeset( buf_BASE_THEIRS, dbInfo );
 
-  MappingIds mapping;
-  _find_mapping_for_new_changeset( buf_BASE_MODIFIED, inserted, deleted, mapping );
+  // 2. go through the changeset to be rebased and figure out changes we will need to do to it
+  RebaseMapping mapping;
+  _find_mapping_for_new_changeset( buf_BASE_MODIFIED, dbInfo, mapping );
 
-  _prepare_new_changeset( buf_BASE_MODIFIED, changeset_THEIRS_MODIFIED, mapping, updated );
+  // 3. go through the changeset to be rebased again and write it with changes determined in step 2
+  _prepare_new_changeset( buf_BASE_MODIFIED, changeset_THEIRS_MODIFIED, mapping, dbInfo );
 
   return GEODIFF_SUCCESS;
 }

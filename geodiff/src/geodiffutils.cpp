@@ -552,6 +552,8 @@ std::string Sqlite3Value::toString( sqlite3_value *ppValue )
     val = std::string( reinterpret_cast<const char *>( sqlite3_value_text( ppValue ) ) );
   else if ( type == SQLITE_FLOAT )
     val = std::to_string( sqlite3_value_double( ppValue ) );
+  else if ( type == SQLITE_BLOB )
+    val = "blob " + std::to_string( sqlite3_value_bytes( ppValue ) ) + " bytes";
   return val;
 }
 
