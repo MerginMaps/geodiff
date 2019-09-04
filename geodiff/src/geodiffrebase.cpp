@@ -268,7 +268,7 @@ int _parse_old_changeset( const Buffer &buf_BASE_THEIRS, DatabaseRebaseInfo &dbI
 
     int pk = _get_primary_key( pp, pOp );
 
-    TableRebaseInfo& tableInfo = dbInfo.tables[pzTab];
+    TableRebaseInfo &tableInfo = dbInfo.tables[pzTab];
 
     if ( pOp == SQLITE_INSERT )
     {
@@ -334,7 +334,7 @@ int _find_mapping_for_new_changeset( const Buffer &buf,
     if ( tableIt == dbInfo.tables.end() )
       continue;  // this table is not in our records at all - no rebasing needed
 
-    const TableRebaseInfo& tableInfo = tableIt->second;
+    const TableRebaseInfo &tableInfo = tableIt->second;
 
     if ( pOp == SQLITE_INSERT )
     {
