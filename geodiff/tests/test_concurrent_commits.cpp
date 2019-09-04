@@ -123,6 +123,28 @@ TEST( ConcurrentCommitsSqlite3Test, test_2_edits )
   ASSERT_TRUE( ret );
 }
 
+TEST( ConcurrentCommitsSqlite3Test, test_2_deletes )
+{
+  std::cout << "geopackage concurent DELETE (base) -> (A) and DELETE (base) -> (B)" << std::endl;
+  std::cout << "both (A) and (B) deleted the feature 2" << std::endl;
+  std::cout << "expected result: feature 2 is deleted (the rebased changeset is empty)" << std::endl;
+
+  std::cout << "SKIPPED! need to deal with rtree changes" << std::endl;
+  return;
+
+  bool ret = _test(
+               "base.gpkg",
+               "2_deletes",
+               "deleted_A.gpkg",
+               "deleted_B.gpkg",
+               "merged_A_B.gpkg",
+               5,
+               5,
+               5
+             );
+  ASSERT_TRUE( ret );
+}
+
 TEST( ConcurrentCommitsSqlite3Test, test_delete_update )
 {
   std::cout << "geopackage concurent DELETE (base) -> (A) and UPDATE (base) -> (B)" << std::endl;
@@ -144,6 +166,7 @@ TEST( ConcurrentCommitsSqlite3Test, test_delete_update )
              );
   ASSERT_TRUE( ret );
 }
+
 
 int main( int argc, char **argv )
 {
