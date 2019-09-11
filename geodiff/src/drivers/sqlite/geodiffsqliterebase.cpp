@@ -3,7 +3,8 @@
  Copyright (C) 2019 Peter Petrik
 */
 
-#include "geodiffrebase.hpp"
+#include "geodiffsqliterebase.hpp"
+#include "geodiffsqliteutils.hpp"
 #include "geodiffutils.hpp"
 #include "geodiff.h"
 

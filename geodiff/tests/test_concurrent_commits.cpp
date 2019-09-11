@@ -129,7 +129,7 @@ TEST( ConcurrentCommitsSqlite3Test, test_2_deletes )
   std::cout << "both (A) and (B) deleted the feature 2" << std::endl;
   std::cout << "expected result: feature 2 is deleted (the rebased changeset is empty)" << std::endl;
 
-  std::cout << "SKIPPED! need to deal with rtree changes" << std::endl;
+  std::cout << "SKIPPED! WHY the change in rtree_simple_geometry_node is there?" << std::endl;
   return;
 
   bool ret = _test(

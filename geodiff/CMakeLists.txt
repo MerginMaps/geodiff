@@ -45,14 +45,25 @@ SET(geodiff_src
   src/geodiff.h
   src/geodiffutils.cpp
   src/geodiffutils.hpp
-  src/geodiffrebase.cpp
-  src/geodiffrebase.hpp
+  src/geodiffdriver.cpp
+  src/geodiffdriver.hpp
+  src/geodiffdrivermanager.cpp
+  src/geodiffdrivermanager.hpp
+  src/drivers/geopackage/geodiffgeopackagedriver.cpp
+  src/drivers/geopackage/geodiffgeopackagedriver.hpp
+  src/drivers/sqlite/geodiffsqlitedriver.cpp
+  src/drivers/sqlite/geodiffsqlitedriver.hpp
+  src/drivers/sqlite/geodiffsqliterebase.cpp
+  src/drivers/sqlite/geodiffsqliterebase.hpp
+  src/drivers/sqlite/geodiffsqliteutils.cpp
+  src/drivers/sqlite/geodiffsqliteutils.hpp
   ${sqlite3_dir}/sqlite3.c
   ${sqlite3_dir}/sqlite3.h
 )
+
 ADD_LIBRARY(geodiff SHARED ${geodiff_src} )
 TARGET_COMPILE_DEFINITIONS(geodiff PUBLIC -DSQLITE_ENABLE_RTREE -DSQLITE_ENABLE_SESSION -DSQLITE_ENABLE_PREUPDATE_HOOK -DSQLITE_ENABLE_COLUMN_METADATA=1 -DSQLITE_MAX_VARIABLE_NUMBER=250000 -DSQLITE_ENABLE_FTS3=1 -DSQLITE_ENABLE_FTS3_PARENTHESIS=1 -DSQLITE_ENABLE_JSON1=1)
-TARGET_INCLUDE_DIRECTORIES(geodiff PRIVATE ${sqlite3_dir})
+TARGET_INCLUDE_DIRECTORIES(geodiff PRIVATE ${sqlite3_dir} src/ src/drivers/sqlite src/drivers/geopackage)
 IF (NOT WIN32)
   TARGET_LINK_LIBRARIES(geodiff PUBLIC dl pthread)
 ENDIF(NOT WIN32)

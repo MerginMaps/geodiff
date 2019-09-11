@@ -3,8 +3,8 @@
  Copyright (C) 2019 Peter Petrik
 */
 
-#ifndef GEODIFFREBASE_H
-#define GEODIFFREBASE_H
+#ifndef GEODIFFSQLITEREBASE_H
+#define GEODIFFSQLITEREBASE_H
 
 #include <string>
 
@@ -14,4 +14,4 @@ int rebase(
   const std::string &changeset_BASE_MODIFIED //in
 );
 
-#endif // GEODIFFREBASE_H
+#endif // GEODIFFSQLITEREBASE_H

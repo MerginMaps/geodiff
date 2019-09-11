@@ -5,28 +5,20 @@
 
 #include "geodiff.h"
 #include "geodiffutils.hpp"
-#include "geodiffrebase.hpp"
+#include "geodiffdrivermanager.hpp"
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdarg.h>
 #include <ctype.h>
 #include <string.h>
-#include <sqlite3.h>
-#include <fcntl.h>
-#include <iostream>
-#include <string>
-#include <vector>
+#include "geodiffsqlitedriver.hpp"
+
 const char *GEODIFF_version()
 {
   return "0.1.0";
 }
 
-void _errorLogCallback( void *pArg, int iErrCode, const char *zMsg )
-{
-  std::string msg = "SQLITE3: (" + std::to_string( iErrCode ) + ")" + zMsg;
-  Logger::instance().error( msg );
-}
 
 static bool gInitialized = false;
 void GEODIFF_init()
@@ -34,8 +26,7 @@ void GEODIFF_init()
   if ( !gInitialized )
   {
     gInitialized = true;
-    sqlite3_config( SQLITE_CONFIG_LOG, _errorLogCallback );
-    sqlite3_initialize();
+    SqliteDriver::init();
   }
 }
 
@@ -55,62 +46,22 @@ int GEODIFF_createChangeset( const char *base, const char *modified, const char 
 
   try
   {
-    std::shared_ptr<Sqlite3Db> db = std::make_shared<Sqlite3Db>();
-    db->open( modified );
-
-    Buffer sqlBuf;
-    sqlBuf.printf( "ATTACH '%s' AS aux", base );
-    db->exec( sqlBuf );
-
-    Sqlite3Session session;
-    session.create( db, "main" );
-
-    std::string all_tables_sql = "SELECT name FROM main.sqlite_master\n"
-                                 " WHERE type='table' AND sql NOT LIKE 'CREATE VIRTUAL%%'\n"
-                                 " UNION\n"
-                                 "SELECT name FROM aux.sqlite_master\n"
-                                 " WHERE type='table' AND sql NOT LIKE 'CREATE VIRTUAL%%'\n"
-                                 " ORDER BY name";
-    Sqlite3Stmt statament;
-    statament.prepare( db, "%s", all_tables_sql.c_str() );
-    while ( SQLITE_ROW == sqlite3_step( statament.get() ) )
+    DriverManager &dm = DriverManager::instance();
+    for ( size_t i = 0; i < dm.driversCount(); ++i )
     {
-      int rc = sqlite3session_attach( session.get(), ( const char * )sqlite3_column_text( statament.get(), 0 ) );
-      if ( rc )
-      {
-        Logger::instance().error( "Unable to attach session to database in GEODIFF_createChangeset" );
-        return GEODIFF_ERROR;
-      }
-      rc = sqlite3session_diff( session.get(), "aux", ( const char * )sqlite3_column_text( statament.get(), 0 ), NULL );
-      if ( rc )
-      {
-        Logger::instance().error( "Unable to diff tables in GEODIFF_createChangeset" );
-        return GEODIFF_ERROR;
-      }
+      std::shared_ptr<Driver> driver = dm.driver( i );
+      Logger::instance().info( "Trying createChangeset of driver: " + driver->name() );
+      int res = driver->createChangeset( base, modified, changeset );
+      if ( res != GEODIFF_NO_DRIVER_CAPABILITY )
+        return res;
     }
-
-    Buffer changesetBuf;
-    changesetBuf.read( session );
-    changesetBuf.write( changeset );
-
-    return GEODIFF_SUCCESS;
+    return GEODIFF_NO_DRIVER_CAPABILITY;
   }
   catch ( GeoDiffException exc )
   {
     Logger::instance().error( exc );
     return GEODIFF_ERROR;
   }
-}
-
-static int nconflicts = 0;
-
-static int conflict_callback( void *ctx, int conflict, sqlite3_changeset_iter *iterator )
-{
-  nconflicts++;
-  std::string s = conflict2Str( conflict );
-  std::string vals = Sqlite3ChangesetIter::toString( iterator );
-  Logger::instance().warn( "CONFLICT: " + s  + ": " + vals );
-  return SQLITE_CHANGESET_REPLACE;
 }
 
 int GEODIFF_applyChangeset( const char *base, const char *patched, const char *changeset )
@@ -129,69 +80,16 @@ int GEODIFF_applyChangeset( const char *base, const char *patched, const char *c
 
   try
   {
-    // static variable... how ugly!!!
-    nconflicts = 0;
-
-    // make a copy
-    filecopy( patched, base );
-
-    // read changeset to buffer
-    Buffer cbuf;
-    cbuf.read( changeset );
-    if ( cbuf.isEmpty() )
+    DriverManager &dm = DriverManager::instance();
+    for ( size_t i = 0; i < dm.driversCount(); ++i )
     {
-      Logger::instance().debug( "--- no changes ---" );
-      return GEODIFF_SUCCESS;
+      std::shared_ptr<Driver> driver = dm.driver( i );
+      Logger::instance().info( "Trying applyChangeset of driver: " + driver->name() );
+      int res = driver->applyChangeset( base, patched, changeset );
+      if ( res != GEODIFF_NO_DRIVER_CAPABILITY )
+        return res;
     }
-
-    std::shared_ptr<Sqlite3Db> db = std::make_shared<Sqlite3Db>();
-    db->open( patched );
-
-    // get all triggers sql commands
-    std::vector<std::string> triggerNames;
-    std::vector<std::string> triggerCmds;
-
-    Sqlite3Stmt statament;
-    statament.prepare( db, "%s", "select name, sql from sqlite_master where type = 'trigger'" );
-    while ( SQLITE_ROW == sqlite3_step( statament.get() ) )
-    {
-      char *name = ( char * ) sqlite3_column_text( statament.get(), 0 );
-      char *sql = ( char * ) sqlite3_column_text( statament.get(), 1 );
-      triggerNames.push_back( name );
-      triggerCmds.push_back( sql );
-    }
-    statament.close();
-
-    for ( std::string name : triggerNames )
-    {
-      statament.prepare( db, "drop trigger %s", name.c_str() );
-      sqlite3_step( statament.get() );
-      statament.close();
-    }
-
-    // apply changeset
-    int rc = sqlite3changeset_apply( db->get(), cbuf.size(), cbuf.v_buf(), NULL, conflict_callback, NULL );
-    if ( rc )
-    {
-      Logger::instance().error( "Unable to perform sqlite3changeset_apply" );
-      return GEODIFF_ERROR;
-    }
-
-    // recreate triggers
-    for ( std::string cmd : triggerCmds )
-    {
-      statament.prepare( db, "%s", cmd.c_str() );
-      sqlite3_step( statament.get() );
-      statament.close();
-    }
-
-    if ( nconflicts > 0 )
-    {
-      Logger::instance().warn( "NConflicts " + std::to_string( nconflicts ) + " found " );
-      return GEODIFF_CONFICTS;
-    }
-    return GEODIFF_SUCCESS;
-
+    return GEODIFF_NO_DRIVER_CAPABILITY;
   }
   catch ( GeoDiffException exc )
   {
@@ -202,26 +100,31 @@ int GEODIFF_applyChangeset( const char *base, const char *patched, const char *c
 
 int GEODIFF_listChanges( const char *changeset )
 {
+  if ( !changeset )
+  {
+    Logger::instance().error( "NULL arguments to GEODIFF_listChanges" );
+    return GEODIFF_ERROR;
+  }
+
+  if ( !fileexists( changeset ) )
+  {
+    Logger::instance().error( "Missing input files in GEODIFF_listChanges" );
+    return GEODIFF_ERROR;
+  }
+
   try
   {
-    int nchanges = 0;
-    Buffer buf;
-    buf.read( changeset );
-    if ( buf.isEmpty() )
+    DriverManager &dm = DriverManager::instance();
+    for ( size_t i = 0; i < dm.driversCount(); ++i )
     {
-      Logger::instance().info( "--- no changes ---" );
-      return 0;
+      std::shared_ptr<Driver> driver = dm.driver( i );
+      Logger::instance().info( "Trying listChanges of driver: " + driver->name() );
+      int nchanges;
+      int res = driver->listChanges( changeset, nchanges );
+      if ( res != GEODIFF_NO_DRIVER_CAPABILITY )
+        return nchanges;
     }
-
-    Sqlite3ChangesetIter pp;
-    pp.start( buf );
-    while ( SQLITE_ROW == sqlite3changeset_next( pp.get() ) )
-    {
-      std::string msg = Sqlite3ChangesetIter::toString( pp.get() );
-      Logger::instance().info( msg );
-      nchanges = nchanges + 1 ;
-    }
-    return nchanges;
+    return GEODIFF_NO_DRIVER_CAPABILITY;
   }
   catch ( GeoDiffException exc )
   {
@@ -232,14 +135,30 @@ int GEODIFF_listChanges( const char *changeset )
 
 int GEODIFF_createRebasedChangeset( const char *base, const char *modified, const char *changeset_their, const char *changeset )
 {
+  if ( !base || !modified || !changeset_their || !changeset )
+  {
+    Logger::instance().error( "NULL arguments to GEODIFF_createRebasedChangeset" );
+    return GEODIFF_ERROR;
+  }
+
+  if ( !fileexists( base ) || !fileexists( modified ) || !fileexists( changeset_their ) )
+  {
+    Logger::instance().error( "Missing input files in GEODIFF_createRebasedChangeset" );
+    return GEODIFF_ERROR;
+  }
+
   try
   {
-    std::string changeset_BASE_MODIFIED = std::string( changeset ) + "_BASE_MODIFIED";
-    int rc = GEODIFF_createChangeset( base, modified, changeset_BASE_MODIFIED.c_str() );
-    if ( rc != GEODIFF_SUCCESS )
-      return rc;
-
-    return rebase( changeset_their, changeset, changeset_BASE_MODIFIED );
+    DriverManager &dm = DriverManager::instance();
+    for ( size_t i = 0; i < dm.driversCount(); ++i )
+    {
+      std::shared_ptr<Driver> driver = dm.driver( i );
+      Logger::instance().info( "Trying createRebasedChangeset of driver: " + driver->name() );
+      int res = driver->createRebasedChangeset( base, modified, changeset_their, changeset );
+      if ( res != GEODIFF_NO_DRIVER_CAPABILITY )
+        return res;
+    }
+    return GEODIFF_NO_DRIVER_CAPABILITY;
   }
   catch ( GeoDiffException exc )
   {
