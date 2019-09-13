@@ -40,6 +40,57 @@ ELSE()
 ENDIF()
 
 SET(sqlite3_dir ${CMAKE_BINARY_DIR}/external/sqlite-autoconf-3280000)
+SET(sqlite_src
+  ${sqlite3_dir}/sqlite3.c
+  ${sqlite3_dir}/sqlite3.h
+)
+# Get libgpkg dependency
+IF(EXISTS "${CMAKE_BINARY_DIR}/libgpkg.tar.gz")
+  MESSAGE("libgpkg already downloaded")
+ELSE()
+  FILE(DOWNLOAD "https://github.com/benstadin/libgpkg/archive/0822c5cba7e1ac2c2806e445e5f5dd2f0d0a18b4.tar.gz" ${CMAKE_BINARY_DIR}/libgpkg.tar.gz SHOW_PROGRESS )
+  FILE(MAKE_DIRECTORY "${CMAKE_BINARY_DIR}/external")
+  EXECUTE_PROCESS(COMMAND ${CMAKE_COMMAND} -E tar xfz ${CMAKE_BINARY_DIR}/libgpkg.tar.gz
+    WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/external
+    RESULT_VARIABLE rv)
+ENDIF()
+
+SET(libgpkg_dir ${CMAKE_BINARY_DIR}/external/libgpkg-0822c5cba7e1ac2c2806e445e5f5dd2f0d0a18b4)
+set(libgpkg_src
+  ${libgpkg_dir}/gpkg/binstream.c
+  ${libgpkg_dir}/gpkg/blobio.c
+  ${libgpkg_dir}/gpkg/error.c
+  ${libgpkg_dir}/gpkg/fp.c
+  ${libgpkg_dir}/gpkg/geomio.c
+  ${libgpkg_dir}/gpkg/gpkg.c
+  ${libgpkg_dir}/gpkg/gpkg_db.c
+  ${libgpkg_dir}/gpkg/gpkg_geom.c
+  ${libgpkg_dir}/gpkg/i18n.c
+  ${libgpkg_dir}/gpkg/sql.c
+  ${libgpkg_dir}/gpkg/spatialdb.c
+  ${libgpkg_dir}/gpkg/spl_db.c
+  ${libgpkg_dir}/gpkg/spl_geom.c
+  ${libgpkg_dir}/gpkg/strbuf.c
+  ${libgpkg_dir}/gpkg/wkb.c
+  ${libgpkg_dir}/gpkg/wkt.c
+)
+
+INCLUDE(CheckIncludeFile)
+INCLUDE( ${libgpkg_dir}/gpkg/cmake/UseTLS.cmake )
+CHECK_TLS()
+
+INCLUDE( ${libgpkg_dir}/gpkg/cmake/UseLocale.cmake )
+CHECK_LOCALE()
+
+# check the version in the libgpkg main CMakeLists.txt
+SET(gpkg_VERSION_MAJOR 0)
+SET(gpkg_VERSION_MINOR 10)
+SET(gpkg_VERSION_PATCH 0)
+ADD_DEFINITIONS( -DGPKG_HAVE_CONFIG_H )
+CONFIGURE_FILE( "${libgpkg_dir}/gpkg/config.h.in" "${CMAKE_CURRENT_BINARY_DIR}/config.h" )
+INCLUDE_DIRECTORIES( ${CMAKE_CURRENT_BINARY_DIR} )
+
+# build
 SET(geodiff_src
   src/geodiff.cpp
   src/geodiff.h
@@ -47,12 +98,15 @@ SET(geodiff_src
   src/geodiffutils.hpp
   src/geodiffrebase.cpp
   src/geodiffrebase.hpp
-  ${sqlite3_dir}/sqlite3.c
-  ${sqlite3_dir}/sqlite3.h
+  ${sqlite_src}
+  ${libgpkg_src}
 )
+
+ADD_DEFINITIONS( -DSQLITE_CORE )
 ADD_LIBRARY(geodiff SHARED ${geodiff_src} )
 TARGET_COMPILE_DEFINITIONS(geodiff PUBLIC -DSQLITE_ENABLE_RTREE -DSQLITE_ENABLE_SESSION -DSQLITE_ENABLE_PREUPDATE_HOOK -DSQLITE_ENABLE_COLUMN_METADATA=1 -DSQLITE_MAX_VARIABLE_NUMBER=250000 -DSQLITE_ENABLE_FTS3=1 -DSQLITE_ENABLE_FTS3_PARENTHESIS=1 -DSQLITE_ENABLE_JSON1=1)
 TARGET_INCLUDE_DIRECTORIES(geodiff PRIVATE ${sqlite3_dir})
+TARGET_INCLUDE_DIRECTORIES(geodiff PRIVATE ${libgpkg_dir}/gpkg)
 IF (NOT WIN32)
   TARGET_LINK_LIBRARIES(geodiff PUBLIC dl pthread)
 ENDIF(NOT WIN32)

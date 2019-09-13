@@ -12,7 +12,10 @@
 #include <stdarg.h>
 #include <ctype.h>
 #include <string.h>
+
+#include <gpkg.h>
 #include <sqlite3.h>
+
 #include <fcntl.h>
 #include <iostream>
 #include <string>
@@ -65,23 +68,18 @@ int GEODIFF_createChangeset( const char *base, const char *modified, const char 
     Sqlite3Session session;
     session.create( db, "main" );
 
-    std::string all_tables_sql = "SELECT name FROM main.sqlite_master\n"
-                                 " WHERE type='table' AND sql NOT LIKE 'CREATE VIRTUAL%%'\n"
-                                 " UNION\n"
-                                 "SELECT name FROM aux.sqlite_master\n"
-                                 " WHERE type='table' AND sql NOT LIKE 'CREATE VIRTUAL%%'\n"
-                                 " ORDER BY name";
-    Sqlite3Stmt statament;
-    statament.prepare( db, "%s", all_tables_sql.c_str() );
-    while ( SQLITE_ROW == sqlite3_step( statament.get() ) )
+    std::vector<std::string> tableNames;
+    tables( db, tableNames );
+
+    for ( const std::string &table : tableNames )
     {
-      int rc = sqlite3session_attach( session.get(), ( const char * )sqlite3_column_text( statament.get(), 0 ) );
+      int rc = sqlite3session_attach( session.get(), table.c_str() );
       if ( rc )
       {
         Logger::instance().error( "Unable to attach session to database in GEODIFF_createChangeset" );
         return GEODIFF_ERROR;
       }
-      rc = sqlite3session_diff( session.get(), "aux", ( const char * )sqlite3_column_text( statament.get(), 0 ), NULL );
+      rc = sqlite3session_diff( session.get(), "aux", table.c_str(), NULL );
       if ( rc )
       {
         Logger::instance().error( "Unable to diff tables in GEODIFF_createChangeset" );
@@ -147,21 +145,28 @@ int GEODIFF_applyChangeset( const char *base, const char *patched, const char *c
     std::shared_ptr<Sqlite3Db> db = std::make_shared<Sqlite3Db>();
     db->open( patched );
 
+    // register GPKG functions like ST_IsEmpty
+    int rc = sqlite3_enable_load_extension( db->get(), 1 );
+    if ( rc )
+    {
+      Logger::instance().error( "Unable to enable sqlite3 extensions" );
+      return GEODIFF_ERROR;
+    }
+
+    rc = sqlite3_gpkg_auto_init( db->get(), NULL, NULL );
+    if ( rc )
+    {
+      Logger::instance().error( "Unable to load gpkg sqlite3 extensions" );
+      return GEODIFF_ERROR;
+    }
+
     // get all triggers sql commands
+    // that we do not recognize (gpkg triggers are filtered)
     std::vector<std::string> triggerNames;
     std::vector<std::string> triggerCmds;
+    triggers( db, triggerNames, triggerCmds );
 
     Sqlite3Stmt statament;
-    statament.prepare( db, "%s", "select name, sql from sqlite_master where type = 'trigger'" );
-    while ( SQLITE_ROW == sqlite3_step( statament.get() ) )
-    {
-      char *name = ( char * ) sqlite3_column_text( statament.get(), 0 );
-      char *sql = ( char * ) sqlite3_column_text( statament.get(), 1 );
-      triggerNames.push_back( name );
-      triggerCmds.push_back( sql );
-    }
-    statament.close();
-
     for ( std::string name : triggerNames )
     {
       statament.prepare( db, "drop trigger %s", name.c_str() );
@@ -170,7 +175,7 @@ int GEODIFF_applyChangeset( const char *base, const char *patched, const char *c
     }
 
     // apply changeset
-    int rc = sqlite3changeset_apply( db->get(), cbuf.size(), cbuf.v_buf(), NULL, conflict_callback, NULL );
+    rc = sqlite3changeset_apply( db->get(), cbuf.size(), cbuf.v_buf(), NULL, conflict_callback, NULL );
     if ( rc )
     {
       Logger::instance().error( "Unable to perform sqlite3changeset_apply" );
@@ -234,6 +239,20 @@ int GEODIFF_createRebasedChangeset( const char *base, const char *modified, cons
 {
   try
   {
+    // get all triggers sql commands
+    // and make sure that there are only triggers we recognize
+    // we deny rebase changesets with unrecognized triggers
+    std::shared_ptr<Sqlite3Db> db = std::make_shared<Sqlite3Db>();
+    db->open( modified );
+    std::vector<std::string> triggerNames;
+    std::vector<std::string> triggerCmds;
+    triggers( db, triggerNames, triggerCmds );
+    if ( !triggerNames.empty() )
+    {
+      Logger::instance().error( "Unable to perform rebase for database with unknown triggers" );
+      return GEODIFF_ERROR;
+    }
+
     std::string changeset_BASE_MODIFIED = std::string( changeset ) + "_BASE_MODIFIED";
     int rc = GEODIFF_createChangeset( base, modified, changeset_BASE_MODIFIED.c_str() );
     if ( rc != GEODIFF_SUCCESS )

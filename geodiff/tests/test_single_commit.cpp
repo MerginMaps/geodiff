@@ -39,7 +39,7 @@ TEST( SingleCommitSqlite3Test, geopackage )
   std::string patched = pathjoin( tmpdir(), testname, "patched_base_gpkg.gpkg" );
 
   ASSERT_EQ( GEODIFF_createChangeset( base.c_str(), modified.c_str(), changeset.c_str() ), GEODIFF_SUCCESS );
-  ASSERT_EQ( GEODIFF_listChanges( changeset.c_str() ), 3 );
+  ASSERT_EQ( GEODIFF_listChanges( changeset.c_str() ), 1 );
   ASSERT_EQ( GEODIFF_applyChangeset( base.c_str(), patched.c_str(), changeset.c_str() ), GEODIFF_SUCCESS );
 
   // check that now it is same file
