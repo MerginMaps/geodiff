@@ -38,3 +38,9 @@ Run tests and check it is ok `./test_geodiff`
   cd pygeodiff
   GEODIFFLIB=`pwd`/../build/libgeodiff.dylib nose2
 ```
+
+# Dependencies & Licensing
+
+Library uses its own copy of
+ - [sqlite3](https://sqlite.org/index.html) (Public Domain)
+ - [libgpkg](https://github.com/luciad/libgpkg) (Apache-2)
