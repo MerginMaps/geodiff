@@ -9,6 +9,7 @@
 #include <string>
 #include <memory>
 #include <exception>
+#include <vector>
 
 #include "sqlite3.h"
 
