@@ -735,3 +735,105 @@ bool fileexists( const std::string &path )
   return ( stat( path.c_str(), &buffer ) == 0 );
 #endif
 }
+
+bool startsWith( const std::string &str, const std::string &substr )
+{
+  if ( str.size() < substr.size() )
+    return false;
+
+  return str.rfind( substr, 0 ) == 0;
+}
+
+void triggers( std::shared_ptr<Sqlite3Db> db, std::vector<std::string> &triggerNames, std::vector<std::string> &triggerCmds )
+{
+  triggerNames.clear();
+  triggerCmds.clear();
+
+  Sqlite3Stmt statament;
+  statament.prepare( db, "%s", "select name, sql from sqlite_master where type = 'trigger'" );
+  while ( SQLITE_ROW == sqlite3_step( statament.get() ) )
+  {
+    char *name = ( char * ) sqlite3_column_text( statament.get(), 0 );
+    char *sql = ( char * ) sqlite3_column_text( statament.get(), 1 );
+
+    if ( !name || !sql )
+      continue;
+
+    /* typically geopackage from ogr would have these (table name is simple)
+        - gpkg_tile_matrix_zoom_level_insert
+        - gpkg_tile_matrix_zoom_level_update
+        - gpkg_tile_matrix_matrix_width_insert
+        - gpkg_tile_matrix_matrix_width_update
+        - gpkg_tile_matrix_matrix_height_insert
+        - gpkg_tile_matrix_matrix_height_update
+        - gpkg_tile_matrix_pixel_x_size_insert
+        - gpkg_tile_matrix_pixel_x_size_update
+        - gpkg_tile_matrix_pixel_y_size_insert
+        - gpkg_tile_matrix_pixel_y_size_update
+        - rtree_simple_geometry_insert
+        - rtree_simple_geometry_update1
+        - rtree_simple_geometry_update2
+        - rtree_simple_geometry_update3
+        - rtree_simple_geometry_update4
+        - rtree_simple_geometry_delete
+        - trigger_insert_feature_count_simple
+        - trigger_delete_feature_count_simple
+     */
+    const std::string triggerName( name );
+    if ( startsWith( triggerName, "gpkg_tile_matrix_" ) )
+      continue;
+    if ( startsWith( triggerName, "rtree_" ) )
+      continue;
+    if ( startsWith( triggerName, "trigger_insert_feature_count_" ) )
+      continue;
+    if ( startsWith( triggerName, "trigger_delete_feature_count_" ) )
+      continue;
+    triggerNames.push_back( name );
+    triggerCmds.push_back( sql );
+  }
+  statament.close();
+}
+
+void tables( std::shared_ptr<Sqlite3Db> db, std::vector<std::string> &tableNames )
+{
+  tableNames.clear();
+  std::string all_tables_sql = "SELECT name FROM main.sqlite_master\n"
+                               " WHERE type='table' AND sql NOT LIKE 'CREATE VIRTUAL%%'\n"
+                               " UNION\n"
+                               "SELECT name FROM aux.sqlite_master\n"
+                               " WHERE type='table' AND sql NOT LIKE 'CREATE VIRTUAL%%'\n"
+                               " ORDER BY name";
+  Sqlite3Stmt statament;
+  statament.prepare( db, "%s", all_tables_sql.c_str() );
+  while ( SQLITE_ROW == sqlite3_step( statament.get() ) )
+  {
+    const char *name = ( const char * )sqlite3_column_text( statament.get(), 0 );
+    if ( !name )
+      continue;
+
+    std::string tableName( name );
+
+    /* typically geopackage from ogr would have these (table name is simple)
+    gpkg_contents
+    gpkg_extensions
+    gpkg_geometry_columns
+    gpkg_ogr_contents
+    gpkg_spatial_ref_sys
+    gpkg_tile_matrix
+    gpkg_tile_matrix_set
+    rtree_simple_geometry_node
+    rtree_simple_geometry_parent
+    rtree_simple_geometry_rowid
+    simple
+    sqlite_sequence
+    */
+    if ( startsWith( tableName, "gpkg_" ) )
+      continue;
+    if ( startsWith( tableName, "rtree_" ) )
+      continue;
+    if ( tableName == "sqlite_sequence" )
+      continue;
+
+    tableNames.push_back( tableName );
+  }
+}

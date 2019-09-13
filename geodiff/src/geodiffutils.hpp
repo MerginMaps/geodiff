@@ -208,6 +208,16 @@ void fileremove( const std::string &path );
 //! whether file exists
 bool fileexists( const std::string &path );
 
+//! whether string starts with substring
+bool startsWith( const std::string &str, const std::string &substr );
+
+
+// SOME SQL
+
+void triggers( std::shared_ptr<Sqlite3Db> db, std::vector<std::string> &triggerNames, std::vector<std::string> &triggerCmds );
+void tables( std::shared_ptr<Sqlite3Db> db, std::vector<std::string> &tableNames );
+
+
 // WRITE CHANGESET API
 
 /*

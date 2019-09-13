@@ -363,6 +363,16 @@ int _find_mapping_for_new_changeset( const Buffer &buf,
         mapping.addPkeyMapping( pzTab, pk, RebaseMapping::INVALID_FID );
       }
     }
+    else if ( pOp == SQLITE_DELETE )
+    {
+      int pk = _get_primary_key( pp, pOp );
+
+      if ( tableInfo.deleted.find( pk ) != tableInfo.deleted.end() )
+      {
+        // delete of deleted feature...
+        mapping.addPkeyMapping( pzTab, pk, RebaseMapping::INVALID_FID );
+      }
+    }
   }
 
   mapping.dump();
@@ -414,16 +424,11 @@ void _handle_delete(
   const std::string tableName,
   int pnCol,
   const RebaseMapping &mapping,
+  const TableRebaseInfo &tableInfo,
   unsigned char *aiFlg,
   FILE *out
 )
 {
-  // first write operation type (iType)
-  putc( SQLITE_DELETE, out );
-  putc( 0, out );
-
-  sqlite3_value *value;
-
   // resolve primary key and patched primary key
   int pk = _get_primary_key( pp, SQLITE_DELETE );
   int newPk = pk;
@@ -432,7 +437,22 @@ void _handle_delete(
   {
     // conflict 2 concurrent updates...
     newPk = mapping.getNewPkey( tableName, pk );
+
+    // conflict 2 concurrent deletes...
+    if ( newPk == RebaseMapping::INVALID_FID )
+      return;
   }
+
+  // find the previously new values (will be used as the old values in the rebased version)
+  auto a = tableInfo.updated.find( pk );
+  if ( a == tableInfo.updated.end() )
+    throw GeoDiffException( "internal error: _get_new SqOperations" );
+  SqValues patchedVals = a->second;
+
+  // first write operation type (iType)
+  putc( SQLITE_DELETE, out );
+  putc( 0, out );
+  sqlite3_value *value;
 
   for ( int i = 0; i < pnCol; i++ )
   {
@@ -442,7 +462,17 @@ void _handle_delete(
     }
     else
     {
-      pp.oldValue( i, &value );
+      // if the value was patched in the previous commit, use that one as base
+      std::shared_ptr<Sqlite3Value> patchedVal = patchedVals[i];
+      if ( patchedVal && patchedVal->isValid() )
+      {
+        value = patchedVal->value();
+      }
+      else
+      {
+        // otherwise the value is same for both patched and this, so use base value
+        pp.oldValue( i, &value );
+      }
       putValue( out, value );
     }
   }
@@ -496,27 +526,7 @@ void _handle_update(
   for ( int i = 0; i < pnCol; i++ )
   {
     pp.newValue( i, &value );
-    // gpkg_ogr_contents column 1 is total number of features
-    if ( strcmp( tableName.c_str(), "gpkg_ogr_contents" ) == 0 && i == 1 )
-    {
-      int numberInPatched = 0;
-      std::shared_ptr<Sqlite3Value> patchedVal = patchedVals[i];
-      if ( patchedVal && patchedVal->isValid() )
-      {
-        numberInPatched = sqlite3_value_int64( patchedVal->value() );
-      }
-      sqlite3_value *oldValue;
-      pp.oldValue( i, &oldValue );
-      int numberInBase =  sqlite3_value_int64( oldValue );
-      int numberInThis = sqlite3_value_int64( value );
-      int addedFeatures = numberInThis - numberInBase;
-      int newVal = numberInPatched + addedFeatures;
-      putValue( out, newVal );
-    }
-    else
-    {
-      putValue( out, value );
-    }
+    putValue( out, value );
   }
 
 }
@@ -613,11 +623,16 @@ int _prepare_new_changeset( const Buffer &buf, const std::string &changesetNew, 
       }
       case SQLITE_DELETE:
       {
+        auto tablesIt = dbInfo.tables.find( pzTab );
+        if ( tablesIt == dbInfo.tables.end() )
+          throw GeoDiffException( "internal error in _get_new SqOperations" );
+
         _handle_delete(
           pp,
           pzTab,
           pnCol,
           mapping,
+          tablesIt->second,
           aiFlg,
           out
         );
