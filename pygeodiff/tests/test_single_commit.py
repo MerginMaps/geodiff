@@ -15,7 +15,7 @@ def basetest(
         modifiedname,
         expected_changes ):
   print( "********************************************************" )
-  print( testname )
+  print( "PYTHON: " + testname )
 
   if os.path.exists(tmpdir() + "/py" + testname):
       shutil.rmtree(tmpdir() + "/py" + testname)
@@ -39,7 +39,7 @@ def basetest(
   check_nchanges( geodiff, changeset2, 0 )
 
 
-class UnitTestsSingleCommit(GeoDiffTests):
+class UnitTestsPythonSingleCommit(GeoDiffTests):
     def test_sqlite_no_gis(self):
         basetest(
             self.geodiff,
@@ -53,4 +53,4 @@ class UnitTestsSingleCommit(GeoDiffTests):
              "1_geopackage",
              "base.gpkg",
              "modified_1_geom.gpkg",
-             3)
+             1)

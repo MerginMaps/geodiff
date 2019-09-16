@@ -8,10 +8,10 @@ from .testutils import *
 import os
 import shutil
 
-class UnitTestsConsurrentCommits(GeoDiffTests):
+class UnitTestsPythonConcurrentCommits(GeoDiffTests):
     def test_2_inserts(self):
         print("********************************************************")
-        print("geopackage 2 concurent modifications (base) -> (A) and (base) -> (B)")
+        print("PYTHON: geopackage 2 concurent modifications (base) -> (A) and (base) -> (B)")
         testname = "2_inserts"
         if os.path.exists(tmpdir() + "/py" + testname):
             shutil.rmtree(tmpdir() + "/py" + testname)
@@ -27,15 +27,15 @@ class UnitTestsConsurrentCommits(GeoDiffTests):
 
         print("create changeset base to A")
         self.geodiff.create_changeset(base, modifiedA, changesetbaseA)
-        check_nchanges(self.geodiff, changesetbaseA,  2 * 1 + 3) # 3 updates in total and 2 inserts for each feature
+        check_nchanges(self.geodiff, changesetbaseA,  1)
 
         print("create changeset A to B")
         self.geodiff.create_rebased_changeset(base, modifiedB, changesetbaseA, changesetAB)
-        check_nchanges(self.geodiff, changesetAB,  2 * 1 + 3) # 3 updates in total and 2 inserts for each feature
+        check_nchanges(self.geodiff, changesetAB, 1)
 
         print("apply changeset to A to get AB")
         self.geodiff.apply_changeset(modifiedA, patchedAB, changesetAB)
 
         print("check that then new data has both features\n")
         self.geodiff.create_changeset(base, patchedAB, changesetBbase)
-        check_nchanges(self.geodiff, changesetBbase, 2 * 2 + 3)
+        check_nchanges(self.geodiff, changesetBbase, 2)
