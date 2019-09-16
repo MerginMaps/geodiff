@@ -95,9 +95,9 @@ TEST( ConcurrentCommitsSqlite3Test, test_2_inserts )
                "inserted_1_A.gpkg",
                "inserted_1_B.gpkg",
                "merged_1_A_1_B.gpkg",
-               1, // 3 updates in total and 2 inserts for each feature
-               1, // 3 updates in total and 2 inserts for each feature
-               2 // 3 updates in total and 2 inserts for each feature
+               1,
+               1,
+               2
              );
   ASSERT_TRUE( ret );
 }
