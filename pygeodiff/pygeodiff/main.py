@@ -11,7 +11,10 @@ from .geodifflib import GeoDiffLib
 
 
 class GeoDiff:
-    def __init__(self, libname):
+    """
+        if libname is None, it tries to import c-extension from wheel
+    """
+    def __init__(self, libname=None):
         self.clib = GeoDiffLib(libname)
 
     """

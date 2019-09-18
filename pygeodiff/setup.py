@@ -11,13 +11,15 @@
 import io
 import re
 import os
-from setuptools import find_packages, setup
+from setuptools import find_packages
+#from setuptools import setup
+from skbuild import setup
 
 DEPENDENCIES = []
 EXCLUDE_FROM_PACKAGES = ["contrib", "docs", "tests*"]
 CURDIR = os.path.abspath(os.path.dirname(__file__))
 
-with io.open(os.path.join(CURDIR, "README.md"), "r", encoding="utf-8") as f:
+with io.open(os.path.join(CURDIR, "README"), "r", encoding="utf-8") as f:
     README = f.read()
 
 
@@ -29,9 +31,8 @@ def get_version():
         version = match.group("version").strip("'") if match is not None else "unknown"
     return version
 
-
 setup(
-    name="PyGeoDiff",
+    name="pygeodiff",
     version=get_version(),
     author="Peter Petrik",
     author_email="peter.petrik@lutraconsulting.co.uk",
@@ -45,6 +46,9 @@ setup(
     scripts=[],
     entry_points={"console_scripts": ["pygeodiff=pygeodiff.main:main"]},
     zip_safe=False,
+    cmake_args=['-DENABLE_TESTS:BOOL=OFF', '-DENABLE_COVERAGE:BOOL=OFF', '-DBUILD_TOOLS:BOOL=OFF', '-DPYGEODIFFVERSION='+str(get_version())],
+    cmake_source_dir="../geodiff",
+    cmake_with_sdist=True,
     install_requires=DEPENDENCIES,
     test_suite="tests.test_project",
     python_requires=">=3.6",

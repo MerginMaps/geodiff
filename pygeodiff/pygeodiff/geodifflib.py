@@ -8,6 +8,7 @@
 '''
 
 import ctypes
+from ctypes.util import find_library
 from .__about__ import __version__
 
 
@@ -40,8 +41,16 @@ def _parse_return_code(rc, msg):
 
 class GeoDiffLib:
     def __init__(self, name):
-        self.libname = name
-        self.lib = ctypes.CDLL(name)
+        if name is None:
+            # try one distributed from wheel
+            self.libname = find_library('pygeodiff-' + __version__ + '-python')
+            if self.libname is None:
+                # try system one
+                self.libname = find_library('geodiff')
+        else:
+            self.libname = name
+
+        self.lib = ctypes.CDLL(self.libname, use_errno=True)
         self.init()
         self.check_version()
 

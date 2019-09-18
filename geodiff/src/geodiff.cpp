@@ -20,9 +20,11 @@
 #include <iostream>
 #include <string>
 #include <vector>
+
+// keep in sync with ../pygeodiff/pygeodiff/__about__.py
 const char *GEODIFF_version()
 {
-  return "0.1.0";
+  return "0.2.0";
 }
 
 void _errorLogCallback( void *pArg, int iErrCode, const char *zMsg )

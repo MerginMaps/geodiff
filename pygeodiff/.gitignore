@@ -9,6 +9,7 @@ lib/
 lib64/
 parts/
 sdist/
+_skbuild/
 var/
 *.egg-info/
 .installed.cfg
@@ -17,3 +18,4 @@ var/
 .mypy_cache/
 .vscode
 tests/tmp/
+MANIFEST
