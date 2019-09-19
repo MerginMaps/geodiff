@@ -10,7 +10,7 @@ else
 fi
 
 echo -n "Publishing pygeodiff to $URL"
-cd $DIR/../pygeodiff
+cd $DIR/..
 
 rm -rf pygeodiff.egg-info
 rm -rf _skbuild
