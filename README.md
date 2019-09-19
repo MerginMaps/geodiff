@@ -18,7 +18,7 @@ See [header](https://github.com/lutraconsulting/geodiff/blob/master/geodiff/src/
 
 ## Install 
 
-`pip3 install pygeodiff --index-url https://test.pypi.org/simple/`
+`pip3 install pygeodiff`
 
 if you got error `ModuleNotFoundError: No module named 'skbuild'` try to update pip with command
 `python -m pip install --upgrade pip`
@@ -27,9 +27,14 @@ if you got error `ModuleNotFoundError: No module named 'skbuild'` try to update 
 
 ### PyPi
 
+you need to have registration on pypi/testpypi and manage access to pygeodiff distribution. 
+on local PC you need to have `.pypirc` file with username/pass for pypi/testpypi servers.
+
 run `python3 ./scripts/version_update.py --version x.y.z`
 
 following by `./scripts/publish_pypi.bash` (add `--test` if you want to publish to testpypi)
+
+and tagging the repository accordingly!
 
 
 ## Development
