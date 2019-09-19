@@ -15,10 +15,7 @@ from setuptools import find_packages
 #from setuptools import setup
 from skbuild import setup
 
-EXCLUDE_FROM_PACKAGES = ["contrib", "docs", "tests*"]
-CURDIR = os.path.abspath(os.path.dirname(__file__))
-
-VERSION = '0.2.3'
+VERSION = '0.2.6'
 
 setup(
     name="pygeodiff",
@@ -28,7 +25,7 @@ setup(
     description="Python wrapper around GeoDiff library",
     long_description="Python wrapper around GeoDiff library",
     url="https://github.com/lutraconsulting/geodiff",
-    packages=find_packages(exclude=EXCLUDE_FROM_PACKAGES),
+    packages=["pygeodiff"],
     include_package_data=True,
     keywords=["diff", "gis", "geo", "geopackage", "merge"],
     scripts=[],
@@ -36,7 +33,7 @@ setup(
     zip_safe=False,
     cmake_args=['-DENABLE_TESTS:BOOL=OFF', '-DENABLE_COVERAGE:BOOL=OFF', '-DBUILD_TOOLS:BOOL=OFF', '-DPYGEODIFFVERSION='+str(VERSION)],
     cmake_source_dir="geodiff",
-    cmake_with_sdist=True,
+    cmake_with_sdist=False,
     test_suite="tests.test_project",
     python_requires=">=3.6",
     # license and classifier list:

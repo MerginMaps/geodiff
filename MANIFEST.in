@@ -2,4 +2,7 @@
 include LICENSE
 include pyproject.toml
 include geodiff/CMakeLists.txt
-include geodiff/src/*
+include geodiff/src/*.cpp
+include geodiff/src/*.hpp
+include geodiff/src/*.h
+include pygeodiff/*.py

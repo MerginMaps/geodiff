@@ -74,3 +74,11 @@ class GeoDiff:
     """
     def list_changes(self, changeset):
         return self.clib.list_changes(changeset)
+
+    def version(self):
+        return self.clib.version()
+
+
+def main():
+    diff_lib = GeoDiff()
+    print("pygeodiff " + diff_lib.version())

@@ -23,7 +23,7 @@
 
 const char *GEODIFF_version()
 {
-  return "0.2.3";
+  return "0.2.6";
 }
 
 void _errorLogCallback( void *pArg, int iErrCode, const char *zMsg )

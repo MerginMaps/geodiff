@@ -8,6 +8,8 @@
 '''
 
 import ctypes
+import os
+import platform
 from ctypes.util import find_library
 from .__about__ import __version__
 
@@ -42,13 +44,27 @@ def _parse_return_code(rc, msg):
 class GeoDiffLib:
     def __init__(self, name):
         if name is None:
-            # try one distributed from wheel
-            self.libname = find_library('pygeodiff-' + __version__ + '-python')
-            if self.libname is None:
-                # try system one
-                self.libname = find_library('geodiff')
+            # ok lets assume that the package is installed through PIP
+            if platform.system() == 'Windows':
+                prefix = ""
+                suffix = ".dll"
+            elif platform.system() == 'Darwin':
+                prefix = "lib"
+                suffix = ".dylib"
+            else:
+                prefix = "lib"
+                suffix = ".so"
+            whl_lib = prefix + 'pygeodiff-' + __version__ + '-python' + suffix
+            dir_path = os.path.dirname(os.path.realpath(__file__))
+            self.libname = os.path.join(dir_path, whl_lib)
+            if not os.path.exists(self.libname):
+                # not found, try system library
+                self.libname = find_library("geodiff")
         else:
             self.libname = name
+
+        if self.libname is None:
+            raise GeoDiffLibVersionError("Unable to locate geodiff library")
 
         self.lib = ctypes.CDLL(self.libname, use_errno=True)
         self.init()
