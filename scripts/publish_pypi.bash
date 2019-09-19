@@ -13,6 +13,6 @@ rm -rf dist
 python3 setup.py sdist bdist_wheel
 
 # upload to testpypi
-twine upload dist/pygeodiff-0.2.0.tar.gz -r testpypi
+twine upload dist/* -r testpypi
 
 cd $PWD

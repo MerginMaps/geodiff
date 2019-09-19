@@ -16,11 +16,21 @@ The library is used by [Mergin](https://public.cloudmergin.com/) - a platform fo
 Output messages could be adjusted by GEODIFF_LOGGER_LEVEL environment variable. 
 See [header](https://github.com/lutraconsulting/geodiff/blob/master/geodiff/src/geodiff.h) for details
 
-## Version update
+## Install 
 
-Update:
-`pygeodiff/pygeodiff/__about__.py` and 
-`geodiff/src/geodiff.cpp` 
+`pip3 install pygeodiff --index-url https://test.pypi.org/simple/`
+
+if you got error `ModuleNotFoundError: No module named 'skbuild'` try to update pip with command
+`python -m pip install --upgrade pip`
+
+## Publishing 
+
+### PyPi
+
+run `python3 ./scripts/version_update.py --version x.y.z`
+
+following by `./scripts/publish_pypi.bash` (add `--test` if you want to publish to testpypi)
+
 
 ## Development
 - Compile geodiff shared library

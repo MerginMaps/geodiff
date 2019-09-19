@@ -15,7 +15,6 @@ from setuptools import find_packages
 #from setuptools import setup
 from skbuild import setup
 
-DEPENDENCIES = []
 EXCLUDE_FROM_PACKAGES = ["contrib", "docs", "tests*"]
 CURDIR = os.path.abspath(os.path.dirname(__file__))
 
@@ -23,20 +22,14 @@ with io.open(os.path.join(CURDIR, "README"), "r", encoding="utf-8") as f:
     README = f.read()
 
 
-def get_version():
-    main_file = os.path.join(CURDIR, "pygeodiff", "__about__.py")
-    _version_re = re.compile(r"__version__\s+=\s+(?P<version>.*)")
-    with open(main_file, "r", encoding="utf8") as f:
-        match = _version_re.search(f.read())
-        version = match.group("version").strip("'") if match is not None else "unknown"
-    return version
+VERSION = '0.2.2'
 
 setup(
     name="pygeodiff",
-    version=get_version(),
+    version=VERSION,
     author="Peter Petrik",
     author_email="peter.petrik@lutraconsulting.co.uk",
-    description="Python wrapper around GeoDiff C-library",
+    description="Python wrapper around GeoDiff library",
     long_description=README,
     long_description_content_type="text/markdown",
     url="https://github.com/lutraconsulting/geodiff",
@@ -46,18 +39,17 @@ setup(
     scripts=[],
     entry_points={"console_scripts": ["pygeodiff=pygeodiff.main:main"]},
     zip_safe=False,
-    cmake_args=['-DENABLE_TESTS:BOOL=OFF', '-DENABLE_COVERAGE:BOOL=OFF', '-DBUILD_TOOLS:BOOL=OFF', '-DPYGEODIFFVERSION='+str(get_version())],
+    cmake_args=['-DENABLE_TESTS:BOOL=OFF', '-DENABLE_COVERAGE:BOOL=OFF', '-DBUILD_TOOLS:BOOL=OFF', '-DPYGEODIFFVERSION='+str(VERSION)],
     cmake_source_dir="../geodiff",
     cmake_with_sdist=True,
-    install_requires=DEPENDENCIES,
     test_suite="tests.test_project",
     python_requires=">=3.6",
     # license and classifier list:
     # https://pypi.org/pypi?%3Aaction=list_classifiers
     license="License :: OSI Approved :: MIT License",
     classifiers=[
-        "Programming Language :: Python",
-        # "Programming Language :: Python :: 3",
+        # "Programming Language :: Python",
+        "Programming Language :: Python :: 3",
         # "Operating System :: OS Independent",
         # "Private :: Do Not Upload"
     ],
