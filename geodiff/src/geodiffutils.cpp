@@ -870,19 +870,14 @@ static char *_safeId( const char *zId )
 
 /*
  * inspired by sqldiff.c function: columnNames()
- * bSchemaPK removed option for "Use schema-defined PRIMARY KEY"
- *
- * TODO rewrite in C++
  */
-static char **_columnNames(
+static std::vector<std::string> _columnNames(
   std::shared_ptr<Sqlite3Db> db,
   const char *zDb,                /* Database ("main" or "aux") to query */
-  const char *zTab,               /* Name of table to return details of */
-  int *pnPKey,                    /* OUT: Number of PK columns */
-  int *pbRowid                    /* OUT: True if PK is an implicit rowid */
+  const std::string &tableName   /* Name of table to return details of */
 )
 {
-  char **az = nullptr;           /* List of column names to be returned */
+  std::vector<std::string> az;           /* List of column names to be returned */
   int naz = 0;             /* Number of entries in az[] */
   Sqlite3Stmt pStmt;     /* SQL statement being run */
   char *zPkIdxName = nullptr;    /* Name of the PRIMARY KEY index */
@@ -890,13 +885,14 @@ static char **_columnNames(
   int nPK = 0;             /* Number of PRIMARY KEY columns */
   int i, j;                /* Loop counters */
 
-  /* Normal case:  Figure out what the true primary key is for the table.
+  /* Figure out what the true primary key is for the table.
   **   *  For WITHOUT ROWID tables, the true primary key is the same as
   **      the schema PRIMARY KEY, which is guaranteed to be present.
   **   *  For rowid tables with an INTEGER PRIMARY KEY, the true primary
   **      key is the INTEGER PRIMARY KEY.
   **   *  For all other rowid tables, the rowid is the true primary key.
   */
+  const char *zTab = tableName.c_str();
   pStmt.prepare( db, "PRAGMA %s.index_list=%Q", zDb, zTab );
   while ( SQLITE_ROW == sqlite3_step( pStmt.get() ) )
   {
@@ -939,47 +935,36 @@ static char **_columnNames(
   }
   pStmt.prepare( db, "PRAGMA %s.table_info=%Q", zDb, zTab );
 
-  *pnPKey = nPK;
+  // *pnPKey = nPK;
   naz = nPK;
-  az = ( char ** ) sqlite3_malloc( sizeof( char * ) * ( nPK + 1 ) );
-  if ( az == nullptr )
-    return nullptr; // runtimeError("out of memory");
-
-  memset( az, 0, sizeof( char * ) * ( nPK + 1 ) );
+  az.resize( naz );
   while ( SQLITE_ROW == sqlite3_step( pStmt.get() ) )
   {
     int iPKey;
+    std::string name = _safeId( ( char * )sqlite3_column_text( pStmt.get(), 1 ) );
     if ( truePk && ( iPKey = sqlite3_column_int( pStmt.get(), 5 ) ) > 0 )
     {
-      az[iPKey - 1] = _safeId( ( char * )sqlite3_column_text( pStmt.get(), 1 ) );
+      az[iPKey - 1] = name;
     }
     else
     {
-      az = ( char ** ) sqlite3_realloc( az, sizeof( char * ) * ( naz + 2 ) );
-      if ( az == nullptr )
-        return nullptr; // runtimeError("out of memory");
-      az[naz++] = _safeId( ( char * )sqlite3_column_text( pStmt.get(), 1 ) );
+      az.push_back( name );
     }
   }
   pStmt.close();
-  if ( az ) az[naz] = nullptr;
-
-  /* If it is non-NULL, set *pbRowid to indicate whether or not the PK of
-  ** this table is an implicit rowid (*pbRowid==1) or not (*pbRowid==0).  */
-  if ( pbRowid ) *pbRowid = ( az[0] == nullptr );
 
   /* If this table has an implicit rowid for a PK, figure out how to refer
   ** to it. There are three options - "rowid", "_rowid_" and "oid". Any
   ** of these will work, unless the table has an explicit column of the
   ** same name.  */
-  if ( az[0] == nullptr )
+  if ( az[0].empty() )
   {
     const char *azRowid[] = { "rowid", "_rowid_", "oid" };
     for ( i = 0; i < sizeof( azRowid ) / sizeof( azRowid[0] ); i++ )
     {
       for ( j = 1; j < naz; j++ )
       {
-        if ( sqlite3_stricmp( az[j], azRowid[i] ) == 0 ) break;
+        if ( sqlite3_stricmp( az[j].c_str(), azRowid[i] ) == 0 ) break;
       }
       if ( j >= naz )
       {
@@ -987,59 +972,43 @@ static char **_columnNames(
         break;
       }
     }
-    if ( az[0] == nullptr )
+    if ( az[0].empty() )
     {
-      for ( i = 1; i < naz; i++ ) sqlite3_free( az[i] );
-      sqlite3_free( az );
-      az = nullptr;
+      az.clear();
     }
   }
+
   return az;
 }
 
 bool has_same_table_schema( std::shared_ptr<Sqlite3Db> db, const std::string &tableName, std::string &errStr )
 {
-  const char *tname = tableName.c_str();
   // inspired by sqldiff.c function: static void summarize_one_table(const char *zTab, FILE *out);
-  if ( sqlite3_table_column_metadata( db->get(), "main", tname, 0, 0, 0, 0, 0, 0 ) )
+  if ( sqlite3_table_column_metadata( db->get(), "main", tableName.c_str(), 0, 0, 0, 0, 0, 0 ) )
   {
     /* Table missing from source */
     errStr = tableName + " missing from first database";
     return false;
   }
 
-  int nPk;                  /* Primary key columns in main */
-  int nPk2;
-  char **az = nullptr;            /* Columns in main */
-  char **az2 = nullptr;
-  int n = 0;
-  bool ret = true;
-
-  az = _columnNames( db, "main", tname, &nPk, nullptr );
-  az2 = _columnNames( db, "aux", tname, &nPk2, nullptr );
-  if ( az && az2 )
+  std::vector<std::string> az = _columnNames( db, "main", tableName );
+  std::vector<std::string> az2 = _columnNames( db, "aux", tableName );
+  if ( az.size() != az2.size() )
   {
-    for ( n = 0; az[n]; n++ )
+    errStr = "Table " + tableName + " has different number of columns";
+    return false;
+  }
+
+
+  for ( size_t n = 0; n < az.size(); ++n )
+  {
+    if ( az[n] != az2[n] )
     {
-      if ( sqlite3_stricmp( az[n], az2[n] ) != 0 ) break;
+      errStr = "Table " + tableName + " has different name of columns: " + az[n] + " vs " + az2[n];
+      return false;
     }
-  }
-  if ( az == nullptr
-       || az2 == nullptr
-       || nPk != nPk2
-       || az[n]
-       || az2[n]
-     )
-  {
-    errStr = tableName + " has incompatible schema";
-    ret = false;
+    // TODO check column type
   }
 
-  if (az)
-    sqlite3_free( az );
-
-  if (az2)
-    sqlite3_free( az2 );
-
-  return ret;
+  return true;
 }
