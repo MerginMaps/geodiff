@@ -12,9 +12,7 @@ fi
 echo -n "Publishing pygeodiff to $URL"
 cd $DIR/..
 
-rm -rf pygeodiff.egg-info
-rm -rf _skbuild
-rm -rf dist
+$DIR/clean.bash
 
 # source distribution
 python3 setup.py sdist

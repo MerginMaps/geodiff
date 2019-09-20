@@ -15,5 +15,5 @@ make
 
 ctest -VV
 
-cd ../../pygeodiff
+cd ../../
 GEODIFFLIB=`pwd`/../geodiff/build_osx/libgeodiff.dylib nose2

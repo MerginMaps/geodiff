@@ -11,3 +11,4 @@ dist/
 _skbuild/
 *egg-info/
 MANIFEST
+/pygeodiff/tests/tmp/
