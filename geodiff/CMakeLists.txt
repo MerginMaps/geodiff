@@ -81,7 +81,12 @@ set(libgpkg_src
   ${libgpkg_dir}/gpkg/strbuf.c
   ${libgpkg_dir}/gpkg/wkb.c
   ${libgpkg_dir}/gpkg/wkt.c
+  ${libgpkg_dir}/gpkg/atomic_ops.h
 )
+
+IF (NOT WIN32)
+  SET_SOURCE_FILES_PROPERTIES(${libgpkg_src} PROPERTIES COMPILE_FLAGS "-Wno-deprecated-declarations")
+ENDIF (NOT WIN32)
 
 INCLUDE(CheckIncludeFile)
 INCLUDE( ${libgpkg_dir}/gpkg/cmake/UseTLS.cmake )

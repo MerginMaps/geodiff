@@ -31,6 +31,8 @@
 #define GEODIFF_SUCCESS 0 //!< Success
 #define GEODIFF_ERROR 1 //!< General error
 #define GEODIFF_CONFICTS 2 //!< The changeset couldn't be applied directly
+#define GEODIFF_UNSUPPORTED_CHANGE 3 //! The diff for such entry is unsupported/not-implemented
+
 /*
 ** Make sure we can call this stuff from C++.
 */

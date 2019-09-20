@@ -61,6 +61,7 @@ ENDMACRO (ADD_GEODIFF_TEST)
 SET(TESTS
     test_single_commit.cpp
     test_concurrent_commits.cpp
+    test_modified_scheme.cpp
 )
 
 FOREACH(TESTSRC ${TESTS})

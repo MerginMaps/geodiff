@@ -16,4 +16,4 @@ make
 ctest -VV
 
 cd ../../
-GEODIFFLIB=`pwd`/../geodiff/build_osx/libgeodiff.dylib nose2
+GEODIFFLIB=`pwd`/geodiff/build_osx/libgeodiff.dylib nose2

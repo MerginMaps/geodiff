@@ -215,9 +215,18 @@ bool startsWith( const std::string &str, const std::string &substr );
 
 // SOME SQL
 
-void triggers( std::shared_ptr<Sqlite3Db> db, std::vector<std::string> &triggerNames, std::vector<std::string> &triggerCmds );
-void tables( std::shared_ptr<Sqlite3Db> db, std::vector<std::string> &tableNames );
+void triggers( std::shared_ptr<Sqlite3Db> db,
+               std::vector<std::string> &triggerNames,
+               std::vector<std::string> &triggerCmds );
 
+void tables( std::shared_ptr<Sqlite3Db> db,
+             const std::string &dbName,
+             std::vector<std::string> &tableNames );
+
+
+bool has_same_table_schema( std::shared_ptr<Sqlite3Db> db,
+                            const std::string &tableName,
+                            std::string &errStr );
 
 // WRITE CHANGESET API
 

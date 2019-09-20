@@ -794,13 +794,12 @@ void triggers( std::shared_ptr<Sqlite3Db> db, std::vector<std::string> &triggerN
   statament.close();
 }
 
-void tables( std::shared_ptr<Sqlite3Db> db, std::vector<std::string> &tableNames )
+void tables( std::shared_ptr<Sqlite3Db> db,
+             const std::string &dbName,
+             std::vector<std::string> &tableNames )
 {
   tableNames.clear();
-  std::string all_tables_sql = "SELECT name FROM main.sqlite_master\n"
-                               " WHERE type='table' AND sql NOT LIKE 'CREATE VIRTUAL%%'\n"
-                               " UNION\n"
-                               "SELECT name FROM aux.sqlite_master\n"
+  std::string all_tables_sql = "SELECT name FROM " + dbName + ".sqlite_master\n"
                                " WHERE type='table' AND sql NOT LIKE 'CREATE VIRTUAL%%'\n"
                                " ORDER BY name";
   Sqlite3Stmt statament;
@@ -836,4 +835,159 @@ void tables( std::shared_ptr<Sqlite3Db> db, std::vector<std::string> &tableNames
 
     tableNames.push_back( tableName );
   }
+
+  // result is ordered by name
+}
+
+/*
+ * inspired by sqldiff.c function: columnNames()
+ */
+static std::vector<std::string> _columnNames(
+  std::shared_ptr<Sqlite3Db> db,
+  const char *zDb,                /* Database ("main" or "aux") to query */
+  const std::string &tableName   /* Name of table to return details of */
+)
+{
+  std::vector<std::string> az;           /* List of column names to be returned */
+  int naz = 0;             /* Number of entries in az[] */
+  Sqlite3Stmt pStmt;     /* SQL statement being run */
+  std::string zPkIdxName;    /* Name of the PRIMARY KEY index */
+  int truePk = 0;          /* PRAGMA table_info indentifies the PK to use */
+  int nPK = 0;             /* Number of PRIMARY KEY columns */
+  int i, j;                /* Loop counters */
+
+  /* Figure out what the true primary key is for the table.
+  **   *  For WITHOUT ROWID tables, the true primary key is the same as
+  **      the schema PRIMARY KEY, which is guaranteed to be present.
+  **   *  For rowid tables with an INTEGER PRIMARY KEY, the true primary
+  **      key is the INTEGER PRIMARY KEY.
+  **   *  For all other rowid tables, the rowid is the true primary key.
+  */
+  const char *zTab = tableName.c_str();
+  pStmt.prepare( db, "PRAGMA %s.index_list=%Q", zDb, zTab );
+  while ( SQLITE_ROW == sqlite3_step( pStmt.get() ) )
+  {
+    if ( sqlite3_stricmp( ( const char * )sqlite3_column_text( pStmt.get(), 3 ), "pk" ) == 0 )
+    {
+      zPkIdxName = ( const char * ) sqlite3_column_text( pStmt.get(), 1 );
+      break;
+    }
+  }
+  pStmt.close();
+
+  if ( !zPkIdxName.empty() )
+  {
+    int nKey = 0;
+    int nCol = 0;
+    truePk = 0;
+    pStmt.prepare( db, "PRAGMA %s.index_xinfo=%Q", zDb, zPkIdxName.c_str() );
+    while ( SQLITE_ROW == sqlite3_step( pStmt.get() ) )
+    {
+      nCol++;
+      if ( sqlite3_column_int( pStmt.get(), 5 ) ) { nKey++; continue; }
+      if ( sqlite3_column_int( pStmt.get(), 1 ) >= 0 ) truePk = 1;
+    }
+    if ( nCol == nKey ) truePk = 1;
+    if ( truePk )
+    {
+      nPK = nKey;
+    }
+    else
+    {
+      nPK = 1;
+    }
+    pStmt.close();
+  }
+  else
+  {
+    truePk = 1;
+    nPK = 1;
+  }
+  pStmt.prepare( db, "PRAGMA %s.table_info=%Q", zDb, zTab );
+
+  naz = nPK;
+  az.resize( naz );
+  while ( SQLITE_ROW == sqlite3_step( pStmt.get() ) )
+  {
+    int iPKey;
+    std::string name = ( char * )sqlite3_column_text( pStmt.get(), 1 );
+    if ( truePk && ( iPKey = sqlite3_column_int( pStmt.get(), 5 ) ) > 0 )
+    {
+      az[iPKey - 1] = name;
+    }
+    else
+    {
+      az.push_back( name );
+    }
+  }
+  pStmt.close();
+
+  /* If this table has an implicit rowid for a PK, figure out how to refer
+  ** to it. There are three options - "rowid", "_rowid_" and "oid". Any
+  ** of these will work, unless the table has an explicit column of the
+  ** same name.  */
+  if ( az[0].empty() )
+  {
+    std::vector<std::string> azRowid = { "rowid", "_rowid_", "oid" };
+    for ( i = 0; i < azRowid.size(); i++ )
+    {
+      for ( j = 1; j < naz; j++ )
+      {
+        if ( az[j] == azRowid[i] ) break;
+      }
+      if ( j >= naz )
+      {
+        az[0] = azRowid[i];
+        break;
+      }
+    }
+    if ( az[0].empty() )
+    {
+      az.clear();
+    }
+  }
+
+  return az;
+}
+
+bool has_same_table_schema( std::shared_ptr<Sqlite3Db> db, const std::string &tableName, std::string &errStr )
+{
+  // inspired by sqldiff.c function: static void summarize_one_table(const char *zTab, FILE *out);
+  if ( sqlite3_table_column_metadata( db->get(), "main", tableName.c_str(), 0, 0, 0, 0, 0, 0 ) )
+  {
+    /* Table missing from source */
+    errStr = tableName + " missing from first database";
+    return false;
+  }
+
+  std::vector<std::string> az = _columnNames( db, "main", tableName );
+  std::vector<std::string> az2 = _columnNames( db, "aux", tableName );
+  if ( az.size() != az2.size() )
+  {
+    errStr = "Table " + tableName + " has different number of columns";
+    return false;
+  }
+
+
+  for ( size_t n = 0; n < az.size(); ++n )
+  {
+    if ( az[n] != az2[n] )
+    {
+      errStr = "Table " + tableName + " has different name of columns: " + az[n] + " vs " + az2[n];
+      return false;
+    }
+
+    /* no need to check type:
+
+       from sqlite.h:
+         SQLite uses dynamic run-time typing. So just because a column
+         is declared to contain a particular type does not mean that the
+         data stored in that column is of the declared type.  SQLite is
+         strongly typed, but the typing is dynamic not static.  ^Type
+         is associated with individual values, not with the containers
+         used to hold those values.
+    */
+  }
+
+  return true;
 }
