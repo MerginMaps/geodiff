@@ -840,35 +840,6 @@ void tables( std::shared_ptr<Sqlite3Db> db,
 }
 
 /*
- * inspired by sqldiff.c function: safeId()
- */
-static char *_safeId( const char *zId )
-{
-  int i, x;
-  char c;
-  if ( zId[0] == 0 ) return sqlite3_mprintf( "\"\"" );
-  for ( i = x = 0; ( c = zId[i] ) != 0; i++ )
-  {
-    if ( !isalpha( c ) && c != '_' )
-    {
-      if ( i > 0 && isdigit( c ) )
-      {
-        x++;
-      }
-      else
-      {
-        return sqlite3_mprintf( "\"%w\"", zId );
-      }
-    }
-  }
-  if ( x || !sqlite3_keyword_check( zId, i ) )
-  {
-    return sqlite3_mprintf( "%s", zId );
-  }
-  return sqlite3_mprintf( "\"%w\"", zId );
-}
-
-/*
  * inspired by sqldiff.c function: columnNames()
  */
 static std::vector<std::string> _columnNames(
@@ -880,7 +851,7 @@ static std::vector<std::string> _columnNames(
   std::vector<std::string> az;           /* List of column names to be returned */
   int naz = 0;             /* Number of entries in az[] */
   Sqlite3Stmt pStmt;     /* SQL statement being run */
-  char *zPkIdxName = nullptr;    /* Name of the PRIMARY KEY index */
+  std::string zPkIdxName;    /* Name of the PRIMARY KEY index */
   int truePk = 0;          /* PRAGMA table_info indentifies the PK to use */
   int nPK = 0;             /* Number of PRIMARY KEY columns */
   int i, j;                /* Loop counters */
@@ -898,18 +869,18 @@ static std::vector<std::string> _columnNames(
   {
     if ( sqlite3_stricmp( ( const char * )sqlite3_column_text( pStmt.get(), 3 ), "pk" ) == 0 )
     {
-      zPkIdxName = sqlite3_mprintf( "%s", sqlite3_column_text( pStmt.get(), 1 ) );
+      zPkIdxName = ( const char * ) sqlite3_column_text( pStmt.get(), 1 );
       break;
     }
   }
   pStmt.close();
 
-  if ( zPkIdxName )
+  if ( !zPkIdxName.empty() )
   {
     int nKey = 0;
     int nCol = 0;
     truePk = 0;
-    pStmt.prepare( db, "PRAGMA %s.index_xinfo=%Q", zDb, zPkIdxName );
+    pStmt.prepare( db, "PRAGMA %s.index_xinfo=%Q", zDb, zPkIdxName.c_str() );
     while ( SQLITE_ROW == sqlite3_step( pStmt.get() ) )
     {
       nCol++;
@@ -926,7 +897,6 @@ static std::vector<std::string> _columnNames(
       nPK = 1;
     }
     pStmt.close();
-    sqlite3_free( zPkIdxName );
   }
   else
   {
@@ -935,13 +905,12 @@ static std::vector<std::string> _columnNames(
   }
   pStmt.prepare( db, "PRAGMA %s.table_info=%Q", zDb, zTab );
 
-  // *pnPKey = nPK;
   naz = nPK;
   az.resize( naz );
   while ( SQLITE_ROW == sqlite3_step( pStmt.get() ) )
   {
     int iPKey;
-    std::string name = _safeId( ( char * )sqlite3_column_text( pStmt.get(), 1 ) );
+    std::string name = ( char * )sqlite3_column_text( pStmt.get(), 1 );
     if ( truePk && ( iPKey = sqlite3_column_int( pStmt.get(), 5 ) ) > 0 )
     {
       az[iPKey - 1] = name;
@@ -959,16 +928,16 @@ static std::vector<std::string> _columnNames(
   ** same name.  */
   if ( az[0].empty() )
   {
-    const char *azRowid[] = { "rowid", "_rowid_", "oid" };
-    for ( i = 0; i < sizeof( azRowid ) / sizeof( azRowid[0] ); i++ )
+    std::vector<std::string> azRowid = { "rowid", "_rowid_", "oid" };
+    for ( i = 0; i < azRowid.size(); i++ )
     {
       for ( j = 1; j < naz; j++ )
       {
-        if ( sqlite3_stricmp( az[j].c_str(), azRowid[i] ) == 0 ) break;
+        if ( az[j] == azRowid[i] ) break;
       }
       if ( j >= naz )
       {
-        az[0] = sqlite3_mprintf( "%s", azRowid[i] );
+        az[0] = azRowid[i];
         break;
       }
     }
