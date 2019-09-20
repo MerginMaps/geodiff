@@ -1007,7 +1007,17 @@ bool has_same_table_schema( std::shared_ptr<Sqlite3Db> db, const std::string &ta
       errStr = "Table " + tableName + " has different name of columns: " + az[n] + " vs " + az2[n];
       return false;
     }
-    // TODO check column type
+
+    /* no need to check type:
+
+       from sqlite.h:
+         SQLite uses dynamic run-time typing. So just because a column
+         is declared to contain a particular type does not mean that the
+         data stored in that column is of the declared type.  SQLite is
+         strongly typed, but the typing is dynamic not static.  ^Type
+         is associated with individual values, not with the containers
+         used to hold those values.
+    */
   }
 
   return true;
