@@ -794,13 +794,12 @@ void triggers( std::shared_ptr<Sqlite3Db> db, std::vector<std::string> &triggerN
   statament.close();
 }
 
-void tables( std::shared_ptr<Sqlite3Db> db, std::vector<std::string> &tableNames )
+void tables( std::shared_ptr<Sqlite3Db> db,
+             const std::string &dbName,
+             std::vector<std::string> &tableNames )
 {
   tableNames.clear();
-  std::string all_tables_sql = "SELECT name FROM main.sqlite_master\n"
-                               " WHERE type='table' AND sql NOT LIKE 'CREATE VIRTUAL%%'\n"
-                               " UNION\n"
-                               "SELECT name FROM aux.sqlite_master\n"
+  std::string all_tables_sql = "SELECT name FROM " + dbName + ".sqlite_master\n"
                                " WHERE type='table' AND sql NOT LIKE 'CREATE VIRTUAL%%'\n"
                                " ORDER BY name";
   Sqlite3Stmt statament;
@@ -836,4 +835,204 @@ void tables( std::shared_ptr<Sqlite3Db> db, std::vector<std::string> &tableNames
 
     tableNames.push_back( tableName );
   }
+
+  // result is ordered by name
+}
+
+/*
+ * inspired by sqldiff.c function: safeId()
+ */
+static char *_safeId( const char *zId )
+{
+  int i, x;
+  char c;
+  if ( zId[0] == 0 ) return sqlite3_mprintf( "\"\"" );
+  for ( i = x = 0; ( c = zId[i] ) != 0; i++ )
+  {
+    if ( !isalpha( c ) && c != '_' )
+    {
+      if ( i > 0 && isdigit( c ) )
+      {
+        x++;
+      }
+      else
+      {
+        return sqlite3_mprintf( "\"%w\"", zId );
+      }
+    }
+  }
+  if ( x || !sqlite3_keyword_check( zId, i ) )
+  {
+    return sqlite3_mprintf( "%s", zId );
+  }
+  return sqlite3_mprintf( "\"%w\"", zId );
+}
+
+/*
+ * inspired by sqldiff.c function: columnNames()
+ * bSchemaPK removed option for "Use schema-defined PRIMARY KEY"
+ *
+ * TODO rewrite in C++
+ */
+static char **_columnNames(
+  std::shared_ptr<Sqlite3Db> db,
+  const char *zDb,                /* Database ("main" or "aux") to query */
+  const char *zTab,               /* Name of table to return details of */
+  int *pnPKey,                    /* OUT: Number of PK columns */
+  int *pbRowid                    /* OUT: True if PK is an implicit rowid */
+)
+{
+  char **az = nullptr;           /* List of column names to be returned */
+  int naz = 0;             /* Number of entries in az[] */
+  Sqlite3Stmt pStmt;     /* SQL statement being run */
+  char *zPkIdxName = nullptr;    /* Name of the PRIMARY KEY index */
+  int truePk = 0;          /* PRAGMA table_info indentifies the PK to use */
+  int nPK = 0;             /* Number of PRIMARY KEY columns */
+  int i, j;                /* Loop counters */
+
+  /* Normal case:  Figure out what the true primary key is for the table.
+  **   *  For WITHOUT ROWID tables, the true primary key is the same as
+  **      the schema PRIMARY KEY, which is guaranteed to be present.
+  **   *  For rowid tables with an INTEGER PRIMARY KEY, the true primary
+  **      key is the INTEGER PRIMARY KEY.
+  **   *  For all other rowid tables, the rowid is the true primary key.
+  */
+  pStmt.prepare( db, "PRAGMA %s.index_list=%Q", zDb, zTab );
+  while ( SQLITE_ROW == sqlite3_step( pStmt.get() ) )
+  {
+    if ( sqlite3_stricmp( ( const char * )sqlite3_column_text( pStmt.get(), 3 ), "pk" ) == 0 )
+    {
+      zPkIdxName = sqlite3_mprintf( "%s", sqlite3_column_text( pStmt.get(), 1 ) );
+      break;
+    }
+  }
+  pStmt.close();
+
+  if ( zPkIdxName )
+  {
+    int nKey = 0;
+    int nCol = 0;
+    truePk = 0;
+    pStmt.prepare( db, "PRAGMA %s.index_xinfo=%Q", zDb, zPkIdxName );
+    while ( SQLITE_ROW == sqlite3_step( pStmt.get() ) )
+    {
+      nCol++;
+      if ( sqlite3_column_int( pStmt.get(), 5 ) ) { nKey++; continue; }
+      if ( sqlite3_column_int( pStmt.get(), 1 ) >= 0 ) truePk = 1;
+    }
+    if ( nCol == nKey ) truePk = 1;
+    if ( truePk )
+    {
+      nPK = nKey;
+    }
+    else
+    {
+      nPK = 1;
+    }
+    pStmt.close();
+    sqlite3_free( zPkIdxName );
+  }
+  else
+  {
+    truePk = 1;
+    nPK = 1;
+  }
+  pStmt.prepare( db, "PRAGMA %s.table_info=%Q", zDb, zTab );
+
+  *pnPKey = nPK;
+  naz = nPK;
+  az = ( char ** ) sqlite3_malloc( sizeof( char * ) * ( nPK + 1 ) );
+  if ( az == nullptr )
+    return nullptr; // runtimeError("out of memory");
+
+  memset( az, 0, sizeof( char * ) * ( nPK + 1 ) );
+  while ( SQLITE_ROW == sqlite3_step( pStmt.get() ) )
+  {
+    int iPKey;
+    if ( truePk && ( iPKey = sqlite3_column_int( pStmt.get(), 5 ) ) > 0 )
+    {
+      az[iPKey - 1] = _safeId( ( char * )sqlite3_column_text( pStmt.get(), 1 ) );
+    }
+    else
+    {
+      az = ( char ** ) sqlite3_realloc( az, sizeof( char * ) * ( naz + 2 ) );
+      if ( az == nullptr )
+        return nullptr; // runtimeError("out of memory");
+      az[naz++] = _safeId( ( char * )sqlite3_column_text( pStmt.get(), 1 ) );
+    }
+  }
+  pStmt.close();
+  if ( az ) az[naz] = nullptr;
+
+  /* If it is non-NULL, set *pbRowid to indicate whether or not the PK of
+  ** this table is an implicit rowid (*pbRowid==1) or not (*pbRowid==0).  */
+  if ( pbRowid ) *pbRowid = ( az[0] == nullptr );
+
+  /* If this table has an implicit rowid for a PK, figure out how to refer
+  ** to it. There are three options - "rowid", "_rowid_" and "oid". Any
+  ** of these will work, unless the table has an explicit column of the
+  ** same name.  */
+  if ( az[0] == nullptr )
+  {
+    const char *azRowid[] = { "rowid", "_rowid_", "oid" };
+    for ( i = 0; i < sizeof( azRowid ) / sizeof( azRowid[0] ); i++ )
+    {
+      for ( j = 1; j < naz; j++ )
+      {
+        if ( sqlite3_stricmp( az[j], azRowid[i] ) == 0 ) break;
+      }
+      if ( j >= naz )
+      {
+        az[0] = sqlite3_mprintf( "%s", azRowid[i] );
+        break;
+      }
+    }
+    if ( az[0] == nullptr )
+    {
+      for ( i = 1; i < naz; i++ ) sqlite3_free( az[i] );
+      sqlite3_free( az );
+      az = nullptr;
+    }
+  }
+  return az;
+}
+
+bool has_same_table_schema( std::shared_ptr<Sqlite3Db> db, const std::string &tableName, std::string &errStr )
+{
+  const char *tname = tableName.c_str();
+  // inspired by sqldiff.c function: static void summarize_one_table(const char *zTab, FILE *out);
+  if ( sqlite3_table_column_metadata( db->get(), "main", tname, 0, 0, 0, 0, 0, 0 ) )
+  {
+    /* Table missing from source */
+    errStr = tableName + " missing from first database";
+    return false;
+  }
+
+  int nPk;                  /* Primary key columns in main */
+  int nPk2;
+  char **az = nullptr;            /* Columns in main */
+  char **az2 = nullptr;
+  int n;
+
+  az = _columnNames( db, "main", tname, &nPk, 0 );
+  az2 = _columnNames( db, "aux", tname, &nPk2, 0 );
+  if ( az && az2 )
+  {
+    for ( n = 0; az[n]; n++ )
+    {
+      if ( sqlite3_stricmp( az[n], az2[n] ) != 0 ) break;
+    }
+  }
+  if ( az == nullptr
+       || az2 == nullptr
+       || nPk != nPk2
+       || az[n]
+       || az2[n]
+     )
+  {
+    errStr = tableName + " has incompatible schema";
+    return false;
+  }
+
+  return true;
 }

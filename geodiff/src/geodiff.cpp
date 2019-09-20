@@ -69,11 +69,38 @@ int GEODIFF_createChangeset( const char *base, const char *modified, const char 
     Sqlite3Session session;
     session.create( db, "main" );
 
-    std::vector<std::string> tableNames;
-    tables( db, tableNames );
+    // names are sorted and gpkg tables are filtered out
+    std::vector<std::string> mainTableNames;
+    tables( db, "main", mainTableNames );
 
-    for ( const std::string &table : tableNames )
+    // names are sorted and gpkg tables are filtered out
+    std::vector<std::string> auxTableNames;
+    tables( db, "aux", auxTableNames );
+
+    if ( auxTableNames.size() != mainTableNames.size() )
     {
+      Logger::instance().error( "Modified does contain different number of tables than base in GEODIFF_createChangeset" );
+      return GEODIFF_UNSUPPORTED_CHANGE;
+    }
+
+    for ( size_t i = 0; i < mainTableNames.size(); ++i )
+    {
+      const std::string &table = mainTableNames.at( i );
+      const std::string &auxTable = auxTableNames.at( i );
+      if ( auxTable != table )
+      {
+        Logger::instance().error( "Modified renamed table " + table + " to " + auxTable + " in GEODIFF_createChangeset" );
+        return GEODIFF_UNSUPPORTED_CHANGE;
+      }
+
+      std::string errMsg;
+      bool hasSameSchema = has_same_table_schema( db, table, errMsg );
+      if ( !hasSameSchema )
+      {
+        Logger::instance().error( errMsg + " in GEODIFF_createChangeset" );
+        return GEODIFF_UNSUPPORTED_CHANGE;
+      }
+
       int rc = sqlite3session_attach( session.get(), table.c_str() );
       if ( rc )
       {
