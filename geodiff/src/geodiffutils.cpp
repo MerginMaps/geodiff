@@ -1012,10 +1012,11 @@ bool has_same_table_schema( std::shared_ptr<Sqlite3Db> db, const std::string &ta
   int nPk2;
   char **az = nullptr;            /* Columns in main */
   char **az2 = nullptr;
-  int n;
+  int n = 0;
+  bool ret = true;
 
-  az = _columnNames( db, "main", tname, &nPk, 0 );
-  az2 = _columnNames( db, "aux", tname, &nPk2, 0 );
+  az = _columnNames( db, "main", tname, &nPk, nullptr );
+  az2 = _columnNames( db, "aux", tname, &nPk2, nullptr );
   if ( az && az2 )
   {
     for ( n = 0; az[n]; n++ )
@@ -1031,8 +1032,14 @@ bool has_same_table_schema( std::shared_ptr<Sqlite3Db> db, const std::string &ta
      )
   {
     errStr = tableName + " has incompatible schema";
-    return false;
+    ret = false;
   }
 
-  return true;
+  if (az)
+    sqlite3_free( az );
+
+  if (az2)
+    sqlite3_free( az2 );
+
+  return ret;
 }
