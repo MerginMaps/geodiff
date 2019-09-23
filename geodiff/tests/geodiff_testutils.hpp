@@ -23,6 +23,11 @@ void finalize_test();
 std::string test_file( std::string basename );
 std::string tmp_file( std::string basename );
 
-bool equals( const std::string &file1, const std::string &file2, bool ignore_timestamp_change = false );
+/**
+ * \param ignore_timestamp_change ignore last_change in table gpkg_contents
+ */
+bool equals( const std::string &file1,
+             const std::string &file2,
+             bool ignore_timestamp_change = false );
 
 #endif // GEODIFF_TESTUTILS_HPP
