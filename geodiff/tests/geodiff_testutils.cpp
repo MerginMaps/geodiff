@@ -102,13 +102,17 @@ void finalize_test()
 {
 }
 
-bool equals( const std::string &file1, const std::string &file2 )
+bool equals( const std::string &file1, const std::string &file2, bool ignore_timestamp_change )
 {
   std::string changeset = file1 + "_changeset.bin";
   if ( GEODIFF_createChangeset( file1.c_str(), file2.c_str(), changeset.c_str() ) != GEODIFF_SUCCESS )
     return false;
 
-  return ( GEODIFF_listChanges( changeset.c_str() )  == 0 );
+  int expected_changes = 0;
+  if ( ignore_timestamp_change )
+    expected_changes = 1;
+
+  return ( GEODIFF_listChanges( changeset.c_str() )  == expected_changes );
 }
 
 void makedir( const std::string &dir )
