@@ -15,7 +15,8 @@ bool _test(
   const std::string &expected_AB,
   int expected_changes_A,
   int expected_changes_AB,
-  int expected_changes_XB
+  int expected_changes_XB,
+  bool ignore_timestamp_change = false
 )
 {
   makedir( pathjoin( tmpdir(), testname ) );
@@ -80,7 +81,7 @@ bool _test(
 
   // check that it equals expected result
   std::cout << "final file: " << patchedAB << std::endl;
-  return equals( patchedAB, expected_patchedAB ) ;
+  return equals( patchedAB, expected_patchedAB, ignore_timestamp_change ) ;
 }
 
 TEST( ConcurrentCommitsSqlite3Test, test_2_inserts )
@@ -95,9 +96,9 @@ TEST( ConcurrentCommitsSqlite3Test, test_2_inserts )
                "inserted_1_A.gpkg",
                "inserted_1_B.gpkg",
                "merged_1_A_1_B.gpkg",
-               1,
-               1,
-               2
+               2,
+               2,
+               3
              );
   ASSERT_TRUE( ret );
 }
@@ -116,9 +117,9 @@ TEST( ConcurrentCommitsSqlite3Test, test_2_edits )
                "updated_A.gpkg",
                "updated_B.gpkg",
                "merged_1_A_1_B.gpkg",
-               1,
-               1,
-               1
+               2,
+               2,
+               2
              );
   ASSERT_TRUE( ret );
 }
@@ -135,9 +136,9 @@ TEST( ConcurrentCommitsSqlite3Test, test_2_deletes )
                "deleted_A.gpkg",
                "deleted_B.gpkg",
                "merged_A_B.gpkg",
+               2,
                1,
-               0,
-               1
+               2
              );
   ASSERT_TRUE( ret );
 }
@@ -154,9 +155,10 @@ TEST( ConcurrentCommitsSqlite3Test, test_delete_update )
                "deleted_A.gpkg",
                "updated_B.gpkg",
                "deleted_A.gpkg",
+               2,
                1,
-               0,
-               1
+               2,
+               true
              );
   ASSERT_TRUE( ret );
 }
@@ -173,9 +175,9 @@ TEST( ConcurrentCommitsSqlite3Test, test_update_delete )
                "updated_A.gpkg",
                "deleted_B.gpkg",
                "deleted_B.gpkg",
-               1,
-               1,
-               1
+               2,
+               2,
+               2
              );
   ASSERT_TRUE( ret );
 }

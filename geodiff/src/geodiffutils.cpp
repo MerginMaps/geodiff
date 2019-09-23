@@ -823,13 +823,17 @@ void tables( std::shared_ptr<Sqlite3Db> db,
     rtree_simple_geometry_node
     rtree_simple_geometry_parent
     rtree_simple_geometry_rowid
-    simple
+    simple (or any other name(s) of layers)
     sqlite_sequence
     */
-    if ( startsWith( tableName, "gpkg_" ) )
+
+    // table handled by triggers trigger_*_feature_count_*
+    if ( startsWith( tableName, "gpkg_ogr_contents" ) )
       continue;
+    // table handled by triggers rtree_*_geometry_*
     if ( startsWith( tableName, "rtree_" ) )
       continue;
+    // internal table for AUTOINCREMENT
     if ( tableName == "sqlite_sequence" )
       continue;
 

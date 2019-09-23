@@ -85,20 +85,6 @@ TEST( ModifiedSchemeSqlite3Test, rename_attribute )
   ASSERT_EQ( GEODIFF_createChangeset( base.c_str(), modified.c_str(), changeset.c_str() ), GEODIFF_UNSUPPORTED_CHANGE );
 }
 
-TEST( ModifiedSchemeSqlite3Test, retype_attribute )
-{
-  std::cout << "geopackage attribute count is same, have same name, but different type" << std::endl;
-  std::string testname = "retype_attribute";
-  makedir( pathjoin( tmpdir(), testname ) );
-
-  std::string base = pathjoin( testdir(), "modified_scheme", "added_attribute.gpkg" );
-  std::string modified = pathjoin( testdir(), "modified_scheme", "added_attribute_different_type.gpkg" );
-  std::string changeset = pathjoin( tmpdir(), testname, "changeset.bin" );
-
-  // this is supported since sqlite3 uses dynamic run-time typing
-  ASSERT_EQ( GEODIFF_createChangeset( base.c_str(), modified.c_str(), changeset.c_str() ), GEODIFF_SUCCESS );
-}
-
 int main( int argc, char **argv )
 {
   testing::InitGoogleTest( &argc, argv );

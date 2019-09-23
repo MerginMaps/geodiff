@@ -7,43 +7,95 @@
 #include "geodiff_testutils.hpp"
 #include "geodiff.h"
 
+bool _test(
+  const std::string &testname,
+  const std::string &basename,
+  const std::string &modifiedname,
+  int expected_changes,
+  bool ignore_timestamp_change = false
+)
+{
+  std::cout << testname << std::endl;
+  makedir( pathjoin( tmpdir(), testname ) );
+
+  std::string base = pathjoin( testdir(), basename );
+  std::string modified = pathjoin( testdir(), modifiedname );
+  std::string changeset = pathjoin( tmpdir(), testname, "changeset.bin" );
+  std::string patched = pathjoin( tmpdir(), testname, "patched.gpkg" );
+
+  if ( GEODIFF_createChangeset( base.c_str(), modified.c_str(), changeset.c_str() ) != GEODIFF_SUCCESS )
+  {
+    std::cout << "err GEODIFF_createChangeset" << std::endl;
+    return false;
+  }
+
+  int nchanges = GEODIFF_listChanges( changeset.c_str() );
+  if ( nchanges != expected_changes )
+  {
+    std::cout << "err GEODIFF_listChanges " <<  nchanges << " vs " << expected_changes << std::endl;
+    return false;
+  }
+
+  if ( GEODIFF_applyChangeset( base.c_str(), patched.c_str(), changeset.c_str() ) != GEODIFF_SUCCESS )
+  {
+    std::cout << "err GEODIFF_applyChangeset" << std::endl;
+    return false;
+  }
+
+  // check that now it is same file
+  if ( !equals( patched, modified, ignore_timestamp_change ) )
+  {
+    std::cout << "err equals" << std::endl;
+    return false;
+  }
+
+  return true;
+
+}
+
+
 TEST( SingleCommitSqlite3Test, test_sqlite_no_gis )
 {
   std::cout << "sqlite 2 updated 1 added 1 deleted" << std::endl;
-  std::string testname = "pure_sqlite";
-  makedir( pathjoin( tmpdir(), testname ) );
-
-  std::string base = pathjoin( testdir(), "base.sqlite" );
-  std::string modified = pathjoin( testdir(), testname, "modified_base.sqlite" );
-  std::string changeset = pathjoin( tmpdir(), testname, "changeset_base_sqlite.bin" );
-  std::string changeset2 = pathjoin( tmpdir(), testname, "changeset_after_apply_base_sqlite.bin" );
-  std::string patched = pathjoin( tmpdir(), testname, "patched_base_sqlite.gpkg" );
-
-  ASSERT_EQ( GEODIFF_createChangeset( base.c_str(), modified.c_str(), changeset.c_str() ), GEODIFF_SUCCESS );
-  ASSERT_EQ( GEODIFF_listChanges( changeset.c_str() ), 4 );
-  ASSERT_EQ( GEODIFF_applyChangeset( base.c_str(), patched.c_str(), changeset.c_str() ), GEODIFF_SUCCESS );
-
-  // check that now it is same file
-  ASSERT_TRUE( equals( patched, modified ) );
+  bool ret = _test( "pure_sqlite",
+                    "base.sqlite",
+                    pathjoin( "pure_sqlite", "modified_base.sqlite" ),
+                    4
+                  );
+  ASSERT_TRUE( ret );
 }
 
 TEST( SingleCommitSqlite3Test, geopackage )
 {
   std::cout << "geopackage 1 updated geometry" << std::endl;
-  std::string testname = "1_geopackage";
-  makedir( pathjoin( tmpdir(), testname ) );
+  bool ret = _test( "1_geopackage",
+                    "base.gpkg",
+                    pathjoin( "1_geopackage", "modified_1_geom.gpkg" ),
+                    2
+                  );
+  ASSERT_TRUE( ret );
+}
 
-  std::string base = pathjoin( testdir(), "base.gpkg" );
-  std::string modified = pathjoin( testdir(), testname, "modified_1_geom.gpkg" );
-  std::string changeset = pathjoin( tmpdir(), testname, "changeset_base_gpkg.bin" );
-  std::string patched = pathjoin( tmpdir(), testname, "patched_base_gpkg.gpkg" );
+TEST( SingleCommitSqlite3Test, retype_attribute )
+{
+  std::cout << "geopackage attribute count is same, have same name, but different type" << std::endl;
+  bool ret = _test( "retype_attribute",
+                    pathjoin( "modified_scheme", "added_attribute.gpkg" ),
+                    pathjoin( "modified_scheme", "added_attribute_different_type.gpkg" ),
+                    4
+                  );
+  ASSERT_TRUE( ret );
+}
 
-  ASSERT_EQ( GEODIFF_createChangeset( base.c_str(), modified.c_str(), changeset.c_str() ), GEODIFF_SUCCESS );
-  ASSERT_EQ( GEODIFF_listChanges( changeset.c_str() ), 1 );
-  ASSERT_EQ( GEODIFF_applyChangeset( base.c_str(), patched.c_str(), changeset.c_str() ), GEODIFF_SUCCESS );
-
-  // check that now it is same file
-  ASSERT_TRUE( equals( patched, modified ) );
+TEST( SingleCommitSqlite3Test, reprojected )
+{
+  std::cout << "geopackage change of crs" << std::endl;
+  bool ret = _test( "reprojected",
+                    pathjoin( "modified_scheme", "reprojected.gpkg" ),
+                    pathjoin( "modified_scheme", "reprojected2.gpkg" ),
+                    6
+                  );
+  ASSERT_TRUE( ret );
 }
 
 int main( int argc, char **argv )
