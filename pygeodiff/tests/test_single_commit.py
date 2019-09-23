@@ -53,4 +53,4 @@ class UnitTestsPythonSingleCommit(GeoDiffTests):
              "1_geopackage",
              "base.gpkg",
              "modified_1_geom.gpkg",
-             1)
+             2)

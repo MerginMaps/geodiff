@@ -27,15 +27,15 @@ class UnitTestsPythonConcurrentCommits(GeoDiffTests):
 
         print("create changeset base to A")
         self.geodiff.create_changeset(base, modifiedA, changesetbaseA)
-        check_nchanges(self.geodiff, changesetbaseA,  1)
+        check_nchanges(self.geodiff, changesetbaseA,  2)
 
         print("create changeset A to B")
         self.geodiff.create_rebased_changeset(base, modifiedB, changesetbaseA, changesetAB)
-        check_nchanges(self.geodiff, changesetAB, 1)
+        check_nchanges(self.geodiff, changesetAB, 2)
 
         print("apply changeset to A to get AB")
         self.geodiff.apply_changeset(modifiedA, patchedAB, changesetAB)
 
         print("check that then new data has both features\n")
         self.geodiff.create_changeset(base, patchedAB, changesetBbase)
-        check_nchanges(self.geodiff, changesetBbase, 2)
+        check_nchanges(self.geodiff, changesetBbase, 3)
