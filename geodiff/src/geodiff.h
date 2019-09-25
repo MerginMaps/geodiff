@@ -111,6 +111,22 @@ GEODIFF_EXPORT int GEODIFF_applyChangeset( const char *base,
  */
 GEODIFF_EXPORT int GEODIFF_listChanges( const char *changeset );
 
+/**
+ * Creates JSON output from changeset
+ *
+ * It is not possible to use GeoJSON since we do not have
+ * capablity to do WKB/WKT -> GeoJSON geometry
+ *
+ * For each modified feature stores
+ *   - geometry (WKB + EPSG)
+ *   - changed attributes (table, column, old attribute, new attribute)
+ *   - status: deleted/added/modified/moved
+ * where moved is when geometry (and potentially attributes are changed)
+ *
+ * \returns number of changes, -1 on error
+ */
+GEODIFF_EXPORT int GEODIFF_listChangesJSON( const char *base, const char *changeset, const char *jsonfile );
+
 #ifdef __cplusplus
 }
 #endif

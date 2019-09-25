@@ -7,6 +7,8 @@
 #define str(a) #a
 
 #include "geodiff_testutils.hpp"
+#include <iostream>
+#include <fstream>
 #include <vector>
 #include <math.h>
 #ifdef WIN32
@@ -122,4 +124,13 @@ void makedir( const std::string &dir )
 #else
   mkdir( dir.c_str(), S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH );
 #endif
+}
+
+void printJSON( const std::string &base, const std::string &changeset, const std::string &json )
+{
+  // printout JSON
+  GEODIFF_listChangesJSON( base.c_str(), changeset.c_str(), json.c_str() );
+  std::ifstream f( json );
+  if ( f.is_open() )
+    std::cout << f.rdbuf();
 }

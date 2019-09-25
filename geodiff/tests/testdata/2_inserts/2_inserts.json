@@ -1,0 +1,18 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+      {
+        "type": "Feature",
+        "geometry": {
+          "WKT": ""
+          "EPSG": "4326"
+        }
+        "properties": {
+          "fid": "5",
+          "name": "my new point B",
+          "rating": "2",
+          "status": "added"
+        }
+      }
+  ]
+}

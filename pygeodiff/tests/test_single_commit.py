@@ -26,6 +26,7 @@ def basetest(
   changeset = tmpdir() + "/py" + testname + "/" + "changeset_" + basename + ".bin"
   changeset2 = tmpdir() + "/py" + testname + "/" + "changeset_after_apply_" + basename + ".bin"
   patched = tmpdir() + "/py" + testname + "/" + "patched_" + modifiedname
+  json = tmpdir() + "/py" + testname + "/" + basename + ".json"
 
   print( "diff" )
   geodiff.create_changeset( base, modified, changeset )
@@ -37,6 +38,18 @@ def basetest(
   print( "check that now it is same file\n" )
   geodiff.create_changeset( patched, modified, changeset2 )
   check_nchanges( geodiff, changeset2, 0 )
+
+  print( "check export to JSON ")
+  try:
+    geodiff.list_changes_json(base , changeset, json)
+  except:
+      return
+
+  if os.path.exists(json):
+      with open(json, 'r') as fin:
+          print(fin.read())
+  else:
+      print("no JSON output")
 
 
 class UnitTestsPythonSingleCommit(GeoDiffTests):

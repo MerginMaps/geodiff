@@ -70,10 +70,19 @@ class GeoDiff:
         Lists changeset content to stdout
         \returns number of changes
          
-         reises SqliteDiffError on error
+         raises SqliteDiffError on error
     """
     def list_changes(self, changeset):
         return self.clib.list_changes(changeset)
+
+    """ 
+        Lists changeset content to JSON
+        \returns number of changes
+
+         raises SqliteDiffError on error
+    """
+    def list_changes_json(self, base, changeset, json):
+        return self.clib.list_changes_json(base, changeset, json)
 
     def version(self):
         return self.clib.version()

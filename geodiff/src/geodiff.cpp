@@ -6,6 +6,7 @@
 #include "geodiff.h"
 #include "geodiffutils.hpp"
 #include "geodiffrebase.hpp"
+#include "geodiffexporter.hpp"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -13,7 +14,6 @@
 #include <ctype.h>
 #include <string.h>
 
-#include <gpkg.h>
 #include <sqlite3.h>
 
 #include <fcntl.h>
@@ -23,7 +23,7 @@
 
 const char *GEODIFF_version()
 {
-  return "0.3.0";
+  return "0.4.0";
 }
 
 void _errorLogCallback( void *pArg, int iErrCode, const char *zMsg )
@@ -134,7 +134,7 @@ static int conflict_callback( void *ctx, int conflict, sqlite3_changeset_iter *i
 {
   nconflicts++;
   std::string s = conflict2Str( conflict );
-  std::string vals = Sqlite3ChangesetIter::toString( iterator );
+  std::string vals = GeoDiffExporter::toString( iterator );
   Logger::instance().warn( "CONFLICT: " + s  + ": " + vals );
   return SQLITE_CHANGESET_REPLACE;
 }
@@ -173,18 +173,10 @@ int GEODIFF_applyChangeset( const char *base, const char *patched, const char *c
     std::shared_ptr<Sqlite3Db> db = std::make_shared<Sqlite3Db>();
     db->open( patched );
 
-    // register GPKG functions like ST_IsEmpty
-    int rc = sqlite3_enable_load_extension( db->get(), 1 );
-    if ( rc )
+    bool success = register_gpkg_extensions( db );
+    if ( !success )
     {
-      Logger::instance().error( "Unable to enable sqlite3 extensions" );
-      return GEODIFF_ERROR;
-    }
-
-    rc = sqlite3_gpkg_auto_init( db->get(), NULL, NULL );
-    if ( rc )
-    {
-      Logger::instance().error( "Unable to load gpkg sqlite3 extensions" );
+      Logger::instance().error( "Unable to enable sqlite3/gpkg extensions" );
       return GEODIFF_ERROR;
     }
 
@@ -203,7 +195,7 @@ int GEODIFF_applyChangeset( const char *base, const char *patched, const char *c
     }
 
     // apply changeset
-    rc = sqlite3changeset_apply( db->get(), cbuf.size(), cbuf.v_buf(), NULL, conflict_callback, NULL );
+    int rc = sqlite3changeset_apply( db->get(), cbuf.size(), cbuf.v_buf(), NULL, conflict_callback, NULL );
     if ( rc )
     {
       Logger::instance().error( "Unable to perform sqlite3changeset_apply" );
@@ -250,7 +242,7 @@ int GEODIFF_listChanges( const char *changeset )
     pp.start( buf );
     while ( SQLITE_ROW == sqlite3changeset_next( pp.get() ) )
     {
-      std::string msg = Sqlite3ChangesetIter::toString( pp.get() );
+      std::string msg = GeoDiffExporter::toString( pp.get() );
       Logger::instance().info( msg );
       nchanges = nchanges + 1 ;
     }
@@ -292,5 +284,43 @@ int GEODIFF_createRebasedChangeset( const char *base, const char *modified, cons
   {
     Logger::instance().error( exc );
     return GEODIFF_ERROR;
+  }
+}
+
+int GEODIFF_listChangesJSON( const char *base, const char *changeset, const char *jsonfile )
+{
+  try
+  {
+    Buffer buf;
+    buf.read( changeset );
+    if ( buf.isEmpty() )
+    {
+      Logger::instance().info( "--- no changes ---" );
+      return 0;
+    }
+
+    std::shared_ptr<Sqlite3Db> db = std::make_shared<Sqlite3Db>();
+    db->open( base );
+
+    bool success = register_gpkg_extensions( db );
+    if ( !success )
+    {
+      throw GeoDiffException( "Unable to enable sqlite3/gpkg extensions" );
+    }
+
+    if ( !isGeoPackage( db ) )
+    {
+      throw GeoDiffException( "Unable to create diff from non-geopackage file" );
+    }
+
+    int nChanges = 0;
+    std::string res = GeoDiffExporter::toJSON( db, buf, nChanges );
+    flushString( jsonfile, res );
+    return nChanges;
+  }
+  catch ( GeoDiffException exc )
+  {
+    Logger::instance().error( exc );
+    return -1;
   }
 }

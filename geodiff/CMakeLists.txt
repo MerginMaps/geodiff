@@ -111,6 +111,8 @@ SET(geodiff_src
   src/geodiffutils.hpp
   src/geodiffrebase.cpp
   src/geodiffrebase.hpp
+  src/geodiffexporter.cpp
+  src/geodiffexporter.hpp
   ${sqlite_src}
   ${libgpkg_src}
 )

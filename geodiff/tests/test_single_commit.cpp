@@ -22,6 +22,7 @@ bool _test(
   std::string modified = pathjoin( testdir(), modifiedname );
   std::string changeset = pathjoin( tmpdir(), testname, "changeset.bin" );
   std::string patched = pathjoin( tmpdir(), testname, "patched.gpkg" );
+  std::string json = pathjoin( tmpdir(), testname, testname + ".json" );
 
   if ( GEODIFF_createChangeset( base.c_str(), modified.c_str(), changeset.c_str() ) != GEODIFF_SUCCESS )
   {
@@ -49,8 +50,9 @@ bool _test(
     return false;
   }
 
-  return true;
+  printJSON( base, changeset, json );
 
+  return true;
 }
 
 

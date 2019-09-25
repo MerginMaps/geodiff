@@ -29,6 +29,7 @@ bool _test(
   std::string changesetBbase = pathjoin( tmpdir(), testname, "changeset_B_to_base.bin" );
   std::string patchedAB = pathjoin( tmpdir(), testname, "patched_AB.gpkg" ) ;
   std::string expected_patchedAB = pathjoin( testdir(), testname, expected_AB );
+  std::string json = pathjoin( testdir(), testname, testname + ".json" );
 
   // create changeset base to A
   if ( GEODIFF_createChangeset( base.c_str(), modifiedA.c_str(), changesetbaseA.c_str() ) != GEODIFF_SUCCESS )
@@ -78,6 +79,9 @@ bool _test(
     std::cout << "err GEODIFF_listChanges Bbase: " << nchanges << std::endl;
     return false;
   }
+
+  // print JSON
+  printJSON( modifiedA, changesetAB, json );
 
   // check that it equals expected result
   std::cout << "final file: " << patchedAB << std::endl;

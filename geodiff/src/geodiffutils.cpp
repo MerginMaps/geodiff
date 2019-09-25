@@ -18,6 +18,7 @@
 #include <vector>
 #include <iostream>
 #include <sstream>
+#include <gpkg.h>
 
 #ifdef WIN32
 #include <windows.h>
@@ -295,58 +296,6 @@ void Sqlite3ChangesetIter::newValue( int i, sqlite3_value **val )
     throw GeoDiffException( "sqlite3changeset_new error" );
   }
 }
-
-std::string Sqlite3ChangesetIter::toString( sqlite3_changeset_iter *pp )
-{
-  std::ostringstream ret;
-
-  if ( !pp )
-    return std::string();
-
-  int rc;
-  const char *pzTab;
-  int pnCol;
-  int pOp;
-  int pbIndirect;
-  rc = sqlite3changeset_op(
-         pp,
-         &pzTab,
-         &pnCol,
-         &pOp,
-         &pbIndirect
-       );
-  std::string s = pOpToStr( pOp );
-  ret << " " << pzTab << " " << s << "    columns " << pnCol << "    indirect " << pbIndirect << std::endl;
-
-  sqlite3_value *ppValueOld;
-  sqlite3_value *ppValueNew;
-  for ( int i = 0; i < pnCol; ++i )
-  {
-    if ( pOp == SQLITE_UPDATE || pOp == SQLITE_INSERT )
-    {
-      rc = sqlite3changeset_new( pp, i, &ppValueNew );
-      if ( rc != SQLITE_OK )
-        throw GeoDiffException( "sqlite3changeset_new" );
-    }
-    else
-      ppValueNew = nullptr;
-
-    if ( pOp == SQLITE_UPDATE || pOp == SQLITE_DELETE )
-    {
-      rc = sqlite3changeset_old( pp, i, &ppValueOld );
-      if ( rc != SQLITE_OK )
-        throw GeoDiffException( "sqlite3changeset_old" );
-    }
-    else
-      ppValueOld = nullptr;
-
-    ret << "  " << i << ": " << Sqlite3Value::toString( ppValueOld ) << "->" << Sqlite3Value::toString( ppValueNew ) << std::endl;
-  }
-  ret << std::endl;
-  return ret.str();
-
-}
-
 
 // ////////////////////////////////////////////////////////////////////////
 // ////////////////////////////////////////////////////////////////////////
@@ -846,9 +795,9 @@ void tables( std::shared_ptr<Sqlite3Db> db,
 /*
  * inspired by sqldiff.c function: columnNames()
  */
-static std::vector<std::string> _columnNames(
+std::vector<std::string> columnNames(
   std::shared_ptr<Sqlite3Db> db,
-  const char *zDb,                /* Database ("main" or "aux") to query */
+  const std::string &zDb,                /* Database ("main" or "aux") to query */
   const std::string &tableName   /* Name of table to return details of */
 )
 {
@@ -868,7 +817,7 @@ static std::vector<std::string> _columnNames(
   **   *  For all other rowid tables, the rowid is the true primary key.
   */
   const char *zTab = tableName.c_str();
-  pStmt.prepare( db, "PRAGMA %s.index_list=%Q", zDb, zTab );
+  pStmt.prepare( db, "PRAGMA %s.index_list=%Q", zDb.c_str(), zTab );
   while ( SQLITE_ROW == sqlite3_step( pStmt.get() ) )
   {
     if ( sqlite3_stricmp( ( const char * )sqlite3_column_text( pStmt.get(), 3 ), "pk" ) == 0 )
@@ -884,7 +833,7 @@ static std::vector<std::string> _columnNames(
     int nKey = 0;
     int nCol = 0;
     truePk = 0;
-    pStmt.prepare( db, "PRAGMA %s.index_xinfo=%Q", zDb, zPkIdxName.c_str() );
+    pStmt.prepare( db, "PRAGMA %s.index_xinfo=%Q", zDb.c_str(), zPkIdxName.c_str() );
     while ( SQLITE_ROW == sqlite3_step( pStmt.get() ) )
     {
       nCol++;
@@ -907,7 +856,7 @@ static std::vector<std::string> _columnNames(
     truePk = 1;
     nPK = 1;
   }
-  pStmt.prepare( db, "PRAGMA %s.table_info=%Q", zDb, zTab );
+  pStmt.prepare( db, "PRAGMA %s.table_info=%Q", zDb.c_str(), zTab );
 
   naz = nPK;
   az.resize( naz );
@@ -964,8 +913,8 @@ bool has_same_table_schema( std::shared_ptr<Sqlite3Db> db, const std::string &ta
     return false;
   }
 
-  std::vector<std::string> az = _columnNames( db, "main", tableName );
-  std::vector<std::string> az2 = _columnNames( db, "aux", tableName );
+  std::vector<std::string> az = columnNames( db, "main", tableName );
+  std::vector<std::string> az2 = columnNames( db, "aux", tableName );
   if ( az.size() != az2.size() )
   {
     errStr = "Table " + tableName + " has different number of columns";
@@ -994,4 +943,192 @@ bool has_same_table_schema( std::shared_ptr<Sqlite3Db> db, const std::string &ta
   }
 
   return true;
+}
+
+std::string getGeometry( std::shared_ptr<Sqlite3Db> db,
+                         int fid,
+                         std::string geomColumnName,
+                         std::string fidColumnName,
+                         std::string tableName )
+{
+  const char *blob = nullptr;
+  Sqlite3Stmt pStmt;
+  std::string ret;
+
+  pStmt.prepare( db, "SELECT ST_AsText(%s) FROM %s WHERE %s=%i",
+                 geomColumnName.c_str(),
+                 tableName.c_str(),
+                 fidColumnName.c_str(), fid );
+
+  while ( SQLITE_ROW == sqlite3_step( pStmt.get() ) )
+  {
+    blob = ( const char * ) sqlite3_column_text( pStmt.get(), 0 );
+    if ( blob )
+    {
+      ret = blob;
+      break;
+    }
+  }
+  pStmt.close();
+  return ret;
+}
+
+std::string convertGeometrytoWKT( std::shared_ptr<Sqlite3Db> db, sqlite3_value *wkb )
+{
+  if ( !wkb )
+    return std::string();
+
+  int type = sqlite3_value_type( wkb );
+  if ( type != SQLITE_BLOB )
+    return std::string();
+
+  Sqlite3Stmt pStmt;
+  std::string ret;
+  pStmt.prepare( db, "SELECT ST_AsText(?) " );
+
+  int rc = sqlite3_bind_blob( pStmt.get(), 1, wkb, sqlite3_value_bytes( wkb ), SQLITE_TRANSIENT );
+  if ( rc != SQLITE_OK )
+  {
+    throw GeoDiffException( "sqlite3_bind_blob error" );
+  }
+
+  const char *blob = nullptr;
+  while ( SQLITE_ROW == sqlite3_step( pStmt.get() ) )
+  {
+    blob = ( const char * ) sqlite3_column_text( pStmt.get(), 0 );
+    if ( blob )
+    {
+      ret = blob;
+      break;
+    }
+  }
+  pStmt.close();
+  return ret;
+}
+
+void get_primary_key( Sqlite3ChangesetIter &pp, int pOp, int &fid, int &nColumn )
+{
+  if ( !pp.get() )
+    throw GeoDiffException( "internal error in _get_primary_key" );
+
+  unsigned char *pabPK;
+  int pnCol;
+  int rc = sqlite3changeset_pk( pp.get(),  &pabPK, &pnCol );
+  if ( rc )
+  {
+    throw GeoDiffException( "internal error in _get_primary_key" );
+  }
+
+  // lets assume for now it has only one PK and it is int...
+  int pk_column_number = -1;
+  for ( int i = 0; i < pnCol; ++i )
+  {
+    if ( pabPK[i] == 0x01 )
+    {
+      if ( pk_column_number >= 0 )
+      {
+        // ups primary key composite!
+        throw GeoDiffException( "internal error in _get_primary_key: support composite primary keys not implemented" );
+      }
+      pk_column_number = i;
+    }
+  }
+  if ( pk_column_number == -1 )
+  {
+    throw GeoDiffException( "internal error in _get_primary_key: unable to find internal key" );
+  }
+
+  nColumn = pk_column_number;
+
+  // now get the value
+  sqlite3_value *ppValue = nullptr;
+  if ( pOp == SQLITE_INSERT )
+  {
+    pp.newValue( pk_column_number, &ppValue );
+  }
+  else if ( pOp == SQLITE_DELETE || pOp == SQLITE_UPDATE )
+  {
+    pp.oldValue( pk_column_number, &ppValue );
+  }
+  if ( !ppValue )
+    throw GeoDiffException( "internal error in _get_primary_key: unable to get value of primary key" );
+
+  int type = sqlite3_value_type( ppValue );
+  if ( type == SQLITE_INTEGER )
+  {
+    int val = sqlite3_value_int( ppValue );
+    fid = val;
+    return;
+  }
+  else if ( type == SQLITE_TEXT )
+  {
+    const unsigned char *valT = sqlite3_value_text( ppValue );
+    int hash = 0;
+    int len = strlen( ( const char * ) valT );
+    for ( int i = 0; i < len; i++ )
+    {
+      hash = 33 * hash + ( unsigned char )valT[i];
+    }
+    fid = hash;
+  }
+  else
+  {
+    throw GeoDiffException( "internal error in _get_primary_key: unsuported type of primary key" );
+  }
+}
+
+bool register_gpkg_extensions( std::shared_ptr<Sqlite3Db> db )
+{
+  // register GPKG functions like ST_IsEmpty
+  int rc = sqlite3_enable_load_extension( db->get(), 1 );
+  if ( rc )
+  {
+    return false;
+  }
+
+  rc = sqlite3_gpkg_auto_init( db->get(), NULL, NULL );
+  if ( rc )
+  {
+    return false;
+  }
+
+  return true;
+}
+
+std::string getCRS( std::shared_ptr<Sqlite3Db> db, const std::string &tableName )
+{
+  int epsg = 0;
+  Sqlite3Stmt pStmt;
+  std::string ret;
+  pStmt.prepare( db,
+                 "SELECT srs_id FROM \"main\".\"gpkg_geometry_columns\" WHERE table_name=\"%s\"",
+                 tableName.c_str() );
+
+  while ( SQLITE_ROW == sqlite3_step( pStmt.get() ) )
+  {
+    epsg = sqlite3_column_int( pStmt.get(), 0 );
+    if ( epsg > 0 )
+    {
+      break;
+    }
+  }
+  pStmt.close();
+  return std::to_string( epsg );
+}
+
+bool isGeoPackage( std::shared_ptr<Sqlite3Db> db )
+{
+  std::vector<std::string> tableNames;
+  tables( db,
+          "main",
+          tableNames );
+
+  return std::find( tableNames.begin(), tableNames.end(), "gpkg_contents" ) != tableNames.end();
+}
+
+void flushString( const std::string &filename, const std::string &str )
+{
+  std::ofstream out( filename );
+  out << str;
+  out.close();
 }
