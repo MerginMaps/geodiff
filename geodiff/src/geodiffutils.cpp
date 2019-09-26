@@ -985,9 +985,9 @@ std::string convertGeometrytoWKT( std::shared_ptr<Sqlite3Db> db, sqlite3_value *
 
   Sqlite3Stmt pStmt;
   std::string ret;
-  pStmt.prepare( db, "SELECT ST_AsText(?) " );
+  pStmt.prepare( db, "SELECT ST_AsText(?)" );
 
-  int rc = sqlite3_bind_blob( pStmt.get(), 1, wkb, sqlite3_value_bytes( wkb ), SQLITE_TRANSIENT );
+  int rc = sqlite3_bind_value( pStmt.get(), 1, wkb);
   if ( rc != SQLITE_OK )
   {
     throw GeoDiffException( "sqlite3_bind_blob error" );
