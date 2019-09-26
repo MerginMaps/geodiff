@@ -13,7 +13,8 @@ def basetest(
         testname,
         basename,
         modifiedname,
-        expected_changes ):
+        expected_changes,
+        expected_json_success):
   print( "********************************************************" )
   print( "PYTHON: " + testname )
 
@@ -39,17 +40,7 @@ def basetest(
   geodiff.create_changeset( patched, modified, changeset2 )
   check_nchanges( geodiff, changeset2, 0 )
 
-  print( "check export to JSON ")
-  try:
-    geodiff.list_changes_json(base , changeset, json)
-  except:
-      return
-
-  if os.path.exists(json):
-      with open(json, 'r') as fin:
-          print(fin.read())
-  else:
-      print("no JSON output")
+  test_json(geodiff, base , changeset, json, expected_json_success)
 
 
 class UnitTestsPythonSingleCommit(GeoDiffTests):
@@ -59,11 +50,21 @@ class UnitTestsPythonSingleCommit(GeoDiffTests):
              "pure_sqlite",
              "base.sqlite",
              "modified_base.sqlite",
-             4)
+             4,
+             False)
 
     def test_geopackage(self):
         basetest(self.geodiff,
              "1_geopackage",
              "base.gpkg",
              "modified_1_geom.gpkg",
-             2)
+             2,
+             True)
+
+    def test_complex_geopackage(self):
+        basetest(self.geodiff,
+             "complex",
+             "base.gpkg",
+             "complex1.gpkg",
+             6,
+             True)

@@ -8,7 +8,7 @@ import unittest
 import os
 import tempfile
 import pygeodiff
-
+import json
 
 class TestError(Exception):
   pass
@@ -25,10 +25,40 @@ def tmpdir():
   return tempfile.gettempdir()
 
 
-def check_nchanges( geodiff, changeset, expected_number_of_changes ):
+def check_nchanges(geodiff, changeset, expected_number_of_changes ):
   nchanges = geodiff.list_changes( changeset )
   if nchanges != expected_number_of_changes:
     raise TestError( "expecting {} changes, found {}".format(expected_number_of_changes, nchanges))
+
+
+def is_valid_json(stream):
+    try:
+        json_object = json.loads(stream)
+    except ValueError as e:
+        return False
+    return True
+
+
+def test_json(geodiff, base, changeset, json, expect_success ):
+    print("check export to JSON ")
+    try:
+        geodiff.list_changes_json(base, changeset, json)
+        if not expect_success:
+            raise TestError("json generation succeeded, but should have failed")
+    except:
+        if expect_success:
+            raise TestError("json generation failed")
+
+    if expect_success and not os.path.exists(json):
+        raise TestError("missing generated JSON file")
+
+    if os.path.exists(json):
+        with open(json, 'r') as fin:
+            data = fin.read()
+            print(data)
+            # check that json is valid
+            if not is_valid_json(data):
+                raise TestError(json + " is not valid JSON file:\n " + data)
 
 
 class GeoDiffTests(unittest.TestCase):

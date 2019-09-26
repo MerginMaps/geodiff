@@ -78,6 +78,17 @@ TEST( SingleCommitSqlite3Test, geopackage )
   ASSERT_TRUE( ret );
 }
 
+TEST( SingleCommitSqlite3Test, geopackage_complex )
+{
+  std::cout << "geopackage 2 new, 1 move, 1 changed attr, 1 delete" << std::endl;
+  bool ret = _test( "complex",
+                    "base.gpkg",
+                    pathjoin( "complex", "complex1.gpkg" ),
+                    6
+                  );
+  ASSERT_TRUE( ret );
+}
+
 TEST( SingleCommitSqlite3Test, retype_attribute )
 {
   std::cout << "geopackage attribute count is same, have same name, but different type" << std::endl;

@@ -136,9 +136,9 @@ std::string GeoDiffExporter::toJSON( std::shared_ptr<Sqlite3Db> db, Sqlite3Chang
   std::string crs = getCRS( db, std::string( pzTab ) ) ;
 
   res += "        \"geometry\": {\n";
-  res += "          \"WKT\": \"" + wkt + "\"\n";
+  res += "          \"WKT\": \"" + wkt + "\",\n";
   res += "          \"EPSG\": \"" + crs + "\"\n";
-  res += "        }\n";
+  res += "        },\n";
 
   // add properties
   res += "        \"properties\": {\n";
@@ -197,7 +197,7 @@ std::string GeoDiffExporter::toJSON( std::shared_ptr<Sqlite3Db> db, Sqlite3Chang
       {
         if ( ppValueOld )
         {
-          res += "          \"" + columnName + "\": \"" + oldVal + ",\n";
+          res += "          \"" + columnName + "\": \"" + oldVal + "\",\n";
         }
       }
     }
