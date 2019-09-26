@@ -694,6 +694,17 @@ bool startsWith( const std::string &str, const std::string &substr )
   return str.rfind( substr, 0 ) == 0;
 }
 
+std::string replace( const std::string &str, const std::string &substr, const std::string &replacestr )
+{
+  std::string res( str );
+
+  while ( res.find( substr ) != std::string::npos )
+  {
+    res.replace( res.find( substr ), substr.size(), replacestr );
+  }
+  return res;
+}
+
 void triggers( std::shared_ptr<Sqlite3Db> db, std::vector<std::string> &triggerNames, std::vector<std::string> &triggerCmds )
 {
   triggerNames.clear();
@@ -946,35 +957,7 @@ bool has_same_table_schema( std::shared_ptr<Sqlite3Db> db, const std::string &ta
   return true;
 }
 
-std::string getGeometry( std::shared_ptr<Sqlite3Db> db,
-                         int fid,
-                         std::string geomColumnName,
-                         std::string fidColumnName,
-                         std::string tableName )
-{
-  const char *blob = nullptr;
-  Sqlite3Stmt pStmt;
-  std::string ret;
-
-  pStmt.prepare( db, "SELECT ST_AsText(%s) FROM %s WHERE %s=%i",
-                 geomColumnName.c_str(),
-                 tableName.c_str(),
-                 fidColumnName.c_str(), fid );
-
-  while ( SQLITE_ROW == sqlite3_step( pStmt.get() ) )
-  {
-    blob = ( const char * ) sqlite3_column_text( pStmt.get(), 0 );
-    if ( blob )
-    {
-      ret = blob;
-      break;
-    }
-  }
-  pStmt.close();
-  return ret;
-}
-
-std::string convertGeometrytoWKT( std::shared_ptr<Sqlite3Db> db, sqlite3_value *wkb )
+std::string convertGeometryToWKT( std::shared_ptr<Sqlite3Db> db, sqlite3_value *wkb )
 {
   if ( !wkb )
     return std::string();
@@ -987,7 +970,7 @@ std::string convertGeometrytoWKT( std::shared_ptr<Sqlite3Db> db, sqlite3_value *
   std::string ret;
   pStmt.prepare( db, "SELECT ST_AsText(?)" );
 
-  int rc = sqlite3_bind_value( pStmt.get(), 1, wkb);
+  int rc = sqlite3_bind_value( pStmt.get(), 1, wkb );
   if ( rc != SQLITE_OK )
   {
     throw GeoDiffException( "sqlite3_bind_blob error" );
@@ -1094,27 +1077,6 @@ bool register_gpkg_extensions( std::shared_ptr<Sqlite3Db> db )
   }
 
   return true;
-}
-
-std::string getCRS( std::shared_ptr<Sqlite3Db> db, const std::string &tableName )
-{
-  int epsg = 0;
-  Sqlite3Stmt pStmt;
-  std::string ret;
-  pStmt.prepare( db,
-                 "SELECT srs_id FROM \"main\".\"gpkg_geometry_columns\" WHERE table_name=\"%s\"",
-                 tableName.c_str() );
-
-  while ( SQLITE_ROW == sqlite3_step( pStmt.get() ) )
-  {
-    epsg = sqlite3_column_int( pStmt.get(), 0 );
-    if ( epsg > 0 )
-    {
-      break;
-    }
-  }
-  pStmt.close();
-  return std::to_string( epsg );
 }
 
 bool isGeoPackage( std::shared_ptr<Sqlite3Db> db )

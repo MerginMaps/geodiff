@@ -214,19 +214,15 @@ bool fileexists( const std::string &path );
 //! whether string starts with substring
 bool startsWith( const std::string &str, const std::string &substr );
 
+std::string replace( const std::string &str, const std::string &substr, const std::string &replacestr );
+
 //! writes std::string to file
 void flushString( const std::string &filename, const std::string &str );
 
 // SOME SQL
 
 // WKT geometry
-std::string getGeometry( std::shared_ptr<Sqlite3Db> db,
-                         int fid,
-                         std::string geomColumnName,
-                         std::string fidColumnName,
-                         std::string tableName );
-
-std::string convertGeometrytoWKT(
+std::string convertGeometryToWKT(
   std::shared_ptr<Sqlite3Db> db,
   sqlite3_value *wkb
 );
@@ -254,8 +250,6 @@ void get_primary_key( Sqlite3ChangesetIter &pp, int pOp, int &fid, int &nColumn 
 bool register_gpkg_extensions( std::shared_ptr<Sqlite3Db> db );
 
 bool isGeoPackage( std::shared_ptr<Sqlite3Db> db );
-
-std::string getCRS( std::shared_ptr<Sqlite3Db> db, const std::string &tableName );
 
 // WRITE CHANGESET API
 

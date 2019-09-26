@@ -17,7 +17,7 @@
 namespace GeoDiffExporter
 {
   std::string toString( sqlite3_changeset_iter *pp );
-  std::string toJSON( std::shared_ptr<Sqlite3Db> db, Buffer &buf, int &nchanges );
+  std::string toJSON( std::shared_ptr<Sqlite3Db> db, Buffer &buf );
   std::string toJSON( std::shared_ptr<Sqlite3Db> db, Sqlite3ChangesetIter &pp );
 }
 

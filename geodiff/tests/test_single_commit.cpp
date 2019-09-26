@@ -30,7 +30,7 @@ bool _test(
     return false;
   }
 
-  int nchanges = GEODIFF_listChanges( changeset.c_str() );
+  int nchanges = GEODIFF_changesCount( changeset.c_str() );
   if ( nchanges != expected_changes )
   {
     std::cout << "err GEODIFF_listChanges " <<  nchanges << " vs " << expected_changes << std::endl;
@@ -50,7 +50,7 @@ bool _test(
     return false;
   }
 
-  printJSON( base, changeset, json );
+  printJSON( changeset, json );
 
   return true;
 }

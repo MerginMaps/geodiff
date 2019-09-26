@@ -69,7 +69,34 @@ std::string GeoDiffExporter::toString( sqlite3_changeset_iter *pp )
   }
   ret << std::endl;
   return ret.str();
+}
 
+void _addValue( std::shared_ptr<Sqlite3Db> db, std::string &stream,
+                sqlite3_value *ppValue, const std::string &type )
+{
+  std::string val;
+  if ( ppValue )
+  {
+    if ( sqlite3_value_type( ppValue ) == SQLITE_BLOB )
+    {
+      val = convertGeometryToWKT( db, ppValue );
+      if ( val.empty() )
+        val = Sqlite3Value::toString( ppValue );
+    }
+    else
+      val = Sqlite3Value::toString( ppValue );
+  }
+  if ( val.empty() )
+  {
+    stream += "              \"" + type + "\": null";
+  }
+  else
+  {
+    val = replace( val, "\n", "\\n" );
+    val = replace( val, "\r", "\\r" );
+    val = replace( val, "\t", "\\t" );
+    stream += "              \"" + type + "\": \"" + val + "\"";
+  }
 }
 
 std::string GeoDiffExporter::toJSON( std::shared_ptr<Sqlite3Db> db, Sqlite3ChangesetIter &pp )
@@ -77,11 +104,8 @@ std::string GeoDiffExporter::toJSON( std::shared_ptr<Sqlite3Db> db, Sqlite3Chang
   if ( !pp.get() )
     return std::string();
 
-  std::string res = "      {\n";
-  res += "        \"type\": \"Feature\",\n";
 
-  // properties
-  const char *pzTab;
+  const char *pzTab = nullptr;
   int pnCol;
   int pOp;
   int pbIndirect;
@@ -92,66 +116,27 @@ std::string GeoDiffExporter::toJSON( std::shared_ptr<Sqlite3Db> db, Sqlite3Chang
              &pOp,
              &pbIndirect
            );
-
-  std::vector<std::string> columns = columnNames( db, "main", pzTab );
-
-  // find geometry column
-  int geometryColumnIndex = -1;
-  for ( int j = 0; j < columns.size(); ++j )
+  if ( rc != SQLITE_OK )
   {
-    if ( ( columns[j] == std::string( "geometry" ) ) ||
-         ( columns[j] == std::string( "geom" ) )
-       )
-      geometryColumnIndex = j;
+    throw GeoDiffException( "sqlite3changeset_op error" );
   }
-
-  if ( geometryColumnIndex < 0 )
-    return std::string();
-
-  // add geometry
-  std::string wkt;
-  sqlite3_value *ppValueOld = nullptr;
-  sqlite3_value *ppValueNew = nullptr;
-
-  if ( pOp == SQLITE_INSERT )
-  {
-    rc = sqlite3changeset_new( pp.get(), geometryColumnIndex, &ppValueNew );
-    if ( rc != SQLITE_OK )
-      throw GeoDiffException( "sqlite3changeset_new" );
-    wkt = convertGeometrytoWKT( db, ppValueNew );
-  }
-  else
-  {
-    int fid, nFidColumn;
-    get_primary_key( pp, pOp, fid, nFidColumn );
-    wkt = getGeometry(
-            db,
-            fid,
-            columns[geometryColumnIndex],
-            columns[nFidColumn],
-            "main." + std::string( pzTab ) );
-  }
-
-  // CRS and other global attributes
-  std::string crs = getCRS( db, std::string( pzTab ) ) ;
-
-  res += "        \"geometry\": {\n";
-  res += "          \"WKT\": \"" + wkt + "\",\n";
-  res += "          \"EPSG\": \"" + crs + "\"\n";
-  res += "        },\n";
-
-  // add properties
-  res += "        \"properties\": {\n";
 
   std::string status;
   if ( pOp == SQLITE_UPDATE )
-    status = "modified";
+    status = "update";
   else if ( pOp == SQLITE_INSERT )
-    status = "added";
+    status = "insert";
   else if ( pOp == SQLITE_DELETE )
-    status = "deleted";
-  else
-    status = "unknown";
+    status = "delete";
+
+  std::string res = "      {\n";
+  res += "        \"table\": \"" + std::string( pzTab ) + "\",\n";
+  res += "        \"type\": \"" + status + "\",\n";
+
+  sqlite3_value *ppValueOld = nullptr;
+  sqlite3_value *ppValueNew = nullptr;
+  res += "        \"changes\": [";
+  bool first = true;
 
   for ( int i = 0; i < pnCol; ++i )
   {
@@ -173,57 +158,42 @@ std::string GeoDiffExporter::toJSON( std::shared_ptr<Sqlite3Db> db, Sqlite3Chang
     else
       ppValueOld = nullptr;
 
-    const std::string columnName = columns.at( size_t( i ) );
-
-    if ( pOp == SQLITE_UPDATE && ppValueNew && ppValueOld && i == geometryColumnIndex )
+    if ( ppValueNew || ppValueOld )
     {
-      status = "moved";
-    };
-
-    if ( i != geometryColumnIndex )
-    {
-      std::string oldVal = Sqlite3Value::toString( ppValueOld );
-      std::string newVal = Sqlite3Value::toString( ppValueNew );
-      if ( ppValueNew )
-        if ( ppValueOld )
-        {
-          res += "          \"" + columnName + "\": \"" + oldVal + " -> " + newVal + "\",\n";
-        }
-        else
-        {
-          res += "          \"" + columnName + "\": \"" + newVal + "\",\n";
-        }
+      if ( first )
+      {
+        first = false;
+        res += "\n          {\n";
+      }
       else
       {
-        if ( ppValueOld )
-        {
-          res += "          \"" + columnName + "\": \"" + oldVal + "\",\n";
-        }
+        res += ",\n          {\n";
       }
+      res += "              \"column\": " + std::to_string( i ) + ",\n";
+
+      _addValue( db, res, ppValueOld, "old" );
+      res += ",\n";
+      _addValue( db, res, ppValueNew, "new" );
+      res += "\n";
+      res += "          }";
     }
+
   }
-
-  // add status
-  res += "          \"status\": \"" + status + "\"\n";
-
   // close brackets
-  res += "        }\n"; // end properties
+  res += "\n        ]\n"; // end properties
   res += "      }"; // end feature
   return res;
 }
 
-std::string GeoDiffExporter::toJSON( std::shared_ptr<Sqlite3Db> db, Buffer &buf, int &nchanges )
+std::string GeoDiffExporter::toJSON( std::shared_ptr<Sqlite3Db> db, Buffer &buf )
 {
-  nchanges = 0;
-
-  std::string res = "{\n  \"type\": \"FeatureCollection\",\n  \"features\": [";
+  std::string res = "{\n   \"geodiff\": [";
 
   Sqlite3ChangesetIter pp;
   pp.start( buf );
   bool first = true;
   while ( SQLITE_ROW == sqlite3changeset_next( pp.get() ) )
   {
-    ++nchanges;
     std::string msg = GeoDiffExporter::toJSON( db, pp );
     if ( msg.empty() )
       continue;
@@ -239,7 +209,7 @@ std::string GeoDiffExporter::toJSON( std::shared_ptr<Sqlite3Db> db, Buffer &buf,
     }
   }
 
-  res += "\n  ]\n";
+  res += "\n   ]\n";
   res += "}";
   return res;
 }

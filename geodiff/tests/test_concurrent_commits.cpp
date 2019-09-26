@@ -38,7 +38,7 @@ bool _test(
     return false;
   }
 
-  int nchanges = GEODIFF_listChanges( changesetbaseA.c_str() );
+  int nchanges = GEODIFF_changesCount( changesetbaseA.c_str() );
   if ( nchanges != expected_changes_A )
   {
     std::cout << "err GEODIFF_listChanges A: " << nchanges << std::endl;
@@ -52,7 +52,7 @@ bool _test(
     return false;
   }
 
-  nchanges = GEODIFF_listChanges( changesetAB.c_str() );
+  nchanges = GEODIFF_changesCount( changesetAB.c_str() );
   if ( nchanges != expected_changes_AB )
   {
     std::cout << "err GEODIFF_listChanges AB: " << nchanges << " expected: " << expected_changes_AB << std::endl;
@@ -73,7 +73,7 @@ bool _test(
     return false;
   }
 
-  nchanges = GEODIFF_listChanges( changesetBbase.c_str() );
+  nchanges = GEODIFF_changesCount( changesetBbase.c_str() );
   if ( nchanges != expected_changes_XB )
   {
     std::cout << "err GEODIFF_listChanges Bbase: " << nchanges << std::endl;
@@ -81,7 +81,7 @@ bool _test(
   }
 
   // print JSON
-  printJSON( modifiedA, changesetAB, json );
+  printJSON( changesetAB, json );
 
   // check that it equals expected result
   std::cout << "final file: " << patchedAB << std::endl;

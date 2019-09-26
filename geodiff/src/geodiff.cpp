@@ -173,11 +173,14 @@ int GEODIFF_applyChangeset( const char *base, const char *patched, const char *c
     std::shared_ptr<Sqlite3Db> db = std::make_shared<Sqlite3Db>();
     db->open( patched );
 
-    bool success = register_gpkg_extensions( db );
-    if ( !success )
+    if ( isGeoPackage( db ) )
     {
-      Logger::instance().error( "Unable to enable sqlite3/gpkg extensions" );
-      return GEODIFF_ERROR;
+      bool success = register_gpkg_extensions( db );
+      if ( !success )
+      {
+        Logger::instance().error( "Unable to enable sqlite3/gpkg extensions" );
+        return GEODIFF_ERROR;
+      }
     }
 
     // get all triggers sql commands
@@ -225,36 +228,6 @@ int GEODIFF_applyChangeset( const char *base, const char *patched, const char *c
   }
 }
 
-int GEODIFF_listChanges( const char *changeset )
-{
-  try
-  {
-    int nchanges = 0;
-    Buffer buf;
-    buf.read( changeset );
-    if ( buf.isEmpty() )
-    {
-      Logger::instance().info( "--- no changes ---" );
-      return 0;
-    }
-
-    Sqlite3ChangesetIter pp;
-    pp.start( buf );
-    while ( SQLITE_ROW == sqlite3changeset_next( pp.get() ) )
-    {
-      std::string msg = GeoDiffExporter::toString( pp.get() );
-      Logger::instance().info( msg );
-      nchanges = nchanges + 1 ;
-    }
-    return nchanges;
-  }
-  catch ( GeoDiffException exc )
-  {
-    Logger::instance().error( exc );
-    return -1;
-  }
-}
-
 int GEODIFF_createRebasedChangeset( const char *base, const char *modified, const char *changeset_their, const char *changeset )
 {
   try
@@ -287,7 +260,7 @@ int GEODIFF_createRebasedChangeset( const char *base, const char *modified, cons
   }
 }
 
-int GEODIFF_listChangesJSON( const char *base, const char *changeset, const char *jsonfile )
+int GEODIFF_hasChanges( const char *changeset )
 {
   try
   {
@@ -295,12 +268,70 @@ int GEODIFF_listChangesJSON( const char *base, const char *changeset, const char
     buf.read( changeset );
     if ( buf.isEmpty() )
     {
-      Logger::instance().info( "--- no changes ---" );
+      return 0;
+    }
+
+    Sqlite3ChangesetIter pp;
+    pp.start( buf );
+    while ( SQLITE_ROW == sqlite3changeset_next( pp.get() ) )
+    {
+      // ok we have at least one change
+      return 1;
+    }
+    return 0; // no changes
+  }
+  catch ( GeoDiffException exc )
+  {
+    Logger::instance().error( exc );
+    return -1;
+  }
+}
+
+int GEODIFF_changesCount( const char *changeset )
+{
+  try
+  {
+    int nchanges = 0;
+    Buffer buf;
+    buf.read( changeset );
+    if ( buf.isEmpty() )
+    {
+      return nchanges;
+    }
+
+    Sqlite3ChangesetIter pp;
+    pp.start( buf );
+    while ( SQLITE_ROW == sqlite3changeset_next( pp.get() ) )
+    {
+      ++nchanges;
+    }
+    return nchanges;
+  }
+  catch ( GeoDiffException exc )
+  {
+    Logger::instance().error( exc );
+    return -1;
+  }
+}
+
+int GEODIFF_listChanges( const char *changeset, const char *jsonfile )
+{
+  try
+  {
+    Buffer buf;
+    buf.read( changeset );
+    if ( buf.isEmpty() )
+    {
       return 0;
     }
 
     std::shared_ptr<Sqlite3Db> db = std::make_shared<Sqlite3Db>();
-    db->open( base );
+    db->open( ":memory:" );
+    std::string cmd = "CREATE TABLE gpkg_contents (table_name TEXT NOT NULL PRIMARY KEY,data_type TEXT NOT NULL,identifier TEXT UNIQUE,description TEXT DEFAULT '',last_change DATETIME NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),min_x DOUBLE, min_y DOUBLE,max_x DOUBLE, max_y DOUBLE,srs_id INTEGER)";
+    Sqlite3Stmt statament;
+    statament.prepare( db, "%s", cmd.c_str() );
+    sqlite3_step( statament.get() );
+    statament.close();
 
     bool success = register_gpkg_extensions( db );
     if ( !success )
@@ -308,19 +339,13 @@ int GEODIFF_listChangesJSON( const char *base, const char *changeset, const char
       throw GeoDiffException( "Unable to enable sqlite3/gpkg extensions" );
     }
 
-    if ( !isGeoPackage( db ) )
-    {
-      throw GeoDiffException( "Unable to create diff from non-geopackage file" );
-    }
-
-    int nChanges = 0;
-    std::string res = GeoDiffExporter::toJSON( db, buf, nChanges );
+    std::string res = GeoDiffExporter::toJSON( db, buf );
     flushString( jsonfile, res );
-    return nChanges;
+    return GEODIFF_SUCCESS;
   }
   catch ( GeoDiffException exc )
   {
     Logger::instance().error( exc );
-    return -1;
+    return GEODIFF_ERROR;
   }
 }

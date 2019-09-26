@@ -40,7 +40,7 @@ def basetest(
   geodiff.create_changeset( patched, modified, changeset2 )
   check_nchanges( geodiff, changeset2, 0 )
 
-  test_json(geodiff, base , changeset, json, expected_json_success)
+  test_json(geodiff, changeset, json, expected_json_success)
 
 
 class UnitTestsPythonSingleCommit(GeoDiffTests):
