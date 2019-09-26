@@ -698,9 +698,12 @@ std::string replace( const std::string &str, const std::string &substr, const st
 {
   std::string res( str );
 
-  while ( res.find( substr ) != std::string::npos )
+  size_t i = 0;
+  while ( res.find( substr,  i ) != std::string::npos )
   {
-    res.replace( res.find( substr ), substr.size(), replacestr );
+    i = res.find( substr, i );
+    res.replace( i, substr.size(), replacestr );
+    i = i + replacestr.size();
   }
   return res;
 }

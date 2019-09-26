@@ -66,5 +66,5 @@ class UnitTestsPythonSingleCommit(GeoDiffTests):
              "complex",
              "base.gpkg",
              "complex1.gpkg",
-             6,
+             7,
              True)

@@ -95,6 +95,7 @@ void _addValue( std::shared_ptr<Sqlite3Db> db, std::string &stream,
     val = replace( val, "\n", "\\n" );
     val = replace( val, "\r", "\\r" );
     val = replace( val, "\t", "\\t" );
+    val = replace( val, "\"", "\\\"" );
     stream += "              \"" + type + "\": \"" + val + "\"";
   }
 }

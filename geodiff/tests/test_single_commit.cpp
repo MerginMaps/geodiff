@@ -84,7 +84,7 @@ TEST( SingleCommitSqlite3Test, geopackage_complex )
   bool ret = _test( "complex",
                     "base.gpkg",
                     pathjoin( "complex", "complex1.gpkg" ),
-                    6
+                    7
                   );
   ASSERT_TRUE( ret );
 }
