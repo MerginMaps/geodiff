@@ -8,13 +8,15 @@ from .testutils import *
 import os
 import shutil
 
+
 def basetest(
         geodiff,
         testname,
         basename,
         modifiedname,
         expected_changes,
-        expected_json_success):
+        expected_json_success,
+        expected_json=None):
   print( "********************************************************" )
   print( "PYTHON: " + testname )
 
@@ -42,6 +44,9 @@ def basetest(
 
   test_json(geodiff, changeset, json, expected_json_success)
 
+  if expected_json:
+      compare_json(json, expected_json)
+
 
 class UnitTestsPythonSingleCommit(GeoDiffTests):
     def test_sqlite_no_gis(self):
@@ -67,4 +72,5 @@ class UnitTestsPythonSingleCommit(GeoDiffTests):
              "base.gpkg",
              "complex1.gpkg",
              7,
-             True)
+             True,
+             expected_json=testdir() + "/complex/complex1.json")

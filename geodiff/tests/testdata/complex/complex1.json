@@ -1,0 +1,157 @@
+{
+   "geodiff": [
+      {
+        "table": "gpkg_contents",
+        "type": "update",
+        "changes": [
+          {
+              "column": 0,
+              "old": "simple",
+              "new": null
+          },
+          {
+              "column": 4,
+              "old": "2019-06-18T14:52:50.928Z",
+              "new": "2019-09-26T14:46:38.350Z"
+          }
+        ]
+      },
+      {
+        "table": "simple",
+        "type": "update",
+        "changes": [
+          {
+              "column": 0,
+              "old": "1",
+              "new": null
+          },
+          {
+              "column": 1,
+              "old": "Point (-1.088919289 0.4610123119)",
+              "new": "Point (-0.9423670354 0.3169116901)"
+          }
+        ]
+      },
+      {
+        "table": "simple",
+        "type": "delete",
+        "changes": [
+          {
+              "column": 0,
+              "old": "2",
+              "new": null
+          },
+          {
+              "column": 1,
+              "old": "Point (-0.3638850889 0.5622435021)",
+              "new": null
+          },
+          {
+              "column": 2,
+              "old": "feature2",
+              "new": null
+          },
+          {
+              "column": 3,
+              "old": "2",
+              "new": null
+          }
+        ]
+      },
+      {
+        "table": "simple",
+        "type": "update",
+        "changes": [
+          {
+              "column": 0,
+              "old": "3",
+              "new": null
+          },
+          {
+              "column": 2,
+              "old": "feature3",
+              "new": "renamed"
+          }
+        ]
+      },
+      {
+        "table": "simple",
+        "type": "insert",
+        "changes": [
+          {
+              "column": 0,
+              "old": null,
+              "new": "4"
+          },
+          {
+              "column": 1,
+              "old": null,
+              "new": "Point (-0.9226055746 0.5013519905)"
+          },
+          {
+              "column": 2,
+              "old": null,
+              "new": "n/a"
+          },
+          {
+              "column": 3,
+              "old": null,
+              "new": "2"
+          }
+        ]
+      },
+      {
+        "table": "simple",
+        "type": "insert",
+        "changes": [
+          {
+              "column": 0,
+              "old": null,
+              "new": "5"
+          },
+          {
+              "column": 1,
+              "old": null,
+              "new": "Point (-0.7146397257 0.2021070133)"
+          },
+          {
+              "column": 2,
+              "old": null,
+              "new": "hello"
+          },
+          {
+              "column": 3,
+              "old": null,
+              "new": "4"
+          }
+        ]
+      },
+      {
+        "table": "simple",
+        "type": "insert",
+        "changes": [
+          {
+              "column": 0,
+              "old": null,
+              "new": "6"
+          },
+          {
+              "column": 1,
+              "old": null,
+              "new": "Point (-0.9169796529 0.4980123099)"
+          },
+          {
+              "column": 2,
+              "old": null,
+              "new": "\n\t\r\"';,"
+          },
+          {
+              "column": 3,
+              "old": null,
+              "new": "n/a"
+          }
+        ]
+      }
+   ]
+}
+

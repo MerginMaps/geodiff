@@ -66,6 +66,21 @@ def test_json(geodiff, changeset, json, expect_success ):
             is_valid_json(data)
 
 
+def compare_json(json, expected_json):
+    print ("comparing JSON to " + expected_json)
+    if not os.path.exists(json):
+        raise TestError("missing generated JSON file")
+
+    with open(json, 'r') as fin:
+        json_generated = fin.read()
+
+    with open(expected_json, 'r') as fin:
+        json_expected = fin.read()
+
+    if json_generated.strip() != json_expected.strip():
+        raise TestError("JSON generated is different from expected")
+
+
 class GeoDiffTests(unittest.TestCase):
     def setUp(self):
         # set env
