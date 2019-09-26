@@ -72,7 +72,10 @@ GEODIFF_EXPORT const char *GEODIFF_version();
  * \param changeset [output] changeset between BASE -> MODIFIED
  * \returns GEODIFF_SUCCESS on success
  */
-GEODIFF_EXPORT int GEODIFF_createChangeset( const char *base, const char *modified, const char *changeset );
+GEODIFF_EXPORT int GEODIFF_createChangeset(
+  const char *base,
+  const char *modified,
+  const char *changeset );
 
 
 /**
@@ -91,7 +94,11 @@ GEODIFF_EXPORT int GEODIFF_createChangeset( const char *base, const char *modifi
  * \param changeset [output] changeset between MODIFIED_THEIR -> MODIFIED_THEIR_PLUS_MINE
  * \returns GEODIFF_SUCCESS on success
  */
-GEODIFF_EXPORT int GEODIFF_createRebasedChangeset( const char *base, const char *modified, const char *changeset_their, const char *changeset );
+GEODIFF_EXPORT int GEODIFF_createRebasedChangeset(
+  const char *base,
+  const char *modified,
+  const char *changeset_their,
+  const char *changeset );
 
 /**
  * Applies changeset file (binary) to BASE and creates PATCHED.
@@ -101,15 +108,30 @@ GEODIFF_EXPORT int GEODIFF_createRebasedChangeset( const char *base, const char 
  * \returns GEODIFF_SUCCESS on success
  *          GEODIFF_CONFICTS if the changeset was applied but conflicts were found
  */
-GEODIFF_EXPORT int GEODIFF_applyChangeset( const char *base,
-    const char *patched,
-    const char *changeset );
+GEODIFF_EXPORT int GEODIFF_applyChangeset(
+  const char *base,
+  const char *patched,
+  const char *changeset );
+
 
 /**
- * Lists changeset content to stdout
+ * \returns -1 on error, 0 no changes, 1 has changes
+ */
+GEODIFF_EXPORT int GEODIFF_hasChanges( const char *changeset );
+
+/**
  * \returns number of changes, -1 on error
  */
-GEODIFF_EXPORT int GEODIFF_listChanges( const char *changeset );
+GEODIFF_EXPORT int GEODIFF_changesCount( const char *changeset );
+
+/**
+ * Expand changeset to JSON
+ * \returns GEODIFF_SUCCESS on success
+ */
+GEODIFF_EXPORT int GEODIFF_listChanges(
+  const char *changeset,
+  const char *jsonfile
+);
 
 #ifdef __cplusplus
 }

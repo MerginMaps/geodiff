@@ -22,6 +22,7 @@ bool _test(
   std::string modified = pathjoin( testdir(), modifiedname );
   std::string changeset = pathjoin( tmpdir(), testname, "changeset.bin" );
   std::string patched = pathjoin( tmpdir(), testname, "patched.gpkg" );
+  std::string json = pathjoin( tmpdir(), testname, testname + ".json" );
 
   if ( GEODIFF_createChangeset( base.c_str(), modified.c_str(), changeset.c_str() ) != GEODIFF_SUCCESS )
   {
@@ -29,7 +30,7 @@ bool _test(
     return false;
   }
 
-  int nchanges = GEODIFF_listChanges( changeset.c_str() );
+  int nchanges = GEODIFF_changesCount( changeset.c_str() );
   if ( nchanges != expected_changes )
   {
     std::cout << "err GEODIFF_listChanges " <<  nchanges << " vs " << expected_changes << std::endl;
@@ -49,8 +50,9 @@ bool _test(
     return false;
   }
 
-  return true;
+  printJSON( changeset, json );
 
+  return true;
 }
 
 
@@ -72,6 +74,17 @@ TEST( SingleCommitSqlite3Test, geopackage )
                     "base.gpkg",
                     pathjoin( "1_geopackage", "modified_1_geom.gpkg" ),
                     2
+                  );
+  ASSERT_TRUE( ret );
+}
+
+TEST( SingleCommitSqlite3Test, geopackage_complex )
+{
+  std::cout << "geopackage 2 new, 1 move, 1 changed attr, 1 delete" << std::endl;
+  bool ret = _test( "complex",
+                    "base.gpkg",
+                    pathjoin( "complex", "complex1.gpkg" ),
+                    7
                   );
   ASSERT_TRUE( ret );
 }

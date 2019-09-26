@@ -126,14 +126,39 @@ class GeoDiffLib:
         res = func(b_string1, b_string2, b_string3)
         _parse_return_code(res, "createRebasedChangeset")
 
-    def list_changes(self, base ):
+    def list_changes(self, changeset, result):
         func = self.lib.GEODIFF_listChanges
         func.argtypes = [ctypes.c_char_p]
         func.restype = ctypes.c_int
 
         # create byte objects from the strings
-        b_string1 = base.encode('utf-8')
+        b_string1 = changeset.encode('utf-8')
+        b_string2 = result.encode('utf-8')
+        res = func(b_string1, b_string2)
+        _parse_return_code(res, "list_changes")
+
+    def has_changes(self, changeset):
+        func = self.lib.GEODIFF_hasChanges
+        func.argtypes = [ctypes.c_char_p]
+        func.restype = ctypes.c_int
+
+        # create byte objects from the strings
+        b_string1 = changeset.encode('utf-8')
+
         nchanges = func(b_string1)
         if nchanges < 0:
-            raise GeoDiffLibError("listChanges")
+            raise GeoDiffLibError("has_changes")
+        return nchanges == 1
+
+    def changes_count(self, changeset):
+        func = self.lib.GEODIFF_changesCount
+        func.argtypes = [ctypes.c_char_p]
+        func.restype = ctypes.c_int
+
+        # create byte objects from the strings
+        b_string1 = changeset.encode('utf-8')
+
+        nchanges = func(b_string1)
+        if nchanges < 0:
+            raise GeoDiffLibError("changes_count")
         return nchanges

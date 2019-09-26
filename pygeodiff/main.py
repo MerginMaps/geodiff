@@ -67,14 +67,35 @@ class GeoDiff:
         return self.clib.apply_changeset(base, patched, changeset)
 
     """ 
-        Lists changeset content to stdout
+        Lists changeset content JSON file
         \returns number of changes
          
-         reises SqliteDiffError on error
+         raises SqliteDiffError on error
     """
-    def list_changes(self, changeset):
-        return self.clib.list_changes(changeset)
+    def list_changes(self, changeset, json):
+        return self.clib.list_changes(changeset, json)
 
+    """ 
+        \returns whether changeset contains at least one change
+        
+        raises SqliteDiffError on error
+    """
+
+    def has_changes(self, changeset):
+        return self.clib.has_changes(changeset)
+
+    """ 
+        \returns number of changes
+
+         raises SqliteDiffError on error
+    """
+
+    def changes_count(self, changeset):
+        return self.clib.changes_count(changeset)
+
+    """
+       geodiff version
+    """
     def version(self):
         return self.clib.version()
 

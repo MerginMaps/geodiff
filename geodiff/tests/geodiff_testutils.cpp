@@ -7,6 +7,8 @@
 #define str(a) #a
 
 #include "geodiff_testutils.hpp"
+#include <iostream>
+#include <fstream>
 #include <vector>
 #include <math.h>
 #ifdef WIN32
@@ -112,7 +114,10 @@ bool equals( const std::string &file1, const std::string &file2, bool ignore_tim
   if ( ignore_timestamp_change )
     expected_changes = 1;
 
-  return ( GEODIFF_listChanges( changeset.c_str() )  == expected_changes );
+  if ( expected_changes == 0 )
+    return ( GEODIFF_hasChanges( changeset.c_str() ) == 0 );
+  else
+    return ( GEODIFF_changesCount( changeset.c_str() )  == expected_changes );
 }
 
 void makedir( const std::string &dir )
@@ -122,4 +127,13 @@ void makedir( const std::string &dir )
 #else
   mkdir( dir.c_str(), S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH );
 #endif
+}
+
+void printJSON( const std::string &changeset, const std::string &json )
+{
+  // printout JSON
+  GEODIFF_listChanges( changeset.c_str(), json.c_str() );
+  std::ifstream f( json );
+  if ( f.is_open() )
+    std::cout << f.rdbuf();
 }

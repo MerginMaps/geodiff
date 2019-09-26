@@ -118,6 +118,8 @@ class Sqlite3ChangesetIter
     void newValue( int i, sqlite3_value **val );
 
     static std::string toString( sqlite3_changeset_iter *pp );
+
+    std::string toJSON( std::shared_ptr<Sqlite3Db> db, Sqlite3ChangesetIter &pp );
   private:
     sqlite3_changeset_iter *mChangesetIter = nullptr;
 };
@@ -212,8 +214,18 @@ bool fileexists( const std::string &path );
 //! whether string starts with substring
 bool startsWith( const std::string &str, const std::string &substr );
 
+std::string replace( const std::string &str, const std::string &substr, const std::string &replacestr );
+
+//! writes std::string to file
+void flushString( const std::string &filename, const std::string &str );
 
 // SOME SQL
+
+// WKT geometry
+std::string convertGeometryToWKT(
+  std::shared_ptr<Sqlite3Db> db,
+  sqlite3_value *wkb
+);
 
 void triggers( std::shared_ptr<Sqlite3Db> db,
                std::vector<std::string> &triggerNames,
@@ -223,10 +235,21 @@ void tables( std::shared_ptr<Sqlite3Db> db,
              const std::string &dbName,
              std::vector<std::string> &tableNames );
 
+std::vector<std::string> columnNames(
+  std::shared_ptr<Sqlite3Db> db,
+  const std::string &zDb,
+  const std::string &tableName
+);
 
 bool has_same_table_schema( std::shared_ptr<Sqlite3Db> db,
                             const std::string &tableName,
                             std::string &errStr );
+
+void get_primary_key( Sqlite3ChangesetIter &pp, int pOp, int &fid, int &nColumn );
+
+bool register_gpkg_extensions( std::shared_ptr<Sqlite3Db> db );
+
+bool isGeoPackage( std::shared_ptr<Sqlite3Db> db );
 
 // WRITE CHANGESET API
 

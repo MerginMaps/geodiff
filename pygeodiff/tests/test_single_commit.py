@@ -8,12 +8,15 @@ from .testutils import *
 import os
 import shutil
 
+
 def basetest(
         geodiff,
         testname,
         basename,
         modifiedname,
-        expected_changes ):
+        expected_changes,
+        expected_json_success,
+        expected_json=None):
   print( "********************************************************" )
   print( "PYTHON: " + testname )
 
@@ -26,6 +29,7 @@ def basetest(
   changeset = tmpdir() + "/py" + testname + "/" + "changeset_" + basename + ".bin"
   changeset2 = tmpdir() + "/py" + testname + "/" + "changeset_after_apply_" + basename + ".bin"
   patched = tmpdir() + "/py" + testname + "/" + "patched_" + modifiedname
+  json = tmpdir() + "/py" + testname + "/" + basename + ".json"
 
   print( "diff" )
   geodiff.create_changeset( base, modified, changeset )
@@ -38,6 +42,11 @@ def basetest(
   geodiff.create_changeset( patched, modified, changeset2 )
   check_nchanges( geodiff, changeset2, 0 )
 
+  test_json(geodiff, changeset, json, expected_json_success)
+
+  if expected_json:
+      compare_json(json, expected_json)
+
 
 class UnitTestsPythonSingleCommit(GeoDiffTests):
     def test_sqlite_no_gis(self):
@@ -46,11 +55,22 @@ class UnitTestsPythonSingleCommit(GeoDiffTests):
              "pure_sqlite",
              "base.sqlite",
              "modified_base.sqlite",
-             4)
+             4,
+             False)
 
     def test_geopackage(self):
         basetest(self.geodiff,
              "1_geopackage",
              "base.gpkg",
              "modified_1_geom.gpkg",
-             2)
+             2,
+             True)
+
+    def test_complex_geopackage(self):
+        basetest(self.geodiff,
+             "complex",
+             "base.gpkg",
+             "complex1.gpkg",
+             7,
+             True,
+             expected_json=testdir() + "/complex/complex1.json")

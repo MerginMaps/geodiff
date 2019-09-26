@@ -16,7 +16,7 @@ void help()
   printf( "[create changeset] geodiffinfo createChangeset base modified changeset\n" );
   printf( "[create rebased changeset] geodiffinfo createRebasedChangeset base modified changeset_their changeset\n" );
   printf( "[apply changeset] geodiffinfo applyChangeset base patched changeset\n" );
-  printf( "[list changes in changeset] geodiffinfo listChanges changeset\n" );
+  printf( "[list changes (JSON) in changeset] geodiffinfo listChanges changeset json\n" );
 }
 
 int err( const std::string msg )
@@ -61,12 +61,12 @@ int applyChangeset( int argc, char *argv[] )
 
 int listChanges( int argc, char *argv[] )
 {
-  if ( argc < 1 + 1 )
+  if ( argc < 1 + 2 )
   {
-    return err( "invalid number of arguments to listChanges" );
+    return err( "invalid number of arguments to listChangesJSON" );
   }
 
-  int ret = GEODIFF_listChanges( argv[2] );
+  int ret = GEODIFF_listChanges( argv[2], argv[3] );
   return ret;
 }
 

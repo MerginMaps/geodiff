@@ -13,7 +13,10 @@ cmake ${CMAKE_OPTIONS} \
       ..
 make
 
+
+echo "OSX C++ tests"
 ctest -VV
 
+echo "OSX Python tests"
 cd ../../
 GEODIFFLIB=`pwd`/geodiff/build_osx/libgeodiff.dylib nose2

@@ -179,70 +179,10 @@ struct RebaseMapping
 
 int _get_primary_key( Sqlite3ChangesetIter &pp, int pOp )
 {
-  if ( !pp.get() )
-    throw GeoDiffException( "internal error in _get_primary_key" );
-
-  unsigned char *pabPK;
-  int pnCol;
-  int rc = sqlite3changeset_pk( pp.get(),  &pabPK, &pnCol );
-  if ( rc )
-  {
-    throw GeoDiffException( "internal error in _get_primary_key" );
-  }
-
-  // lets assume for now it has only one PK and it is int...
-  int pk_column_number = -1;
-  for ( int i = 0; i < pnCol; ++i )
-  {
-    if ( pabPK[i] == 0x01 )
-    {
-      if ( pk_column_number >= 0 )
-      {
-        // ups primary key composite!
-        throw GeoDiffException( "internal error in _get_primary_key: support composite primary keys not implemented" );
-      }
-      pk_column_number = i;
-    }
-  }
-  if ( pk_column_number == -1 )
-  {
-    throw GeoDiffException( "internal error in _get_primary_key: unable to find internal key" );
-  }
-
-  // now get the value
-  sqlite3_value *ppValue = nullptr;
-  if ( pOp == SQLITE_INSERT )
-  {
-    pp.newValue( pk_column_number, &ppValue );
-  }
-  else if ( pOp == SQLITE_DELETE || pOp == SQLITE_UPDATE )
-  {
-    pp.oldValue( pk_column_number, &ppValue );
-  }
-  if ( !ppValue )
-    throw GeoDiffException( "internal error in _get_primary_key: unable to get value of primary key" );
-
-  int type = sqlite3_value_type( ppValue );
-  if ( type == SQLITE_INTEGER )
-  {
-    int val = sqlite3_value_int( ppValue );
-    return val;
-  }
-  else if ( type == SQLITE_TEXT )
-  {
-    const unsigned char *valT = sqlite3_value_text( ppValue );
-    int hash = 0;
-    int len = strlen( ( const char * ) valT );
-    for ( int i = 0; i < len; i++ )
-    {
-      hash = 33 * hash + ( unsigned char )valT[i];
-    }
-    return hash;
-  }
-  else
-  {
-    throw GeoDiffException( "internal error in _get_primary_key: unsuported type of primary key" );
-  }
+  int fid;
+  int nFidColumn;
+  get_primary_key( pp, pOp, fid, nFidColumn );
+  return fid;
 }
 
 

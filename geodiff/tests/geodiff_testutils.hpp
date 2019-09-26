@@ -23,6 +23,8 @@ void finalize_test();
 std::string test_file( std::string basename );
 std::string tmp_file( std::string basename );
 
+void printJSON( const std::string &changeset, const std::string &json );
+
 /**
  * \param ignore_timestamp_change ignore last_change in table gpkg_contents
  */
