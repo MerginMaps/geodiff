@@ -133,6 +133,15 @@ GEODIFF_EXPORT int GEODIFF_listChanges(
   const char *jsonfile
 );
 
+/**
+ * Export summary of changeset to JSON
+ * \returns GEODIFF_SUCCESS on success
+ */
+GEODIFF_EXPORT int GEODIFF_listChangesSummary(
+  const char *changeset,
+  const char *jsonfile
+);
+
 #ifdef __cplusplus
 }
 #endif

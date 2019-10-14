@@ -15,6 +15,7 @@
 #include <sqlite3.h>
 #include <exception>
 #include <fstream>
+#include <map>
 #include <string>
 #include <vector>
 #include <iostream>
@@ -210,6 +211,79 @@ std::string GeoDiffExporter::toJSON( std::shared_ptr<Sqlite3Db> db, Buffer &buf 
     }
   }
 
+  res += "\n   ]\n";
+  res += "}";
+  return res;
+}
+
+//! auxiliary table used to create table changes summary
+struct TableSummary
+{
+  TableSummary() : inserts( 0 ), updates( 0 ), deletes( 0 ) {}
+  int inserts;
+  int updates;
+  int deletes;
+};
+
+std::string GeoDiffExporter::toJSONSummary( Buffer &buf )
+{
+  std::map< std::string, TableSummary > summary;
+
+  Sqlite3ChangesetIter pp;
+  pp.start( buf );
+  bool first = true;
+  while ( SQLITE_ROW == sqlite3changeset_next( pp.get() ) )
+  {
+    const char *pzTab = nullptr;
+    int pnCol;
+    int pOp;
+    int pbIndirect;
+    int rc = sqlite3changeset_op(
+               pp.get(),
+               &pzTab,
+               &pnCol,
+               &pOp,
+               &pbIndirect
+             );
+    if ( rc != SQLITE_OK )
+    {
+      throw GeoDiffException( "sqlite3changeset_op error" );
+    }
+
+    std::string tableName = pzTab;
+    TableSummary &tableSummary = summary[tableName];
+
+    if ( pOp == SQLITE_UPDATE )
+      ++tableSummary.updates;
+    else if ( pOp == SQLITE_INSERT )
+      ++tableSummary.inserts;
+    else if ( pOp == SQLITE_DELETE )
+      ++tableSummary.deletes;
+  }
+
+  // write JSON
+  std::string res = "{\n   \"geodiff_summary\": [";
+  for ( const auto &kv : summary )
+  {
+    std::string tableJson;
+    tableJson += "      {\n";
+    tableJson += "         \"table\": \"" + kv.first + "\",\n";
+    tableJson += "         \"insert\": " + std::to_string( kv.second.inserts ) + ",\n";
+    tableJson += "         \"update\": " + std::to_string( kv.second.updates ) + ",\n";
+    tableJson += "         \"delete\": " + std::to_string( kv.second.deletes ) + "\n";
+    tableJson += "      }";
+
+    if ( first )
+    {
+      res += "\n" + tableJson;
+      first = false;
+    }
+    else
+    {
+      res += ",\n" + tableJson;
+    }
+
+  }
   res += "\n   ]\n";
   res += "}";
   return res;
