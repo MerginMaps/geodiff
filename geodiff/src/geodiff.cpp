@@ -314,7 +314,7 @@ int GEODIFF_changesCount( const char *changeset )
   }
 }
 
-int GEODIFF_listChanges( const char *changeset, const char *jsonfile )
+static int listChangesJSON( const char *changeset, const char *jsonfile, bool onlySummary )
 {
   try
   {
@@ -339,7 +339,7 @@ int GEODIFF_listChanges( const char *changeset, const char *jsonfile )
       throw GeoDiffException( "Unable to enable sqlite3/gpkg extensions" );
     }
 
-    std::string res = GeoDiffExporter::toJSON( db, buf );
+    std::string res = onlySummary ? GeoDiffExporter::toJSONSummary( buf ) : GeoDiffExporter::toJSON( db, buf );
     flushString( jsonfile, res );
     return GEODIFF_SUCCESS;
   }
@@ -348,4 +348,14 @@ int GEODIFF_listChanges( const char *changeset, const char *jsonfile )
     Logger::instance().error( exc );
     return GEODIFF_ERROR;
   }
+}
+
+int GEODIFF_listChanges( const char *changeset, const char *jsonfile )
+{
+  return listChangesJSON( changeset, jsonfile, false );
+}
+
+int GEODIFF_listChangesSummary( const char *changeset, const char *jsonfile )
+{
+  return listChangesJSON( changeset, jsonfile, true );
 }
