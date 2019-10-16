@@ -327,12 +327,12 @@ void _handle_insert(
   int pnCol,
   const RebaseMapping &mapping,
   unsigned char *aiFlg,
-  FILE *out
+  std::shared_ptr<BinaryStream> out
 )
 {
   // first write operation type (iType)
-  putc( SQLITE_INSERT, out );
-  putc( 0, out );
+  out->put( SQLITE_INSERT );
+  out->put( 0 );
 
   sqlite3_value *value;
   // resolve primary key and patched primary key
@@ -349,12 +349,12 @@ void _handle_insert(
   {
     if ( aiFlg[i] )
     {
-      putValue( out, newPk );
+      out->putValue( newPk );
     }
     else
     {
       pp.newValue( i, &value );
-      putValue( out, value );
+      out->putValue( value );
     }
   }
 }
@@ -366,7 +366,7 @@ void _handle_delete(
   const RebaseMapping &mapping,
   const TableRebaseInfo &tableInfo,
   unsigned char *aiFlg,
-  FILE *out
+  std::shared_ptr<BinaryStream> out
 )
 {
   // resolve primary key and patched primary key
@@ -390,15 +390,15 @@ void _handle_delete(
   SqValues patchedVals = a->second;
 
   // first write operation type (iType)
-  putc( SQLITE_DELETE, out );
-  putc( 0, out );
+  out->put( SQLITE_DELETE );
+  out->put( 0 );
   sqlite3_value *value;
 
   for ( int i = 0; i < pnCol; i++ )
   {
     if ( aiFlg[i] )
     {
-      putValue( out, newPk );
+      out->putValue( newPk );
     }
     else
     {
@@ -413,7 +413,7 @@ void _handle_delete(
         // otherwise the value is same for both patched and this, so use base value
         pp.oldValue( i, &value );
       }
-      putValue( out, value );
+      out->putValue( value );
     }
   }
 }
@@ -425,7 +425,7 @@ void _handle_update(
   const RebaseMapping &mapping,
   const TableRebaseInfo &tableInfo,
   unsigned char *aiFlg,
-  FILE *out
+  std::shared_ptr<BinaryStream> out
 )
 {
   // get values from patched (new) master
@@ -444,8 +444,8 @@ void _handle_update(
   SqValues patchedVals = a->second;
 
   // first write operation type (iType)
-  putc( SQLITE_UPDATE, out );
-  putc( 0, out );
+  out->put( SQLITE_UPDATE );
+  out->put( 0 );
   sqlite3_value *value;
   for ( int i = 0; i < pnCol; i++ )
   {
@@ -460,13 +460,13 @@ void _handle_update(
       // otherwise the value is same for both patched and this, so use base value
       pp.oldValue( i, &value );
     }
-    putValue( out, value );
+    out->putValue( value );
   }
 
   for ( int i = 0; i < pnCol; i++ )
   {
     pp.newValue( i, &value );
-    putValue( out, value );
+    out->putValue( value );
   }
 
 }
@@ -476,7 +476,7 @@ int _prepare_new_changeset( const Buffer &buf, const std::string &changesetNew, 
   Sqlite3ChangesetIter pp;
   pp.start( buf );
 
-  std::map<std::string, FILE *> buffers;
+  std::map<std::string, std::shared_ptr<BinaryStream> > buffers;
   while ( SQLITE_ROW == sqlite3changeset_next( pp.get() ) )
   {
     int rc;
@@ -504,14 +504,14 @@ int _prepare_new_changeset( const Buffer &buf, const std::string &changesetNew, 
       throw GeoDiffException( "internal error in _prepare_new_changeset: sqlite3changeset_pk" );
     }
 
-    // create buffer.... this is BAD BAD ... replace FILE* with some normal binary streams. ...
-    FILE *out = nullptr;
+    std::shared_ptr<BinaryStream> out;
     auto buffer = buffers.find( pzTab );
     if ( buffer == buffers.end() )
     {
       std::string temp = changesetNew + "_" + std::string( pzTab );
-      out = fopen( temp.c_str(), "wb" );
-      if ( !out )
+      out = std::make_shared<BinaryStream>( temp, true );
+      out->open();
+      if ( !out->isValid() )
       {
         std::cout << "unable to open file for writing " << changesetNew << std::endl;
         return GEODIFF_ERROR;
@@ -519,11 +519,11 @@ int _prepare_new_changeset( const Buffer &buf, const std::string &changesetNew, 
       buffers[pzTab] = out;
 
       // write header for changeset for this table
-      putc( 'T', out );
-      putsVarint( out, ( sqlite3_uint64 )nCol );
-      for ( int i = 0; i < nCol; i++ ) putc( aiFlg[i], out );
-      fwrite( pzTab, 1, strlen( pzTab ), out );
-      putc( 0, out );
+      out->put( 'T' );
+      out->putsVarint( ( sqlite3_uint64 )nCol );
+      for ( int i = 0; i < nCol; i++ ) out->put( aiFlg[i] );
+      out->write( pzTab, 1, strlen( pzTab ) );
+      out->put( 0 );
     }
     else
     {
@@ -592,18 +592,8 @@ int _prepare_new_changeset( const Buffer &buf, const std::string &changesetNew, 
 
   for ( auto it : buffers )
   {
-    FILE *buf = it.second;
-    fclose( buf );
-    std::string temp = changesetNew + "_" + std::string( it.first );
-    buf = fopen( temp.c_str(), "rb" );
-    if ( !buf )
-      throw GeoDiffException( "unable to open " + temp );
-
-    char buffer[1]; //do not be lazy, use bigger buffer
-    while ( fread( buffer, 1, 1, buf ) > 0 )
-      fwrite( buffer, 1, 1, out );
-
-    fclose( buf );
+    std::shared_ptr<BinaryStream> buf = it.second;
+    buf->appendTo( out );
   }
 
   fclose( out );

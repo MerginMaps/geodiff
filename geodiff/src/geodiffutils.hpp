@@ -253,17 +253,43 @@ bool isGeoPackage( std::shared_ptr<Sqlite3Db> db );
 
 // WRITE CHANGESET API
 
-/*
-** Write an SQLite value onto out.
-*/
-void putValue( FILE *out, sqlite3_value *ppValue );
-void putValue( FILE *out, int ppValue );
+class BinaryStream
+{
+  public:
+    BinaryStream( const std::string &path, bool temporary );
+    ~BinaryStream();
+    void open();
+    bool isValid();
 
-/*
-** Write a 64-bit signed integer as a varint onto out
-** Copied from sqldiff.c
-*/
-void putsVarint( FILE *out, sqlite3_uint64 v );
+    void appendTo( FILE *stream );
+
+    /*
+    ** Write an SQLite value onto out.
+    */
+    void putValue( sqlite3_value *ppValue );
+    void putValue( int ppValue );
+
+    /*
+    ** Write a 64-bit signed integer as a varint onto out
+    ** Copied from sqldiff.c
+    */
+    void putsVarint( sqlite3_uint64 v );
+
+    // see stdio.h::putc
+    int put( int v );
+
+    // see stdio.h::fwrite
+    size_t write( const void *ptr, size_t size, size_t nitems );
+
+  private:
+    void close();
+    void remove();
+    std::string mPath;
+    bool mIsTemporary;
+    FILE *mBuffer;
+};
+
+
 
 
 #endif // GEODIFFUTILS_H
