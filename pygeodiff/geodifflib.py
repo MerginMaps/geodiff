@@ -137,6 +137,17 @@ class GeoDiffLib:
         res = func(b_string1, b_string2)
         _parse_return_code(res, "list_changes")
 
+    def list_changes_summary(self, changeset, result):
+        func = self.lib.GEODIFF_listChangesSummary
+        func.argtypes = [ctypes.c_char_p]
+        func.restype = ctypes.c_int
+
+        # create byte objects from the strings
+        b_string1 = changeset.encode('utf-8')
+        b_string2 = result.encode('utf-8')
+        res = func(b_string1, b_string2)
+        _parse_return_code(res, "list_changes_summary")
+
     def has_changes(self, changeset):
         func = self.lib.GEODIFF_hasChanges
         func.argtypes = [ctypes.c_char_p]
