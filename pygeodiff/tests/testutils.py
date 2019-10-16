@@ -47,10 +47,9 @@ def is_valid_json(stream):
         raise TestError("JSON:\n " + stream + "\n is not valid :\n" + str(e))
 
 
-def test_json(geodiff, changeset, json, expect_success ):
-    print("check export to JSON ")
+def _test_json(function, changeset, json, expect_success ):
     try:
-        geodiff.list_changes(changeset, json)
+        function(changeset, json)
         if not expect_success:
             raise TestError("json generation succeeded, but should have failed")
     except:
@@ -64,6 +63,14 @@ def test_json(geodiff, changeset, json, expect_success ):
         with open(json, 'r') as fin:
             data = fin.read()
             is_valid_json(data)
+
+
+def test_json(geodiff, changeset, json, expect_success ):
+    print("check export to JSON summary")
+    _test_json(geodiff.list_changes_summary, changeset, json, expect_success)
+
+    print("check export to JSON ")
+    _test_json(geodiff.list_changes, changeset, json, expect_success)
 
 
 def compare_json(json, expected_json):

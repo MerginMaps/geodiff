@@ -68,6 +68,7 @@ class GeoDiff:
 
     """ 
         Lists changeset content JSON file
+        JSON contains all changes in human/machine readable name
         \returns number of changes
          
          raises SqliteDiffError on error
@@ -78,6 +79,23 @@ class GeoDiff:
     """ 
         \returns whether changeset contains at least one change
         
+        raises SqliteDiffError on error
+    """
+
+    """ 
+        Lists changeset summary content JSON file 
+        JSON contains a list of how many inserts/edits/deletes is contained in changeset for each table
+        \returns number of changes
+
+         raises SqliteDiffError on error
+    """
+
+    def list_changes_summary(self, changeset, json):
+        return self.clib.list_changes_summary(changeset, json)
+
+    """ 
+        \returns whether changeset contains at least one change
+
         raises SqliteDiffError on error
     """
 
