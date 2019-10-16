@@ -113,18 +113,17 @@ class GeoDiffLib:
         res = func(b_string1, b_string2, b_string3, b_string4)
         _parse_return_code(res, "createRebasedChangeset")
 
-    def apply_changeset(self, base, patched, changeset):
+    def apply_changeset(self, base, changeset):
         func = self.lib.GEODIFF_applyChangeset
-        func.argtypes = [ctypes.c_char_p, ctypes.c_char_p, ctypes.c_char_p]
+        func.argtypes = [ctypes.c_char_p, ctypes.c_char_p]
         func.restype = ctypes.c_int
 
         # create byte objects from the strings
         b_string1 = base.encode('utf-8')
-        b_string2 = patched.encode('utf-8')
-        b_string3 = changeset.encode('utf-8')
+        b_string2 = changeset.encode('utf-8')
 
-        res = func(b_string1, b_string2, b_string3)
-        _parse_return_code(res, "createRebasedChangeset")
+        res = func(b_string1, b_string2)
+        _parse_return_code(res, "apply_changeset")
 
     def list_changes(self, changeset, result):
         func = self.lib.GEODIFF_listChanges

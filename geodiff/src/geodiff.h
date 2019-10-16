@@ -101,16 +101,14 @@ GEODIFF_EXPORT int GEODIFF_createRebasedChangeset(
   const char *changeset );
 
 /**
- * Applies changeset file (binary) to BASE and creates PATCHED.
- * \param base [input] BASE sqlite3/geopackage file
- * \param patched [output] PATCHED sqlite3/geopackage file with changeset
- * \param changeset [input] changeset between BASE -> PATCHED
+ * Applies changeset file (binary) to BASE
+ * \param base [input/output] BASE sqlite3/geopackage file
+ * \param changeset [input] changeset to apply to BASE
  * \returns GEODIFF_SUCCESS on success
  *          GEODIFF_CONFICTS if the changeset was applied but conflicts were found
  */
 GEODIFF_EXPORT int GEODIFF_applyChangeset(
   const char *base,
-  const char *patched,
   const char *changeset );
 
 

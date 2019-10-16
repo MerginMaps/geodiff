@@ -15,7 +15,7 @@ void help()
   printf( "[version info] geodiffinfo version\n" );
   printf( "[create changeset] geodiffinfo createChangeset base modified changeset\n" );
   printf( "[create rebased changeset] geodiffinfo createRebasedChangeset base modified changeset_their changeset\n" );
-  printf( "[apply changeset] geodiffinfo applyChangeset base patched changeset\n" );
+  printf( "[apply changeset] geodiffinfo applyChangeset base changeset\n" );
   printf( "[list changes (JSON) in changeset] geodiffinfo listChanges changeset json\n" );
   printf( "[list summary of changes (JSON) in changeset] geodiffinfo listChangesSummary changeset json\n" );
 }
@@ -51,12 +51,12 @@ int createRebasedChangeset( int argc, char *argv[] )
 
 int applyChangeset( int argc, char *argv[] )
 {
-  if ( argc < 1 + 3 )
+  if ( argc < 1 + 2 )
   {
     return err( "invalid number of arguments to applyChangeset" );
   }
 
-  int ret = GEODIFF_applyChangeset( argv[2], argv[3], argv[4] );
+  int ret = GEODIFF_applyChangeset( argv[2], argv[3] );
   return ret;
 }
 

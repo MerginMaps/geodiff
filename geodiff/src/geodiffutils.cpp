@@ -566,8 +566,55 @@ std::string conflict2Str( int c )
   return std::to_string( c );
 }
 
-void putsVarint( FILE *out, sqlite3_uint64 v )
+BinaryStream::BinaryStream( const std::string &path, bool temporary )
+  :
+  mPath( path ),
+  mIsTemporary( temporary ),
+  mBuffer( nullptr )
 {
+}
+
+BinaryStream::~BinaryStream()
+{
+  close();
+  if ( mIsTemporary )
+  {
+    remove();
+  }
+}
+
+void BinaryStream::open()
+{
+  close();
+  remove();
+  mBuffer = fopen( mPath.c_str(), "wb" );
+}
+
+bool BinaryStream::isValid()
+{
+  return mBuffer != nullptr;
+}
+
+bool BinaryStream::appendTo( FILE *stream )
+{
+  close();
+  FILE *buf = fopen( mPath.c_str(), "rb" );
+  if ( !buf )
+    return true;
+
+  char buffer[1]; //do not be lazy, use bigger buffer
+  while ( fread( buffer, 1, 1, buf ) > 0 )
+    fwrite( buffer, 1, 1, stream );
+
+  fclose( buf );
+  return false;
+}
+
+void BinaryStream::putsVarint( sqlite3_uint64 v )
+{
+  if ( !isValid() )
+    return;
+
   int i, n;
   unsigned char p[12];
   if ( v & ( ( ( sqlite3_uint64 )0xff000000 ) << 32 ) )
@@ -579,7 +626,7 @@ void putsVarint( FILE *out, sqlite3_uint64 v )
       p[i] = ( unsigned char )( ( v & 0x7f ) | 0x80 );
       v >>= 7;
     }
-    fwrite( p, 8, 1, out );
+    write( p, 8, 1 );
   }
   else
   {
@@ -591,15 +638,51 @@ void putsVarint( FILE *out, sqlite3_uint64 v )
     }
     while ( v != 0 );
     p[9] &= 0x7f;
-    fwrite( p + n + 1, 9 - n, 1, out );
+    write( p + n + 1, 9 - n, 1 );
   }
 }
 
-void putValue( FILE *out, sqlite3_value *ppValue )
+int BinaryStream::put( int v )
 {
+  if ( !isValid() )
+    return -1;
+
+  return putc( v, mBuffer );
+}
+
+size_t BinaryStream::write( const void *ptr, size_t size, size_t nitems )
+{
+  if ( !isValid() )
+    return 0;
+
+  return fwrite( ptr, size, nitems, mBuffer );
+}
+
+void BinaryStream::close()
+{
+  if ( mBuffer )
+  {
+    fclose( mBuffer );
+    mBuffer = nullptr;
+  }
+}
+
+void BinaryStream::remove()
+{
+  if ( fileexists( mPath ) )
+  {
+    fileremove( mPath );
+  }
+}
+
+void BinaryStream::putValue( sqlite3_value *ppValue )
+{
+  if ( !isValid() )
+    return;
+
   if ( !ppValue )
   {
-    putc( 0, out );
+    put( 0 );
   }
   else
   {
@@ -609,28 +692,28 @@ void putValue( FILE *out, sqlite3_value *ppValue )
     sqlite3_uint64 uX;
     int j;
 
-    putc( iDType, out );
+    put( iDType );
     switch ( iDType )
     {
       case SQLITE_INTEGER:
         iX = sqlite3_value_int64( ppValue );
         memcpy( &uX, &iX, 8 );
-        for ( j = 56; j >= 0; j -= 8 ) putc( ( uX >> j ) & 0xff, out );
+        for ( j = 56; j >= 0; j -= 8 ) put( ( uX >> j ) & 0xff );
         break;
       case SQLITE_FLOAT:
         rX = sqlite3_value_double( ppValue );
         memcpy( &uX, &rX, 8 );
-        for ( j = 56; j >= 0; j -= 8 ) putc( ( uX >> j ) & 0xff, out );
+        for ( j = 56; j >= 0; j -= 8 ) put( ( uX >> j ) & 0xff );
         break;
       case SQLITE_TEXT:
         iX = sqlite3_value_bytes( ppValue );
-        putsVarint( out, ( sqlite3_uint64 )iX );
-        fwrite( sqlite3_value_text( ppValue ), 1, ( size_t )iX, out );
+        putsVarint( ( sqlite3_uint64 )iX );
+        write( sqlite3_value_text( ppValue ), 1, ( size_t )iX );
         break;
       case SQLITE_BLOB:
         iX = sqlite3_value_bytes( ppValue );
-        putsVarint( out, ( sqlite3_uint64 )iX );
-        fwrite( sqlite3_value_blob( ppValue ), 1, ( size_t )iX, out );
+        putsVarint( ( sqlite3_uint64 )iX );
+        write( sqlite3_value_blob( ppValue ), 1, ( size_t )iX );
         break;
       case SQLITE_NULL:
         break;
@@ -638,14 +721,17 @@ void putValue( FILE *out, sqlite3_value *ppValue )
   }
 }
 
-void putValue( FILE *out, int ppValue )
+void BinaryStream::putValue( int ppValue )
 {
+  if ( !isValid() )
+    return;
+
   sqlite3_uint64 uX;
   sqlite3_int64 iX = ppValue;
 
   memcpy( &uX, &iX, 8 );
-  putc( SQLITE_INTEGER, out );
-  for ( int j = 56; j >= 0; j -= 8 ) putc( ( uX >> j ) & 0xff, out );
+  put( SQLITE_INTEGER );
+  for ( int j = 56; j >= 0; j -= 8 ) put( ( uX >> j ) & 0xff );
 }
 
 
@@ -717,8 +803,8 @@ void triggers( std::shared_ptr<Sqlite3Db> db, std::vector<std::string> &triggerN
   statament.prepare( db, "%s", "select name, sql from sqlite_master where type = 'trigger'" );
   while ( SQLITE_ROW == sqlite3_step( statament.get() ) )
   {
-    char *name = ( char * ) sqlite3_column_text( statament.get(), 0 );
-    char *sql = ( char * ) sqlite3_column_text( statament.get(), 1 );
+    const char *name = ( char * ) sqlite3_column_text( statament.get(), 0 );
+    const char *sql = ( char * ) sqlite3_column_text( statament.get(), 1 );
 
     if ( !name || !sql )
       continue;
