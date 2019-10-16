@@ -54,6 +54,13 @@ std::string pathjoin( const std::string &dir, const std::string &dir2, const std
   return res;
 }
 
+void filecopy( const std::string &to, const std::string &from )
+{
+  std::ifstream  src( from, std::ios::binary );
+  std::ofstream  dst( to,   std::ios::binary );
+  dst << src.rdbuf();
+}
+
 std::string testdir()
 {
   return TEST_DATA_DIR;
@@ -129,11 +136,20 @@ void makedir( const std::string &dir )
 #endif
 }
 
-void printJSON( const std::string &changeset, const std::string &json )
+void printJSON( const std::string &changeset, const std::string &json, const std::string &json_summary )
 {
+  // printout JSON summary
+  std::cout << "JSON Summary " << std::endl;
+  GEODIFF_listChangesSummary( changeset.c_str(), json_summary.c_str() );
+  std::ifstream f2( json_summary );
+  if ( f2.is_open() )
+    std::cout << f2.rdbuf();
+
   // printout JSON
+  std::cout << std::endl << "JSON Full " << std::endl;
   GEODIFF_listChanges( changeset.c_str(), json.c_str() );
   std::ifstream f( json );
   if ( f.is_open() )
     std::cout << f.rdbuf();
+
 }

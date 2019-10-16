@@ -128,20 +128,19 @@ int GEODIFF_createChangeset( const char *base, const char *modified, const char 
   }
 }
 
-static int nconflicts = 0;
-
 static int conflict_callback( void *ctx, int conflict, sqlite3_changeset_iter *iterator )
 {
-  nconflicts++;
+  int *nconflicts = static_cast<int *>( ctx );
+  *nconflicts += 1;
   std::string s = conflict2Str( conflict );
   std::string vals = GeoDiffExporter::toString( iterator );
   Logger::instance().warn( "CONFLICT: " + s  + ": " + vals );
   return SQLITE_CHANGESET_REPLACE;
 }
 
-int GEODIFF_applyChangeset( const char *base, const char *patched, const char *changeset )
+int GEODIFF_applyChangeset( const char *base, const char *changeset )
 {
-  if ( !base || !patched || !changeset )
+  if ( !base || !changeset )
   {
     Logger::instance().error( "NULL arguments to GEODIFF_applyChangeset" );
     return GEODIFF_ERROR;
@@ -155,11 +154,7 @@ int GEODIFF_applyChangeset( const char *base, const char *patched, const char *c
 
   try
   {
-    // static variable... how ugly!!!
-    nconflicts = 0;
-
-    // make a copy
-    filecopy( patched, base );
+    int nconflicts = 0;
 
     // read changeset to buffer
     Buffer cbuf;
@@ -171,7 +166,7 @@ int GEODIFF_applyChangeset( const char *base, const char *patched, const char *c
     }
 
     std::shared_ptr<Sqlite3Db> db = std::make_shared<Sqlite3Db>();
-    db->open( patched );
+    db->open( base );
 
     if ( isGeoPackage( db ) )
     {
@@ -198,7 +193,7 @@ int GEODIFF_applyChangeset( const char *base, const char *patched, const char *c
     }
 
     // apply changeset
-    int rc = sqlite3changeset_apply( db->get(), cbuf.size(), cbuf.v_buf(), NULL, conflict_callback, NULL );
+    int rc = sqlite3changeset_apply( db->get(), cbuf.size(), cbuf.v_buf(), nullptr, conflict_callback, &nconflicts );
     if ( rc )
     {
       Logger::instance().error( "Unable to perform sqlite3changeset_apply" );

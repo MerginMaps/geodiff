@@ -16,6 +16,7 @@ std::string tmpdir();
 std::string pathjoin( const std::string &dir, const std::string &filename );
 std::string pathjoin( const std::string &dir, const std::string &dir2, const std::string &filename );
 void makedir( const std::string &dir );
+void filecopy( const std::string &to, const std::string &from );
 
 void init_test();
 void finalize_test();
@@ -23,7 +24,7 @@ void finalize_test();
 std::string test_file( std::string basename );
 std::string tmp_file( std::string basename );
 
-void printJSON( const std::string &changeset, const std::string &json );
+void printJSON( const std::string &changeset, const std::string &json, const std::string &json_summary );
 
 /**
  * \param ignore_timestamp_change ignore last_change in table gpkg_contents

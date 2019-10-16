@@ -54,17 +54,16 @@ class GeoDiff:
         return self.clib.create_rebased_changeset(base, modified, changeset_their, changeset)
 
     """
-        Applies changeset file (binary) to BASE and creates PATCHED.
+        Applies changeset file (binary) to BASE
         
-        \param base [input] BASE sqlite3/geopackage file
-        \param patched [output] PATCHED sqlite3/geopackage file with changeset
-        \param changeset [input] changeset between BASE -> PATCHED
+        \param base [input/output] BASE sqlite3/geopackage file
+        \param changeset [input] changeset to apply to BASE
         \returns number of conflics
         
         raises SqliteDiffError on error
     """
-    def apply_changeset(self, base, patched, changeset):
-        return self.clib.apply_changeset(base, patched, changeset)
+    def apply_changeset(self, base, changeset):
+        return self.clib.apply_changeset(base, changeset)
 
     """ 
         Lists changeset content JSON file

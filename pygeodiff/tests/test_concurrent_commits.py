@@ -34,7 +34,8 @@ class UnitTestsPythonConcurrentCommits(GeoDiffTests):
         check_nchanges(self.geodiff, changesetAB, 2)
 
         print("apply changeset to A to get AB")
-        self.geodiff.apply_changeset(modifiedA, patchedAB, changesetAB)
+        shutil.copyfile(modifiedA, patchedAB)
+        self.geodiff.apply_changeset( patchedAB, changesetAB)
 
         print("check that then new data has both features\n")
         self.geodiff.create_changeset(base, patchedAB, changesetBbase)

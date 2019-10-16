@@ -23,6 +23,7 @@ bool _test(
   std::string changeset = pathjoin( tmpdir(), testname, "changeset.bin" );
   std::string patched = pathjoin( tmpdir(), testname, "patched.gpkg" );
   std::string json = pathjoin( tmpdir(), testname, testname + ".json" );
+  std::string json_summary = pathjoin( tmpdir(), testname, testname + "_summary.json" );
 
   if ( GEODIFF_createChangeset( base.c_str(), modified.c_str(), changeset.c_str() ) != GEODIFF_SUCCESS )
   {
@@ -37,7 +38,8 @@ bool _test(
     return false;
   }
 
-  if ( GEODIFF_applyChangeset( base.c_str(), patched.c_str(), changeset.c_str() ) != GEODIFF_SUCCESS )
+  filecopy( patched, base );
+  if ( GEODIFF_applyChangeset( patched.c_str(), changeset.c_str() ) != GEODIFF_SUCCESS )
   {
     std::cout << "err GEODIFF_applyChangeset" << std::endl;
     return false;
@@ -50,7 +52,7 @@ bool _test(
     return false;
   }
 
-  printJSON( changeset, json );
+  printJSON( changeset, json, json_summary );
 
   return true;
 }

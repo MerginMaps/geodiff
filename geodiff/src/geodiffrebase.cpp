@@ -599,7 +599,7 @@ int _prepare_new_changeset( const Buffer &buf, const std::string &changesetNew, 
     if ( !buf )
       throw GeoDiffException( "unable to open " + temp );
 
-    char buffer[1];; //do not be lazy, use bigger buffer
+    char buffer[1]; //do not be lazy, use bigger buffer
     while ( fread( buffer, 1, 1, buf ) > 0 )
       fwrite( buffer, 1, 1, out );
 

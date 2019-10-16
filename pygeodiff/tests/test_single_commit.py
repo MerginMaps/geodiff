@@ -36,7 +36,8 @@ def basetest(
   check_nchanges( geodiff, changeset, expected_changes )
 
   print( "apply" )
-  geodiff.apply_changeset( base, patched, changeset )
+  shutil.copyfile(base, patched)
+  geodiff.apply_changeset( patched, changeset )
 
   print( "check that now it is same file\n" )
   geodiff.create_changeset( patched, modified, changeset2 )
