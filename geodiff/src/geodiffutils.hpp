@@ -261,7 +261,8 @@ class BinaryStream
     void open();
     bool isValid();
 
-    void appendTo( FILE *stream );
+    // returns true on error
+    bool appendTo( FILE *stream );
 
     /*
     ** Write an SQLite value onto out.

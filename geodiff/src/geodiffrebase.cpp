@@ -593,7 +593,11 @@ int _prepare_new_changeset( const Buffer &buf, const std::string &changesetNew, 
   for ( auto it : buffers )
   {
     std::shared_ptr<BinaryStream> buf = it.second;
-    buf->appendTo( out );
+    if ( buf->appendTo( out ) )
+    {
+      fclose( out );
+      throw GeoDiffException( "unable to store changes for table " + it.first );
+    }
   }
 
   fclose( out );

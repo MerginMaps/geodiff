@@ -595,18 +595,19 @@ bool BinaryStream::isValid()
   return mBuffer != nullptr;
 }
 
-void BinaryStream::appendTo( FILE *stream )
+bool BinaryStream::appendTo( FILE *stream )
 {
   close();
   FILE *buf = fopen( mPath.c_str(), "rb" );
   if ( !buf )
-    throw GeoDiffException( "unable to open " + mPath );
+    return true;
 
   char buffer[1]; //do not be lazy, use bigger buffer
   while ( fread( buffer, 1, 1, buf ) > 0 )
     fwrite( buffer, 1, 1, stream );
 
   fclose( buf );
+  return false;
 }
 
 void BinaryStream::putsVarint( sqlite3_uint64 v )
@@ -802,8 +803,8 @@ void triggers( std::shared_ptr<Sqlite3Db> db, std::vector<std::string> &triggerN
   statament.prepare( db, "%s", "select name, sql from sqlite_master where type = 'trigger'" );
   while ( SQLITE_ROW == sqlite3_step( statament.get() ) )
   {
-    char *name = ( char * ) sqlite3_column_text( statament.get(), 0 );
-    char *sql = ( char * ) sqlite3_column_text( statament.get(), 1 );
+    const char *name = ( char * ) sqlite3_column_text( statament.get(), 0 );
+    const char *sql = ( char * ) sqlite3_column_text( statament.get(), 1 );
 
     if ( !name || !sql )
       continue;
