@@ -12,7 +12,11 @@ $DIR/clean.bash
 
 if [ "$TRAVIS_OS_NAME" == "linux" ]; then
    PYTHON=python3
+   PLAT=manylinux2010_x86_64
+   DOCKER_IMAGE=quay.io/pypa/manylinux2010_x86_64
    ${PYTHON} setup.py sdist bdist_wheel
+   docker run --rm -e PLAT=$PLAT -v $DIR/../../:/io $DOCKER_IMAGE /io/scripts/ci/linux/build_wheel.bash
+
 elif [ "$TRAVIS_OS_NAME" == "windows" ]; then
    PYTHON=C:/Python38/python.exe
    ${PYTHON} setup.py bdist_wheel
