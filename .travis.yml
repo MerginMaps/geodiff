@@ -12,6 +12,7 @@ env:
   - CTEST_BUILD_FLAGS=-j4
   - TRAVIS=1
   - CTEST_MODEL=Nightly
+  - secure: ollpRmQVDvsb9HlegM1ur3R1ViExhItBJd4SfeiyqSlbgPaEneW5idqcEkOTYHZvtTk2krJR0aQgOwWRe63uySzHcQ1+I/YX1g9lmVo3AIoQ4NawybwWjnWisvFajM/NkndvSlYdHcev9qUaJMV4ec63Hl6c/M5N2yJLx8FzX2FcHAwNFsIKniKgMnlCknptXmmriO0S2KK7x8qWSVA4tGYT8L1KZg3rG7ezInWqjoMBmp/my0AV1oz/SP3i1hNwXhf/SZ4KFzGCS2LHrzaRx1NThcrmc6+320/FdaLlQnAAYBErRIHEo7cN6FGv2eG9UvlXfVNJdwIc+YuZxQmG30zgH7byvAdLTDvB9Mekv3k4fE1epxK60Hm15ylH6IyO211ncTrytFESxF3T4maGhOc19sEALwGuPyZNF+heW9nZlKFnUe7VAZe5GYjLyllvJtGdEVSUuu/9y+rK1tiStBJwyrn29Q3wzBAsAPe5co2Jj59LzGNGjxkulqWX2NvCc7fX6iOlp+NQKceNKPIvFT8S++dP0KVTZj4KyHV3J3SJxvN8fVj/aQnBSo+DQsddUDU41ejm5d80pviTECK9AxOaNZkloX3xGXU+HBq9SKxfeao736M8hdXeE1ILZQ8YwaL8pc4Gp1g5zdA3vth8BEDJKT/yx+xbGfUsmbI+enA=
 before_install:
 - ./scripts/ci/"$TRAVIS_OS_NAME"/install.bash
 install: 
@@ -20,11 +21,7 @@ script:
 - ./scripts/ci/"$TRAVIS_OS_NAME"/build.bash
 after_script: 
 deploy:
-  provider: pypi
-  distributions: sdist bdist_wheel
-  skip_existing: true
-  user: __token__
-  password:
-    secure: PiKRuLNjeZPrLkSV2K+QZb4AQ1OTWQ8DkZ2T16fJwprPdTZgsBN9+I8TL3c1s2q0eGeLYoHvnSbZe25CwpdUANhVUq1m4FR1++wpLmogOafDU5HHcak5wR3Crio0xPNqnezerbDzUc1FuiBcaROlY97VDACw+LYAt7H1MLGCSiuMPwcPXWvZGcpYDUulLOuVO1TYKtA629WUrJjb6tFxTwgXA+qpqLuuF+LhvFEiJJ/qP5bcxFyyX0h1Uz4cO8EERxnEB/gdvH9oRQ+EBox4Dj7NlF1b+EhcZsV7UGagI4+lrdOah7IgiNis0LzP8c0aO/dX/7hEmN8RvuMHocnO0E3SVv1WqjSjjJAR5ixxW1E9ot9MJg47ryTAeMc/8zC2Pdwdq1f45ebTTuXy9cW0VN/B4swxKn68FtFQat8Re5hvDMPYFh5BlxFn3TkHCmsvJT+1v69vRo11emXCQ+5QKRIfQm9446RPpEUvXoAIFhm6XGVO9IzxRX62OriojD53LczSDSMSfK6wILAJyOQ5sPnJGbtwB8R4b2eIpmAlS/8DWdCfXyWTqiOSfYJJkHVdFaP88eKjDVlwnA5HDg15NPvBUGYWUF7xHInURwIhYq9ZOyCGDPoFSZc0VEIoxcA9LWIY85vJDtIVVyO34Qk95GwFc4ISgH+fp2iAItWJ9zA=
-  on:
-    tags: true
+  script:
+  - ./scripts/publish_pypi.bash
+  # on:
+  #  tags: true
