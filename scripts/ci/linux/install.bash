@@ -15,4 +15,4 @@ sudo apt-get install -y lcov
 sudo gem install coveralls-lcov
 
 # deploy on pypi
-docker pull manylinux2010_x86_64
+docker pull quay.io/pypa/manylinux2010_x86_64
