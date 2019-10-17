@@ -19,6 +19,6 @@ else
 fi
 
 # upload to testpypi
-twine upload  dist/* --username "__token__" --password "$PYPI_TOKEN" -r "$URL"
+twine upload  dist/* --username "__token__" --password "$PYPI_TOKEN" -r "$URL"  --skip-existing
 
 cd $PWD
