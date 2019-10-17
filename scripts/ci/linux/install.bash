@@ -11,3 +11,7 @@ sudo apt-get install libc6-dbg gdb valgrind
 sudo apt-get install -y ruby
 sudo apt-get install -y lcov
 sudo gem install coveralls-lcov
+
+# deploy on pypi
+sudo apt-get -y install python3 python3-pip
+sudo pip3 install twine scikit-build wheel cmake

@@ -5,4 +5,4 @@ ls -la /usr/local/Cellar
 
 brew install python3
 pip3 install nose2
-pip3 install scikit-build
+pip3 install twine scikit-build wheel cmake

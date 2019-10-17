@@ -21,7 +21,8 @@ script:
 - ./scripts/ci/"$TRAVIS_OS_NAME"/build.bash
 after_script: 
 deploy:
-  script:
-  - ./scripts/publish_pypi.bash
+  # deploy develop to the staging environment
+  - provider: script
+    script: ./scripts/ci/publish_pypi.bash
   # on:
   #  tags: true

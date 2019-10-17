@@ -28,14 +28,10 @@ if you got error `ModuleNotFoundError: No module named 'skbuild'` try to update 
 
 ### PyPi
 
-you need to have registration on pypi/testpypi and manage access to pygeodiff distribution. 
-on local PC you need to have `.pypirc` file with username/pass for pypi/testpypi servers.
-
 run `python3 ./scripts/update_version.py --version x.y.z`
+and push to GitHub
 
-following by `./scripts/publish_pypi.bash` (add `--test` if you want to publish to testpypi)
-
-and tagging the repository accordingly!
+tag the master on github and it will be automatically published!
 
 
 ## Development
