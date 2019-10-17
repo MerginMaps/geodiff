@@ -13,12 +13,17 @@ cd $DIR/../..
 $DIR/clean.bash
 
 if [ "$TRAVIS_OS_NAME" == "linux" ]; then
-   python3 setup.py sdist bdist_wheel
+   PYTHON=python3
+   ${PYTHON} setup.py sdist bdist_wheel
+elif [ "$TRAVIS_OS_NAME" == "windows" ]; then
+   PYTHON=python
+   ${PYTHON} setup.py bdist_wheel
 else
-   python3 setup.py bdist_wheel
+   PYTHON=python3
+   ${PYTHON} setup.py bdist_wheel
 fi
 
 # upload to testpypi
-python3 -m twine upload  dist/* --username "__token__" --password "$PYPI_TOKEN" -r "$URL"  --skip-existing
+${PYTHON} -m twine upload  dist/* --username "__token__" --password "$PYPI_TOKEN" -r "$URL"  --skip-existing
 
 cd $PWD
