@@ -5,7 +5,11 @@ matrix:
   - os: linux
     dist: xenial
   - os: osx
+    osx_image: xcode10
+  - os: osx
+    osx_image: xcode11
   - os: windows
+
 env:
   global:
   - CTEST_EXT_COLOR_OUTPUT=TRUE
@@ -13,6 +17,7 @@ env:
   - TRAVIS=1
   - CTEST_MODEL=Nightly
   - secure: ollpRmQVDvsb9HlegM1ur3R1ViExhItBJd4SfeiyqSlbgPaEneW5idqcEkOTYHZvtTk2krJR0aQgOwWRe63uySzHcQ1+I/YX1g9lmVo3AIoQ4NawybwWjnWisvFajM/NkndvSlYdHcev9qUaJMV4ec63Hl6c/M5N2yJLx8FzX2FcHAwNFsIKniKgMnlCknptXmmriO0S2KK7x8qWSVA4tGYT8L1KZg3rG7ezInWqjoMBmp/my0AV1oz/SP3i1hNwXhf/SZ4KFzGCS2LHrzaRx1NThcrmc6+320/FdaLlQnAAYBErRIHEo7cN6FGv2eG9UvlXfVNJdwIc+YuZxQmG30zgH7byvAdLTDvB9Mekv3k4fE1epxK60Hm15ylH6IyO211ncTrytFESxF3T4maGhOc19sEALwGuPyZNF+heW9nZlKFnUe7VAZe5GYjLyllvJtGdEVSUuu/9y+rK1tiStBJwyrn29Q3wzBAsAPe5co2Jj59LzGNGjxkulqWX2NvCc7fX6iOlp+NQKceNKPIvFT8S++dP0KVTZj4KyHV3J3SJxvN8fVj/aQnBSo+DQsddUDU41ejm5d80pviTECK9AxOaNZkloX3xGXU+HBq9SKxfeao736M8hdXeE1ILZQ8YwaL8pc4Gp1g5zdA3vth8BEDJKT/yx+xbGfUsmbI+enA=
+
 before_install:
 - ./scripts/ci/"$TRAVIS_OS_NAME"/install.bash
 install: 
@@ -20,8 +25,8 @@ before_script:
 script:
 - ./scripts/ci/"$TRAVIS_OS_NAME"/build.bash
 after_script:
-- ./scripts/ci/publish_pypi.bash
-
+-
+# - if [ -n "$TRAVIS_TAG" ]; ./scripts/ci/publish_pypi.bash ; fi
 # deploy:
 # - provider: script
 #    edge: true

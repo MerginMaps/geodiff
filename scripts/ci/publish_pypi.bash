@@ -10,23 +10,29 @@ cd $DIR/../..
 
 $DIR/clean.bash
 
+# publish sdist
+if [ "$TRAVIS_OS_NAME" == "linux" ]; then
+   python3 setup.py sdist
+   ${PYTHON} -m twine upload  dist/* --username "__token__" --password "$PYPI_TOKEN"  --skip-existing
+fi
+
+$DIR/clean.bash
+
+# publish wheels
 if [ "$TRAVIS_OS_NAME" == "linux" ]; then
    PYTHON=python3
    PLAT=manylinux2010_x86_64
    DOCKER_IMAGE=quay.io/pypa/manylinux2010_x86_64
    docker run --rm -e PLAT=$PLAT -v $DIR/../../:/io $DOCKER_IMAGE /io/scripts/ci/linux/build_wheel.bash
-
 elif [ "$TRAVIS_OS_NAME" == "windows" ]; then
    PYTHON=C:/Python38/python.exe
-   ${PYTHON} setup.py bdist_wheel
+   $DIR/windows/build_wheel.bash
 else
    # MacOS
    PYTHON=python3
-   ${PYTHON} setup.py sdist bdist_wheel
+   $DIR/osx/build_wheel.bash
 fi
 
-# upload to testpypi
-${PYTHON} -m twine --version
 ${PYTHON} -m twine upload  dist/* --username "__token__" --password "$PYPI_TOKEN"  --skip-existing
 
 cd $PWD
