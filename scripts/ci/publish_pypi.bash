@@ -14,7 +14,7 @@ if [ "$TRAVIS_OS_NAME" == "linux" ]; then
    PYTHON=python3
    ${PYTHON} setup.py sdist bdist_wheel
 elif [ "$TRAVIS_OS_NAME" == "windows" ]; then
-   PYTHON=/mnt/c/Python38/python
+   PYTHON=C:/Python38/python.exe
    ${PYTHON} setup.py bdist_wheel
 else
    PYTHON=python3
