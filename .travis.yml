@@ -1,29 +1,30 @@
 language: shell
 sudo: required
-
 matrix:
   include:
   - os: linux
     dist: xenial
   - os: osx
   - os: windows
-
 env:
   global:
-    - CTEST_EXT_COLOR_OUTPUT=TRUE
-    - CTEST_BUILD_FLAGS=-j4
-    - TRAVIS=1
-    - CTEST_MODEL=Nightly
-
+  - CTEST_EXT_COLOR_OUTPUT=TRUE
+  - CTEST_BUILD_FLAGS=-j4
+  - TRAVIS=1
+  - CTEST_MODEL=Nightly
 before_install:
-  - ./scripts/ci/"$TRAVIS_OS_NAME"/install.bash
-
-install:
-
-before_script:
-
+- ./scripts/ci/"$TRAVIS_OS_NAME"/install.bash
+install: 
+before_script: 
 script:
-  - ./scripts/ci/"$TRAVIS_OS_NAME"/build.bash
-
-after_script:
-
+- ./scripts/ci/"$TRAVIS_OS_NAME"/build.bash
+after_script: 
+deploy:
+  provider: pypi
+  distributions: sdist bdist_wheel
+  skip_existing: true
+  user: __token__
+  password:
+    secure: PiKRuLNjeZPrLkSV2K+QZb4AQ1OTWQ8DkZ2T16fJwprPdTZgsBN9+I8TL3c1s2q0eGeLYoHvnSbZe25CwpdUANhVUq1m4FR1++wpLmogOafDU5HHcak5wR3Crio0xPNqnezerbDzUc1FuiBcaROlY97VDACw+LYAt7H1MLGCSiuMPwcPXWvZGcpYDUulLOuVO1TYKtA629WUrJjb6tFxTwgXA+qpqLuuF+LhvFEiJJ/qP5bcxFyyX0h1Uz4cO8EERxnEB/gdvH9oRQ+EBox4Dj7NlF1b+EhcZsV7UGagI4+lrdOah7IgiNis0LzP8c0aO/dX/7hEmN8RvuMHocnO0E3SVv1WqjSjjJAR5ixxW1E9ot9MJg47ryTAeMc/8zC2Pdwdq1f45ebTTuXy9cW0VN/B4swxKn68FtFQat8Re5hvDMPYFh5BlxFn3TkHCmsvJT+1v69vRo11emXCQ+5QKRIfQm9446RPpEUvXoAIFhm6XGVO9IzxRX62OriojD53LczSDSMSfK6wILAJyOQ5sPnJGbtwB8R4b2eIpmAlS/8DWdCfXyWTqiOSfYJJkHVdFaP88eKjDVlwnA5HDg15NPvBUGYWUF7xHInURwIhYq9ZOyCGDPoFSZc0VEIoxcA9LWIY85vJDtIVVyO34Qk95GwFc4ISgH+fp2iAItWJ9zA=
+  on:
+    tags: true
