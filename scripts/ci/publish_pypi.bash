@@ -20,7 +20,7 @@ elif [ "$TRAVIS_OS_NAME" == "windows" ]; then
    PYTHON=C:/Python38/python.exe
    ${PYTHON} setup.py bdist_wheel
 else
-   # MacOS 
+   # MacOS
    PYTHON=python3
    ${PYTHON} setup.py sdist bdist_wheel
 fi
