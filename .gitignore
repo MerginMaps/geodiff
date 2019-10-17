@@ -12,3 +12,5 @@ _skbuild/
 *egg-info/
 MANIFEST
 /pygeodiff/tests/tmp/
+Pipfile
+.python-version
