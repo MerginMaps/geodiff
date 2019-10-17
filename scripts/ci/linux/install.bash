@@ -15,4 +15,4 @@ sudo gem install coveralls-lcov
 # deploy on pypi
 sudo apt-get -y install python3 python3-pip
 sudo apt-get install ninja-build
-sudo python -m pip install setuptools twine scikit-build wheel cmake
+sudo python3 -m pip install setuptools twine scikit-build wheel cmake
