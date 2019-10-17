@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 set -e
 choco install python
-pip3 install --upgrade setuptools pip
-pip3 install twine scikit-build wheel cmake
+refreshenv
+pip install --upgrade setuptools pip
+pip install twine scikit-build wheel cmake
