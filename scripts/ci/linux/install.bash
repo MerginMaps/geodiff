@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 set -e
 
+DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
+
 # GEODIFF
 sudo apt-get -qq update
 
@@ -13,6 +15,7 @@ sudo apt-get install -y lcov
 sudo gem install coveralls-lcov
 
 # deploy on pypi
-sudo apt-get -y install python3 python3-pip
-sudo apt-get install ninja-build
+sudo apt-get install -y python3
+sudo apt-get install -y ninja-build
+python3 $DIR/../get-pip.py
 sudo python3 -m pip install setuptools twine scikit-build wheel cmake

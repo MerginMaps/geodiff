@@ -5,8 +5,6 @@ set -e
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 PWD=`pwd`
 
-URL="pypi"
-
 echo -n "Publishing pygeodiff to $URL"
 cd $DIR/../..
 
@@ -24,6 +22,7 @@ else
 fi
 
 # upload to testpypi
-${PYTHON} -m twine upload  dist/* --username "__token__" --password "$PYPI_TOKEN" -r "$URL"  --skip-existing
+${PYTHON} -m twine --version
+${PYTHON} -m twine upload  dist/* --username "__token__" --password "$PYPI_TOKEN"  --skip-existing
 
 cd $PWD
