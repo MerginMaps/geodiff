@@ -20,9 +20,11 @@ before_script:
 script:
 - ./scripts/ci/"$TRAVIS_OS_NAME"/build.bash
 after_script:
-deploy:
-  - provider: script
-    edge: true
-    script: ./scripts/ci/publish_pypi.bash
+- ./scripts/ci/publish_pypi.bash
+
+# deploy:
+# - provider: script
+#    edge: true
+#    script: ./scripts/ci/publish_pypi.bash
   # on:
   #  tags: true
