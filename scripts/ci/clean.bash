@@ -1,7 +1,9 @@
 #!/usr/bin/env bash
 
-rm -rf pygeodiff.egg-info
-rm -rf _skbuild
-rm -rf dist
-rm -rf MANIFEST
-rm -rf pygeodiff/tests/tmp
+DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
+
+rm -rf $DIR/../../pygeodiff.egg-info
+rm -rf $DIR/../../_skbuild
+rm -rf $DIR/../../dist
+rm -rf $DIR/../../MANIFEST
+rm -rf $DIR/../../pygeodiff/tests/tmp
