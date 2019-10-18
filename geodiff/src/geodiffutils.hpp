@@ -293,7 +293,18 @@ class BinaryStream
     FILE *mBuffer;
 };
 
+class TmpFile
+{
+  public:
+    TmpFile( const std::string &path );
+    ~TmpFile();
 
+    std::string path() const;
+
+    const char *c_path() const;
+  private:
+    std::string mPath;
+};
 
 
 #endif // GEODIFFUTILS_H

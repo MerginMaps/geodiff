@@ -24,6 +24,8 @@ class UnitTestsPythonConcurrentCommits(GeoDiffTests):
         changesetAB = tmpdir() + "/py" + testname + "/" + "changeset_A_to_B.bin"
         changesetBbase = tmpdir() + "/py" + testname + "/" + "changeset_B_to_base.bin"
         patchedAB = tmpdir() + "/py" + testname + "/" + "patched_AB.gpkg"
+        patchedAB2 = tmpdir() + "/py" + testname + "/" + "patched_AB_2.gpkg"
+        changesetAB2 = tmpdir() + "/py" + testname + "/" + "changeset_AB2.bin"
 
         print("create changeset base to A")
         self.geodiff.create_changeset(base, modifiedA, changesetbaseA)
@@ -40,3 +42,9 @@ class UnitTestsPythonConcurrentCommits(GeoDiffTests):
         print("check that then new data has both features\n")
         self.geodiff.create_changeset(base, patchedAB, changesetBbase)
         check_nchanges(self.geodiff, changesetBbase, 3)
+
+        print("check direct rebase")
+        shutil.copyfile(modifiedB, patchedAB2)
+        self.geodiff.rebase(base, modifiedA, patchedAB2)
+        self.geodiff.create_changeset(base, patchedAB2, changesetAB2)
+        check_nchanges(self.geodiff, changesetAB2,  3)

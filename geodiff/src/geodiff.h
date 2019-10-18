@@ -113,6 +113,34 @@ GEODIFF_EXPORT int GEODIFF_createRebasedChangeset(
   const char *changeset_their,
   const char *changeset );
 
+
+/**
+ * Rebases local modified version from base to modified_their version
+ *
+ *        --- > MODIFIED_THEIR
+ * BASE -|
+ *        ----> MODIFIED (local) ---> MODIFIED_THEIR_PLUS_MINE
+ *
+ * Steps performed on MODIFIED (local) file:
+ *    1. undo local changes MODIFIED -> BASE
+ *    2. apply changes from MODIFIED_THEIR
+ *    3. apply rebased local changes and create MODIFIED_THEIR_PLUS_MINE
+ *
+ * Note, when rebase is not successfull, modified could be in random state.
+ * This works in general, even when base==modified, or base==modified_theirs
+ *
+ * \param base [input] BASE sqlite3/geopackage file
+ * \param modified_their [input] MODIFIED sqlite3/geopackage file
+ * \param modified [input/output] local copy of the changes to be rebased
+ * \returns GEODIFF_SUCCESS on success
+ */
+GEODIFF_EXPORT int GEODIFF_rebase(
+  const char *base,
+  const char *modified_their,
+  const char *modified
+);
+
+
 /**
  * Applies changeset file (binary) to BASE
  * \param base [input/output] BASE sqlite3/geopackage file

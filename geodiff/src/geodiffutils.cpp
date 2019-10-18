@@ -1191,3 +1191,26 @@ void flushString( const std::string &filename, const std::string &str )
   out << str;
   out.close();
 }
+
+TmpFile::TmpFile( const std::string &path ):
+  mPath( path )
+{
+}
+
+TmpFile::~TmpFile()
+{
+  if ( fileexists( mPath ) )
+  {
+    fileremove( mPath );
+  }
+}
+
+std::string TmpFile::path() const
+{
+  return mPath;
+}
+
+const char *TmpFile::c_path() const
+{
+  return mPath.c_str();
+}

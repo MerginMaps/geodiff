@@ -404,3 +404,98 @@ int GEODIFF_invertChangeset( const char *changeset, const char *changeset_inv )
     return GEODIFF_ERROR;
   }
 }
+
+int GEODIFF_rebase( const char *base, const char *modified_their, const char *modified )
+{
+  if ( !base || !modified || !modified )
+  {
+    Logger::instance().error( "NULL arguments to GEODIFF_rebase" );
+    return GEODIFF_ERROR;
+  }
+
+  if ( !fileexists( base ) || !fileexists( modified_their ) || !fileexists( modified ) )
+  {
+    Logger::instance().error( "Missing input files in GEODIFF_rebase" );
+    return GEODIFF_ERROR;
+  }
+
+  try
+  {
+    std::string root = std::string( modified );
+
+    TmpFile base2theirs( root + "_base2theirs.bin" );
+    if ( GEODIFF_createChangeset( base, modified_their, base2theirs.c_path() ) != GEODIFF_SUCCESS )
+    {
+      Logger::instance().error( "Unable to perform GEODIFF_createChangeset base2theirs" );
+      return GEODIFF_ERROR;
+    }
+
+    // situation 1: base2theirs is null, so we do not need rebase. modified is already fine
+    if ( !GEODIFF_hasChanges( base2theirs.c_path() ) )
+    {
+      return GEODIFF_SUCCESS;
+    }
+
+    TmpFile base2modified( root + "_base2modified.bin" );
+    if ( GEODIFF_createChangeset( base, modified, base2modified.c_path() ) != GEODIFF_SUCCESS )
+    {
+      Logger::instance().error( "Unable to perform GEODIFF_createChangeset base2modified" );
+      return GEODIFF_ERROR;
+    }
+
+    // situation 2: we do not have changes (modified == base), so result is modified_theirs
+    if ( !GEODIFF_hasChanges( base2modified.c_path() ) )
+    {
+      if ( GEODIFF_applyChangeset( modified, base2theirs.c_path() ) != GEODIFF_SUCCESS )
+      {
+        Logger::instance().error( "Unable to perform GEODIFF_applyChangeset base2theirs" );
+        return GEODIFF_ERROR;
+      }
+
+      return GEODIFF_SUCCESS;
+    }
+
+    // situation 3: we have changes both in ours and theirs
+    TmpFile theirs2final( root + "theirs2final.bin" );
+    if ( GEODIFF_createRebasedChangeset( base, modified, base2theirs.c_path(), theirs2final.c_path() ) != GEODIFF_SUCCESS )
+    {
+      Logger::instance().error( "Unable to perform GEODIFF_createChangeset theirs2final" );
+      return GEODIFF_ERROR;
+    }
+
+    // 3A) revert modified to base
+    TmpFile modified2base( root + "_modified2base.bin" );
+    if ( GEODIFF_invertChangeset( base2modified.c_path(), modified2base.c_path() ) != GEODIFF_SUCCESS )
+    {
+      Logger::instance().error( "Unable to perform GEODIFF_invertChangeset modified2base" );
+      return GEODIFF_ERROR;
+    }
+
+    if ( GEODIFF_applyChangeset( modified, modified2base.c_path() ) != GEODIFF_SUCCESS )
+    {
+      Logger::instance().error( "Unable to perform GEODIFF_applyChangeset modified2base" );
+      return GEODIFF_ERROR;
+    }
+
+    // 3B) update modified to theirs
+    if ( GEODIFF_applyChangeset( modified, base2theirs.c_path() ) != GEODIFF_SUCCESS )
+    {
+      Logger::instance().error( "Unable to perform GEODIFF_applyChangeset base2theirs" );
+      return GEODIFF_ERROR;
+    }
+
+    // 3C) update modified to final
+    if ( GEODIFF_applyChangeset( modified, theirs2final.c_path() ) != GEODIFF_SUCCESS )
+    {
+      Logger::instance().error( "Unable to perform GEODIFF_applyChangeset theirs2final" );
+      return GEODIFF_ERROR;
+    }
+
+    return GEODIFF_SUCCESS;
+  }
+  catch ( GeoDiffException exc )
+  {
+    Logger::instance().error( exc );
+    return GEODIFF_ERROR;
+  }
+}

@@ -23,6 +23,7 @@ bool _test(
   std::string changeset = pathjoin( tmpdir(), testname, "changeset.bin" );
   std::string changeset_inv = pathjoin( tmpdir(), testname, "changeset_inv.bin" );
   std::string patched = pathjoin( tmpdir(), testname, "patched.gpkg" );
+  std::string patched2 = pathjoin( tmpdir(), testname, "patched2.gpkg" );
   std::string json = pathjoin( tmpdir(), testname, testname + ".json" );
   std::string json_summary = pathjoin( tmpdir(), testname, testname + "_summary.json" );
 
@@ -69,6 +70,19 @@ bool _test(
 
   // check that now it is same file with base
   if ( !equals( patched, base, ignore_timestamp_change ) )
+  {
+    std::cout << "err equals" << std::endl;
+    return false;
+  }
+
+  // check that direct rebase works
+  filecopy( patched2, modified );
+  if ( GEODIFF_rebase( base.c_str(), base.c_str(), patched2.c_str() ) != GEODIFF_SUCCESS )
+  {
+    std::cout << "err GEODIFF_rebase inversed" << std::endl;
+    return false;
+  }
+  if ( !equals( patched2, modified, ignore_timestamp_change ) )
   {
     std::cout << "err equals" << std::endl;
     return false;
