@@ -33,6 +33,22 @@ class GeoDiff:
     def create_changeset(self, base, modified, changeset):
         return self.clib.create_changeset(base, modified, changeset)
 
+    """
+        Inverts changeset file (binary) in such way that
+        if CHANGESET_INV is applied to MODIFIED by applyChangeset,
+        BASE will be created
+
+        \param changeset [input] changeset between BASE -> MODIFIED
+        \param changeset_inv [output] changeset between MODIFIED -> BASE
+        
+        \returns number of conflics
+
+        raises SqliteDiffError on error
+    """
+
+    def invert_changeset(self, changeset, changeset_inv):
+        return self.clib.invert_changeset(changeset, changeset_inv)
+
     """ 
         Creates changeset file (binary) in such way that
         if CHANGESET is applied to MODIFIED_THEIR by
