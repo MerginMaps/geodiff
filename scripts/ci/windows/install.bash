@@ -19,3 +19,12 @@ if [ -n "$TRAVIS_TAG" ]; then
     C:/Python38/python.exe $DIR/../get-pip.py
     C:/Python38/Scripts/pip.exe install setuptools twine scikit-build wheel cmake
 fi
+
+    ### 32 bit
+    choco install python3 --version=3.6.8 -forcex86 --params "/InstallDir:C:\Python37_32b" --force
+    C:/Python37_32b/python.exe $DIR/../get-pip.py
+    C:/Python37_32b/Scripts/pip.exe install setuptools twine scikit-build wheel cmake
+
+    cd $DIR/../../..
+    C:/Python37_32b setup.py bdist_wheel
+    ls -la dist/
