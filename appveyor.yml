@@ -4,7 +4,7 @@ environment:
     # SDK v7.0 MSVC Express 2008's SetEnv.cmd script will fail if the
     # /E:ON and /V:ON options are not enabled in the batch script intepreter
     # See: http://stackoverflow.com/a/13751649/163740
-    WITH_COMPILER: "cmd /E:ON /V:ON /C .\\ci\\windows\\run_with_env.cmd"
+    CMD_IN_ENV: "cmd /E:ON /V:ON /C .\\scripts\\ci\\windows\\run_with_env.cmd"
     TWINE_USERNAME: __token__
     TWINE_PASSWORD:
       secure: H7PI8imJTED02mGoIPpDn08+ku988jV+XX2oa4LAMHEHpa8DSnqMitpxieedr4YsP/xtLGqpk0rTFpVawtp3co6317tL8U0kNasd/ZppV7jDOiZN6qOaE97zKf7xOA37WsDd/5qhx1SRRRtLr5hepDu2dSKcQjH6w/rRtLP1SNNijnxEJNf1LZEirg5f55HvEplGwcTnM0V/F2FhgCpRuNFN9e3zcHXVTE9fS2m5BcU=
@@ -34,11 +34,12 @@ install:
   # - "powershell buildconfig\\ci\\appveyor\\install.ps1"
   - "%PYPY_DOWNLOAD%"
   - "set HOME=%APPVEYOR_BUILD_FOLDER%"
+  - "SET PATH=%PYTHON%;%PYTHON%\\Scripts;%PATH%"
   - "set PATH=%PATH%;%APPVEYOR_BUILD_FOLDER%\\%PYPY_VERSION%"
   - "%PYTHON% -m ensurepip"
   - "%PYTHON% -m pip install -U pip setuptools twine scikit-build wheel cmake"
   # - "%WITH_COMPILER% %PYTHON% -m buildconfig %USE_SDL2%"
-  - "%WITH_COMPILER% %PYTHON% setup.py bdist_wheel"
+  - "%CMD_IN_ENV% %PYTHON% setup.py bdist_wheel"
   # - "%WITH_COMPILER% %PYTHON% setup.py -setuptools %DISTRIBUTIONS%"
   - ps: "ls dist"
 
