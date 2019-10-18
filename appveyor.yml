@@ -38,7 +38,7 @@ install:
   - "%PYTHON% -m ensurepip"
   - "%PYTHON% -m pip install -U pip setuptools twine scikit-build wheel cmake"
   # - "%WITH_COMPILER% %PYTHON% -m buildconfig %USE_SDL2%"
-  - "%PYTHON% setup.py bdist_wheel"
+  - "%WITH_COMPILER% %PYTHON% setup.py bdist_wheel"
   # - "%WITH_COMPILER% %PYTHON% setup.py -setuptools %DISTRIBUTIONS%"
   - ps: "ls dist"
 
