@@ -36,9 +36,9 @@ install:
   - "set HOME=%APPVEYOR_BUILD_FOLDER%"
   - "set PATH=%PATH%;%APPVEYOR_BUILD_FOLDER%\\%PYPY_VERSION%"
   - "%PYTHON% -m ensurepip"
-  - "%PYTHON% -m pip install -U nose2 wheel pip twine cmake"
+  - "%PYTHON% -m pip install -U pip setuptools twine scikit-build wheel cmake"
   # - "%WITH_COMPILER% %PYTHON% -m buildconfig %USE_SDL2%"
-  - "%WITH_COMPILER% %PYTHON% setup.py bdist_wheel"
+  - "%PYTHON% setup.py bdist_wheel"
   # - "%WITH_COMPILER% %PYTHON% setup.py -setuptools %DISTRIBUTIONS%"
   - ps: "ls dist"
 
