@@ -15,7 +15,9 @@ sudo apt-get install -y lcov
 sudo gem install coveralls-lcov
 
 # deploy on pypi
-docker pull quay.io/pypa/manylinux2010_x86_64
-sudo apt-get install -y python3
-sudo python3 $DIR/../get-pip.py
-sudo python3 -m pip install setuptools twine scikit-build wheel
+if [ -n "$TRAVIS_TAG" ]; then
+    docker pull quay.io/pypa/manylinux2010_x86_64
+    sudo apt-get install -y python3
+    sudo python3 $DIR/../get-pip.py
+    sudo python3 -m pip install setuptools twine scikit-build wheel
+fi
