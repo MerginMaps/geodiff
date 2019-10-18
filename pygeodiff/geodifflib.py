@@ -46,7 +46,7 @@ class GeoDiffLib:
         if name is None:
             # ok lets assume that the package is installed through PIP
             if platform.system() == 'Windows':
-                prefix = ""
+                prefix = "lib"
                 suffix = ".dll"
             elif platform.system() == 'Darwin':
                 prefix = "lib"
