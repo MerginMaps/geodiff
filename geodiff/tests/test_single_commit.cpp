@@ -21,6 +21,7 @@ bool _test(
   std::string base = pathjoin( testdir(), basename );
   std::string modified = pathjoin( testdir(), modifiedname );
   std::string changeset = pathjoin( tmpdir(), testname, "changeset.bin" );
+  std::string changeset_inv = pathjoin( tmpdir(), testname, "changeset_inv.bin" );
   std::string patched = pathjoin( tmpdir(), testname, "patched.gpkg" );
   std::string json = pathjoin( tmpdir(), testname, testname + ".json" );
   std::string json_summary = pathjoin( tmpdir(), testname, testname + "_summary.json" );
@@ -45,8 +46,29 @@ bool _test(
     return false;
   }
 
-  // check that now it is same file
+  // check that now it is same file with modified
   if ( !equals( patched, modified, ignore_timestamp_change ) )
+  {
+    std::cout << "err equals" << std::endl;
+    return false;
+  }
+
+  // create inversed changeset
+  if ( GEODIFF_invertChangeset( changeset.c_str(), changeset_inv.c_str() ) != GEODIFF_SUCCESS )
+  {
+    std::cout << "err GEODIFF_invertChangeset" << std::endl;
+    return false;
+  }
+
+  // apply inversed changeset
+  if ( GEODIFF_applyChangeset( patched.c_str(), changeset_inv.c_str() ) != GEODIFF_SUCCESS )
+  {
+    std::cout << "err GEODIFF_applyChangeset inversed" << std::endl;
+    return false;
+  }
+
+  // check that now it is same file with base
+  if ( !equals( patched, base, ignore_timestamp_change ) )
   {
     std::cout << "err equals" << std::endl;
     return false;

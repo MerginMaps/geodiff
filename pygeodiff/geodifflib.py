@@ -99,6 +99,18 @@ class GeoDiffLib:
         res = func(b_string1, b_string2, b_string3)
         _parse_return_code(res, "createChangeset")
 
+    def invert_changeset(self, changeset, changeset_inv):
+        func = self.lib.GEODIFF_invertChangeset
+        func.argtypes = [ctypes.c_char_p, ctypes.c_char_p]
+        func.restype = ctypes.c_int
+
+        # create byte objects from the strings
+        b_string1 = changeset.encode('utf-8')
+        b_string2 = changeset_inv.encode('utf-8')
+
+        res = func(b_string1, b_string2)
+        _parse_return_code(res, "invert_changeset")
+
     def create_rebased_changeset(self, base, modified, changeset_their, changeset):
         func = self.lib.GEODIFF_createRebasedChangeset
         func.argtypes = [ctypes.c_char_p, ctypes.c_char_p, ctypes.c_char_p, ctypes.c_char_p]

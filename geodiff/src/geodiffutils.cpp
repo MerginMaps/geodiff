@@ -384,6 +384,13 @@ void Buffer::read( const std::string &filename )
   }
 }
 
+void Buffer::read( int size, void *stream )
+{
+  mAlloc = size;
+  mUsed = size;
+  mZ = ( char * ) stream;
+}
+
 void Buffer::read( const Sqlite3Session &session )
 {
   free();

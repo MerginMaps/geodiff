@@ -77,6 +77,19 @@ GEODIFF_EXPORT int GEODIFF_createChangeset(
   const char *modified,
   const char *changeset );
 
+/**
+ * Inverts changeset file (binary) in such way that
+ * if CHANGESET_INV is applied to MODIFIED by applyChangeset,
+ * BASE will be created
+ *
+ * BASE --- CHANGESET ---> MODIFIED
+ * MODIFIED --- CHANGESET_INV ---> BASE
+ *
+ * \param changeset [input] changeset between BASE -> MODIFIED
+ * \param changeset_inv [output] changeset between MODIFIED -> BASE
+ * \returns GEODIFF_SUCCESS on success
+ */
+GEODIFF_EXPORT int GEODIFF_invertChangeset( const char *changeset, const char *changeset_inv );
 
 /**
  * Creates changeset file (binary) in such way that

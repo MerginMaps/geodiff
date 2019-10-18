@@ -354,3 +354,53 @@ int GEODIFF_listChangesSummary( const char *changeset, const char *jsonfile )
 {
   return listChangesJSON( changeset, jsonfile, true );
 }
+
+int GEODIFF_invertChangeset( const char *changeset, const char *changeset_inv )
+{
+  if ( !changeset )
+  {
+    Logger::instance().error( "NULL arguments to GEODIFF_invertChangeset" );
+    return GEODIFF_ERROR;
+  }
+
+  if ( !fileexists( changeset ) )
+  {
+    Logger::instance().error( "Missing input files in GEODIFF_invertChangeset" );
+    return GEODIFF_ERROR;
+  }
+
+  try
+  {
+    Buffer buf;
+    buf.read( changeset );
+    if ( buf.isEmpty() )
+    {
+      return GEODIFF_SUCCESS;
+    }
+
+    int pnOut = 0;
+    void *ppOut = nullptr;
+
+    int rc = sqlite3changeset_invert(
+               buf.size(), buf.v_buf(),       /* Input changeset */
+               &pnOut, &ppOut        /* OUT: Inverse of input */
+             );
+
+    if ( rc )
+    {
+      Logger::instance().error( "Unable to perform sqlite3changeset_invert" );
+      return GEODIFF_ERROR;
+    }
+
+    Buffer out;
+    out.read( pnOut, ppOut );
+    out.write( changeset_inv );
+
+    return GEODIFF_SUCCESS;
+  }
+  catch ( GeoDiffException exc )
+  {
+    Logger::instance().error( exc );
+    return GEODIFF_ERROR;
+  }
+}

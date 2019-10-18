@@ -141,6 +141,9 @@ class Buffer
      */
     void read( const std::string &filename );
 
+    /** Populates from stream. Takes ownership of stream */
+    void read( int size, void *stream );
+
     /**
      * Populates buffer from sqlite3 session
      * Frees the existing buffer if exists

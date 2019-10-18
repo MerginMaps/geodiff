@@ -28,6 +28,7 @@ def basetest(
   modified = testdir() + "/" + testname + "/" + modifiedname
   changeset = tmpdir() + "/py" + testname + "/" + "changeset_" + basename + ".bin"
   changeset2 = tmpdir() + "/py" + testname + "/" + "changeset_after_apply_" + basename + ".bin"
+  changeset_inv = tmpdir() + "/py" + testname + "/" + "changeset_inv" + basename + ".bin"
   patched = tmpdir() + "/py" + testname + "/" + "patched_" + modifiedname
   json = tmpdir() + "/py" + testname + "/" + basename + ".json"
 
@@ -43,6 +44,14 @@ def basetest(
   geodiff.create_changeset( patched, modified, changeset2 )
   check_nchanges( geodiff, changeset2, 0 )
 
+  print( "check we can create inverted changeset")
+  os.remove(changeset2)
+  geodiff.invert_changeset(changeset, changeset_inv)
+  geodiff.apply_changeset(patched, changeset_inv)
+  geodiff.create_changeset( patched, base, changeset2 )
+  check_nchanges( geodiff, changeset2, 0 )
+
+  #json
   test_json(geodiff, changeset, json, expected_json_success)
 
   if expected_json:
