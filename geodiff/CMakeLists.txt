@@ -40,14 +40,14 @@ ENDIF(ENABLE_COVERAGE)
 IF(EXISTS "${CMAKE_BINARY_DIR}/sqlite3.tar.gz")
   MESSAGE("sqlite3 already downloaded")
 ELSE()
-  FILE(DOWNLOAD "https://sqlite.org/2019/sqlite-autoconf-3280000.tar.gz" ${CMAKE_BINARY_DIR}/sqlite3.tar.gz )
+  FILE(DOWNLOAD "https://www.sqlite.org/2019/sqlite-autoconf-3300100.tar.gz" ${CMAKE_BINARY_DIR}/sqlite3.tar.gz )
   FILE(MAKE_DIRECTORY "${CMAKE_BINARY_DIR}/external")
   EXECUTE_PROCESS(COMMAND ${CMAKE_COMMAND} -E tar xfz ${CMAKE_BINARY_DIR}/sqlite3.tar.gz
     WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/external
     RESULT_VARIABLE rv)
 ENDIF()
 
-SET(sqlite3_dir ${CMAKE_BINARY_DIR}/external/sqlite-autoconf-3280000)
+SET(sqlite3_dir ${CMAKE_BINARY_DIR}/external/sqlite-autoconf-3300100)
 SET(sqlite_src
   ${sqlite3_dir}/sqlite3.c
   ${sqlite3_dir}/sqlite3.h

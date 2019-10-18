@@ -456,6 +456,8 @@ int GEODIFF_rebase( const char *base, const char *modified_their, const char *mo
     }
 
     // situation 3: we have changes both in ours and theirs
+
+    // 3A) Create all changesets
     TmpFile theirs2final( root + "theirs2final.bin" );
     if ( GEODIFF_createRebasedChangeset( base, modified, base2theirs.c_path(), theirs2final.c_path() ) != GEODIFF_SUCCESS )
     {
@@ -463,7 +465,6 @@ int GEODIFF_rebase( const char *base, const char *modified_their, const char *mo
       return GEODIFF_ERROR;
     }
 
-    // 3A) revert modified to base
     TmpFile modified2base( root + "_modified2base.bin" );
     if ( GEODIFF_invertChangeset( base2modified.c_path(), modified2base.c_path() ) != GEODIFF_SUCCESS )
     {
@@ -471,23 +472,19 @@ int GEODIFF_rebase( const char *base, const char *modified_their, const char *mo
       return GEODIFF_ERROR;
     }
 
-    if ( GEODIFF_applyChangeset( modified, modified2base.c_path() ) != GEODIFF_SUCCESS )
+    // 3B) concat to single changeset
+    TmpFile modified2final( root + "_modified2final.bin" );
+    bool error = concatChangesets( modified2base.path(), base2theirs.path(), theirs2final.path(), modified2final.path() );
+    if ( error )
     {
-      Logger::instance().error( "Unable to perform GEODIFF_applyChangeset modified2base" );
+      Logger::instance().error( "Unable to perform concatChangesets" );
       return GEODIFF_ERROR;
     }
 
-    // 3B) update modified to theirs
-    if ( GEODIFF_applyChangeset( modified, base2theirs.c_path() ) != GEODIFF_SUCCESS )
+    // 3C) apply at once
+    if ( GEODIFF_applyChangeset( modified, modified2final.c_path() ) != GEODIFF_SUCCESS )
     {
-      Logger::instance().error( "Unable to perform GEODIFF_applyChangeset base2theirs" );
-      return GEODIFF_ERROR;
-    }
-
-    // 3C) update modified to final
-    if ( GEODIFF_applyChangeset( modified, theirs2final.c_path() ) != GEODIFF_SUCCESS )
-    {
-      Logger::instance().error( "Unable to perform GEODIFF_applyChangeset theirs2final" );
+      Logger::instance().error( "Unable to perform GEODIFF_applyChangeset modified2final" );
       return GEODIFF_ERROR;
     }
 
