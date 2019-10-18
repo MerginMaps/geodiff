@@ -21,4 +21,4 @@ before_script:
 script:
 - ./scripts/ci/"$TRAVIS_OS_NAME"/build.bash
 after_script:
-- if [ -n "$TRAVIS_TAG" ]; ./scripts/ci/publish_pypi.bash ; fi
+- ./scripts/ci/publish_pypi.bash
