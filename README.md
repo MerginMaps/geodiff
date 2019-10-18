@@ -1,5 +1,6 @@
 [![Build Status](https://travis-ci.org/lutraconsulting/geodiff.svg?branch=master)](https://travis-ci.org/lutraconsulting/geodiff)
 [![CircleCI](https://circleci.com/gh/lutraconsulting/geodiff.svg?style=svg)](https://circleci.com/gh/lutraconsulting/geodiff)
+[![Build status](https://ci.appveyor.com/api/projects/status/94xich0m3x2pu4u3?svg=true)](https://ci.appveyor.com/project/PeterPetrik/geodiff)
 [![Coverage Status](https://img.shields.io/coveralls/lutraconsulting/geodiff.svg)](https://coveralls.io/github/lutraconsulting/geodiff?branch=master)
 [![PyPI version](https://badge.fury.io/py/pygeodiff.svg)](https://badge.fury.io/py/pygeodiff)
 

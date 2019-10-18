@@ -1,0 +1,68 @@
+environment:
+
+  global:
+    # SDK v7.0 MSVC Express 2008's SetEnv.cmd script will fail if the
+    # /E:ON and /V:ON options are not enabled in the batch script intepreter
+    # See: http://stackoverflow.com/a/13751649/163740
+    WITH_COMPILER: "cmd /E:ON /V:ON /C .\\buildconfig\\ci\\appveyor\\run_with_compiler.cmd"
+    DISTRIBUTIONS: "bdist_wheel"
+    TWINE_USERNAME: __token__
+    TWINE_PASSWORD:
+      secure: FtHM0I+wubit/UWOzHsykHayL06KImKRZQznRUHUfzM=
+
+  matrix:
+    - PYTHON: "C:\\Python36\\python"
+      PYTHON_VERSION: "3.6.0"
+      PYTHON_ARCH: "32"
+      USE_SDL2: "-sdl2"
+
+    - PYTHON: "C:\\Python37\\python"
+      PYTHON_VERSION: "3.7.0"
+      PYTHON_ARCH: "32"
+      USE_SDL2: "-sdl2"
+
+    - PYTHON: "C:\\Python36-x64\\python"
+      PYTHON_VERSION: "3.6.0"
+      PYTHON_ARCH: "64"
+      USE_SDL2: "-sdl2"
+
+    - PYTHON: "C:\\Python37-x64\\python"
+      PYTHON_VERSION: "3.7.0"
+      PYTHON_ARCH: "64"
+      USE_SDL2: "-sdl2"
+
+init:
+  - "ECHO %PYTHON% %PYTHON_VERSION% %PYTHON_ARCH%"
+
+install:
+  # install.ps1 only needed for SDL1 stuff.
+  # - "powershell buildconfig\\ci\\appveyor\\install.ps1"
+  - "%PYPY_DOWNLOAD%"
+  - "set HOME=%APPVEYOR_BUILD_FOLDER%"
+  - "set PATH=%PATH%;%APPVEYOR_BUILD_FOLDER%\\%PYPY_VERSION%"
+  - "%PYTHON% -m ensurepip"
+  - "%PYTHON% -m pip install -U nose2 wheel pip twine cmake"
+  - "%WITH_COMPILER% %PYTHON% -m buildconfig %USE_SDL2%"
+  - "%WITH_COMPILER% %PYTHON% setup.py build"
+  - "%WITH_COMPILER% %PYTHON% setup.py -setuptools %DISTRIBUTIONS%"
+  - ps: "ls dist"
+
+  # Install the wheel to test it
+  - "%PYTHON% -m pip install --ignore-installed --pre --no-index --find-links dist/ pygeodiff"
+
+# Appveyor's build step is specific to .NET projects, so we build in the
+# install step instead.
+build: off
+
+# Do not build feature branch with open Pull Requests
+skip_branch_with_pr: true
+
+test_script:
+  - "%PYTHON% -c 'import pygeodiff as p; g=p.GeoDiff(); g.version();'"
+
+# artifacts:
+#  - path: 'dist\*.whl'
+#    name: pypiartifacts
+
+on_success:
+  - cmd: "if [%APPVEYOR_REPO_TAG%]==[true] %PYTHON% -m twine upload dist\\*.whl"
