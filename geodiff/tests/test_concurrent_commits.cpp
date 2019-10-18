@@ -28,9 +28,11 @@ bool _test(
   std::string changesetAB = pathjoin( tmpdir(), testname, "changeset_A_to_B.bin" );
   std::string changesetBbase = pathjoin( tmpdir(), testname, "changeset_B_to_base.bin" );
   std::string patchedAB = pathjoin( tmpdir(), testname, "patched_AB.gpkg" ) ;
+  std::string patchedAB_2 = pathjoin( tmpdir(), testname, "patched_AB_2.gpkg" ) ;
   std::string expected_patchedAB = pathjoin( testdir(), testname, expected_AB );
   std::string json = pathjoin( tmpdir(), testname, testname + ".json" );
   std::string json_summary = pathjoin( tmpdir(), testname, testname + "_summary.json" );
+
 
   // create changeset base to A
   if ( GEODIFF_createChangeset( base.c_str(), modifiedA.c_str(), changesetbaseA.c_str() ) != GEODIFF_SUCCESS )
@@ -87,7 +89,21 @@ bool _test(
 
   // check that it equals expected result
   std::cout << "final file: " << patchedAB << std::endl;
-  return equals( patchedAB, expected_patchedAB, ignore_timestamp_change ) ;
+  if ( !equals( patchedAB, expected_patchedAB, ignore_timestamp_change ) )
+  {
+    std::cout << "err equals A" << std::endl;
+    return false;
+  }
+
+  // now check that we get same result in case of direct rebase
+  filecopy( patchedAB_2, modifiedB );
+  if ( GEODIFF_rebase( base.c_str(), modifiedA.c_str(), patchedAB_2.c_str() ) != GEODIFF_SUCCESS )
+  {
+    std::cout << "err GEODIFF_rebase A" << std::endl;
+    return false;
+  }
+
+  return equals( patchedAB_2, expected_patchedAB, ignore_timestamp_change );
 }
 
 TEST( ConcurrentCommitsSqlite3Test, test_2_inserts )

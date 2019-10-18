@@ -66,6 +66,10 @@ class GeoDiff:
          
          raises SqliteDiffError on error
     """
+
+    def rebase(self, base, modified_their, modified):
+        return self.clib.rebase(base, modified_their, modified)
+
     def create_rebased_changeset(self, base, modified, changeset_their, changeset):
         return self.clib.create_rebased_changeset(base, modified, changeset_their, changeset)
 
