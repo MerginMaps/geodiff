@@ -10,6 +10,5 @@ sudo python3 -m pip install twine
 
 brew install ninja
 brew install pyenv
-pyenv install 3.8.0
 pyenv install 3.7.4
 pyenv install 3.6.8
