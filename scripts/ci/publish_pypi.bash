@@ -13,7 +13,7 @@ $DIR/clean.bash
 # publish sdist
 if [ "$TRAVIS_OS_NAME" == "linux" ]; then
    python3 setup.py sdist
-   ${PYTHON} -m twine upload  dist/* --username "__token__" --password "$PYPI_TOKEN"  --skip-existing
+   ${PYTHON} -m twine upload dist/pygeodiff*.tar.gz --username "__token__" --password "$PYPI_TOKEN"  --skip-existing
 fi
 
 $DIR/clean.bash

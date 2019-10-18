@@ -3,7 +3,7 @@
 ls -la /usr/local/opt
 ls -la /usr/local/Cellar
 
-
+brew update
 brew install python3
 sudo python3 -m pip install nose2
 sudo python3 -m pip install twine

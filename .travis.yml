@@ -5,8 +5,6 @@ matrix:
   - os: linux
     dist: xenial
   - os: osx
-    osx_image: xcode10
-  - os: osx
     osx_image: xcode11
   - os: windows
 env:
@@ -25,4 +23,3 @@ script:
 after_script:
 - ./scripts/ci/publish_pypi.bash
 # - if [ -n "$TRAVIS_TAG" ]; ./scripts/ci/publish_pypi.bash ; fi
-
