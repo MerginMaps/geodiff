@@ -44,23 +44,7 @@ def _parse_return_code(rc, msg):
 class GeoDiffLib:
     def __init__(self, name):
         if name is None:
-            # ok lets assume that the package is installed through PIP
-            if platform.system() == 'Windows':
-                arch = platform.architecture()[0] #64bit or 32bit
-                if "32" in arch:
-                    suffix = "-win32.dll"
-                else:
-                    suffix = ".dll"
-                prefix = "lib"
-            elif platform.system() == 'Darwin':
-                prefix = "lib"
-                suffix = ".dylib"
-            else:
-                prefix = "lib"
-                suffix = ".so"
-            whl_lib = prefix + 'pygeodiff-' + __version__ + '-python' + suffix
-            dir_path = os.path.dirname(os.path.realpath(__file__))
-            self.libname = os.path.join(dir_path, whl_lib)
+            self.libname = self.package_libname()
             if not os.path.exists(self.libname):
                 # not found, try system library
                 self.libname = find_library("geodiff")
@@ -68,11 +52,30 @@ class GeoDiffLib:
             self.libname = name
 
         if self.libname is None:
-            raise GeoDiffLibVersionError("Unable to locate geodiff library")
+            raise GeoDiffLibVersionError("Unable to locate GeoDiff library, tried " + self.package_libname() + " and geodiff on system.")
 
         self.lib = ctypes.CDLL(self.libname, use_errno=True)
         self.init()
         self.check_version()
+
+    def package_libname(self):
+        # assume that the package is installed through PIP
+        if platform.system() == 'Windows':
+            arch = platform.architecture()[0]  # 64bit or 32bit
+            if "32" in arch:
+                suffix = "-win32.dll"
+            else:
+                suffix = ".dll"
+            prefix = "lib"
+        elif platform.system() == 'Darwin':
+            prefix = "lib"
+            suffix = ".dylib"
+        else:
+            prefix = "lib"
+            suffix = ".so"
+        whl_lib = prefix + 'pygeodiff-' + __version__ + '-python' + suffix
+        dir_path = os.path.dirname(os.path.realpath(__file__))
+        return os.path.join(dir_path, whl_lib)
 
     def init(self):
         func = self.lib.GEODIFF_init
