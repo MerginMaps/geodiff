@@ -39,7 +39,7 @@ install:
 
   # Install the wheel to test it
   - "%PYTHON% -m pip install --ignore-installed --pre --no-index --find-links dist/ pygeodiff"
-  - ps: "ls C:\projects\geodiff\pygeodiff"
+  - ps: "ls C:\\projects\\geodiff\\pygeodiff"
 
 # Appveyor's build step is specific to .NET projects, so we build in the
 # install step instead.
