@@ -39,7 +39,6 @@ install:
 
   # Install the wheel to test it
   - "%PYTHON% -m pip install --ignore-installed --pre --no-index --find-links dist/ pygeodiff"
-  - ps: "ls C:\\projects\\geodiff\\pygeodiff"
 
 # Appveyor's build step is specific to .NET projects, so we build in the
 # install step instead.
@@ -49,7 +48,7 @@ build: off
 skip_branch_with_pr: true
 
 test_script:
-  - "%PYTHON% -c \"import pygeodiff as p; g=p.GeoDiff(); g.version();\""
+  - "%PYTHON% -m twine upload dist\\*.whl"
 
 on_success:
   - cmd: "if [%APPVEYOR_REPO_TAG%]==[true] %PYTHON% -m twine upload dist\\*.whl"
