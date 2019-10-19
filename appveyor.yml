@@ -9,25 +9,27 @@ environment:
     - PYTHON: "C:\\Python36\\python"
       PYTHON_VERSION: "3.6.8"
       PYTHON_ARCH: "32"
+      CMAKE_GENERATOR: "Visual Studio 15 2017"
 
     - PYTHON: "C:\\Python37\\python"
       PYTHON_VERSION: "3.7.4"
       PYTHON_ARCH: "32"
+      CMAKE_GENERATOR: "Visual Studio 15 2017"
 
     - PYTHON: "C:\\Python36-x64\\python"
       PYTHON_VERSION: "3.6.8"
       PYTHON_ARCH: "64"
+      CMAKE_GENERATOR: "Visual Studio 15 2017 Win64"
 
     - PYTHON: "C:\\Python37-x64\\python"
       PYTHON_VERSION: "3.7.4"
       PYTHON_ARCH: "64"
+      CMAKE_GENERATOR: "Visual Studio 15 2017 Win64"
 
 init:
-  - "ECHO %PYTHON% %PYTHON_VERSION% %PYTHON_ARCH%"
+  - "ECHO %PYTHON% %PYTHON_VERSION% %PYTHON_ARCH% %CMAKE_GENERATOR%"
 
 install:
-  # install.ps1 only needed for SDL1 stuff.
-  # - "powershell buildconfig\\ci\\appveyor\\install.ps1"
   - "%PYPY_DOWNLOAD%"
   - "set HOME=%APPVEYOR_BUILD_FOLDER%"
   - "SET PATH=%PYTHON%;%PYTHON%\\Scripts;%PATH%"
