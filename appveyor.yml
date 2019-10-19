@@ -48,7 +48,7 @@ build: off
 skip_branch_with_pr: true
 
 test_script:
-  - "%PYTHON% -m twine upload dist\\*.whl"
+  - "%PYTHON% -c \"import pygeodiff;\""
 
 on_success:
-  - cmd: "if [%APPVEYOR_REPO_TAG%]==[true] %PYTHON% -m twine upload dist\\*.whl"
+  - cmd: "if [%APPVEYOR_REPO_TAG%]==[true] %PYTHON% -m twine upload dist\\*.whl --skip-existing"
