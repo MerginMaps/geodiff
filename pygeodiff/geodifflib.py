@@ -60,16 +60,18 @@ class GeoDiffLib:
 
     def package_libname(self):
         # assume that the package is installed through PIP
-        prefix = "lib"
         if platform.system() == 'Windows':
+            prefix = ""
             arch = platform.architecture()[0]  # 64bit or 32bit
             if "32" in arch:
                 suffix = "-win32.dll"
             else:
                 suffix = ".dll"
         elif platform.system() == 'Darwin':
+            prefix = "lib"
             suffix = ".dylib"
         else:
+            prefix = "lib"
             suffix = ".so"
         whl_lib = prefix + 'pygeodiff-' + __version__ + '-python' + suffix
         dir_path = os.path.dirname(os.path.realpath(__file__))

@@ -41,10 +41,10 @@ for plat in plats:
     os.system("cp "+platdir+"/pygeodiff/*.{so,dll,dylib} "+FINALDIR+"/")
 
 if ((not os.path.exists(FINALDIR)) or
-    (not os.path.exists(FINALDIR + "/libpygeodiff-" + VERSION + "-python.dll")) or
+    (not os.path.exists(FINALDIR + "/pygeodiff-" + VERSION + "-python.dll")) or
+    (not os.path.exists(FINALDIR + "/pygeodiff-" + VERSION + "-python-win32.dll")) or
     (not os.path.exists(FINALDIR + "/libpygeodiff-" + VERSION + "-python.dylib")) or
-    (not os.path.exists(FINALDIR + "/libpygeodiff-" + VERSION + "-python.so")) or
-    (not os.path.exists(FINALDIR + "/libpygeodiff-" + VERSION + "-python-win32.dll"))
+    (not os.path.exists(FINALDIR + "/libpygeodiff-" + VERSION + "-python.so"))
    ):
     print ("ERROR")
     exit(1)
