@@ -311,6 +311,12 @@ int GEODIFF_changesCount( const char *changeset )
 
 static int listChangesJSON( const char *changeset, const char *jsonfile, bool onlySummary )
 {
+  if ( !jsonfile || !changeset )
+  {
+    Logger::instance().error( "NULL arguments to listChangesJSON" );
+    return GEODIFF_ERROR;
+  }
+
   try
   {
     Buffer buf;
