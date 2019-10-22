@@ -384,10 +384,12 @@ void _handle_delete(
   }
 
   // find the previously new values (will be used as the old values in the rebased version)
+  SqValues patchedVals;
   auto a = tableInfo.updated.find( pk );
   if ( a == tableInfo.updated.end() )
-    throw GeoDiffException( "internal error: _get_new SqOperations" );
-  SqValues patchedVals = a->second;
+    patchedVals.resize( static_cast<size_t>( pnCol ) );
+  else
+    patchedVals = a->second;
 
   // first write operation type (iType)
   out->put( SQLITE_DELETE );
@@ -438,10 +440,12 @@ void _handle_update(
   }
 
   // find the previously new values (will be used as the old values in the rebased version)
+  SqValues patchedVals;
   auto a = tableInfo.updated.find( pk );
   if ( a == tableInfo.updated.end() )
-    throw GeoDiffException( "internal error: _get_new SqOperations" );
-  SqValues patchedVals = a->second;
+    patchedVals.resize( static_cast<size_t>( pnCol ) );
+  else
+    patchedVals = a->second;
 
   // first write operation type (iType)
   out->put( SQLITE_UPDATE );
@@ -468,10 +472,10 @@ void _handle_update(
     pp.newValue( i, &value );
     out->putValue( value );
   }
-
 }
 
-int _prepare_new_changeset( const Buffer &buf, const std::string &changesetNew, const RebaseMapping &mapping, const DatabaseRebaseInfo &dbInfo )
+int _prepare_new_changeset( const Buffer &buf, const std::string &changesetNew,
+                            const RebaseMapping &mapping, const DatabaseRebaseInfo &dbInfo )
 {
   Sqlite3ChangesetIter pp;
   pp.start( buf );
@@ -529,15 +533,21 @@ int _prepare_new_changeset( const Buffer &buf, const std::string &changesetNew, 
     {
       out = buffer->second;
     }
-    // now save the change to changeset
+
+    auto tablesIt = dbInfo.tables.find( pzTab );
+    if ( tablesIt == dbInfo.tables.end() )
+    {
+      // we have change in different table that was modified in theirs modifications
+      // just copy plain the change to the output buffer
+      out->putChangesetIter( pp, pnCol, pOp );
+      continue;
+    }
+
+    // commits to same table -> now save the change to changeset
     switch ( pOp )
     {
       case SQLITE_UPDATE:
       {
-        auto tablesIt = dbInfo.tables.find( pzTab );
-        if ( tablesIt == dbInfo.tables.end() )
-          throw GeoDiffException( "internal error in _get_new SqOperations" );
-
         _handle_update(
           pp,
           pzTab,
@@ -563,10 +573,6 @@ int _prepare_new_changeset( const Buffer &buf, const std::string &changesetNew, 
       }
       case SQLITE_DELETE:
       {
-        auto tablesIt = dbInfo.tables.find( pzTab );
-        if ( tablesIt == dbInfo.tables.end() )
-          throw GeoDiffException( "internal error in _get_new SqOperations" );
-
         _handle_delete(
           pp,
           pzTab,
@@ -579,10 +585,9 @@ int _prepare_new_changeset( const Buffer &buf, const std::string &changesetNew, 
         break;
       }
     }
-
   }
 
-  // join buffers to one file (ugly ugly)
+  // join buffers to one file
   FILE *out = fopen( changesetNew.c_str(), "wb" );
   if ( !out )
   {

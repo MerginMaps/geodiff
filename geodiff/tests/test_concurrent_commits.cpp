@@ -58,7 +58,7 @@ bool _test(
   nchanges = GEODIFF_changesCount( changesetAB.c_str() );
   if ( nchanges != expected_changes_AB )
   {
-    std::cout << "err GEODIFF_listChanges AB: " << nchanges << " expected: " << expected_changes_AB << std::endl;
+    std::cout << "err GEODIFF_listChanges AB: " << nchanges << " expected: " << expected_changes_AB << " in " << changesetAB << std::endl;
     return false;
   }
 
@@ -73,14 +73,14 @@ bool _test(
   // check that then new data has both edits
   if ( GEODIFF_createChangeset( base.c_str(), patchedAB.c_str(), changesetBbase.c_str() ) != GEODIFF_SUCCESS )
   {
-    std::cout << "err GEODIFF_createChangeset Bbase" << std::endl;
+    std::cout << "err GEODIFF_createChangeset B -> base" << std::endl;
     return false;
   }
 
   nchanges = GEODIFF_changesCount( changesetBbase.c_str() );
   if ( nchanges != expected_changes_XB )
   {
-    std::cout << "err GEODIFF_listChanges Bbase: " << nchanges << std::endl;
+    std::cout << "err GEODIFF_listChanges B->base: " << nchanges << " expected: " << expected_changes_XB << " in " << changesetBbase << std::endl;
     return false;
   }
 
@@ -201,6 +201,67 @@ TEST( ConcurrentCommitsSqlite3Test, test_update_delete )
                2,
                2
              );
+  ASSERT_TRUE( ret );
+}
+
+TEST( ConcurrentCommitsSqlite3Test, test_update_extent )
+{
+  std::cout << "the base2theirs contains only a change to \"simple\" table, ";
+  std::cout << "but base2modified contains an update to a gpkg_contents table (extent)" << std::endl;
+  std::cout << "https://github.com/lutraconsulting/geodiff/issues/30" << std::endl;
+
+  bool ret = _test(
+               "base.gpkg",
+               "updates_to_different_tables",
+               "add_1.gpkg",
+               "add_1_outside_extent.gpkg",
+               "final_extent.gpkg",
+               2,
+               2,
+               3
+             );
+  ASSERT_TRUE( ret );
+}
+
+TEST( ConcurrentCommitsSqlite3Test, test_update_2_different_tables )
+{
+  std::cout << "both concurrent changes different tables" << std::endl;
+  std::cout << "https://github.com/lutraconsulting/geodiff/issues/29" << std::endl;
+
+  bool ret = _test(
+               "base3.gpkg",
+               "updates_to_different_tables",
+               "add_point.gpkg",
+               "add_line.gpkg",
+               "final_add_line.gpkg",
+               2,
+               2,
+               4
+             );
+  ASSERT_TRUE( ret );
+
+  ret = _test(
+          "base3.gpkg",
+          "updates_to_different_tables",
+          "add_point.gpkg",
+          "modify_line.gpkg",
+          "final_modify_line.gpkg",
+          2,
+          3,
+          5
+        );
+  ASSERT_TRUE( ret );
+
+  ret = _test(
+          "base3.gpkg",
+          "updates_to_different_tables",
+          "add_point.gpkg",
+          "remove_line.gpkg",
+          "final_delete_line.gpkg",
+          2,
+          2,
+          4
+        );
   ASSERT_TRUE( ret );
 }
 

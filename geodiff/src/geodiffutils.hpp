@@ -285,6 +285,9 @@ class BinaryStream
     // see stdio.h::fwrite
     size_t write( const void *ptr, size_t size, size_t nitems );
 
+    // plain copy of iteration to buffer
+    void putChangesetIter( Sqlite3ChangesetIter &pp, int pnCol, int pOp );
+
   private:
     void close();
     void remove();

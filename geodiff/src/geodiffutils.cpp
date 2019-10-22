@@ -665,6 +665,46 @@ size_t BinaryStream::write( const void *ptr, size_t size, size_t nitems )
   return fwrite( ptr, size, nitems, mBuffer );
 }
 
+void BinaryStream::putChangesetIter( Sqlite3ChangesetIter &pp, int pnCol, int pOp )
+{
+  put( pOp );
+  put( 0 );
+
+  if ( pOp == SQLITE_INSERT )
+  {
+    sqlite3_value *value;
+    for ( int i = 0; i < pnCol; i++ )
+    {
+      pp.newValue( i, &value );
+      putValue( value );
+    }
+  }
+  else if ( pOp == SQLITE_UPDATE )
+  {
+    sqlite3_value *value;
+
+    for ( int i = 0; i < pnCol; i++ )
+    {
+      pp.oldValue( i, &value );
+      putValue( value );
+    }
+    for ( int i = 0; i < pnCol; i++ )
+    {
+      pp.newValue( i, &value );
+      putValue( value );
+    }
+  }
+  else if ( pOp == SQLITE_DELETE )
+  {
+    sqlite3_value *value;
+    for ( int i = 0; i < pnCol; i++ )
+    {
+      pp.oldValue( i, &value );
+      putValue( value );
+    }
+  }
+}
+
 void BinaryStream::close()
 {
   if ( mBuffer )
