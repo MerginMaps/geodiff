@@ -1,7 +1,7 @@
 __title__ = 'PyGeoDiff'
 __description__ = 'Diff tool for geo-spatial data'
 __url__ = 'https://github.com/lutraconsulting/geodiff'
-__version__ = '0.7.2'
+__version__ = '0.7.3'
 __author__ = 'Peter Petrik'
 __author_email__ = 'zilolv@gmail.com'
 __maintainer__ = 'Peter Petrik'
