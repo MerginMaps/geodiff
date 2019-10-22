@@ -241,12 +241,12 @@ int GEODIFF_createRebasedChangeset( const char *base, const char *modified, cons
       return GEODIFF_ERROR;
     }
 
-    std::string changeset_BASE_MODIFIED = std::string( changeset ) + "_BASE_MODIFIED";
-    int rc = GEODIFF_createChangeset( base, modified, changeset_BASE_MODIFIED.c_str() );
+    TmpFile changeset_BASE_MODIFIED( std::string( changeset ) + "_BASE_MODIFIED" );
+    int rc = GEODIFF_createChangeset( base, modified, changeset_BASE_MODIFIED.c_path() );
     if ( rc != GEODIFF_SUCCESS )
       return rc;
 
-    return rebase( changeset_their, changeset, changeset_BASE_MODIFIED );
+    return rebase( changeset_their, changeset, changeset_BASE_MODIFIED.path() );
   }
   catch ( GeoDiffException exc )
   {
@@ -464,7 +464,7 @@ int GEODIFF_rebase( const char *base, const char *modified_their, const char *mo
     // situation 3: we have changes both in ours and theirs
 
     // 3A) Create all changesets
-    TmpFile theirs2final( root + "theirs2final.bin" );
+    TmpFile theirs2final( root + "_theirs2final.bin" );
     if ( GEODIFF_createRebasedChangeset( base, modified, base2theirs.c_path(), theirs2final.c_path() ) != GEODIFF_SUCCESS )
     {
       Logger::instance().error( "Unable to perform GEODIFF_createChangeset theirs2final" );
