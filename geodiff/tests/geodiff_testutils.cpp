@@ -99,12 +99,7 @@ std::string tmp_file( std::string basename )
 
 void init_test()
 {
-#ifdef WIN32
-  _putenv( "GEODIFF_LOGGER_LEVEL=4" );
-#else
-  setenv( "GEODIFF_LOGGER_LEVEL", "4", 1 );
-#endif
-  GEODIFF_init();
+  GEODIFF_init( nullptr, true );
 }
 
 void finalize_test()

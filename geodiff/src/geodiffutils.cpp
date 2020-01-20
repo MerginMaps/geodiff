@@ -46,8 +46,9 @@ const char *GeoDiffException::what() const throw()
 // ////////////////////////////////////////////////////////////////////////
 
 Logger::Logger()
+  : mLoggerCallback( nullptr )
+  , mDebugMode( false )
 {
-  levelFromEnv();
 }
 
 Logger &Logger::instance()
@@ -56,62 +57,56 @@ Logger &Logger::instance()
   return instance;
 }
 
-Logger::LoggerLevel Logger::level() const
+void Logger::setCallback( LoggerCallback loggerCallback )
 {
-  return mLevel;
+  mLoggerCallback = loggerCallback;
 }
 
 void Logger::debug( const std::string &msg )
 {
-  log( LevelDebug, msg );
+  log( LoggerLevel::LevelDebug, msg );
 }
 
 void Logger::warn( const std::string &msg )
 {
-  log( LevelWarnings, msg );
+  log( LoggerLevel::LevelWarning, msg );
 }
 
 void Logger::error( const std::string &msg )
 {
-  log( LevelErrors, msg );
+  log( LoggerLevel::LevelError, msg );
 }
 
 void Logger::error( const GeoDiffException &exp )
 {
-  log( LevelErrors, exp.what() );
+  log( LoggerLevel::LevelError, exp.what() );
 }
 
 void Logger::info( const std::string &msg )
 {
-  log( LevelInfos, msg );
+  log( LoggerLevel::LevelInfo, msg );
 }
 
 void Logger::log( LoggerLevel level, const std::string &msg )
 {
-  if ( static_cast<int>( level ) > static_cast<int>( mLevel ) )
+  if ( isDebugMode() && level == LevelDebug )
     return;
 
-  std::string prefix;
-  switch ( level )
+  if ( mLoggerCallback )
   {
-    case LevelErrors: prefix = "Error: "; break;
-    case LevelWarnings: prefix = "Warn: "; break;
-    case LevelDebug: prefix = "Debug: "; break;
-    default: break;
+    mLoggerCallback( level, msg.c_str() );
   }
-  std::cout << prefix << msg << std::endl ;
-}
-
-void Logger::levelFromEnv()
-{
-  char *val = getenv( "GEODIFF_LOGGER_LEVEL" );
-  if ( val )
+  else
   {
-    int level = atoi( val );
-    if ( level >= LevelNothing && level <= LevelDebug )
+    std::string prefix;
+    switch ( level )
     {
-      mLevel = ( LoggerLevel )level;
+      case LevelError: prefix = "Error: "; break;
+      case LevelWarning: prefix = "Warn: "; break;
+      case LevelDebug: prefix = "Debug: "; break;
+      default: break;
     }
+    std::cout << prefix << msg << std::endl ;
   }
 }
 

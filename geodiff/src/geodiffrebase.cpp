@@ -70,7 +70,7 @@ struct DatabaseRebaseInfo
 
   void dump()
   {
-    if ( Logger::instance().level() < Logger::LevelDebug )
+    if ( ! Logger::instance().isDebugMode() )
       return;
 
     std::ostringstream ret;
@@ -145,7 +145,7 @@ struct RebaseMapping
 
   void dump() const
   {
-    if ( Logger::instance().level() < Logger::LevelDebug )
+    if ( ! Logger::instance().isDebugMode() )
       return;
 
     std::ostringstream ret;

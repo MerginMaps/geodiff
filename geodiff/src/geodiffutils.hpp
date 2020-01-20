@@ -12,6 +12,7 @@
 #include <vector>
 
 #include "sqlite3.h"
+#include "geodiff.h"
 
 class Buffer;
 
@@ -38,17 +39,10 @@ class GeoDiffException: public std::exception
 class Logger
 {
   public:
-    enum LoggerLevel
-    {
-      LevelNothing = 0,
-      LevelErrors = 1,
-      LevelWarnings = 2,
-      LevelInfos = 3,
-      LevelDebug = 4
-    };
-
     static Logger &instance();
-    LoggerLevel level() const;
+    void setCallback( LoggerCallback loggerCallback );
+    void enableDebugMode( bool isDebugMode ) {mDebugMode = isDebugMode;}
+    bool isDebugMode() const { return mDebugMode; }
     Logger( Logger const & ) = delete;
     void operator=( Logger const & ) = delete;
     void debug( const std::string &msg );
@@ -59,10 +53,9 @@ class Logger
     void error( const GeoDiffException &exp );
   private:
     Logger();
+    LoggerCallback mLoggerCallback;
+    bool mDebugMode;
     void log( LoggerLevel level, const std::string &msg );
-    void levelFromEnv();
-
-    LoggerLevel mLevel = LevelErrors; //by default record errors
 };
 
 class Sqlite3Db

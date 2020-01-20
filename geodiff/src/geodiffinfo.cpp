@@ -4,6 +4,7 @@
 */
 
 #include "geodiff.h"
+#include <iostream>
 #include <stdio.h>
 #include <string.h>
 #include <string>
@@ -11,13 +12,51 @@
 void help()
 {
   printf( "GEODIFF %s", GEODIFF_version() );
-  printf( "geodiffinfo <mode> [args...]\n" );
+  printf( "geodiffinfo <mode> [args...]\n\n" );
+  printf( "you can control verbosity of the log by env variable\n" );
+  printf( "GEODIFF_LOGGER_LEVEL 0(Nothing)-4(Debug)\n" );
+  printf( "by default you get only errors printed to stdout\n\n" );
   printf( "[version info] geodiffinfo version\n" );
   printf( "[create changeset] geodiffinfo createChangeset base modified changeset\n" );
   printf( "[create rebased changeset] geodiffinfo createRebasedChangeset base modified changeset_their changeset\n" );
   printf( "[apply changeset] geodiffinfo applyChangeset base changeset\n" );
   printf( "[list changes (JSON) in changeset] geodiffinfo listChanges changeset json\n" );
   printf( "[list summary of changes (JSON) in changeset] geodiffinfo listChangesSummary changeset json\n" );
+}
+
+int _envInt( const char *key )
+{
+  char *val = getenv( "GEODIFF_LOGGER_LEVEL" );
+  if ( val )
+  {
+    return atoi( val );
+  }
+  return 0;
+}
+
+void StdoutLogger( LoggerLevel level, const char *msg )
+{
+  // Sort out which
+  int outLevel = LoggerLevel::LevelError;
+  int envLevel = _envInt( "GEODIFF_LOGGER_LEVEL" );
+  if ( envLevel > 0 && envLevel <= LoggerLevel::LevelDebug )
+  {
+    outLevel = envLevel;
+  }
+
+  // Check out if we want to print this message
+  if ( static_cast<int>( level ) > static_cast<int>( outLevel ) )
+    return;
+
+  std::string prefix;
+  switch ( level )
+  {
+    case LevelError: prefix = "Error: "; break;
+    case LevelWarning: prefix = "Warn: "; break;
+    case LevelDebug: prefix = "Debug: "; break;
+    default: break;
+  }
+  std::cout << prefix << msg << std::endl ;
 }
 
 int err( const std::string msg )
@@ -84,7 +123,13 @@ int listChangesSummary( int argc, char *argv[] )
 
 int main( int argc, char *argv[] )
 {
-  GEODIFF_init();
+  bool debug = false;
+  int envLevel = _envInt( "GEODIFF_LOGGER_LEVEL" );
+  if ( envLevel == LoggerLevel::LevelDebug )
+  {
+    debug = true;
+  }
+  GEODIFF_init( ( LoggerCallback )( &StdoutLogger ), debug );
 
   if ( argc > 1 )
   {

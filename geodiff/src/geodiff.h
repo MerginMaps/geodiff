@@ -41,21 +41,32 @@ extern "C" {
 #endif
 
 /**
-* NOTE:
-* the messages printed to stdout can be controlled by
-* environment variable GEODIFF_LOGGER_LEVEL
-* GEODIFF_LOGGER_LEVEL = 0 nothing is printed
-* GEODIFF_LOGGER_LEVEL = 1 errors are printed
-* GEODIFF_LOGGER_LEVEL = 2 errors and warnings are printed
-* GEODIFF_LOGGER_LEVEL = 3 errors, warnings and infos are printed
-* GEODIFF_LOGGER_LEVEL = 4 errors, warnings, infos, debug messages are printed
+* Type of message level to log
 */
+enum LoggerLevel
+{
+  LevelError = 0,
+  LevelWarning = 1,
+  LevelInfo = 2,
+  LevelDebug = 3
+};
+
+/**
+ * Callback function pointer to redirect log
+ */
+typedef void ( /*__stdcall*/ *LoggerCallback )( LoggerLevel level, const char *msg );
 
 /**
  * Initialize library
+ *
  * Call before usage of any other function from the library
+ * use nullptr for loggerCallback in case you want to output all to
+ * standart output
+ *
+ * if debug = False, the loggerCallback with not even receive debug messages
+ * if debug = True, you receive debug messages, but you have still option to not display them
  */
-GEODIFF_EXPORT void GEODIFF_init();
+GEODIFF_EXPORT void GEODIFF_init( LoggerCallback loggerCallback, bool debug );
 
 //! Returns version in format X.Y.Z where xyz are positive integers
 GEODIFF_EXPORT const char *GEODIFF_version();

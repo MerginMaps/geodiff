@@ -23,7 +23,7 @@
 
 const char *GEODIFF_version()
 {
-  return "0.7.7";
+  return "0.8.0";
 }
 
 void _errorLogCallback( void *pArg, int iErrCode, const char *zMsg )
@@ -33,11 +33,13 @@ void _errorLogCallback( void *pArg, int iErrCode, const char *zMsg )
 }
 
 static bool gInitialized = false;
-void GEODIFF_init()
+void GEODIFF_init( LoggerCallback loggerCallback, bool debug )
 {
   if ( !gInitialized )
   {
     gInitialized = true;
+    Logger::instance().setCallback( loggerCallback );
+    Logger::instance().enableDebugMode( debug );
     sqlite3_config( SQLITE_CONFIG_LOG, _errorLogCallback );
     sqlite3_initialize();
   }
