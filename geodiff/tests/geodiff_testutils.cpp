@@ -97,9 +97,22 @@ std::string tmp_file( std::string basename )
   return path;
 }
 
+static void logger( LoggerLevel level, const char *msg )
+{
+  std::string prefix;
+  switch ( level )
+  {
+    case LevelError: prefix = "Error: "; break;
+    case LevelWarning: prefix = "Warn: "; break;
+    case LevelDebug: prefix = "Debug: "; break;
+    default: break;
+  }
+  std::cout << prefix << msg << std::endl ;
+}
+
 void init_test()
 {
-  GEODIFF_init( nullptr, true );
+  GEODIFF_init( &logger, true );
 }
 
 void finalize_test()

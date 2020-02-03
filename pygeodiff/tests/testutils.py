@@ -10,6 +10,7 @@ import tempfile
 import pygeodiff
 import json
 
+
 class TestError(Exception):
   pass
 
@@ -88,16 +89,17 @@ def compare_json(json, expected_json):
         raise TestError("JSON generated is different from expected")
 
 
+def logger(level, rawString):
+    msg = rawString.decode('utf-8')
+    print( "GEODIFFTEST: " + str(level) + " " + msg )
+
+
 class GeoDiffTests(unittest.TestCase):
     def setUp(self):
-        # set env
-        os.environ["GEODIFF_LOGGER_LEVEL"] = "4"
         # load lib
         lib = os.environ.get("GEODIFFLIB", None)
         if lib is None:
             raise TestError("missing GEODIFFLIB env variable")
         if not os.path.exists(lib):
             raise TestError("lib {} is missing ".format(lib))
-        self.geodiff = pygeodiff.GeoDiff(lib)
-
-
+        self.geodiff = pygeodiff.GeoDiff(lib, logger, True)

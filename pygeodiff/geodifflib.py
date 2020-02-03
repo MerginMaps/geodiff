@@ -41,8 +41,24 @@ def _parse_return_code(rc, msg):
         raise GeoDiffLibConflictError(msg)
 
 
+def stdLoggerCallback(level, rawString):
+    envLevel = os.environ.get('GEODIFF_LOGGER_LEVEL', 3)
+    if level > envLevel:
+        return
+
+    decodedString = rawString.decode('utf-8')
+    prefix = ""
+    if level == 0:
+        prefix = "Error: "
+    elif level == 1:
+        prefix = "Warning: "
+    elif level == 4:
+        prefix = "Debug: "
+    print(prefix + decodedString)
+
+
 class GeoDiffLib:
-    def __init__(self, name):
+    def __init__(self, name, callback, isDebug):
         if name is None:
             self.libname = self.package_libname()
             if not os.path.exists(self.libname):
@@ -55,7 +71,7 @@ class GeoDiffLib:
             raise GeoDiffLibVersionError("Unable to locate GeoDiff library, tried " + self.package_libname() + " and geodiff on system.")
 
         self.lib = ctypes.CDLL(self.libname, use_errno=True)
-        self.init()
+        self.init(callback, isDebug)
         self.check_version()
 
     def package_libname(self):
@@ -77,9 +93,15 @@ class GeoDiffLib:
         dir_path = os.path.dirname(os.path.realpath(__file__))
         return os.path.join(dir_path, whl_lib)
 
-    def init(self):
+    def init(self, callback, isDebug):
         func = self.lib.GEODIFF_init
-        func()
+        CMPFUNC = ctypes.CFUNCTYPE(None, ctypes.c_int, ctypes.c_char_p)
+        func.argtypes = [CMPFUNC, ctypes.c_bool]
+        if callback is None:
+            self.callbackLogger = CMPFUNC(stdLoggerCallback)
+        else:
+            self.callbackLogger = CMPFUNC(callback)
+        func(self.callbackLogger, isDebug)
 
     def version(self):
         func = self.lib.GEODIFF_version

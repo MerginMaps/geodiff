@@ -13,9 +13,11 @@ from .geodifflib import GeoDiffLib
 class GeoDiff:
     """
         if libname is None, it tries to import c-extension from wheel
+        if callback is None, output is printed to stdout and can be adjusted by environment variable GEODIFF_LOGGER_LEVEL 0(Nothing)-4(Debug)
+        if isDebug is False, it does not create any debug messages at all (only errors, warnings and info)
     """
-    def __init__(self, libname=None):
-        self.clib = GeoDiffLib(libname)
+    def __init__(self, libname=None, callback=None, isDebug=False):
+        self.clib = GeoDiffLib(libname, callback, isDebug)
 
     """
         Creates changeset file (binary) in such way that

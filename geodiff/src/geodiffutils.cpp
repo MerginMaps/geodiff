@@ -96,18 +96,6 @@ void Logger::log( LoggerLevel level, const std::string &msg )
   {
     mLoggerCallback( level, msg.c_str() );
   }
-  else
-  {
-    std::string prefix;
-    switch ( level )
-    {
-      case LevelError: prefix = "Error: "; break;
-      case LevelWarning: prefix = "Warn: "; break;
-      case LevelDebug: prefix = "Debug: "; break;
-      default: break;
-    }
-    std::cout << prefix << msg << std::endl ;
-  }
 }
 
 // ////////////////////////////////////////////////////////////////////////

@@ -7,7 +7,7 @@
 from .testutils import *
 import os
 import shutil
-
+import pygeodiff
 
 def basetest(
         geodiff,
@@ -84,3 +84,13 @@ class UnitTestsPythonSingleCommit(GeoDiffTests):
              7,
              True,
              expected_json=testdir() + "/complex/complex1.json")
+
+    def test_error_input(self):
+        print("********************************************************")
+        print("PYTHON: " + "error input")
+        try:
+            self.geodiff.create_changeset("aaaa", "aaaa", "aaaa")
+            raise TestError("expected failure")
+        except pygeodiff.GeoDiffLibError:
+            # OK
+            pass

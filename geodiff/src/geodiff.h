@@ -60,8 +60,7 @@ typedef void ( /*__stdcall*/ *LoggerCallback )( LoggerLevel level, const char *m
  * Initialize library
  *
  * Call before usage of any other function from the library
- * use nullptr for loggerCallback in case you want to output all to
- * standart output
+ * when loggerCallback is nullptr, no output is produced at all
  *
  * if debug = False, the loggerCallback with not even receive debug messages
  * if debug = True, you receive debug messages, but you have still option to not display them

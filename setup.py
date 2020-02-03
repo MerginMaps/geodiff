@@ -15,7 +15,7 @@ from setuptools import find_packages
 #from setuptools import setup
 from skbuild import setup
 
-VERSION = '0.7.7'
+VERSION = '0.8.0'
 
 setup(
     name="pygeodiff",
