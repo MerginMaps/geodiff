@@ -81,7 +81,7 @@ typedef void ( /*__stdcall*/ *LoggerCallback )( LoggerLevel level, const char *m
  * maxLogLevel = 3 errors, warnings and infos are passed to logger callback
  * maxLogLevel = 4 errors, warnings, infos, debug messages are passed to logger callback
  */
-GEODIFF_EXPORT void GEODIFF_setLogging( LoggerCallback loggerCallback, LoggerLevel maxLogLevel);
+GEODIFF_EXPORT void GEODIFF_setLogging( LoggerCallback loggerCallback, LoggerLevel maxLogLevel );
 
 //! Returns version in format X.Y.Z where xyz are positive integers
 GEODIFF_EXPORT const char *GEODIFF_version();

@@ -113,7 +113,7 @@ static void logger( LoggerLevel level, const char *msg )
 void init_test()
 {
   GEODIFF_init();
-  GEODIFF_setLogging(&logger, LoggerLevel::LevelDebug);
+  GEODIFF_setLogging( &logger, LoggerLevel::LevelDebug );
 }
 
 void finalize_test()

@@ -37,10 +37,10 @@ Logger::Logger()
   int envLevel = _envInt( "GEODIFF_LOGGER_LEVEL" );
   if ( envLevel > 0 && envLevel <= LoggerLevel::LevelDebug )
   {
-    setMaxLogLevel( static_cast<LoggerLevel>(envLevel) );
+    setMaxLogLevel( static_cast<LoggerLevel>( envLevel ) );
   }
 
-  setCallback(&StdoutLogger);
+  setCallback( &StdoutLogger );
 }
 
 Logger &Logger::instance()
