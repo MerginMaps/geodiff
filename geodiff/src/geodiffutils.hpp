@@ -39,6 +39,10 @@ class Sqlite3Db
     sqlite3 *mDb = nullptr;
 };
 
+//! Create black simple geopackage database
+//! to be able to run ST_* functions
+std::shared_ptr<Sqlite3Db> blankGeopackageDb();
+
 class Sqlite3Session
 {
   public:
@@ -267,6 +271,43 @@ class TmpFile
     const char *c_path() const;
   private:
     std::string mPath;
+};
+
+class ConflictItem
+{
+  public:
+    ConflictItem(
+      int column,
+      std::shared_ptr<Sqlite3Value> base,
+      std::shared_ptr<Sqlite3Value> theirs,
+      std::shared_ptr<Sqlite3Value> ours );
+
+    std::shared_ptr<Sqlite3Value> base() const;
+    std::shared_ptr<Sqlite3Value> theirs() const;
+    std::shared_ptr<Sqlite3Value> ours() const;
+    int column() const;
+
+  private:
+    int mColumn;
+    std::shared_ptr<Sqlite3Value> mBase;
+    std::shared_ptr<Sqlite3Value> mTheirs;
+    std::shared_ptr<Sqlite3Value> mOurs;
+};
+
+class ConflictFeature
+{
+  public:
+    ConflictFeature( int pk,
+                     const std::string &tableName );
+    bool isValid() const;
+    void addItem( const ConflictItem &item );
+    std::string tableName() const;
+    int pk() const;
+    std::vector<ConflictItem> items() const;
+  private:
+    int mPk;
+    std::string mTableName;
+    std::vector<ConflictItem> mItems;
 };
 
 

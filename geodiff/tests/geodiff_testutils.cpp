@@ -145,20 +145,23 @@ void makedir( const std::string &dir )
 #endif
 }
 
+void printFileToStdout( const std::string &caption, const std::string &filepath )
+{
+  std::cout << std::endl << caption << " (" << filepath << ")" << std::endl;
+  std::ifstream f( filepath );
+  if ( f.is_open() )
+    std::cout << f.rdbuf();
+}
+
 void printJSON( const std::string &changeset, const std::string &json, const std::string &json_summary )
 {
   // printout JSON summary
-  std::cout << "JSON Summary " << std::endl;
   GEODIFF_listChangesSummary( changeset.c_str(), json_summary.c_str() );
-  std::ifstream f2( json_summary );
-  if ( f2.is_open() )
-    std::cout << f2.rdbuf();
+  printFileToStdout( "JSON Summary", json_summary );
 
   // printout JSON
-  std::cout << std::endl << "JSON Full " << std::endl;
   GEODIFF_listChanges( changeset.c_str(), json.c_str() );
-  std::ifstream f( json );
-  if ( f.is_open() )
-    std::cout << f.rdbuf();
-
+  printFileToStdout( "JSON Full", json );
 }
+
+

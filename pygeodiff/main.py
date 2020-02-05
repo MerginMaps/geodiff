@@ -65,35 +65,59 @@ class GeoDiff:
         return self.clib.invert_changeset(changeset, changeset_inv)
 
     """ 
+        Rebases local modified version from base to modified_their version
+  
+               --- > MODIFIED_THEIR
+        BASE -|
+               ----> MODIFIED (local) ---> MODIFIED_THEIR_PLUS_MINE
+   
+        Steps performed on MODIFIED (local) file:
+        1. undo local changes MODIFIED -> BASE
+        2. apply changes from MODIFIED_THEIR
+        3. apply rebased local changes and create MODIFIED_THEIR_PLUS_MINE
+ 
+        Note, when rebase is not successfull, modified could be in random state.
+        This works in general, even when base==modified, or base==modified_theirs
+        
+         \param base [input] BASE sqlite3/geopackage file
+         \param modified_their [input] MODIFIED sqlite3/geopackage file
+         \param modified [input] local copy of the changes to be rebased
+         \param conflict [output] file where the automatically resolved conflicts are stored
+         \returns number of conflicts
+         
+         raises SqliteDiffError on error
+    """
+    def rebase(self, base, modified_their, modified, conflict):
+        return self.clib.rebase(base, modified_their, modified, conflict)
+
+    """ 
         Creates changeset file (binary) in such way that
         if CHANGESET is applied to MODIFIED_THEIR by
         applyChangeset, the new state will contain all
         changes from MODIFIED and MODIFIED_THEIR.
-        
+
                --- CHANGESET_THEIR ---> MODIFIED_THEIR --- CHANGESET ---> MODIFIED_THEIR_PLUS_MINE
         BASE -| 
                -----------------------> MODIFIED
-        
+
          \param base [input] BASE sqlite3/geopackage file
          \param modified [input] MODIFIED sqlite3/geopackage file
          \param changeset_their [input] changeset between BASE -> MODIFIED_THEIR
          \param changeset [output] changeset between MODIFIED_THEIR -> MODIFIED_THEIR_PLUS_MINE
-         
+         \param conflict [output] file where the automatically resolved conflicts are stored
+         \returns number of conflicts
+
          raises SqliteDiffError on error
     """
-
-    def rebase(self, base, modified_their, modified):
-        return self.clib.rebase(base, modified_their, modified)
-
-    def create_rebased_changeset(self, base, modified, changeset_their, changeset):
-        return self.clib.create_rebased_changeset(base, modified, changeset_their, changeset)
+    def create_rebased_changeset(self, base, modified, changeset_their, changeset, conflict):
+        return self.clib.create_rebased_changeset(base, modified, changeset_their, changeset, conflict)
 
     """
         Applies changeset file (binary) to BASE
         
         \param base [input/output] BASE sqlite3/geopackage file
         \param changeset [input] changeset to apply to BASE
-        \returns number of conflics
+        \returns number of conflicts
         
         raises SqliteDiffError on error
     """

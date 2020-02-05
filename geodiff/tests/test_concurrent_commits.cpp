@@ -16,6 +16,7 @@ bool _test(
   int expected_changes_A,
   int expected_changes_AB,
   int expected_changes_XB,
+  int expected_conflicts,
   bool ignore_timestamp_change = false
 )
 {
@@ -26,9 +27,11 @@ bool _test(
   std::string modifiedB = pathjoin( testdir(), testname, B );
   std::string changesetbaseA = pathjoin( tmpdir(), testname, "changeset_base_to_A.bin" );
   std::string changesetAB = pathjoin( tmpdir(), testname, "changeset_A_to_B.bin" );
+  std::string conflictAB = pathjoin( tmpdir(), testname, "conflict_A_to_B.json" );
   std::string changesetBbase = pathjoin( tmpdir(), testname, "changeset_B_to_base.bin" );
   std::string patchedAB = pathjoin( tmpdir(), testname, "patched_AB.gpkg" ) ;
   std::string patchedAB_2 = pathjoin( tmpdir(), testname, "patched_AB_2.gpkg" ) ;
+  std::string conflict2 = pathjoin( tmpdir(), testname, "conflict2.json" );
   std::string expected_patchedAB = pathjoin( testdir(), testname, expected_AB );
   std::string json = pathjoin( tmpdir(), testname, testname + ".json" );
   std::string json_summary = pathjoin( tmpdir(), testname, testname + "_summary.json" );
@@ -49,7 +52,8 @@ bool _test(
   }
 
   // create changeset A to B
-  if ( GEODIFF_createRebasedChangeset( base.c_str(), modifiedB.c_str(), changesetbaseA.c_str(), changesetAB.c_str() ) != GEODIFF_SUCCESS )
+  int nConflicts = 0;
+  if ( GEODIFF_createRebasedChangeset( base.c_str(), modifiedB.c_str(), changesetbaseA.c_str(), changesetAB.c_str(), conflictAB.c_str(), &nConflicts ) != GEODIFF_SUCCESS )
   {
     std::cout << "err GEODIFF_createRebasedChangeset AB" << std::endl;
     return false;
@@ -59,6 +63,17 @@ bool _test(
   if ( nchanges != expected_changes_AB )
   {
     std::cout << "err GEODIFF_listChanges AB: " << nchanges << " expected: " << expected_changes_AB << " in " << changesetAB << std::endl;
+    return false;
+  }
+
+  if ( nConflicts != 0 )
+  {
+    printFileToStdout( "Conflicts", conflictAB );
+  }
+
+  if ( nConflicts != expected_conflicts )
+  {
+    std::cout << "err GEODIFF_listChanges AB conflict: " << nConflicts << " expected: " << expected_conflicts << " in " << changesetAB << std::endl;
     return false;
   }
 
@@ -97,11 +112,19 @@ bool _test(
 
   // now check that we get same result in case of direct rebase
   filecopy( patchedAB_2, modifiedB );
-  if ( GEODIFF_rebase( base.c_str(), modifiedA.c_str(), patchedAB_2.c_str() ) != GEODIFF_SUCCESS )
+  nConflicts = 0;
+  if ( GEODIFF_rebase( base.c_str(), modifiedA.c_str(), patchedAB_2.c_str(), conflict2.c_str(), &nConflicts ) != GEODIFF_SUCCESS )
   {
     std::cout << "err GEODIFF_rebase A" << std::endl;
     return false;
   }
+
+  if ( nConflicts != expected_conflicts )
+  {
+    std::cout << "err GEODIFF_rebase AB conflict: " << nConflicts << " expected: " << expected_conflicts << std::endl;
+    return false;
+  }
+
 
   return equals( patchedAB_2, expected_patchedAB, ignore_timestamp_change );
 }
@@ -120,7 +143,8 @@ TEST( ConcurrentCommitsSqlite3Test, test_2_inserts )
                "merged_1_A_1_B.gpkg",
                2,
                2,
-               3
+               3,
+               0
              );
   ASSERT_TRUE( ret );
 }
@@ -141,7 +165,8 @@ TEST( ConcurrentCommitsSqlite3Test, test_2_edits )
                "merged_1_A_1_B.gpkg",
                2,
                2,
-               2
+               2,
+               1
              );
   ASSERT_TRUE( ret );
 }
@@ -160,7 +185,8 @@ TEST( ConcurrentCommitsSqlite3Test, test_2_deletes )
                "merged_A_B.gpkg",
                2,
                1,
-               2
+               2,
+               0
              );
   ASSERT_TRUE( ret );
 }
@@ -180,6 +206,7 @@ TEST( ConcurrentCommitsSqlite3Test, test_delete_update )
                2,
                1,
                2,
+               0,
                true
              );
   ASSERT_TRUE( ret );
@@ -199,7 +226,8 @@ TEST( ConcurrentCommitsSqlite3Test, test_update_delete )
                "deleted_B.gpkg",
                2,
                2,
-               2
+               2,
+               0
              );
   ASSERT_TRUE( ret );
 }
@@ -218,7 +246,8 @@ TEST( ConcurrentCommitsSqlite3Test, test_update_extent )
                "final_extent.gpkg",
                2,
                2,
-               3
+               3,
+               0
              );
   ASSERT_TRUE( ret );
 }
@@ -236,7 +265,8 @@ TEST( ConcurrentCommitsSqlite3Test, test_update_2_different_tables )
                "final_add_line.gpkg",
                2,
                2,
-               4
+               4,
+               0
              );
   ASSERT_TRUE( ret );
 
@@ -248,7 +278,8 @@ TEST( ConcurrentCommitsSqlite3Test, test_update_2_different_tables )
           "final_modify_line.gpkg",
           2,
           3,
-          5
+          5,
+          0
         );
   ASSERT_TRUE( ret );
 
@@ -260,7 +291,8 @@ TEST( ConcurrentCommitsSqlite3Test, test_update_2_different_tables )
           "final_delete_line.gpkg",
           2,
           2,
-          4
+          4,
+          0
         );
   ASSERT_TRUE( ret );
 }

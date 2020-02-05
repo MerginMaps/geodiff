@@ -22,18 +22,22 @@ class UnitTestsPythonConcurrentCommits(GeoDiffTests):
         modifiedB = testdir() + "/" + testname + "/" + "inserted_1_B.gpkg"
         changesetbaseA = tmpdir() + "/py" + testname + "/" + "changeset_base_to_A.bin"
         changesetAB = tmpdir() + "/py" + testname + "/" + "changeset_A_to_B.bin"
+        conflictAB = tmpdir() + "/py" + testname + "/" + "conflict_A_to_B.json"
         changesetBbase = tmpdir() + "/py" + testname + "/" + "changeset_B_to_base.bin"
         patchedAB = tmpdir() + "/py" + testname + "/" + "patched_AB.gpkg"
         patchedAB2 = tmpdir() + "/py" + testname + "/" + "patched_AB_2.gpkg"
         changesetAB2 = tmpdir() + "/py" + testname + "/" + "changeset_AB2.bin"
+        conflictAB2 = tmpdir() + "/py" + testname + "/" + "conflict_A_to_B2.json"
 
         print("create changeset base to A")
         self.geodiff.create_changeset(base, modifiedA, changesetbaseA)
         check_nchanges(self.geodiff, changesetbaseA,  2)
 
         print("create changeset A to B")
-        self.geodiff.create_rebased_changeset(base, modifiedB, changesetbaseA, changesetAB)
+        n_conflicts =  self.geodiff.create_rebased_changeset(base, modifiedB, changesetbaseA, changesetAB, conflictAB)
         check_nchanges(self.geodiff, changesetAB, 2)
+        if n_conflicts != 0:
+            raise TestError("expected no conflict, got " + str(n_conflicts))
 
         print("apply changeset to A to get AB")
         shutil.copyfile(modifiedA, patchedAB)
@@ -45,6 +49,9 @@ class UnitTestsPythonConcurrentCommits(GeoDiffTests):
 
         print("check direct rebase")
         shutil.copyfile(modifiedB, patchedAB2)
-        self.geodiff.rebase(base, modifiedA, patchedAB2)
+        n_conflicts =  self.geodiff.rebase(base, modifiedA, patchedAB2, conflictAB2)
+        if n_conflicts != 0:
+            raise TestError("expected no conflict")
+
         self.geodiff.create_changeset(base, patchedAB2, changesetAB2)
         check_nchanges(self.geodiff, changesetAB2,  3)

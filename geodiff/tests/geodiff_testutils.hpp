@@ -25,6 +25,7 @@ std::string test_file( std::string basename );
 std::string tmp_file( std::string basename );
 
 void printJSON( const std::string &changeset, const std::string &json, const std::string &json_summary );
+void printFileToStdout( const std::string &caption, const std::string &filepath );
 
 /**
  * \param ignore_timestamp_change ignore last_change in table gpkg_contents

@@ -131,13 +131,18 @@ GEODIFF_EXPORT int GEODIFF_invertChangeset( const char *changeset, const char *c
  * \param modified [input] MODIFIED sqlite3/geopackage file
  * \param changeset_their [input] changeset between BASE -> MODIFIED_THEIR
  * \param changeset [output] changeset between MODIFIED_THEIR -> MODIFIED_THEIR_PLUS_MINE
+ * \param conflictfile [output] json file containing all the automaticly resolved conflicts
+ * \param nConflicts [output] number of conflicts stored in json file
  * \returns GEODIFF_SUCCESS on success
  */
 GEODIFF_EXPORT int GEODIFF_createRebasedChangeset(
   const char *base,
   const char *modified,
   const char *changeset_their,
-  const char *changeset );
+  const char *changeset,
+  const char *conflictfile,
+  int *nConflicts
+);
 
 
 /**
@@ -158,17 +163,28 @@ GEODIFF_EXPORT int GEODIFF_createRebasedChangeset(
  * \param base [input] BASE sqlite3/geopackage file
  * \param modified_their [input] MODIFIED sqlite3/geopackage file
  * \param modified [input/output] local copy of the changes to be rebased
+ * \param conflictfile [output] json file containing all the automaticly resolved conflicts
+ * \param nConflicts [output] number of conflicts stored in json file
  * \returns GEODIFF_SUCCESS on success
  */
 GEODIFF_EXPORT int GEODIFF_rebase(
   const char *base,
   const char *modified_their,
-  const char *modified
+  const char *modified,
+  const char *conflictfile,
+  int *nConflicts
 );
 
 
 /**
  * Applies changeset file (binary) to BASE
+ *
+ * When changeset is correctly formed (for example after successfull rebase),
+ * the applyChanges should not raise any conflict. The GEODIFF_CONFICTS error
+ * suggests that the base or changeset are not match each other (e.g. changeset
+ * created from different base file) or can suggest a internal bug in rebase routine.
+ * With WARN logging level client should be able to see the place of conflicts.
+ *
  * \param base [input/output] BASE sqlite3/geopackage file
  * \param changeset [input] changeset to apply to BASE
  * \returns GEODIFF_SUCCESS on success
