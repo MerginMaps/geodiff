@@ -41,21 +41,47 @@ extern "C" {
 #endif
 
 /**
-* NOTE:
-* the messages printed to stdout can be controlled by
-* environment variable GEODIFF_LOGGER_LEVEL
-* GEODIFF_LOGGER_LEVEL = 0 nothing is printed
-* GEODIFF_LOGGER_LEVEL = 1 errors are printed
-* GEODIFF_LOGGER_LEVEL = 2 errors and warnings are printed
-* GEODIFF_LOGGER_LEVEL = 3 errors, warnings and infos are printed
-* GEODIFF_LOGGER_LEVEL = 4 errors, warnings, infos, debug messages are printed
-*/
-
-/**
  * Initialize library
- * Call before usage of any other function from the library
+ *
+ * The default logger is set, where all the messages printed are printed to stdout and
+ * can be controlled by environment variable GEODIFF_LOGGER_LEVEL
+ * GEODIFF_LOGGER_LEVEL = 0 nothing is printed
+ * GEODIFF_LOGGER_LEVEL = 1 errors are printed
+ * GEODIFF_LOGGER_LEVEL = 2 errors and warnings are printed
+ * GEODIFF_LOGGER_LEVEL = 3 errors, warnings and infos are printed
+ * GEODIFF_LOGGER_LEVEL = 4 errors, warnings, infos, debug messages are printed
  */
 GEODIFF_EXPORT void GEODIFF_init();
+
+/**
+* Type of message level to log
+*/
+enum LoggerLevel
+{
+  LevelError = 0,
+  LevelWarning = 1,
+  LevelInfo = 2,
+  LevelDebug = 3
+};
+
+/**
+ * Callback function pointer to redirect log
+ */
+typedef void ( /*__stdcall*/ *LoggerCallback )( LoggerLevel level, const char *msg );
+
+/**
+ * Assign custom logger
+ *
+ * Replace default stdout logger with custom.
+ * When loggerCallback is nullptr, no output is produced at all
+ * Based on maxLogLevel, the messages are filtered by level:
+ * maxLogLevel = 0 nothing is passed to logger callback
+ * maxLogLevel = 1 errors are passed to logger callback
+ * maxLogLevel = 2 errors and warnings are passed to logger callback
+ * maxLogLevel = 3 errors, warnings and infos are passed to logger callback
+ * maxLogLevel = 4 errors, warnings, infos, debug messages are passed to logger callback
+ */
+GEODIFF_EXPORT void GEODIFF_setLogging( LoggerCallback loggerCallback, LoggerLevel maxLogLevel );
 
 //! Returns version in format X.Y.Z where xyz are positive integers
 GEODIFF_EXPORT const char *GEODIFF_version();

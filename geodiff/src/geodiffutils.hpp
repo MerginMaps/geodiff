@@ -12,6 +12,7 @@
 #include <vector>
 
 #include "sqlite3.h"
+#include "geodiff.h"
 
 class Buffer;
 
@@ -22,47 +23,6 @@ class GeoDiffException: public std::exception
     virtual const char *what() const throw();
   private:
     std::string mMsg;
-};
-
-/**
- * Logger
- *
- * the messages printed to stdout can be controlled by
- * environment variable GEODIFF_LOGGER_LEVEL
- * GEODIFF_LOGGER_LEVEL = 0 nothing is printed
- * GEODIFF_LOGGER_LEVEL = 1 errors are printed
- * GEODIFF_LOGGER_LEVEL = 2 errors and warnings are printed
- * GEODIFF_LOGGER_LEVEL = 3 errors, warnings and infos are printed
- * GEODIFF_LOGGER_LEVEL = 4 errors, warnings, infos, debug messages are printed
- */
-class Logger
-{
-  public:
-    enum LoggerLevel
-    {
-      LevelNothing = 0,
-      LevelErrors = 1,
-      LevelWarnings = 2,
-      LevelInfos = 3,
-      LevelDebug = 4
-    };
-
-    static Logger &instance();
-    LoggerLevel level() const;
-    Logger( Logger const & ) = delete;
-    void operator=( Logger const & ) = delete;
-    void debug( const std::string &msg );
-    void warn( const std::string &msg );
-    void error( const std::string &msg );
-    void info( const std::string &msg );
-    //! Prints error message
-    void error( const GeoDiffException &exp );
-  private:
-    Logger();
-    void log( LoggerLevel level, const std::string &msg );
-    void levelFromEnv();
-
-    LoggerLevel mLevel = LevelErrors; //by default record errors
 };
 
 class Sqlite3Db

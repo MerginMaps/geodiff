@@ -97,14 +97,23 @@ std::string tmp_file( std::string basename )
   return path;
 }
 
+static void logger( LoggerLevel level, const char *msg )
+{
+  std::string prefix;
+  switch ( level )
+  {
+    case LevelError: prefix = "err: "; break;
+    case LevelWarning: prefix = "wrn: "; break;
+    case LevelDebug: prefix = "dbg: "; break;
+    default: break;
+  }
+  std::cout << prefix << msg << std::endl ;
+}
+
 void init_test()
 {
-#ifdef WIN32
-  _putenv( "GEODIFF_LOGGER_LEVEL=4" );
-#else
-  setenv( "GEODIFF_LOGGER_LEVEL", "4", 1 );
-#endif
   GEODIFF_init();
+  GEODIFF_setLogging( &logger, LoggerLevel::LevelDebug );
 }
 
 void finalize_test()

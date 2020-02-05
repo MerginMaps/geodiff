@@ -31,7 +31,6 @@ SUCCESS=0
 ERROR=1
 CONFLICT=2
 
-
 def _parse_return_code(rc, msg):
     if rc == SUCCESS:
         return
@@ -39,7 +38,6 @@ def _parse_return_code(rc, msg):
         raise GeoDiffLibError(msg)
     elif rc == CONFLICT:
         raise GeoDiffLibConflictError(msg)
-
 
 class GeoDiffLib:
     def __init__(self, name):
@@ -80,6 +78,14 @@ class GeoDiffLib:
     def init(self):
         func = self.lib.GEODIFF_init
         func()
+
+    def set_logging(self, callback, maxLevel):
+        func = self.lib.GEODIFF_setLogging
+        CMPFUNC = ctypes.CFUNCTYPE(None, ctypes.c_int, ctypes.c_char_p)
+        func.argtypes = [CMPFUNC, ctypes.c_bool]
+        # do not remove self, callback needs to be member
+        self.callbackLogger = CMPFUNC(callback)
+        func(self.callbackLogger, maxLevel)
 
     def version(self):
         func = self.lib.GEODIFF_version

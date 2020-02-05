@@ -13,21 +13,36 @@ from .geodifflib import GeoDiffLib
 class GeoDiff:
     """
         if libname is None, it tries to import c-extension from wheel
+        messages are shown in stdout. Use environment variable GEODIFF_LOGGER_LEVEL 0(Nothing)-4(Debug) to
+        set level (Errors by default)
     """
     def __init__(self, libname=None):
         self.clib = GeoDiffLib(libname)
 
     """
+     Assign custom logger
+     Replace default stdout logger with custom.
+     Based on maxLogLevel, the messages are filtered by level:
+     maxLogLevel = 0 nothing is passed to logger callback
+     maxLogLevel = 1 errors are passed to logger callback
+     maxLogLevel = 2 errors and warnings are passed to logger callback
+     maxLogLevel = 3 errors, warnings and infos are passed to logger callback
+     maxLogLevel = 4 errors, warnings, infos, debug messages are passed to logger callback
+    """
+    def set_logging(self, callback, maxLevel):
+        return self.clib.set_logging(callback, maxLevel)
+
+    """
         Creates changeset file (binary) in such way that
         if CHANGESET is applied to BASE by applyChangeset,
         MODIFIED will be created
- 
+
         BASE --- CHANGESET ---> MODIFIED
- 
+
         \param base [input] BASE sqlite3/geopackage file
         \param modified [input] MODIFIED sqlite3/geopackage file
         \param changeset [output] changeset between BASE -> MODIFIED
-        
+
         raises SqliteDiffError on error
     """
     def create_changeset(self, base, modified, changeset):
