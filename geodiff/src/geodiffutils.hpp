@@ -25,39 +25,6 @@ class GeoDiffException: public std::exception
     std::string mMsg;
 };
 
-/**
- * Logger
- *
- * the messages printed to stdout can be controlled by
- * environment variable GEODIFF_LOGGER_LEVEL
- * GEODIFF_LOGGER_LEVEL = 0 nothing is printed
- * GEODIFF_LOGGER_LEVEL = 1 errors are printed
- * GEODIFF_LOGGER_LEVEL = 2 errors and warnings are printed
- * GEODIFF_LOGGER_LEVEL = 3 errors, warnings and infos are printed
- * GEODIFF_LOGGER_LEVEL = 4 errors, warnings, infos, debug messages are printed
- */
-class Logger
-{
-  public:
-    static Logger &instance();
-    void setCallback( LoggerCallback loggerCallback );
-    void enableDebugMode( bool isDebugMode ) {mDebugMode = isDebugMode;}
-    bool isDebugMode() const { return mDebugMode; }
-    Logger( Logger const & ) = delete;
-    void operator=( Logger const & ) = delete;
-    void debug( const std::string &msg );
-    void warn( const std::string &msg );
-    void error( const std::string &msg );
-    void info( const std::string &msg );
-    //! Prints error message
-    void error( const GeoDiffException &exp );
-  private:
-    Logger();
-    LoggerCallback mLoggerCallback;
-    bool mDebugMode;
-    void log( LoggerLevel level, const std::string &msg );
-};
-
 class Sqlite3Db
 {
   public:

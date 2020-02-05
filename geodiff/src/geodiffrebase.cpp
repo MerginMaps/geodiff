@@ -6,6 +6,7 @@
 #include "geodiffrebase.hpp"
 #include "geodiffutils.hpp"
 #include "geodiff.h"
+#include "geodifflogger.hpp"
 
 #include <memory>
 #include <stdio.h>
@@ -70,7 +71,7 @@ struct DatabaseRebaseInfo
 
   void dump()
   {
-    if ( ! Logger::instance().isDebugMode() )
+    if ( Logger::instance().maxLogLevel() != LoggerLevel::LevelDebug )
       return;
 
     std::ostringstream ret;
@@ -145,7 +146,7 @@ struct RebaseMapping
 
   void dump() const
   {
-    if ( ! Logger::instance().isDebugMode() )
+    if ( Logger::instance().maxLogLevel() != LoggerLevel::LevelDebug )
       return;
 
     std::ostringstream ret;

@@ -7,6 +7,7 @@
 #include "geodiffutils.hpp"
 #include "geodiffrebase.hpp"
 #include "geodiffexporter.hpp"
+#include "geodifflogger.hpp"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -33,16 +34,20 @@ void _errorLogCallback( void *pArg, int iErrCode, const char *zMsg )
 }
 
 static bool gInitialized = false;
-void GEODIFF_init( LoggerCallback loggerCallback, bool debug )
+void GEODIFF_init()
 {
   if ( !gInitialized )
   {
     gInitialized = true;
-    Logger::instance().setCallback( loggerCallback );
-    Logger::instance().enableDebugMode( debug );
     sqlite3_config( SQLITE_CONFIG_LOG, _errorLogCallback );
     sqlite3_initialize();
   }
+}
+
+void GEODIFF_setLogging( LoggerCallback loggerCallback, LoggerLevel maxLogLevel)
+{
+  Logger::instance().setCallback( loggerCallback );
+  Logger::instance().setMaxLogLevel( maxLogLevel );
 }
 
 int GEODIFF_createChangeset( const char *base, const char *modified, const char *changeset )

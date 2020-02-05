@@ -44,63 +44,6 @@ const char *GeoDiffException::what() const throw()
 // ////////////////////////////////////////////////////////////////////////
 // ////////////////////////////////////////////////////////////////////////
 // ////////////////////////////////////////////////////////////////////////
-
-Logger::Logger()
-  : mLoggerCallback( nullptr )
-  , mDebugMode( false )
-{
-}
-
-Logger &Logger::instance()
-{
-  static Logger instance;
-  return instance;
-}
-
-void Logger::setCallback( LoggerCallback loggerCallback )
-{
-  mLoggerCallback = loggerCallback;
-}
-
-void Logger::debug( const std::string &msg )
-{
-  log( LoggerLevel::LevelDebug, msg );
-}
-
-void Logger::warn( const std::string &msg )
-{
-  log( LoggerLevel::LevelWarning, msg );
-}
-
-void Logger::error( const std::string &msg )
-{
-  log( LoggerLevel::LevelError, msg );
-}
-
-void Logger::error( const GeoDiffException &exp )
-{
-  log( LoggerLevel::LevelError, exp.what() );
-}
-
-void Logger::info( const std::string &msg )
-{
-  log( LoggerLevel::LevelInfo, msg );
-}
-
-void Logger::log( LoggerLevel level, const std::string &msg )
-{
-  if ( isDebugMode() && level == LevelDebug )
-    return;
-
-  if ( mLoggerCallback )
-  {
-    mLoggerCallback( level, msg.c_str() );
-  }
-}
-
-// ////////////////////////////////////////////////////////////////////////
-// ////////////////////////////////////////////////////////////////////////
-// ////////////////////////////////////////////////////////////////////////
 Sqlite3Db::Sqlite3Db() = default;
 Sqlite3Db::~Sqlite3Db()
 {

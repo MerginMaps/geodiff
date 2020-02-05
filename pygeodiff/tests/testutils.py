@@ -102,4 +102,5 @@ class GeoDiffTests(unittest.TestCase):
             raise TestError("missing GEODIFFLIB env variable")
         if not os.path.exists(lib):
             raise TestError("lib {} is missing ".format(lib))
-        self.geodiff = pygeodiff.GeoDiff(lib, logger, True)
+        self.geodiff = pygeodiff.GeoDiff(lib)
+        self.geodiff.set_logging(logger, 4)

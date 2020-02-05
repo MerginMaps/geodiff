@@ -24,41 +24,6 @@ void help()
   printf( "[list summary of changes (JSON) in changeset] geodiffinfo listChangesSummary changeset json\n" );
 }
 
-int _envInt( const char *key )
-{
-  char *val = getenv( "GEODIFF_LOGGER_LEVEL" );
-  if ( val )
-  {
-    return atoi( val );
-  }
-  return 0;
-}
-
-void StdoutLogger( LoggerLevel level, const char *msg )
-{
-  // Sort out which
-  int outLevel = LoggerLevel::LevelError;
-  int envLevel = _envInt( "GEODIFF_LOGGER_LEVEL" );
-  if ( envLevel > 0 && envLevel <= LoggerLevel::LevelDebug )
-  {
-    outLevel = envLevel;
-  }
-
-  // Check out if we want to print this message
-  if ( static_cast<int>( level ) > static_cast<int>( outLevel ) )
-    return;
-
-  std::string prefix;
-  switch ( level )
-  {
-    case LevelError: prefix = "Error: "; break;
-    case LevelWarning: prefix = "Warn: "; break;
-    case LevelDebug: prefix = "Debug: "; break;
-    default: break;
-  }
-  std::cout << prefix << msg << std::endl ;
-}
-
 int err( const std::string msg )
 {
   help();
@@ -123,14 +88,7 @@ int listChangesSummary( int argc, char *argv[] )
 
 int main( int argc, char *argv[] )
 {
-  bool debug = false;
-  int envLevel = _envInt( "GEODIFF_LOGGER_LEVEL" );
-  if ( envLevel == LoggerLevel::LevelDebug )
-  {
-    debug = true;
-  }
-  GEODIFF_init( ( LoggerCallback )( &StdoutLogger ), debug );
-
+  GEODIFF_init();
   if ( argc > 1 )
   {
     std::string mode( argv[1] );

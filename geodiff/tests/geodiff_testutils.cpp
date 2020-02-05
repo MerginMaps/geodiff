@@ -102,9 +102,9 @@ static void logger( LoggerLevel level, const char *msg )
   std::string prefix;
   switch ( level )
   {
-    case LevelError: prefix = "Error: "; break;
-    case LevelWarning: prefix = "Warn: "; break;
-    case LevelDebug: prefix = "Debug: "; break;
+    case LevelError: prefix = "err: "; break;
+    case LevelWarning: prefix = "wrn: "; break;
+    case LevelDebug: prefix = "dbg: "; break;
     default: break;
   }
   std::cout << prefix << msg << std::endl ;
@@ -112,7 +112,8 @@ static void logger( LoggerLevel level, const char *msg )
 
 void init_test()
 {
-  GEODIFF_init( &logger, true );
+  GEODIFF_init();
+  GEODIFF_setLogging(&logger, LoggerLevel::LevelDebug);
 }
 
 void finalize_test()
