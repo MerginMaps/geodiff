@@ -310,6 +310,7 @@ std::string GeoDiffExporter::toJSON( const ConflictFeature &conflict ) const
   std::string res = "      {\n";
   res += "        \"table\": \"" + std::string( conflict.tableName() ) + "\",\n";
   res += "        \"type\": \"" + status + "\",\n";
+  res += "        \"fid\": \"" + std::to_string( conflict.pk() ) + "\",\n";
   res += "        \"changes\": [";
   bool first = true;
 
