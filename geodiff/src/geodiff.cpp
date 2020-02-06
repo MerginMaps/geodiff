@@ -234,8 +234,20 @@ int GEODIFF_applyChangeset( const char *base, const char *changeset )
   }
 }
 
-int GEODIFF_createRebasedChangeset( const char *base, const char *modified, const char *changeset_their, const char *changeset )
+int GEODIFF_createRebasedChangeset( const char *base,
+                                    const char *modified,
+                                    const char *changeset_their,
+                                    const char *changeset,
+                                    const char *conflictfile
+                                  )
 {
+  if ( !conflictfile )
+  {
+    Logger::instance().error( "NULL arguments to GEODIFF_createRebasedChangeset" );
+    return GEODIFF_ERROR;
+  }
+  fileremove( conflictfile );
+
   try
   {
     // get all triggers sql commands
@@ -257,7 +269,22 @@ int GEODIFF_createRebasedChangeset( const char *base, const char *modified, cons
     if ( rc != GEODIFF_SUCCESS )
       return rc;
 
-    return rebase( changeset_their, changeset, changeset_BASE_MODIFIED.path() );
+    std::vector<ConflictFeature> conflicts;
+    rc = rebase( changeset_their, changeset, changeset_BASE_MODIFIED.path(), conflicts );
+
+    // output conflicts
+    if ( conflicts.empty() )
+    {
+      Logger::instance().debug( "No conflicts present" );
+    }
+    else
+    {
+      GeoDiffExporter exporter;
+      std::string res = exporter.toJSON( conflicts );
+      flushString( conflictfile, res );
+    }
+
+    return rc;
   }
   catch ( GeoDiffException exc )
   {
@@ -337,21 +364,8 @@ static int listChangesJSON( const char *changeset, const char *jsonfile, bool on
       return 0;
     }
 
-    std::shared_ptr<Sqlite3Db> db = std::make_shared<Sqlite3Db>();
-    db->open( ":memory:" );
-    std::string cmd = "CREATE TABLE gpkg_contents (table_name TEXT NOT NULL PRIMARY KEY,data_type TEXT NOT NULL,identifier TEXT UNIQUE,description TEXT DEFAULT '',last_change DATETIME NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),min_x DOUBLE, min_y DOUBLE,max_x DOUBLE, max_y DOUBLE,srs_id INTEGER)";
-    Sqlite3Stmt statament;
-    statament.prepare( db, "%s", cmd.c_str() );
-    sqlite3_step( statament.get() );
-    statament.close();
-
-    bool success = register_gpkg_extensions( db );
-    if ( !success )
-    {
-      throw GeoDiffException( "Unable to enable sqlite3/gpkg extensions" );
-    }
-
-    std::string res = onlySummary ? GeoDiffExporter::toJSONSummary( buf ) : GeoDiffExporter::toJSON( db, buf );
+    GeoDiffExporter exporter;
+    std::string res = onlySummary ? exporter.toJSONSummary( buf ) : exporter.toJSON( buf );
     flushString( jsonfile, res );
     return GEODIFF_SUCCESS;
   }
@@ -422,9 +436,12 @@ int GEODIFF_invertChangeset( const char *changeset, const char *changeset_inv )
   }
 }
 
-int GEODIFF_rebase( const char *base, const char *modified_their, const char *modified )
+int GEODIFF_rebase( const char *base,
+                    const char *modified_their,
+                    const char *modified,
+                    const char *conflictfile )
 {
-  if ( !base || !modified || !modified )
+  if ( !base || !modified || !modified || !conflictfile )
   {
     Logger::instance().error( "NULL arguments to GEODIFF_rebase" );
     return GEODIFF_ERROR;
@@ -476,7 +493,7 @@ int GEODIFF_rebase( const char *base, const char *modified_their, const char *mo
 
     // 3A) Create all changesets
     TmpFile theirs2final( root + "_theirs2final.bin" );
-    if ( GEODIFF_createRebasedChangeset( base, modified, base2theirs.c_path(), theirs2final.c_path() ) != GEODIFF_SUCCESS )
+    if ( GEODIFF_createRebasedChangeset( base, modified, base2theirs.c_path(), theirs2final.c_path(), conflictfile ) != GEODIFF_SUCCESS )
     {
       Logger::instance().error( "Unable to perform GEODIFF_createChangeset theirs2final" );
       return GEODIFF_ERROR;

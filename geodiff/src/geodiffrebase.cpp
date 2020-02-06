@@ -172,7 +172,6 @@ struct RebaseMapping
 
 };
 
-
 ///////////////////////////////////////
 ///////////////////////////////////////
 ///////////////////////////////////////
@@ -421,6 +420,27 @@ void _handle_delete(
   }
 }
 
+void _addConflictItem( ConflictFeature &conflictFeature,
+                       std::shared_ptr<Sqlite3Value> theirs,
+                       Sqlite3ChangesetIter &pp,
+                       int i
+                     )
+{
+  // 4th attribute in gpkg_contents is modified date
+  // this is not a conflict since we can sort it out
+  if ( ( conflictFeature.tableName() == "gpkg_contents" ) && ( i == 4 ) )
+    return;
+
+  // ok safe to add it
+  sqlite3_value *tmp;
+  pp.oldValue( i, &tmp );
+  std::shared_ptr<Sqlite3Value> base = std::make_shared<Sqlite3Value>( tmp );
+  pp.newValue( i, &tmp );
+  std::shared_ptr<Sqlite3Value> ours = std::make_shared<Sqlite3Value>( tmp );
+  ConflictItem item( i, base, theirs, ours );
+  conflictFeature.addItem( item );
+}
+
 void _handle_update(
   Sqlite3ChangesetIter &pp,
   const std::string tableName,
@@ -428,7 +448,8 @@ void _handle_update(
   const RebaseMapping &mapping,
   const TableRebaseInfo &tableInfo,
   unsigned char *aiFlg,
-  std::shared_ptr<BinaryStream> out
+  std::shared_ptr<BinaryStream> out,
+  std::vector<ConflictFeature> &conflicts
 )
 {
   // get values from patched (new) master
@@ -448,6 +469,9 @@ void _handle_update(
   else
     patchedVals = a->second;
 
+
+  ConflictFeature conflictFeature( pk, tableName );
+
   // first write operation type (iType)
   out->put( SQLITE_UPDATE );
   out->put( 0 );
@@ -459,6 +483,8 @@ void _handle_update(
     if ( patchedVal && patchedVal->isValid() )
     {
       value = patchedVal->value();
+      // conflict for this value
+      _addConflictItem( conflictFeature, patchedVal, pp, i );
     }
     else
     {
@@ -473,10 +499,16 @@ void _handle_update(
     pp.newValue( i, &value );
     out->putValue( value );
   }
+
+  if ( conflictFeature.isValid() )
+  {
+    conflicts.push_back( conflictFeature );
+  }
 }
 
 int _prepare_new_changeset( const Buffer &buf, const std::string &changesetNew,
-                            const RebaseMapping &mapping, const DatabaseRebaseInfo &dbInfo )
+                            const RebaseMapping &mapping, const DatabaseRebaseInfo &dbInfo,
+                            std::vector<ConflictFeature> &conflicts )
 {
   Sqlite3ChangesetIter pp;
   pp.start( buf );
@@ -556,7 +588,8 @@ int _prepare_new_changeset( const Buffer &buf, const std::string &changesetNew,
           mapping,
           tablesIt->second,
           aiFlg,
-          out
+          out,
+          conflicts
         );
         break;
       }
@@ -613,7 +646,8 @@ int _prepare_new_changeset( const Buffer &buf, const std::string &changesetNew,
 
 int rebase( const std::string &changeset_BASE_THEIRS,
             const std::string &changeset_THEIRS_MODIFIED,
-            const std::string &changeset_BASE_MODIFIED )
+            const std::string &changeset_BASE_MODIFIED,
+            std::vector<ConflictFeature> &conflicts )
 
 {
   fileremove( changeset_THEIRS_MODIFIED );
@@ -645,7 +679,7 @@ int rebase( const std::string &changeset_BASE_THEIRS,
   _find_mapping_for_new_changeset( buf_BASE_MODIFIED, dbInfo, mapping );
 
   // 3. go through the changeset to be rebased again and write it with changes determined in step 2
-  _prepare_new_changeset( buf_BASE_MODIFIED, changeset_THEIRS_MODIFIED, mapping, dbInfo );
+  _prepare_new_changeset( buf_BASE_MODIFIED, changeset_THEIRS_MODIFIED, mapping, dbInfo, conflicts );
 
   return GEODIFF_SUCCESS;
 }

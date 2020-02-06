@@ -977,6 +977,24 @@ std::vector<std::string> columnNames(
   return az;
 }
 
+std::shared_ptr<Sqlite3Db> blankGeopackageDb()
+{
+  std::shared_ptr<Sqlite3Db> db = std::make_shared<Sqlite3Db>();
+  db->open( ":memory:" );
+  std::string cmd = "CREATE TABLE gpkg_contents (table_name TEXT NOT NULL PRIMARY KEY,data_type TEXT NOT NULL,identifier TEXT UNIQUE,description TEXT DEFAULT '',last_change DATETIME NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),min_x DOUBLE, min_y DOUBLE,max_x DOUBLE, max_y DOUBLE,srs_id INTEGER)";
+  Sqlite3Stmt statament;
+  statament.prepare( db, "%s", cmd.c_str() );
+  sqlite3_step( statament.get() );
+  statament.close();
+
+  bool success = register_gpkg_extensions( db );
+  if ( !success )
+  {
+    throw GeoDiffException( "Unable to enable sqlite3/gpkg extensions" );
+  }
+  return db;
+}
+
 bool has_same_table_schema( std::shared_ptr<Sqlite3Db> db, const std::string &tableName, std::string &errStr )
 {
   // inspired by sqldiff.c function: static void summarize_one_table(const char *zTab, FILE *out);
@@ -1179,4 +1197,65 @@ std::string TmpFile::path() const
 const char *TmpFile::c_path() const
 {
   return mPath.c_str();
+}
+
+ConflictFeature::ConflictFeature( int pk,
+                                  const std::string &tableName )
+  : mPk( pk )
+  , mTableName( tableName )
+{
+}
+
+bool ConflictFeature::isValid() const
+{
+  return !mItems.empty();
+}
+
+void ConflictFeature::addItem( const ConflictItem &item )
+{
+  mItems.push_back( item );
+}
+
+std::string ConflictFeature::tableName() const
+{
+  return mTableName;
+}
+
+int ConflictFeature::pk() const
+{
+  return mPk;
+}
+
+std::vector<ConflictItem> ConflictFeature::items() const
+{
+  return mItems;
+}
+
+ConflictItem::ConflictItem( int column, std::shared_ptr<Sqlite3Value> base, std::shared_ptr<Sqlite3Value> theirs, std::shared_ptr<Sqlite3Value> ours )
+  : mColumn( column )
+  , mBase( base )
+  , mTheirs( theirs )
+  , mOurs( ours )
+{
+
+}
+
+std::shared_ptr<Sqlite3Value> ConflictItem::base() const
+{
+  return mBase;
+}
+
+std::shared_ptr<Sqlite3Value> ConflictItem::theirs() const
+{
+  return mTheirs;
+}
+
+std::shared_ptr<Sqlite3Value> ConflictItem::ours() const
+{
+  return mOurs;
+}
+
+int ConflictItem::column() const
+{
+  return mColumn;
 }

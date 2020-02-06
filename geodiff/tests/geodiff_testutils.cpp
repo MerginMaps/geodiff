@@ -3,10 +3,12 @@
  Copyright (C) 2019 Peter Petrik
 */
 
-#define xstr(a) str(a)
-#define str(a) #a
+//#define xstr(a) str(a)
+//#define str(a) #a
 
 #include "geodiff_testutils.hpp"
+#include <string>
+#include <sstream>
 #include <iostream>
 #include <fstream>
 #include <vector>
@@ -146,20 +148,52 @@ void makedir( const std::string &dir )
 #endif
 }
 
+void printFileToStdout( const std::string &caption, const std::string &filepath )
+{
+  std::cout << std::endl << caption << " (" << filepath << ")" << std::endl;
+  std::ifstream f( filepath );
+  if ( f.is_open() )
+    std::cout << f.rdbuf();
+}
+
 void printJSON( const std::string &changeset, const std::string &json, const std::string &json_summary )
 {
   // printout JSON summary
-  std::cout << "JSON Summary " << std::endl;
   GEODIFF_listChangesSummary( changeset.c_str(), json_summary.c_str() );
-  std::ifstream f2( json_summary );
-  if ( f2.is_open() )
-    std::cout << f2.rdbuf();
+  printFileToStdout( "JSON Summary", json_summary );
 
   // printout JSON
-  std::cout << std::endl << "JSON Full " << std::endl;
   GEODIFF_listChanges( changeset.c_str(), json.c_str() );
-  std::ifstream f( json );
-  if ( f.is_open() )
-    std::cout << f.rdbuf();
-
+  printFileToStdout( "JSON Full", json );
 }
+
+int fileContains( const std::string &filepath, const std::string key )
+{
+  std::ifstream f( filepath );
+  if ( f.is_open() )
+  {
+    std::ostringstream datastream;
+    datastream << f.rdbuf() << '\n';
+    std::string strdata( datastream.str() );
+    int occurences = 0;
+    for ( size_t found( -1 ); ( found = strdata.find( key, found + 1 ) ) != std::string::npos; ++occurences );
+    return occurences;
+  }
+  else
+  {
+    // file does not exist or is not readable
+    return 0;
+  }
+}
+
+bool containsConflict( const std::string &conflictFile, const std::string key )
+{
+  return fileContains( conflictFile, key ) > 0;
+}
+
+
+int countConflicts( const std::string &conflictFile )
+{
+  return fileContains( conflictFile, "fid" );
+}
+

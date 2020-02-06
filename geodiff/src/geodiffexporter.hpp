@@ -14,13 +14,27 @@
 #include "sqlite3.h"
 #include "geodiffutils.hpp"
 
-namespace GeoDiffExporter
+class GeoDiffExporter
 {
-  std::string toString( sqlite3_changeset_iter *pp );
-  std::string toJSON( std::shared_ptr<Sqlite3Db> db, Buffer &buf );
-  std::string toJSON( std::shared_ptr<Sqlite3Db> db, Sqlite3ChangesetIter &pp );
+  public:
+    GeoDiffExporter();
 
-  std::string toJSONSummary( Buffer &buf );
-}
+    static std::string toString( sqlite3_changeset_iter *pp );
+
+    std::string toJSON( Buffer &buf ) const;
+    std::string toJSON( Sqlite3ChangesetIter &pp ) const;
+    std::string toJSON( const ConflictFeature &conflict ) const;
+    std::string toJSON( const std::vector<ConflictFeature> &conflicts ) const;
+    std::string toJSONSummary( Buffer &buf ) const;
+
+  private:
+    void addValue( std::string &stream,
+                   std::shared_ptr<Sqlite3Value> value, const std::string &type ) const;
+
+    void addValue( std::string &stream,
+                   sqlite3_value *ppValue, const std::string &type ) const;
+
+    std::shared_ptr<Sqlite3Db> mDb; // to be able to run ST_* functions
+};
 
 #endif // GEODIFFEXPORTER_H

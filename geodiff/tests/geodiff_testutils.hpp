@@ -24,7 +24,10 @@ void finalize_test();
 std::string test_file( std::string basename );
 std::string tmp_file( std::string basename );
 
+int fileContains( const std::string &filepath, const std::string key );
 void printJSON( const std::string &changeset, const std::string &json, const std::string &json_summary );
+void printFileToStdout( const std::string &caption, const std::string &filepath );
+int countConflicts( const std::string &conflictFile );
 
 /**
  * \param ignore_timestamp_change ignore last_change in table gpkg_contents

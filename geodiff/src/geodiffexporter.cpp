@@ -21,6 +21,11 @@
 #include <iostream>
 #include <sstream>
 
+GeoDiffExporter::GeoDiffExporter()
+{
+  mDb = blankGeopackageDb();
+}
+
 std::string GeoDiffExporter::toString( sqlite3_changeset_iter *pp )
 {
   std::ostringstream ret;
@@ -72,15 +77,15 @@ std::string GeoDiffExporter::toString( sqlite3_changeset_iter *pp )
   return ret.str();
 }
 
-void _addValue( std::shared_ptr<Sqlite3Db> db, std::string &stream,
-                sqlite3_value *ppValue, const std::string &type )
+void GeoDiffExporter::addValue( std::string &stream,
+                                sqlite3_value *ppValue, const std::string &type ) const
 {
   std::string val;
   if ( ppValue )
   {
     if ( sqlite3_value_type( ppValue ) == SQLITE_BLOB )
     {
-      val = convertGeometryToWKT( db, ppValue );
+      val = convertGeometryToWKT( mDb, ppValue );
       if ( val.empty() )
         val = Sqlite3Value::toString( ppValue );
     }
@@ -101,7 +106,16 @@ void _addValue( std::shared_ptr<Sqlite3Db> db, std::string &stream,
   }
 }
 
-std::string GeoDiffExporter::toJSON( std::shared_ptr<Sqlite3Db> db, Sqlite3ChangesetIter &pp )
+void GeoDiffExporter::addValue( std::string &stream,
+                                std::shared_ptr<Sqlite3Value> value, const std::string &type ) const
+{
+  if ( value )
+    return addValue( stream, value->value(), type );
+  else
+    return addValue( stream, nullptr, type );
+}
+
+std::string GeoDiffExporter::toJSON( Sqlite3ChangesetIter &pp ) const
 {
   if ( !pp.get() )
     return std::string();
@@ -173,9 +187,9 @@ std::string GeoDiffExporter::toJSON( std::shared_ptr<Sqlite3Db> db, Sqlite3Chang
       }
       res += "              \"column\": " + std::to_string( i ) + ",\n";
 
-      _addValue( db, res, ppValueOld, "old" );
+      addValue( res, ppValueOld, "old" );
       res += ",\n";
-      _addValue( db, res, ppValueNew, "new" );
+      addValue( res, ppValueNew, "new" );
       res += "\n";
       res += "          }";
     }
@@ -187,7 +201,7 @@ std::string GeoDiffExporter::toJSON( std::shared_ptr<Sqlite3Db> db, Sqlite3Chang
   return res;
 }
 
-std::string GeoDiffExporter::toJSON( std::shared_ptr<Sqlite3Db> db, Buffer &buf )
+std::string GeoDiffExporter::toJSON( Buffer &buf ) const
 {
   std::string res = "{\n   \"geodiff\": [";
 
@@ -196,7 +210,7 @@ std::string GeoDiffExporter::toJSON( std::shared_ptr<Sqlite3Db> db, Buffer &buf 
   bool first = true;
   while ( SQLITE_ROW == sqlite3changeset_next( pp.get() ) )
   {
-    std::string msg = GeoDiffExporter::toJSON( db, pp );
+    std::string msg = GeoDiffExporter::toJSON( pp );
     if ( msg.empty() )
       continue;
 
@@ -225,7 +239,7 @@ struct TableSummary
   int deletes;
 };
 
-std::string GeoDiffExporter::toJSONSummary( Buffer &buf )
+std::string GeoDiffExporter::toJSONSummary( Buffer &buf ) const
 {
   std::map< std::string, TableSummary > summary;
 
@@ -284,6 +298,72 @@ std::string GeoDiffExporter::toJSONSummary( Buffer &buf )
     }
 
   }
+  res += "\n   ]\n";
+  res += "}";
+  return res;
+}
+
+std::string GeoDiffExporter::toJSON( const ConflictFeature &conflict ) const
+{
+  std::string status = "conflict";
+
+  std::string res = "      {\n";
+  res += "        \"table\": \"" + std::string( conflict.tableName() ) + "\",\n";
+  res += "        \"type\": \"" + status + "\",\n";
+  res += "        \"fid\": \"" + std::to_string( conflict.pk() ) + "\",\n";
+  res += "        \"changes\": [";
+  bool first = true;
+
+  const std::vector<ConflictItem> items = conflict.items();
+  for ( const ConflictItem &item : items )
+  {
+    if ( first )
+    {
+      first = false;
+      res += "\n          {\n";
+    }
+    else
+    {
+      res += ",\n          {\n";
+    }
+    res += "              \"column\": " + std::to_string( item.column() ) + ",\n";
+    addValue( res, item.base(), "base" );
+    res += ",\n";
+    addValue( res, item.theirs(), "old" );
+    res += ",\n";
+    addValue( res, item.ours(), "new" );
+    res += "\n";
+    res += "          }";
+
+  }
+  // close brackets
+  res += "\n        ]\n"; // end properties
+  res += "      }"; // end feature
+  return res;
+}
+
+std::string GeoDiffExporter::toJSON( const std::vector<ConflictFeature> &conflicts ) const
+{
+  std::string res = "{\n   \"geodiff\": [";
+
+  bool first = true;
+  for ( const ConflictFeature &item : conflicts )
+  {
+    std::string msg = GeoDiffExporter::toJSON( item );
+    if ( msg.empty() )
+      continue;
+
+    if ( first )
+    {
+      res += "\n" + msg;
+      first = false;
+    }
+    else
+    {
+      res += ",\n" + msg;
+    }
+  }
+
   res += "\n   ]\n";
   res += "}";
   return res;
