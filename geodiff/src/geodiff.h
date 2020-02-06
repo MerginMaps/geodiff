@@ -179,7 +179,7 @@ GEODIFF_EXPORT int GEODIFF_rebase(
 /**
  * Applies changeset file (binary) to BASE
  *
- * When changeset is correctly formed (for example after successfull rebase),
+ * When changeset is correctly formed (for example after successful rebase),
  * the applyChanges should not raise any conflict. The GEODIFF_CONFICTS error
  * suggests that the base or changeset are not match each other (e.g. changeset
  * created from different base file) or can suggest a internal bug in rebase routine.
