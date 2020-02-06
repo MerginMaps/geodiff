@@ -18,23 +18,35 @@ class GeoDiff:
     def __init__(self, libname=None):
         """
             if libname is None, it tries to import c-extension from wheel
-            messages are shown in stdout. Use environment variable GEODIFF_LOGGER_LEVEL 0(Nothing)-4(Debug) to
+            messages are shown in stdout/stderr. 
+            Use environment variable GEODIFF_LOGGER_LEVEL 0(Nothing)-4(Debug) to
             set level (Errors by default)
         """
         self.clib = GeoDiffLib(libname)
 
-    def set_logging(self, callback, maxLevel):
+    def set_logger_callback(self, callback):
         """
-         Assign custom logger
-         Replace default stdout logger with custom.
-         Based on maxLogLevel, the messages are filtered by level:
-         maxLogLevel = 0 nothing is passed to logger callback
-         maxLogLevel = 1 errors are passed to logger callback
-         maxLogLevel = 2 errors and warnings are passed to logger callback
-         maxLogLevel = 3 errors, warnings and infos are passed to logger callback
-         maxLogLevel = 4 errors, warnings, infos, debug messages are passed to logger callback
+            Assign custom logger
+            Replace default stdout/stderr logger with custom.
         """
-        return self.clib.set_logging(callback, maxLevel)
+        return self.clib.set_logger_callback(callback)
+
+    LevelError = 1
+    LevelWarning = 2
+    LevelInfo = 3
+    LevelDebug = 4
+
+    def set_maximum_logger_level(self, maxLevel):
+        """
+           Assign maximum level of messages that are passed to logger callbac
+           Based on maxLogLevel, the messages are filtered by level:
+           maxLogLevel = 0 nothing is passed to logger callback
+           maxLogLevel = 1 errors are passed to logger callback
+           maxLogLevel = 2 errors and warnings are passed to logger callback
+           maxLogLevel = 3 errors, warnings and infos are passed to logger callback
+           maxLogLevel = 4 errors, warnings, infos, debug messages are passed to logger callback
+        """
+        return self.clib.set_maximum_logger_level(maxLevel)
 
     def create_changeset(self, base, modified, changeset):
         """

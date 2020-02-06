@@ -79,13 +79,18 @@ class GeoDiffLib:
         func = self.lib.GEODIFF_init
         func()
 
-    def set_logging(self, callback, maxLevel):
-        func = self.lib.GEODIFF_setLogging
+    def set_logger_callback(self, callback):
+        func = self.lib.GEODIFF_setLoggerCallback
         CMPFUNC = ctypes.CFUNCTYPE(None, ctypes.c_int, ctypes.c_char_p)
-        func.argtypes = [CMPFUNC, ctypes.c_bool]
+        func.argtypes = [CMPFUNC]
         # do not remove self, callback needs to be member
         self.callbackLogger = CMPFUNC(callback)
-        func(self.callbackLogger, maxLevel)
+        func(self.callbackLogger)
+
+    def set_maximum_logger_level(self, maxLevel):
+        func = self.lib.GEODIFF_setMaximumLoggerLevel
+        func.argtypes = [ctypes.c_int]
+        func(maxLevel)
 
     def version(self):
         func = self.lib.GEODIFF_version

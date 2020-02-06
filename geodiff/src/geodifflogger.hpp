@@ -18,9 +18,9 @@ class Logger
 {
   public:
     static Logger &instance();
-    void setCallback( LoggerCallback loggerCallback );
-    void setMaxLogLevel( LoggerLevel level ) {mMaxLogLevel = level;}
-    LoggerLevel maxLogLevel() const { return mMaxLogLevel; }
+    void setCallback( GEODIFF_LoggerCallback loggerCallback );
+    void setMaxLogLevel( GEODIFF_LoggerLevel level ) { mMaxLogLevel = level; }
+    GEODIFF_LoggerLevel maxLogLevel() const { return mMaxLogLevel; }
     Logger( Logger const & ) = delete;
     void operator=( Logger const & ) = delete;
     void debug( const std::string &msg );
@@ -31,9 +31,9 @@ class Logger
     void error( const GeoDiffException &exp );
   private:
     Logger();
-    LoggerCallback mLoggerCallback = nullptr;
-    LoggerLevel mMaxLogLevel = LoggerLevel::LevelError;
-    void log( LoggerLevel level, const std::string &msg );
+    GEODIFF_LoggerCallback mLoggerCallback = nullptr;
+    GEODIFF_LoggerLevel mMaxLogLevel = GEODIFF_LoggerLevel::LevelError;
+    void log( GEODIFF_LoggerLevel level, const std::string &msg );
 };
 
 #endif // GEODIFFLOGGER_H

@@ -97,7 +97,7 @@ std::string tmp_file( std::string basename )
   return path;
 }
 
-static void logger( LoggerLevel level, const char *msg )
+static void logger( GEODIFF_LoggerLevel level, const char *msg )
 {
   std::string prefix;
   switch ( level )
@@ -113,7 +113,8 @@ static void logger( LoggerLevel level, const char *msg )
 void init_test()
 {
   GEODIFF_init();
-  GEODIFF_setLogging( &logger, LoggerLevel::LevelDebug );
+  GEODIFF_setLoggerCallback( &logger );
+  GEODIFF_setMaximumLoggerLevel( GEODIFF_LoggerLevel::LevelDebug );
 }
 
 void finalize_test()
