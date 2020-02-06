@@ -186,7 +186,7 @@ GEODIFF_EXPORT int GEODIFF_rebase(
  *
  * When changeset is correctly formed (for example after successful rebase),
  * the applyChanges should not raise any conflict. The GEODIFF_CONFLICTS error
- * suggests that the base or changeset are not match each other (e.g. changeset
+ * suggests that the base or changeset are not matching each other (e.g. changeset
  * created from different base file) or can suggest an internal bug in rebase routine.
  * With WARN logging level client should be able to see the place of conflicts.
  *
