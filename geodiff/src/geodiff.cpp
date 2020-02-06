@@ -238,16 +238,15 @@ int GEODIFF_createRebasedChangeset( const char *base,
                                     const char *modified,
                                     const char *changeset_their,
                                     const char *changeset,
-                                    const char *conflictfile,
-                                    int *nConflicts )
+                                    const char *conflictfile
+                                  )
 {
-  if ( !conflictfile || !nConflicts )
+  if ( !conflictfile )
   {
     Logger::instance().error( "NULL arguments to GEODIFF_createRebasedChangeset" );
     return GEODIFF_ERROR;
   }
   fileremove( conflictfile );
-  *nConflicts = 0;
 
   try
   {
@@ -274,10 +273,16 @@ int GEODIFF_createRebasedChangeset( const char *base,
     rc = rebase( changeset_their, changeset, changeset_BASE_MODIFIED.path(), conflicts );
 
     // output conflicts
-    *nConflicts = conflicts.size();
-    GeoDiffExporter exporter;
-    std::string res = exporter.toJSON( conflicts );
-    flushString( conflictfile, res );
+    if ( conflicts.empty() )
+    {
+      Logger::instance().debug( "No conflicts present" );
+    }
+    else
+    {
+      GeoDiffExporter exporter;
+      std::string res = exporter.toJSON( conflicts );
+      flushString( conflictfile, res );
+    }
 
     return rc;
   }
@@ -434,10 +439,9 @@ int GEODIFF_invertChangeset( const char *changeset, const char *changeset_inv )
 int GEODIFF_rebase( const char *base,
                     const char *modified_their,
                     const char *modified,
-                    const char *conflictfile,
-                    int *nConflicts )
+                    const char *conflictfile )
 {
-  if ( !base || !modified || !modified || !conflictfile || !nConflicts )
+  if ( !base || !modified || !modified || !conflictfile )
   {
     Logger::instance().error( "NULL arguments to GEODIFF_rebase" );
     return GEODIFF_ERROR;
@@ -448,8 +452,6 @@ int GEODIFF_rebase( const char *base,
     Logger::instance().error( "Missing input files in GEODIFF_rebase" );
     return GEODIFF_ERROR;
   }
-
-  *nConflicts = 0;
 
   try
   {
@@ -491,7 +493,7 @@ int GEODIFF_rebase( const char *base,
 
     // 3A) Create all changesets
     TmpFile theirs2final( root + "_theirs2final.bin" );
-    if ( GEODIFF_createRebasedChangeset( base, modified, base2theirs.c_path(), theirs2final.c_path(), conflictfile, nConflicts ) != GEODIFF_SUCCESS )
+    if ( GEODIFF_createRebasedChangeset( base, modified, base2theirs.c_path(), theirs2final.c_path(), conflictfile ) != GEODIFF_SUCCESS )
     {
       Logger::instance().error( "Unable to perform GEODIFF_createChangeset theirs2final" );
       return GEODIFF_ERROR;

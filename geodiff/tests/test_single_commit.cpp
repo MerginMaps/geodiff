@@ -78,13 +78,13 @@ bool _test(
 
   // check that direct rebase works
   filecopy( patched2, modified );
-  int nConflicts;
-  if ( GEODIFF_rebase( base.c_str(), base.c_str(), patched2.c_str(), conflict.c_str(), &nConflicts ) != GEODIFF_SUCCESS )
+  if ( GEODIFF_rebase( base.c_str(), base.c_str(), patched2.c_str(), conflict.c_str() ) != GEODIFF_SUCCESS )
   {
     std::cout << "err GEODIFF_rebase inversed" << std::endl;
     return false;
   }
 
+  int nConflicts = countConflicts( conflict );
   if ( nConflicts != 0 )
   {
     std::cout << "conflicts found" << std::endl;

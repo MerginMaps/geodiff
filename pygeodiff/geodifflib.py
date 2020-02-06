@@ -131,7 +131,7 @@ class GeoDiffLib:
 
     def create_rebased_changeset(self, base, modified, changeset_their, changeset, conflict):
         func = self.lib.GEODIFF_createRebasedChangeset
-        func.argtypes = [ctypes.c_char_p, ctypes.c_char_p, ctypes.c_char_p, ctypes.c_char_p, ctypes.c_char_p, ctypes.POINTER(ctypes.c_int)]
+        func.argtypes = [ctypes.c_char_p, ctypes.c_char_p, ctypes.c_char_p, ctypes.c_char_p, ctypes.c_char_p]
         func.restype = ctypes.c_int
 
         # create byte objects from the strings
@@ -140,15 +140,13 @@ class GeoDiffLib:
         b_string3 = changeset_their.encode('utf-8')
         b_string4 = changeset.encode('utf-8')
         b_string5 = conflict.encode('utf-8')
-        n_conflicts = ctypes.c_int()
 
-        res = func(b_string1, b_string2, b_string3, b_string4, b_string5, ctypes.byref(n_conflicts))
+        res = func(b_string1, b_string2, b_string3, b_string4, b_string5)
         _parse_return_code(res, "createRebasedChangeset")
-        return n_conflicts.value
 
     def rebase(self, base, modified_their, modified, conflict):
         func = self.lib.GEODIFF_rebase
-        func.argtypes = [ctypes.c_char_p, ctypes.c_char_p, ctypes.c_char_p, ctypes.c_char_p, ctypes.POINTER(ctypes.c_int)]
+        func.argtypes = [ctypes.c_char_p, ctypes.c_char_p, ctypes.c_char_p, ctypes.c_char_p]
         func.restype = ctypes.c_int
 
         # create byte objects from the strings
@@ -156,10 +154,8 @@ class GeoDiffLib:
         b_string2 = modified_their.encode('utf-8')
         b_string3 = modified.encode('utf-8')
         b_string4 = conflict.encode('utf-8')
-        n_conflicts = ctypes.c_int()
-        res = func(b_string1, b_string2, b_string3, b_string4, ctypes.byref(n_conflicts))
+        res = func(b_string1, b_string2, b_string3, b_string4)
         _parse_return_code(res, "rebase")
-        return n_conflicts.value
 
     def apply_changeset(self, base, changeset):
         func = self.lib.GEODIFF_applyChangeset

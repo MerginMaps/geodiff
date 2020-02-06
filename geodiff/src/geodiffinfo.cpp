@@ -49,8 +49,7 @@ int createRebasedChangeset( int argc, char *argv[] )
     return err( "invalid number of arguments to createRebasedChangeset" );
   }
 
-  int nConflicts;
-  int ret = GEODIFF_createRebasedChangeset( argv[2], argv[3], argv[4], argv[5], argv[6], &nConflicts );
+  int ret = GEODIFF_createRebasedChangeset( argv[2], argv[3], argv[4], argv[5], argv[6] );
   return ret;
 }
 

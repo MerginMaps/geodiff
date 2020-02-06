@@ -34,10 +34,10 @@ class UnitTestsPythonConcurrentCommits(GeoDiffTests):
         check_nchanges(self.geodiff, changesetbaseA,  2)
 
         print("create changeset A to B")
-        n_conflicts =  self.geodiff.create_rebased_changeset(base, modifiedB, changesetbaseA, changesetAB, conflictAB)
+        self.geodiff.create_rebased_changeset(base, modifiedB, changesetbaseA, changesetAB, conflictAB)
         check_nchanges(self.geodiff, changesetAB, 2)
-        if n_conflicts != 0:
-            raise TestError("expected no conflict, got " + str(n_conflicts))
+        if os.path.exists(conflictAB):
+            raise TestError("expected no conflicts")
 
         print("apply changeset to A to get AB")
         shutil.copyfile(modifiedA, patchedAB)
@@ -49,9 +49,9 @@ class UnitTestsPythonConcurrentCommits(GeoDiffTests):
 
         print("check direct rebase")
         shutil.copyfile(modifiedB, patchedAB2)
-        n_conflicts =  self.geodiff.rebase(base, modifiedA, patchedAB2, conflictAB2)
-        if n_conflicts != 0:
-            raise TestError("expected no conflict")
+        self.geodiff.rebase(base, modifiedA, patchedAB2, conflictAB2)
+        if os.path.exists(conflictAB2):
+            raise TestError("expected no conflicts")
 
         self.geodiff.create_changeset(base, patchedAB2, changesetAB2)
         check_nchanges(self.geodiff, changesetAB2,  3)

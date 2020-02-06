@@ -52,8 +52,7 @@ bool _test(
   }
 
   // create changeset A to B
-  int nConflicts = 0;
-  if ( GEODIFF_createRebasedChangeset( base.c_str(), modifiedB.c_str(), changesetbaseA.c_str(), changesetAB.c_str(), conflictAB.c_str(), &nConflicts ) != GEODIFF_SUCCESS )
+  if ( GEODIFF_createRebasedChangeset( base.c_str(), modifiedB.c_str(), changesetbaseA.c_str(), changesetAB.c_str(), conflictAB.c_str() ) != GEODIFF_SUCCESS )
   {
     std::cout << "err GEODIFF_createRebasedChangeset AB" << std::endl;
     return false;
@@ -66,6 +65,7 @@ bool _test(
     return false;
   }
 
+  int nConflicts = countConflicts( conflictAB );
   if ( nConflicts != 0 )
   {
     printFileToStdout( "Conflicts", conflictAB );
@@ -112,13 +112,13 @@ bool _test(
 
   // now check that we get same result in case of direct rebase
   filecopy( patchedAB_2, modifiedB );
-  nConflicts = 0;
-  if ( GEODIFF_rebase( base.c_str(), modifiedA.c_str(), patchedAB_2.c_str(), conflict2.c_str(), &nConflicts ) != GEODIFF_SUCCESS )
+  if ( GEODIFF_rebase( base.c_str(), modifiedA.c_str(), patchedAB_2.c_str(), conflict2.c_str() ) != GEODIFF_SUCCESS )
   {
     std::cout << "err GEODIFF_rebase A" << std::endl;
     return false;
   }
 
+  nConflicts = countConflicts( conflict2 );
   if ( nConflicts != expected_conflicts )
   {
     std::cout << "err GEODIFF_rebase AB conflict: " << nConflicts << " expected: " << expected_conflicts << std::endl;

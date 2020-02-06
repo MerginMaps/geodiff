@@ -98,8 +98,7 @@ class GeoDiff:
              \param base [input] BASE sqlite3/geopackage file
              \param modified_their [input] MODIFIED sqlite3/geopackage file
              \param modified [input] local copy of the changes to be rebased
-             \param conflict [output] file where the automatically resolved conflicts are stored
-             \returns number of conflicts
+             \param conflict [output] file where the automatically resolved conflicts are stored. If there are no conflicts, file is not created
 
              raises SqliteDiffError on error
         """
@@ -120,8 +119,7 @@ class GeoDiff:
              \param modified [input] MODIFIED sqlite3/geopackage file
              \param changeset_their [input] changeset between BASE -> MODIFIED_THEIR
              \param changeset [output] changeset between MODIFIED_THEIR -> MODIFIED_THEIR_PLUS_MINE
-             \param conflict [output] file where the automatically resolved conflicts are stored
-             \returns number of conflicts
+             \param conflict [output] file where the automatically resolved conflicts are stored. If there are no conflicts, file is not created
 
              raises SqliteDiffError on error
         """
