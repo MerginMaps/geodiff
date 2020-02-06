@@ -44,9 +44,13 @@ void GEODIFF_init()
   }
 }
 
-void GEODIFF_setLogging( LoggerCallback loggerCallback, LoggerLevel maxLogLevel )
+void GEODIFF_setLoggerCallback( GEODIFF_LoggerCallback loggerCallback )
 {
   Logger::instance().setCallback( loggerCallback );
+}
+
+void GEODIFF_setMaximumLoggerLevel( GEODIFF_LoggerLevel maxLogLevel )
+{
   Logger::instance().setMaxLogLevel( maxLogLevel );
 }
 

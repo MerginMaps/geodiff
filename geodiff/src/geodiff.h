@@ -43,37 +43,45 @@ extern "C" {
 /**
  * Initialize library
  *
- * The default logger is set, where all the messages printed are printed to stdout and
- * can be controlled by environment variable GEODIFF_LOGGER_LEVEL
+ * The default logger is set, where all the messages printed are printed to stdout/stderr
+ * and can be controlled by environment variable GEODIFF_LOGGER_LEVEL
  * GEODIFF_LOGGER_LEVEL = 0 nothing is printed
  * GEODIFF_LOGGER_LEVEL = 1 errors are printed
  * GEODIFF_LOGGER_LEVEL = 2 errors and warnings are printed
  * GEODIFF_LOGGER_LEVEL = 3 errors, warnings and infos are printed
  * GEODIFF_LOGGER_LEVEL = 4 errors, warnings, infos, debug messages are printed
+ *
+ * Default logger level is 1 (errors are printed)
  */
 GEODIFF_EXPORT void GEODIFF_init();
 
 /**
 * Type of message level to log
 */
-enum LoggerLevel
+enum GEODIFF_LoggerLevel
 {
-  LevelError = 0,
-  LevelWarning = 1,
-  LevelInfo = 2,
-  LevelDebug = 3
+  LevelError = 1,
+  LevelWarning = 2,
+  LevelInfo = 3,
+  LevelDebug = 4
 };
 
 /**
  * Callback function pointer to redirect log
  */
-typedef void ( /*__stdcall*/ *LoggerCallback )( LoggerLevel level, const char *msg );
+typedef void ( *GEODIFF_LoggerCallback )( GEODIFF_LoggerLevel level, const char *msg );
 
 /**
  * Assign custom logger
  *
- * Replace default stdout logger with custom.
+ * Replace default stdout/stderr logger with custom.
  * When loggerCallback is nullptr, no output is produced at all
+ */
+GEODIFF_EXPORT void GEODIFF_setLoggerCallback( GEODIFF_LoggerCallback loggerCallback );
+
+/**
+ * Assign maximum level of messages that are passed to logger callback
+ *
  * Based on maxLogLevel, the messages are filtered by level:
  * maxLogLevel = 0 nothing is passed to logger callback
  * maxLogLevel = 1 errors are passed to logger callback
@@ -81,7 +89,8 @@ typedef void ( /*__stdcall*/ *LoggerCallback )( LoggerLevel level, const char *m
  * maxLogLevel = 3 errors, warnings and infos are passed to logger callback
  * maxLogLevel = 4 errors, warnings, infos, debug messages are passed to logger callback
  */
-GEODIFF_EXPORT void GEODIFF_setLogging( LoggerCallback loggerCallback, LoggerLevel maxLogLevel );
+GEODIFF_EXPORT void GEODIFF_setMaximumLoggerLevel( GEODIFF_LoggerLevel maxLogLevel );
+
 
 //! Returns version in format X.Y.Z where xyz are positive integers
 GEODIFF_EXPORT const char *GEODIFF_version();

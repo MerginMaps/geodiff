@@ -103,4 +103,5 @@ class GeoDiffTests(unittest.TestCase):
         if not os.path.exists(lib):
             raise TestError("lib {} is missing ".format(lib))
         self.geodiff = pygeodiff.GeoDiff(lib)
-        self.geodiff.set_logging(logger, 4)
+        self.geodiff.set_logger_callback(logger)
+        self.geodiff.set_maximum_logger_level(pygeodiff.GeoDiff.LevelDebug)
