@@ -18,26 +18,30 @@ int _envInt( const char *key )
   return 0;
 }
 
-void StdoutLogger( LoggerLevel level, const char *msg )
+void StdoutLogger( GEODIFF_LoggerLevel level, const char *msg )
 {
-  std::string prefix;
   switch ( level )
   {
-    case LevelError: prefix = "Error: "; break;
-    case LevelWarning: prefix = "Warn: "; break;
-    case LevelDebug: prefix = "Debug: "; break;
+    case LevelError:
+      std::cerr << "Error: " << msg << std::endl;
+      break;
+    case LevelWarning:
+      std::cout << "Warn: " << msg << std::endl;
+      break;
+    case LevelDebug:
+      std::cout << "Debug: " << msg << std::endl;
+      break;
     default: break;
   }
-  std::cout << prefix << msg << std::endl ;
 }
 
 Logger::Logger()
 {
   // Sort out which
   int envLevel = _envInt( "GEODIFF_LOGGER_LEVEL" );
-  if ( envLevel > 0 && envLevel <= LoggerLevel::LevelDebug )
+  if ( envLevel >= 0 && envLevel <= GEODIFF_LoggerLevel::LevelDebug )
   {
-    setMaxLogLevel( static_cast<LoggerLevel>( envLevel ) );
+    setMaxLogLevel( static_cast<GEODIFF_LoggerLevel>( envLevel ) );
   }
 
   setCallback( &StdoutLogger );
@@ -49,45 +53,45 @@ Logger &Logger::instance()
   return instance;
 }
 
-void Logger::setCallback( LoggerCallback loggerCallback )
+void Logger::setCallback( GEODIFF_LoggerCallback loggerCallback )
 {
   mLoggerCallback = loggerCallback;
 }
 
 void Logger::debug( const std::string &msg )
 {
-  log( LoggerLevel::LevelDebug, msg );
+  log( GEODIFF_LoggerLevel::LevelDebug, msg );
 }
 
 void Logger::warn( const std::string &msg )
 {
-  log( LoggerLevel::LevelWarning, msg );
+  log( GEODIFF_LoggerLevel::LevelWarning, msg );
 }
 
 void Logger::error( const std::string &msg )
 {
-  log( LoggerLevel::LevelError, msg );
+  log( GEODIFF_LoggerLevel::LevelError, msg );
 }
 
 void Logger::error( const GeoDiffException &exp )
 {
-  log( LoggerLevel::LevelError, exp.what() );
+  log( GEODIFF_LoggerLevel::LevelError, exp.what() );
 }
 
 void Logger::info( const std::string &msg )
 {
-  log( LoggerLevel::LevelInfo, msg );
+  log( GEODIFF_LoggerLevel::LevelInfo, msg );
 }
 
-void Logger::log( LoggerLevel level, const std::string &msg )
+void Logger::log( GEODIFF_LoggerLevel level, const std::string &msg )
 {
   if ( mLoggerCallback )
   {
     // Check out if we want to print this message
-    if ( static_cast<int>( level ) > static_cast<int>( maxLogLevel() ) )
-      return;
-
-    // Send to callback
-    mLoggerCallback( level, msg.c_str() );
+    if ( static_cast<int>( level ) <= static_cast<int>( maxLogLevel() ) )
+    {
+      // Send to callback
+      mLoggerCallback( level, msg.c_str() );
+    }
   }
 }

@@ -71,7 +71,7 @@ struct DatabaseRebaseInfo
 
   void dump()
   {
-    if ( Logger::instance().maxLogLevel() != LoggerLevel::LevelDebug )
+    if ( Logger::instance().maxLogLevel() != GEODIFF_LoggerLevel::LevelDebug )
       return;
 
     std::ostringstream ret;
@@ -146,7 +146,7 @@ struct RebaseMapping
 
   void dump() const
   {
-    if ( Logger::instance().maxLogLevel() != LoggerLevel::LevelDebug )
+    if ( Logger::instance().maxLogLevel() != GEODIFF_LoggerLevel::LevelDebug )
       return;
 
     std::ostringstream ret;

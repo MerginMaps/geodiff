@@ -12,16 +12,25 @@ from .geodifflib import GeoDiffLib
 
 class GeoDiff:
     """
-        if libname is None, it tries to import c-extension from wheel
-        messages are shown in stdout. Use environment variable GEODIFF_LOGGER_LEVEL 0(Nothing)-4(Debug) to
-        set level (Errors by default)
+        if libname is None, it tries to import c-extension from wheel messages are shown in stdout.
+        Use environment variable GEODIFF_LOGGER_LEVEL 0(Nothing)-4(Debug) to set level (Errors by default)
     """
     def __init__(self, libname=None):
         self.clib = GeoDiffLib(libname)
 
     """
      Assign custom logger
-     Replace default stdout logger with custom.
+     Replace default stdout/stderr logger with custom.
+    """
+    def set_logger_callback(self, callback):
+        return self.clib.set_logger_callback(callback)
+
+    LevelError = 1
+    LevelWarning = 2
+    LevelInfo = 3
+    LevelDebug = 4
+    """
+     Assign maximum level of messages that are passed to logger callbac
      Based on maxLogLevel, the messages are filtered by level:
      maxLogLevel = 0 nothing is passed to logger callback
      maxLogLevel = 1 errors are passed to logger callback
@@ -29,8 +38,8 @@ class GeoDiff:
      maxLogLevel = 3 errors, warnings and infos are passed to logger callback
      maxLogLevel = 4 errors, warnings, infos, debug messages are passed to logger callback
     """
-    def set_logging(self, callback, maxLevel):
-        return self.clib.set_logging(callback, maxLevel)
+    def set_maximum_logger_level(self, maxLevel):
+        return self.clib.set_maximum_logger_level(maxLevel)
 
     """
         Creates changeset file (binary) in such way that
