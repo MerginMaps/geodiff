@@ -129,6 +129,47 @@ bool _test(
   return equals( patchedAB_2, expected_patchedAB, ignore_timestamp_change );
 }
 
+bool _test_expect_not_implemented(
+  const std::string &baseX,
+  const std::string &testname,
+  const std::string &A,
+  const std::string &B,
+  int expected_changes_A
+)
+{
+  makedir( pathjoin( tmpdir(), testname ) );
+
+  std::string base = pathjoin( testdir(), baseX );
+  std::string modifiedA = pathjoin( testdir(), testname, A );
+  std::string modifiedB = pathjoin( testdir(), testname, B );
+  std::string changesetbaseA = pathjoin( tmpdir(), testname, "changeset_base_to_A.bin" );
+  std::string changesetAB = pathjoin( tmpdir(), testname, "changeset_A_to_B.bin" );
+  std::string conflictAB = pathjoin( tmpdir(), testname, "conflict_A_to_B.json" );
+
+
+  // create changeset base to A
+  if ( GEODIFF_createChangeset( base.c_str(), modifiedA.c_str(), changesetbaseA.c_str() ) != GEODIFF_SUCCESS )
+  {
+    std::cout << "err GEODIFF_createChangeset A" << std::endl;
+    return false;
+  }
+
+  int nchanges = GEODIFF_changesCount( changesetbaseA.c_str() );
+  if ( nchanges != expected_changes_A )
+  {
+    std::cout << "err GEODIFF_listChanges A: " << nchanges << std::endl;
+    return false;
+  }
+
+  // create changeset A to B -- EXPECT ERROR!
+  if ( GEODIFF_createRebasedChangeset( base.c_str(), modifiedB.c_str(), changesetbaseA.c_str(), changesetAB.c_str(), conflictAB.c_str() ) == GEODIFF_SUCCESS )
+  {
+    std::cout << "err GEODIFF_createRebasedChangeset AB" << std::endl;
+    return false;
+  }
+  return true;
+}
+
 TEST( ConcurrentCommitsSqlite3Test, test_2_inserts )
 {
   std::cout << "geopackage 2 concurent INSERTS (base) -> (A) and (base) -> (B)" << std::endl;
@@ -293,6 +334,43 @@ TEST( ConcurrentCommitsSqlite3Test, test_update_2_different_tables )
           2,
           4,
           0
+        );
+  ASSERT_TRUE( ret );
+}
+
+TEST( ConcurrentCommitsSqlite3Test, test_fk_2_updates )
+{
+  std::cout << "new tree specie & tree is added on both A and B" << std::endl;
+  std::cout << "https://github.com/lutraconsulting/geodiff/issues/39" << std::endl;
+
+  bool ret = _test_expect_not_implemented(
+               "base_fk.gpkg",
+               "fk_2_updates",
+               "modified_fk_A.gpkg",
+               "modified_fk_B.gpkg",
+               4
+             );
+  ASSERT_TRUE( ret );
+
+  std::cout << "new tree specie & tree is added on A and just new tree on B" << std::endl;
+  std::cout << "https://github.com/lutraconsulting/geodiff/issues/39" << std::endl;
+  ret = _test_expect_not_implemented(
+          "base_fk.gpkg",
+          "fk_2_updates",
+          "modified_fk_A.gpkg",
+          "modified_fk_only_new_tree.gpkg",
+          4
+        );
+  ASSERT_TRUE( ret );
+
+  std::cout << "new tree specie & tree is added on B and just new tree on A" << std::endl;
+  std::cout << "https://github.com/lutraconsulting/geodiff/issues/39" << std::endl;
+  ret = _test_expect_not_implemented(
+          "base_fk.gpkg",
+          "fk_2_updates",
+          "modified_fk_only_new_tree.gpkg",
+          "modified_fk_A.gpkg",
+          8
         );
   ASSERT_TRUE( ret );
 }

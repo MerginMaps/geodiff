@@ -158,6 +158,17 @@ TEST( SingleCommitSqlite3Test, reprojected )
   ASSERT_TRUE( ret );
 }
 
+TEST( SingleCommitSqlite3Test, SingleCommitFkTest )
+{
+  std::cout << "database with foreign keys" << std::endl;
+  bool ret = _test( "fk_1_update",
+                    "base_fk.gpkg",
+                    pathjoin( "fk_1_update", "modified_fk.gpkg" ),
+                    5
+                  );
+  ASSERT_TRUE( ret );
+}
+
 int main( int argc, char **argv )
 {
   testing::InitGoogleTest( &argc, argv );

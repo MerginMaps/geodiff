@@ -10,6 +10,7 @@
 #include <memory>
 #include <exception>
 #include <vector>
+#include <map>
 
 #include "sqlite3.h"
 #include "geodiff.h"
@@ -201,6 +202,14 @@ void triggers( std::shared_ptr<Sqlite3Db> db,
 void tables( std::shared_ptr<Sqlite3Db> db,
              const std::string &dbName,
              std::vector<std::string> &tableNames );
+
+bool isLayerTable( const std::string &tableName );
+
+typedef std::pair<std::string, int> TableColumn; //table name, column ID tree, 4(specie)
+typedef std::map<TableColumn, TableColumn> ForeignKeys; // key is FK to value, e.g tree, 4(specie) -> species, 1(fid)
+ForeignKeys foreignKeys( std::shared_ptr<Sqlite3Db> db, const std::string &dbName );
+
+int indexOf( const std::vector<std::string> &arr, const std::string &val );
 
 std::vector<std::string> columnNames(
   std::shared_ptr<Sqlite3Db> db,

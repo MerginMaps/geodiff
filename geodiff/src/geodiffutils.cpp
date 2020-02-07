@@ -834,7 +834,6 @@ void tables( std::shared_ptr<Sqlite3Db> db,
       continue;
 
     std::string tableName( name );
-
     /* typically geopackage from ogr would have these (table name is simple)
     gpkg_contents
     gpkg_extensions
@@ -864,6 +863,83 @@ void tables( std::shared_ptr<Sqlite3Db> db,
   }
 
   // result is ordered by name
+}
+
+
+bool isLayerTable( const std::string &tableName )
+{
+  /* typically geopackage from ogr would have these (table name is simple)
+  gpkg_contents
+  gpkg_extensions
+  gpkg_geometry_columns
+  gpkg_ogr_contents
+  gpkg_spatial_ref_sys
+  gpkg_tile_matrix
+  gpkg_tile_matrix_set
+  rtree_simple_geometry_node
+  rtree_simple_geometry_parent
+  rtree_simple_geometry_rowid
+  simple (or any other name(s) of layers)
+  sqlite_sequence
+  */
+
+  // table handled by triggers trigger_*_feature_count_*
+  if ( startsWith( tableName, "gpkg_" ) )
+    return false;
+  // table handled by triggers rtree_*_geometry_*
+  if ( startsWith( tableName, "rtree_" ) )
+    return false;
+  // internal table for AUTOINCREMENT
+  if ( tableName == "sqlite_sequence" )
+    return false;
+
+  return true;
+}
+
+ForeignKeys foreignKeys( std::shared_ptr<Sqlite3Db> db, const std::string &dbName )
+{
+  std::vector<std::string> fromTableNames;
+  tables( db, dbName, fromTableNames );
+
+  ForeignKeys ret;
+
+  for ( const std::string &fromTableName : fromTableNames )
+  {
+    if ( isLayerTable( fromTableName ) )
+    {
+      Sqlite3Stmt pStmt;     /* SQL statement being run */
+      pStmt.prepare( db, "SELECT * FROM %s.pragma_foreign_key_list(%Q)", dbName.c_str(), fromTableName.c_str() );
+      while ( SQLITE_ROW == sqlite3_step( pStmt.get() ) )
+      {
+        const char *fk_to_table = ( const char * )sqlite3_column_text( pStmt.get(), 2 );
+        const char *fk_from = ( const char * )sqlite3_column_text( pStmt.get(), 3 );
+        const char *fk_to = ( const char * )sqlite3_column_text( pStmt.get(), 4 );
+
+        if ( fk_to_table && fk_from && fk_to )
+        {
+          // TODO: this part is not speed-optimized and could be slower for databases with a lot of
+          // columns and/or foreign keys. For each entry we grab column names again
+          // and we search for index of value in plain std::vector array...
+          std::vector<std::string> fromColumnNames = columnNames( db, dbName, fromTableName );
+          int fk_from_id = indexOf( fromColumnNames, fk_from );
+          if ( fk_from_id < 0 )
+            continue;
+
+          std::vector<std::string> toColumnNames = columnNames( db, dbName, fk_to_table );
+          int fk_to_id = indexOf( toColumnNames, fk_to );
+          if ( fk_to_id < 0 )
+            continue;
+
+          TableColumn from( fromTableName, fk_from_id );
+          TableColumn to( fk_to_table, fk_to_id );
+          ret.insert( std::pair<TableColumn, TableColumn>( from, to ) );
+        }
+      }
+      pStmt.close();
+    }
+  }
+
+  return ret;
 }
 
 /*
@@ -1258,4 +1334,13 @@ std::shared_ptr<Sqlite3Value> ConflictItem::ours() const
 int ConflictItem::column() const
 {
   return mColumn;
+}
+
+int indexOf( const std::vector<std::string> &arr, const std::string &val )
+{
+  std::vector<std::string>::const_iterator result = std::find( arr.begin(), arr.end(), val );
+  if ( result == arr.end() )
+    return -1;
+  else
+    return std::distance( arr.begin(), result );
 }
