@@ -264,6 +264,13 @@ int GEODIFF_createRebasedChangeset( const char *base,
       return GEODIFF_ERROR;
     }
 
+    ForeignKeys fks = foreignKeys( db, "main" );
+    if ( !fks.empty() )
+    {
+      Logger::instance().error( "Unable to perform rebase for database with foreign keys" );
+      return GEODIFF_ERROR;
+    }
+
     TmpFile changeset_BASE_MODIFIED( std::string( changeset ) + "_BASE_MODIFIED" );
     int rc = GEODIFF_createChangeset( base, modified, changeset_BASE_MODIFIED.c_path() );
     if ( rc != GEODIFF_SUCCESS )
@@ -271,19 +278,20 @@ int GEODIFF_createRebasedChangeset( const char *base,
 
     std::vector<ConflictFeature> conflicts;
     rc = rebase( changeset_their, changeset, changeset_BASE_MODIFIED.path(), conflicts );
-
-    // output conflicts
-    if ( conflicts.empty() )
+    if ( rc == GEODIFF_SUCCESS )
     {
-      Logger::instance().debug( "No conflicts present" );
+      // output conflicts
+      if ( conflicts.empty() )
+      {
+        Logger::instance().debug( "No conflicts present" );
+      }
+      else
+      {
+        GeoDiffExporter exporter;
+        std::string res = exporter.toJSON( conflicts );
+        flushString( conflictfile, res );
+      }
     }
-    else
-    {
-      GeoDiffExporter exporter;
-      std::string res = exporter.toJSON( conflicts );
-      flushString( conflictfile, res );
-    }
-
     return rc;
   }
   catch ( GeoDiffException exc )
