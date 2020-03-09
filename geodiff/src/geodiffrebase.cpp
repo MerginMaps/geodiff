@@ -672,14 +672,20 @@ int rebase( const std::string &changeset_BASE_THEIRS,
 
   // 1. go through the original changeset and extract data that will be needed in the second step
   DatabaseRebaseInfo dbInfo;
-  _parse_old_changeset( buf_BASE_THEIRS, dbInfo );
+  int rc = _parse_old_changeset( buf_BASE_THEIRS, dbInfo );
+  if ( rc != GEODIFF_SUCCESS )
+    return rc;
 
   // 2. go through the changeset to be rebased and figure out changes we will need to do to it
   RebaseMapping mapping;
-  _find_mapping_for_new_changeset( buf_BASE_MODIFIED, dbInfo, mapping );
+  rc = _find_mapping_for_new_changeset( buf_BASE_MODIFIED, dbInfo, mapping );
+  if ( rc != GEODIFF_SUCCESS )
+    return rc;
 
   // 3. go through the changeset to be rebased again and write it with changes determined in step 2
-  _prepare_new_changeset( buf_BASE_MODIFIED, changeset_THEIRS_MODIFIED, mapping, dbInfo, conflicts );
+  rc = _prepare_new_changeset( buf_BASE_MODIFIED, changeset_THEIRS_MODIFIED, mapping, dbInfo, conflicts );
+  if ( rc != GEODIFF_SUCCESS )
+    return rc;
 
   return GEODIFF_SUCCESS;
 }

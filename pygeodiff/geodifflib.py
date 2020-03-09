@@ -21,6 +21,8 @@ class GeoDiffLibError(Exception):
 class GeoDiffLibConflictError(GeoDiffLibError):
     pass
 
+class GeoDiffLibUnsupportedChangeError(GeoDiffLibError):
+    pass
 
 class GeoDiffLibVersionError(GeoDiffLibError):
     pass
@@ -30,6 +32,7 @@ class GeoDiffLibVersionError(GeoDiffLibError):
 SUCCESS=0
 ERROR=1
 CONFLICT=2
+UNSUPPORTED_CHANGE=3
 
 def _parse_return_code(rc, msg):
     if rc == SUCCESS:
@@ -38,6 +41,10 @@ def _parse_return_code(rc, msg):
         raise GeoDiffLibError(msg)
     elif rc == CONFLICT:
         raise GeoDiffLibConflictError(msg)
+    elif rc == UNSUPPORTED_CHANGE:
+        raise GeoDiffLibUnsupportedChangeError(msg)
+    else:
+        raise GeoDiffLibVersionError("Internal error (enum " + str(rc) + " not handled)")
 
 class GeoDiffLib:
     def __init__(self, name):
