@@ -58,6 +58,9 @@ bool _test(
     return false;
   }
 
+  // print JSON
+  printJSON( changesetAB, json, json_summary );
+
   nchanges = GEODIFF_changesCount( changesetAB.c_str() );
   if ( nchanges != expected_changes_AB )
   {
@@ -98,9 +101,6 @@ bool _test(
     std::cout << "err GEODIFF_listChanges B->base: " << nchanges << " expected: " << expected_changes_XB << " in " << changesetBbase << std::endl;
     return false;
   }
-
-  // print JSON
-  printJSON( changesetAB, json, json_summary );
 
   // check that it equals expected result
   std::cout << "final file: " << patchedAB << std::endl;
@@ -373,6 +373,27 @@ TEST( ConcurrentCommitsSqlite3Test, test_fk_2_updates )
           8
         );
   ASSERT_TRUE( ret );
+}
+
+TEST( ConcurrentCommitsSqlite3Test, test_conflict )
+{
+  std::cout << "test that the conflict is raised when different base is used" << std::endl;
+  makedir( pathjoin( tmpdir(), "test_conflict" ) );
+
+  std::string base = pathjoin( testdir(), "base.gpkg" );
+  std::string modifiedA = pathjoin( testdir(), "2_updates/updated_A.gpkg" );
+  std::string modifiedB = pathjoin( testdir(), "2_updates/updated_B.gpkg" );
+  std::string baseB = pathjoin( tmpdir(), "test_conflict/baseB.gpkg" );
+  std::string changesetbaseA = pathjoin( tmpdir(), "test_conflict/changeset_base_to_A.bin" );
+
+  filecopy( baseB, modifiedB );
+
+  // create changeset base to A
+  ASSERT_TRUE ( GEODIFF_createChangeset( base.c_str(), modifiedA.c_str(), changesetbaseA.c_str() ) == GEODIFF_SUCCESS );
+
+
+  // use modifiedC as base --> conflict
+  ASSERT_TRUE ( GEODIFF_applyChangeset( baseB.c_str(), changesetbaseA.c_str() ) != GEODIFF_SUCCESS );
 }
 
 int main( int argc, char **argv )

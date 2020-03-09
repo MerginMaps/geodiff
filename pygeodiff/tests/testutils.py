@@ -9,7 +9,7 @@ import os
 import tempfile
 import pygeodiff
 import json
-
+import shutil
 
 class TestError(Exception):
   pass
@@ -25,6 +25,10 @@ def testdir():
 def tmpdir():
   return tempfile.gettempdir()
 
+def create_dir(testname):
+    if os.path.exists(tmpdir() + "/py" + testname):
+        shutil.rmtree(tmpdir() + "/py" + testname)
+    os.makedirs(tmpdir() + "/py" + testname)
 
 def check_nchanges(geodiff, changeset, expected_number_of_changes ):
   # test has_changes

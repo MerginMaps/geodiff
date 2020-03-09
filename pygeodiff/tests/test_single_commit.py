@@ -19,10 +19,7 @@ def basetest(
         expected_json=None):
   print( "********************************************************" )
   print( "PYTHON: " + testname )
-
-  if os.path.exists(tmpdir() + "/py" + testname):
-      shutil.rmtree(tmpdir() + "/py" + testname)
-  os.makedirs(tmpdir() + "/py" + testname)
+  create_dir(testname)
 
   base = testdir() + "/" + basename
   modified = testdir() + "/" + testname + "/" + modifiedname

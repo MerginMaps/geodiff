@@ -13,9 +13,7 @@ class UnitTestsPythonConcurrentCommits(GeoDiffTests):
         print("********************************************************")
         print("PYTHON: geopackage 2 concurent modifications (base) -> (A) and (base) -> (B)")
         testname = "2_inserts"
-        if os.path.exists(tmpdir() + "/py" + testname):
-            shutil.rmtree(tmpdir() + "/py" + testname)
-        os.makedirs(tmpdir() + "/py" + testname)
+        create_dir(testname)
 
         base = testdir() + "/base.gpkg"
         modifiedA = testdir() + "/" + testname + "/" + "inserted_1_A.gpkg"
