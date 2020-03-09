@@ -389,11 +389,11 @@ TEST( ConcurrentCommitsSqlite3Test, test_conflict )
   filecopy( baseB, modifiedB );
 
   // create changeset base to A
-  ASSERT_TRUE ( GEODIFF_createChangeset( base.c_str(), modifiedA.c_str(), changesetbaseA.c_str() ) == GEODIFF_SUCCESS );
+  ASSERT_TRUE( GEODIFF_createChangeset( base.c_str(), modifiedA.c_str(), changesetbaseA.c_str() ) == GEODIFF_SUCCESS );
 
 
   // use modifiedC as base --> conflict
-  ASSERT_TRUE ( GEODIFF_applyChangeset( baseB.c_str(), changesetbaseA.c_str() ) != GEODIFF_SUCCESS );
+  ASSERT_TRUE( GEODIFF_applyChangeset( baseB.c_str(), changesetbaseA.c_str() ) != GEODIFF_SUCCESS );
 }
 
 int main( int argc, char **argv )
