@@ -11,6 +11,7 @@ SET(ENABLE_TESTS TRUE CACHE BOOL "Build tests?")
 SET(ENABLE_COVERAGE FALSE CACHE BOOL "Enable GCOV code coverage?")
 SET(BUILD_TOOLS TRUE CACHE BOOL "Build tool executables?")
 SET(BUILD_STATIC_LIBS FALSE CACHE BOOL "Build only static libraries?")
+SET(SYSTEM_SQLITE3 "" CACHE PATH "Use SQLITE3 from system from this path. Use empty PATH to use internal SQLITE3")
 
 IF(SKBUILD)
   MESSAGE(STATUS "The geodiff is built using scikit-build for pygeodiff Python package")
@@ -37,25 +38,43 @@ IF(ENABLE_COVERAGE)
   SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} --coverage")
 ENDIF(ENABLE_COVERAGE)
 
-# Get SQLITE3 dependency
-# We want to build it from source
-# Since on some platforms/distributions
-# Sqlite3 is not compiled with sessions module
-IF(EXISTS "${CMAKE_BINARY_DIR}/sqlite3.tar.gz")
-  MESSAGE("sqlite3 already downloaded")
-ELSE()
-  FILE(DOWNLOAD "https://www.sqlite.org/2019/sqlite-autoconf-3300100.tar.gz" ${CMAKE_BINARY_DIR}/sqlite3.tar.gz )
-  FILE(MAKE_DIRECTORY "${CMAKE_BINARY_DIR}/external")
-  EXECUTE_PROCESS(COMMAND ${CMAKE_COMMAND} -E tar xfz ${CMAKE_BINARY_DIR}/sqlite3.tar.gz
-    WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/external
-    RESULT_VARIABLE rv)
-ENDIF()
+IF(SYSTEM_SQLITE3)
+  # Rather make sure Sqlite3 is compiled with sessions module
+  FIND_PATH(SQLITE3_INCLUDE_DIR sqlite3.h
+    ${SYSTEM_SQLITE3}/include
+    NO_DEFAULT_PATH
+  )
+  FIND_LIBRARY(SQLITE3_LIBRARY NAMES sqlite3 PATHS
+    ${SYSTEM_SQLITE3}/lib
+    NO_DEFAULT_PATH
+  )
+  IF (NOT SQLITE3_INCLUDE_DIR OR NOT SQLITE3_LIBRARY)
+    MESSAGE(FATAL_ERROR "Missing SQLITE3 system library in folder ${SYSTEM_SQLITE3}")
+  ENDIF (NOT SQLITE3_INCLUDE_DIR OR NOT SQLITE3_LIBRARY)
+ELSE(SYSTEM_SQLITE3)
+  # Get SQLITE3 dependency
+  # We want to build it from source
+  # Since on some platforms/distributions
+  # Sqlite3 is not compiled with sessions module
+  IF(EXISTS "${CMAKE_BINARY_DIR}/sqlite3.tar.gz")
+    MESSAGE("sqlite3 already downloaded")
+  ELSE()
+    FILE(DOWNLOAD "https://www.sqlite.org/2019/sqlite-autoconf-3300100.tar.gz" ${CMAKE_BINARY_DIR}/sqlite3.tar.gz )
+    FILE(MAKE_DIRECTORY "${CMAKE_BINARY_DIR}/external")
+    EXECUTE_PROCESS(COMMAND ${CMAKE_COMMAND} -E tar xfz ${CMAKE_BINARY_DIR}/sqlite3.tar.gz
+      WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/external
+      RESULT_VARIABLE rv)
+  ENDIF()
 
-SET(sqlite3_dir ${CMAKE_BINARY_DIR}/external/sqlite-autoconf-3300100)
-SET(sqlite_src
-  ${sqlite3_dir}/sqlite3.c
-  ${sqlite3_dir}/sqlite3.h
-)
+  SET(sqlite3_dir ${CMAKE_BINARY_DIR}/external/sqlite-autoconf-3300100)
+  SET(sqlite_src
+    ${sqlite3_dir}/sqlite3.c
+    ${sqlite3_dir}/sqlite3.h
+  )
+
+  SET(geodiff_src ${geodiff_src} ${sqlite_src})
+ENDIF(SYSTEM_SQLITE3)
+
 # Get libgpkg dependency
 IF(EXISTS "${CMAKE_BINARY_DIR}/libgpkg.tar.gz")
   MESSAGE("libgpkg already downloaded")
@@ -68,7 +87,7 @@ ELSE()
 ENDIF()
 
 SET(libgpkg_dir ${CMAKE_BINARY_DIR}/external/libgpkg-0822c5cba7e1ac2c2806e445e5f5dd2f0d0a18b4)
-set(libgpkg_src
+SET(libgpkg_src
   ${libgpkg_dir}/gpkg/binstream.c
   ${libgpkg_dir}/gpkg/blobio.c
   ${libgpkg_dir}/gpkg/error.c
@@ -87,6 +106,7 @@ set(libgpkg_src
   ${libgpkg_dir}/gpkg/wkt.c
   ${libgpkg_dir}/gpkg/atomic_ops.h
 )
+SET(geodiff_src ${geodiff_src} ${libgpkg_src})
 
 IF (NOT WIN32)
   SET_SOURCE_FILES_PROPERTIES(${libgpkg_src} PROPERTIES COMPILE_FLAGS "-Wno-deprecated-declarations")
@@ -109,6 +129,7 @@ INCLUDE_DIRECTORIES( ${CMAKE_CURRENT_BINARY_DIR} )
 
 # build
 SET(geodiff_src
+  ${geodiff_src}
   src/geodiff.cpp
   src/geodiff.h
   src/geodiffutils.cpp
@@ -119,11 +140,7 @@ SET(geodiff_src
   src/geodiffexporter.hpp
   src/geodifflogger.cpp
   src/geodifflogger.hpp
-  ${sqlite_src}
-  ${libgpkg_src}
 )
-
-ADD_DEFINITIONS( -DSQLITE_CORE )
 
 IF ( BUILD_STATIC_LIBS )
   ADD_LIBRARY(${GEODIFF_NAME} STATIC ${geodiff_src} )
@@ -141,8 +158,21 @@ ELSE ( BUILD_STATIC_LIBS )
 
 ENDIF (BUILD_STATIC_LIBS)
 
-TARGET_COMPILE_DEFINITIONS(${GEODIFF_NAME} PUBLIC -DSQLITE_ENABLE_RTREE -DSQLITE_ENABLE_SESSION -DSQLITE_ENABLE_PREUPDATE_HOOK -DSQLITE_ENABLE_COLUMN_METADATA=1 -DSQLITE_MAX_VARIABLE_NUMBER=250000 -DSQLITE_ENABLE_FTS3=1 -DSQLITE_ENABLE_FTS3_PARENTHESIS=1 -DSQLITE_ENABLE_JSON1=1)
-TARGET_INCLUDE_DIRECTORIES(${GEODIFF_NAME} PRIVATE ${sqlite3_dir})
+ADD_DEFINITIONS( -DSQLITE_CORE )
+IF(SYSTEM_SQLITE3)
+  ADD_DEFINITIONS( -DSQLITE_ENABLE_SESSION )
+  TARGET_INCLUDE_DIRECTORIES( ${GEODIFF_NAME} PRIVATE ${SQLITE3_INCLUDE_DIR})
+  IF ( NOT BUILD_STATIC_LIBS )
+      TARGET_LINK_LIBRARIES(${GEODIFF_NAME} PUBLIC ${SQLITE3_LIBRARY})
+      IF (BUILD_TOOLS)
+          TARGET_LINK_LIBRARIES(geodiffinfo PUBLIC ${SQLITE3_LIBRARY} )
+      ENDIF (BUILD_TOOLS)
+  ENDIF ( NOT BUILD_STATIC_LIBS )
+ELSE(SYSTEM_SQLITE3)
+  TARGET_COMPILE_DEFINITIONS(${GEODIFF_NAME} PUBLIC -DSQLITE_ENABLE_RTREE -DSQLITE_ENABLE_SESSION -DSQLITE_ENABLE_PREUPDATE_HOOK -DSQLITE_ENABLE_COLUMN_METADATA=1 -DSQLITE_MAX_VARIABLE_NUMBER=250000 -DSQLITE_ENABLE_FTS3=1 -DSQLITE_ENABLE_FTS3_PARENTHESIS=1 -DSQLITE_ENABLE_JSON1=1)
+  TARGET_INCLUDE_DIRECTORIES(${GEODIFF_NAME} PRIVATE ${sqlite3_dir})
+ENDIF(SYSTEM_SQLITE3)
+
 TARGET_INCLUDE_DIRECTORIES(${GEODIFF_NAME} PRIVATE ${libgpkg_dir}/gpkg)
 
 # tests
