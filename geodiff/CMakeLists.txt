@@ -130,6 +130,12 @@ SET(geodiff_src
   src/geodiffexporter.hpp
   src/geodifflogger.cpp
   src/geodifflogger.hpp
+  src/geodiffchangeset.cpp
+  src/geodiffchangeset.h
+  src/geodiffdriver.h
+  src/sqlitedriver.cpp
+  src/sqlitedriver.h
+  src/varint_helpers.h
 )
 
 IF ( BUILD_STATIC_LIBS )

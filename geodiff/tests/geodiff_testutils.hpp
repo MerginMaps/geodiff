@@ -36,4 +36,7 @@ bool equals( const std::string &file1,
              const std::string &file2,
              bool ignore_timestamp_change = false );
 
+//! Tests whether two files are binary equal
+bool fileContentEquals( const std::string &file1, const std::string &file2 );
+
 #endif // GEODIFF_TESTUTILS_HPP

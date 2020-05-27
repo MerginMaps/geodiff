@@ -53,7 +53,7 @@ Sqlite3Db::~Sqlite3Db()
 void Sqlite3Db::open( const std::string &filename )
 {
   close();
-  int rc = sqlite3_open( filename.c_str(), &mDb );
+  int rc = sqlite3_open_v2( filename.c_str(), &mDb, SQLITE_OPEN_READWRITE, nullptr );
   if ( rc )
   {
     throw GeoDiffException( "Unable to open " + filename + " as sqlite3 database" );
@@ -157,6 +157,17 @@ void Sqlite3Stmt::prepare( std::shared_ptr<Sqlite3Db> db, const char *zFormat, .
   }
 }
 
+void Sqlite3Stmt::prepare( std::shared_ptr<Sqlite3Db> db, const std::string &sql )
+{
+  sqlite3_stmt *pStmt;
+  int rc = sqlite3_prepare_v2( db->get(), sql.c_str(), -1, &pStmt, nullptr );
+  if ( rc )
+  {
+    throw GeoDiffException( "SQL statement error" );
+  }
+  mStmt = pStmt;
+}
+
 sqlite3_stmt *Sqlite3Stmt::get()
 {
   return mStmt;
@@ -169,6 +180,14 @@ void Sqlite3Stmt::close()
     sqlite3_finalize( mStmt );
     mStmt = nullptr;
   }
+}
+
+std::string Sqlite3Stmt::expandedSql() const
+{
+  char *str = sqlite3_expanded_sql( mStmt );
+  std::string sql( str );
+  sqlite3_free( str );
+  return sql;
 }
 
 Sqlite3ChangesetIter::Sqlite3ChangesetIter() = default;

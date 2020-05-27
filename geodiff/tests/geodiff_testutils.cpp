@@ -13,6 +13,7 @@
 #include <fstream>
 #include <vector>
 #include <math.h>
+#include <memory.h>
 #ifdef WIN32
 #include <windows.h>
 #include <tchar.h>
@@ -137,6 +138,36 @@ bool equals( const std::string &file1, const std::string &file2, bool ignore_tim
     return ( GEODIFF_hasChanges( changeset.c_str() ) == 0 );
   else
     return ( GEODIFF_changesCount( changeset.c_str() )  == expected_changes );
+}
+
+static long file_size( std::ifstream &is )
+{
+  // get length of file:
+  is.seekg( 0, is.end );
+  long length = is.tellg();
+  is.seekg( 0, is.beg );
+  return length;
+}
+
+bool fileContentEquals( const std::string &file1, const std::string &file2 )
+{
+  std::ifstream f1( file1, std::ios::binary );
+  if ( !f1.is_open() )
+    return false;
+  std::ifstream f2( file2, std::ios::binary );
+  if ( !f2.is_open() )
+    return false;
+
+  long size1 = file_size( f1 );
+  long size2 = file_size( f2 );
+  if ( size1 != size2 )
+    return false;
+
+  std::string content1( ( std::istreambuf_iterator<char>( f1 ) ),
+                        ( std::istreambuf_iterator<char>() ) );
+  std::string content2( ( std::istreambuf_iterator<char>( f2 ) ),
+                        ( std::istreambuf_iterator<char>() ) );
+  return memcmp( content1.data(), content2.data(), size1 ) == 0;
 }
 
 void makedir( const std::string &dir )
