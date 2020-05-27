@@ -5,6 +5,7 @@
 
 #include "geodiffchangeset.h"
 
+#include "geodiffutils.hpp"
 #include "varint_helpers.h"
 
 #include <sqlite3.h>
@@ -111,7 +112,8 @@ bool GeoDiffChangesetReader::open( const std::string &filename )
 {
   try
   {
-    buffer.read( filename );
+    buffer.reset( new Buffer );
+    buffer->read( filename );
   }
   catch ( GeoDiffException )
   {
@@ -125,7 +127,7 @@ bool GeoDiffChangesetReader::nextEntry( ChangesetEntry &entry )
 {
   while ( 1 )
   {
-    if ( offset >= buffer.size() )
+    if ( offset >= buffer->size() )
       break;   // EOF
 
     int type = readByte();
@@ -152,9 +154,9 @@ bool GeoDiffChangesetReader::nextEntry( ChangesetEntry &entry )
 
 char GeoDiffChangesetReader::readByte()
 {
-  if ( offset >= buffer.size() )
+  if ( offset >= buffer->size() )
     throwReaderError( "readByte: at the end of buffer" );
-  const char *ptr = buffer.c_buf() + offset;
+  const char *ptr = buffer->c_buf() + offset;
   ++offset;
   return *ptr;
 }
@@ -162,7 +164,7 @@ char GeoDiffChangesetReader::readByte()
 int GeoDiffChangesetReader::readVarint()
 {
   u32 value;
-  const unsigned char *ptr = ( const unsigned char * )buffer.c_buf() + offset;
+  const unsigned char *ptr = ( const unsigned char * )buffer->c_buf() + offset;
   //int nBytes = sqlite3GetVarint32(ptr, &value);
   int nBytes = getVarint32( ptr, value );
   offset += nBytes;
@@ -171,12 +173,12 @@ int GeoDiffChangesetReader::readVarint()
 
 std::string GeoDiffChangesetReader::readNullTerminatedString()
 {
-  const char *ptr = buffer.c_buf() + offset;
+  const char *ptr = buffer->c_buf() + offset;
   int count = 0;
-  while ( offset + count < buffer.size() && ptr[count] )
+  while ( offset + count < buffer->size() && ptr[count] )
     ++count;
 
-  if ( offset + count >= buffer.size() )
+  if ( offset + count >= buffer->size() )
     throwReaderError( "readNullTerminatedString: at the end of buffer" );
 
   offset += count + 1;
@@ -199,7 +201,7 @@ void GeoDiffChangesetReader::readRowValues( std::vector<Value> &values )
       // 64-bit int (big endian)
       int64_t v;
       uint64_t x;
-      memcpy( &x, buffer.c_buf() + offset, 8 );
+      memcpy( &x, buffer->c_buf() + offset, 8 );
       offset += 8;
       x = be64toh( x ); // convert big endian to host
       memcpy( &v, &x, 8 );
@@ -210,7 +212,7 @@ void GeoDiffChangesetReader::readRowValues( std::vector<Value> &values )
       // 64-bit double (big endian)
       double v;
       uint64_t x;
-      memcpy( &x, buffer.c_buf() + offset, 8 );
+      memcpy( &x, buffer->c_buf() + offset, 8 );
       offset += 8;
       x = be64toh( x ); // convert big endian to host
       memcpy( &v, &x, 8 );
@@ -219,9 +221,9 @@ void GeoDiffChangesetReader::readRowValues( std::vector<Value> &values )
     else if ( type == SQLITE_TEXT || type == SQLITE_BLOB ) // 0x03 or 0x04
     {
       int len = readVarint();
-      if ( offset + len >= buffer.size() )
+      if ( offset + len >= buffer->size() )
         throwReaderError( "readRowValues: text/blob: at the end of buffer" );
-      values[i].setString( type == SQLITE_TEXT ? Value::TypeText : Value::TypeBlob, buffer.c_buf() + offset, len );
+      values[i].setString( type == SQLITE_TEXT ? Value::TypeText : Value::TypeBlob, buffer->c_buf() + offset, len );
       offset += len;
     }
     else if ( type == SQLITE_NULL ) // 0x05
