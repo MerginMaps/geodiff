@@ -6,13 +6,14 @@
 #ifndef GEODIFFCHANGESET_H
 #define GEODIFFCHANGESET_H
 
+#include <assert.h>
 #include <fstream>
+#include <memory>
 #include <string>
 #include <vector>
 
-#include <assert.h>
+#include "geodiff.h"
 
-#include "geodiffutils.hpp"
 
 /** Representation of a single value stored in a column.
  * It can be one of types:
@@ -165,6 +166,8 @@ struct ChangesetEntry
 };
 
 
+class Buffer;
+
 /**
  * Class for reading of binary changeset files.
  * First use open() to initialize it, followed by a series of nextEntry() calls.
@@ -193,7 +196,7 @@ class GEODIFF_EXPORT GeoDiffChangesetReader
 
     int offset = 0;  // where are we in the buffer
 
-    Buffer buffer;
+    std::unique_ptr<Buffer> buffer;
 
     ChangesetTable currentTable;  // currently processed table
 };
