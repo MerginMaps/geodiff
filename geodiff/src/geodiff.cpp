@@ -260,6 +260,8 @@ int GEODIFF_createRebasedChangeset( const char *base,
     triggers( db, triggerNames, triggerCmds );
     if ( !triggerNames.empty() )
     {
+      for ( size_t i = 0; i < triggerNames.size(); ++i )
+        Logger::instance().debug( "Unexpected trigger: " + triggerNames[i] );
       Logger::instance().error( "Unable to perform rebase for database with unknown triggers" );
       return GEODIFF_ERROR;
     }

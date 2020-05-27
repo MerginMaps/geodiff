@@ -61,9 +61,12 @@ class Sqlite3Stmt
   public:
     Sqlite3Stmt();
     ~Sqlite3Stmt();
+    void prepare( std::shared_ptr<Sqlite3Db> db, const std::string &sql );
     void prepare( std::shared_ptr<Sqlite3Db> db, const char *zFormat, ... );
     sqlite3_stmt *get();
     void close();
+    //! Returns SQL statement with bound parameters expanded
+    std::string expandedSql() const;
   private:
     sqlite3_stmt *db_vprepare( sqlite3 *db, const char *zFormat, va_list ap );
     sqlite3_stmt *mStmt = nullptr;
