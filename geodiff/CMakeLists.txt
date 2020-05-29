@@ -135,14 +135,15 @@ SET(geodiff_src
   src/geodifflogger.cpp
   src/geodifflogger.hpp
 
-  src/driver.cpp
-  src/driver.h
   src/changeset.h
   src/changesetreader.cpp
   src/changesetreader.h
   src/changesetvarint.h
   src/changesetwriter.cpp
   src/changesetwriter.h
+  src/driver.cpp
+  src/driver.h
+  src/portableendian.h
   src/tableschema.h
 
   src/drivers/sqlitedriver.cpp
