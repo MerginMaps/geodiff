@@ -7,7 +7,7 @@
 #define SQLITEDRIVER_H
 
 #include "geodiffutils.hpp"
-#include "geodiffdriver.h"
+#include "driver.h"
 
 /**
  * Support for diffs between Sqlite-based files (including GeoPackage)
@@ -21,18 +21,18 @@
  *   - "base" = path to the 'base' database
  *   - "modified" = path to the 'modified' database
  */
-class GEODIFF_EXPORT SqliteDriver : public Driver
+class SqliteDriver : public Driver
 {
   public:
 
-    void open( const std::map<std::string, std::string> &conn ) override;
-    void listTables( std::vector<std::string> &tableNames, bool useModified = false ) override;
+    void open( const DriverParametersMap &conn ) override;
+    std::vector<std::string> listTables( bool useModified = false ) override;
     TableSchema tableSchema( const std::string &tableName, bool useModified = false ) override;
-    void createChangeset( GeoDiffChangesetWriter &writer ) override;
-    void applyChangeset( GeoDiffChangesetReader &reader ) override;
+    void createChangeset( ChangesetWriter &writer ) override;
+    void applyChangeset( ChangesetReader &reader ) override;
 
   private:
-    std::shared_ptr<Sqlite3Db> db;
+    std::shared_ptr<Sqlite3Db> mDb;
     bool mHasModified = false;  // whether there is also a second file attached
 };
 

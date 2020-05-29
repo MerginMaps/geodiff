@@ -34,6 +34,9 @@ and push to GitHub
 
 tag the master on github and it will be automatically published!
 
+## Changesets
+
+Changes between datasets are read from and written to a [binary changeset format](changeset-format.md).
 
 ## Development
 - Compile geodiff shared library

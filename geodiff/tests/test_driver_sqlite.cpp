@@ -7,24 +7,9 @@
 #include "geodiff_testutils.hpp"
 #include "geodiff.h"
 
-#include "geodiffchangeset.h"
-
-#include "sqlitedriver.h"
-
-static std::map<std::string, std::string> connectionOneDb( const std::string &filename )
-{
-  std::map<std::string, std::string> conn;
-  conn["base"] = filename;
-  return conn;
-}
-
-static std::map<std::string, std::string> connectionTwoDb( const std::string &filenameBase, const std::string &filenameModified )
-{
-  std::map<std::string, std::string> conn;
-  conn["base"] = filenameBase;
-  conn["modified"] = filenameModified;
-  return conn;
-}
+#include "changesetreader.h"
+#include "changesetwriter.h"
+#include "driver.h"
 
 
 static void testCreateChangeset( const std::string &testname, const std::string &fileBase, const std::string &fileModified, const std::string &fileExpected )
@@ -32,14 +17,14 @@ static void testCreateChangeset( const std::string &testname, const std::string 
   makedir( pathjoin( tmpdir(), testname ) );
   std::string fileOutput = pathjoin( tmpdir(), testname, "output.diff" );
 
-  SqliteDriver driver;
-  driver.open( connectionTwoDb( fileBase, fileModified ) );
+  std::unique_ptr<Driver> driver( Driver::createDriver("sqlite") );
+  driver->open( Driver::sqliteParameters( fileBase, fileModified ) );
 
   {
-    GeoDiffChangesetWriter writer;
+    ChangesetWriter writer;
     bool res = writer.open( fileOutput );
     ASSERT_TRUE( res );
-    driver.createChangeset( writer );
+    driver->createChangeset( writer );
   }
 
   ASSERT_TRUE( fileContentEquals( fileOutput, fileExpected ) );
@@ -52,14 +37,14 @@ static void testApplyChangeset( const std::string &testname, const std::string &
   std::string testdb = pathjoin( tmpdir(), testname, "output.gpkg" );
   filecopy( testdb, fileBase );
 
-  SqliteDriver driver;
-  driver.open( connectionOneDb( testdb ) );
+  std::unique_ptr<Driver> driver( Driver::createDriver("sqlite") );
+  driver->open( Driver::sqliteParametersSingleSource( testdb ) );
 
   {
-    GeoDiffChangesetReader reader;
+    ChangesetReader reader;
     bool res = reader.open( fileChangeset );
     ASSERT_TRUE( res );
-    driver.applyChangeset( reader );
+    driver->applyChangeset( reader );
   }
 
   ASSERT_TRUE( equals( testdb, fileExpected ) );
@@ -71,15 +56,15 @@ static void testApplyChangeset( const std::string &testname, const std::string &
 
 TEST( SqliteDriverTest, test_basic )
 {
-  SqliteDriver driver;
-  driver.open( connectionOneDb( pathjoin( testdir(), "base.gpkg" ) ) );
+  std::unique_ptr<Driver> driver( Driver::createDriver("sqlite") );
+  ASSERT_TRUE( driver );
+  driver->open( Driver::sqliteParametersSingleSource( pathjoin( testdir(), "base.gpkg" ) ) );
 
-  std::vector<std::string> tableNames;
-  driver.listTables( tableNames );
+  std::vector<std::string> tableNames = driver->listTables();
   EXPECT_EQ( tableNames.size(), 7 );
   ASSERT_TRUE( std::find( tableNames.begin(), tableNames.end(), "simple" ) != tableNames.end() );
 
-  TableSchema tbl = driver.tableSchema( "simple" );
+  TableSchema tbl = driver->tableSchema( "simple" );
   EXPECT_EQ( tbl.columns.size(), 4 );
   EXPECT_EQ( tbl.columns[0].name, "fid" );
   EXPECT_EQ( tbl.columns[1].name, "geometry" );
@@ -96,32 +81,32 @@ TEST( SqliteDriverTest, test_open )
   std::map<std::string, std::string> conn;
 
   {
-    SqliteDriver driver;
-    EXPECT_ANY_THROW( driver.open( conn ) );
+    std::unique_ptr<Driver> driver( Driver::createDriver("sqlite") );
+    EXPECT_ANY_THROW( driver->open( conn ) );
   }
 
   conn["base"] = "invalid_file";
   {
-    SqliteDriver driver;
-    EXPECT_ANY_THROW( driver.open( conn ) );
+    std::unique_ptr<Driver> driver( Driver::createDriver("sqlite") );
+    EXPECT_ANY_THROW( driver->open( conn ) );
   }
 
   conn["base"] = pathjoin( testdir(), "base.gpkg" );
   {
-    SqliteDriver driver;
-    EXPECT_NO_THROW( driver.open( conn ) );
+    std::unique_ptr<Driver> driver( Driver::createDriver("sqlite") );
+    EXPECT_NO_THROW( driver->open( conn ) );
   }
 
   conn["modified"] = "invalid_file";
   {
-    SqliteDriver driver;
-    EXPECT_ANY_THROW( driver.open( conn ) );
+    std::unique_ptr<Driver> driver( Driver::createDriver("sqlite") );
+    EXPECT_ANY_THROW( driver->open( conn ) );
   }
 
   conn["modified"] = pathjoin( testdir(), "base.gpkg" );
   {
-    SqliteDriver driver;
-    EXPECT_NO_THROW( driver.open( conn ) );
+    std::unique_ptr<Driver> driver( Driver::createDriver("sqlite") );
+    EXPECT_NO_THROW( driver->open( conn ) );
   }
 }
 
