@@ -7,9 +7,9 @@
 
 #include "geodiffutils.hpp"
 #include "changesetvarint.h"
+#include "portableendian.h"
 
 #include <assert.h>
-#include <endian.h>
 #include <memory.h>
 
 #include <sstream>
