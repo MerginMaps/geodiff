@@ -63,7 +63,8 @@ class GEODIFF_EXPORT Driver
 
     //
 
-    virtual ~Driver() = default;
+    Driver();
+    virtual ~Driver();
 
     /**
      * Opens a geodiff session using a set of key-value pairs with connection configuration.

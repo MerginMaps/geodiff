@@ -8,6 +8,10 @@
 #include "sqlitedriver.h"
 
 
+Driver::Driver() = default;
+
+Driver::~Driver() = default;
+
 std::vector<std::string> Driver::drivers()
 {
   std::vector<std::string> names;
