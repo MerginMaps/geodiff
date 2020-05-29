@@ -8,9 +8,13 @@
 #include "sqlitedriver.h"
 
 
-Driver::Driver() = default;
+Driver::Driver()
+{
+}
 
-Driver::~Driver() = default;
+Driver::~Driver()
+{
+}
 
 std::vector<std::string> Driver::drivers()
 {
