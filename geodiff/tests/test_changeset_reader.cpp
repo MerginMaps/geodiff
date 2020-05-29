@@ -7,13 +7,13 @@
 #include "geodiff_testutils.hpp"
 #include "geodiff.h"
 
-#include "geodiffchangeset.h"
+#include "changesetreader.h"
 
 TEST( ChangesetReaderTest, test_open )
 {
   std::string changeset = "invalid_file";
 
-  GeoDiffChangesetReader reader;
+  ChangesetReader reader;
   EXPECT_FALSE( reader.open( changeset ) );
 }
 
@@ -21,7 +21,7 @@ TEST( ChangesetReaderTest, test_read_insert )
 {
   std::string changeset = pathjoin( testdir(), "2_inserts", "base-inserted_1_A.diff" );
 
-  GeoDiffChangesetReader reader;
+  ChangesetReader reader;
   EXPECT_TRUE( reader.open( changeset ) );
 
   ChangesetEntry entry;
@@ -49,7 +49,7 @@ TEST( ChangesetReaderTest, test_read_update )
 {
   std::string changeset = pathjoin( testdir(), "2_updates", "base-updated_A.diff" );
 
-  GeoDiffChangesetReader reader;
+  ChangesetReader reader;
   EXPECT_TRUE( reader.open( changeset ) );
 
   ChangesetEntry entry;
@@ -85,7 +85,7 @@ TEST( ChangesetReaderTest, test_read_delete )
 {
   std::string changeset = pathjoin( testdir(), "2_deletes", "base-deleted_A.diff" );
 
-  GeoDiffChangesetReader reader;
+  ChangesetReader reader;
   EXPECT_TRUE( reader.open( changeset ) );
 
   ChangesetEntry entry;

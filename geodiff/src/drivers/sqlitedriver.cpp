@@ -5,11 +5,12 @@
 
 #include "sqlitedriver.h"
 
-#include "geodiffchangeset.h"
+#include "changesetreader.h"
+#include "changesetwriter.h"
 
 #include <memory.h>
 
-void SqliteDriver::open( const std::map<std::string, std::string> &conn )
+void SqliteDriver::open( const DriverParametersMap &conn )
 {
   auto connBaseIt = conn.find( "base" );
   if ( connBaseIt == conn.end() )
@@ -20,25 +21,25 @@ void SqliteDriver::open( const std::map<std::string, std::string> &conn )
 
   std::string base = connBaseIt->second;
 
-  db = std::make_shared<Sqlite3Db>();
+  mDb = std::make_shared<Sqlite3Db>();
   if ( mHasModified )
   {
-    db->open( connModifiedIt->second );
+    mDb->open( connModifiedIt->second );
 
     Buffer sqlBuf;
     sqlBuf.printf( "ATTACH '%s' AS aux", base.c_str() );
-    db->exec( sqlBuf );
+    mDb->exec( sqlBuf );
   }
   else
   {
-    db->open( base );
+    mDb->open( base );
   }
 
   // GeoPackage triggers require few functions like ST_IsEmpty() to be registered
   // in order to be able to apply changesets
-  if ( isGeoPackage( db ) )
+  if ( isGeoPackage( mDb ) )
   {
-    bool success = register_gpkg_extensions( db );
+    bool success = register_gpkg_extensions( mDb );
     if ( !success )
     {
       throw GeoDiffException( "Unable to enable sqlite3/gpkg extensions" );
@@ -47,7 +48,7 @@ void SqliteDriver::open( const std::map<std::string, std::string> &conn )
 
 }
 
-void SqliteDriver::listTables( std::vector<std::string> &tableNames, bool useModified )
+std::vector<std::string> SqliteDriver::listTables( bool useModified )
 {
   std::string dbName;
   if ( mHasModified )
@@ -61,12 +62,12 @@ void SqliteDriver::listTables( std::vector<std::string> &tableNames, bool useMod
     dbName = "main";
   }
 
-  tableNames.clear();
+  std::vector<std::string> tableNames;
   std::string all_tables_sql = "SELECT name FROM " + dbName + ".sqlite_master\n"
                                " WHERE type='table' AND sql NOT LIKE 'CREATE VIRTUAL%%'\n"
                                " ORDER BY name";
   Sqlite3Stmt statament;
-  statament.prepare( db, "%s", all_tables_sql.c_str() );
+  statament.prepare( mDb, "%s", all_tables_sql.c_str() );
   while ( SQLITE_ROW == sqlite3_step( statament.get() ) )
   {
     const char *name = ( const char * )sqlite3_column_text( statament.get(), 0 );
@@ -103,6 +104,7 @@ void SqliteDriver::listTables( std::vector<std::string> &tableNames, bool useMod
   }
 
   // result is ordered by name
+  return tableNames;
 }
 
 TableSchema SqliteDriver::tableSchema( const std::string &tableName, bool useModified )
@@ -122,10 +124,9 @@ TableSchema SqliteDriver::tableSchema( const std::string &tableName, bool useMod
   TableSchema tbl;
 
   Sqlite3Stmt statament;
-  statament.prepare( db, "PRAGMA '%q'.table_info('%q')", dbName.c_str(), tableName.c_str() );
+  statament.prepare( mDb, "PRAGMA '%q'.table_info('%q')", dbName.c_str(), tableName.c_str() );
   while ( SQLITE_ROW == sqlite3_step( statament.get() ) )
   {
-    //int nName = sqlite3_column_bytes(statament.get(), 1);
     const unsigned char *zName = sqlite3_column_text( statament.get(), 1 );
     if ( zName == nullptr )
       throw GeoDiffException( "NULL column name in table schema: " + tableName );
@@ -267,7 +268,7 @@ static Value changesetValue( sqlite3_value *v )
   return x;
 }
 
-static void handleInserted( const std::string &tableName, const TableSchema &tbl, bool reverse, std::shared_ptr<Sqlite3Db> db, GeoDiffChangesetWriter &writer, bool &first )
+static void handleInserted( const std::string &tableName, const TableSchema &tbl, bool reverse, std::shared_ptr<Sqlite3Db> db, ChangesetWriter &writer, bool &first )
 {
   std::string sqlInserted = sqlFindInserted( tableName, tbl, reverse );
   Sqlite3Stmt statementI;
@@ -298,7 +299,7 @@ static void handleInserted( const std::string &tableName, const TableSchema &tbl
   }
 }
 
-static void handleUpdated( const std::string &tableName, const TableSchema &tbl, std::shared_ptr<Sqlite3Db> db, GeoDiffChangesetWriter &writer, bool &first )
+static void handleUpdated( const std::string &tableName, const TableSchema &tbl, std::shared_ptr<Sqlite3Db> db, ChangesetWriter &writer, bool &first )
 {
   std::string sqlModified = sqlFindModified( tableName, tbl );
 
@@ -343,10 +344,9 @@ static void handleUpdated( const std::string &tableName, const TableSchema &tbl,
 }
 
 
-void SqliteDriver::createChangeset( GeoDiffChangesetWriter &writer )
+void SqliteDriver::createChangeset( ChangesetWriter &writer )
 {
-  std::vector<std::string> tables;
-  listTables( tables );
+  std::vector<std::string> tables = listTables();
 
   for ( auto tableName : tables )
   {
@@ -369,9 +369,9 @@ void SqliteDriver::createChangeset( GeoDiffChangesetWriter &writer )
 
     bool first = true;
 
-    handleInserted( tableName, tbl, false, db, writer, first );  // INSERT
-    handleInserted( tableName, tbl, true, db, writer, first );   // DELETE
-    handleUpdated( tableName, tbl, db, writer, first );          // UPDATE
+    handleInserted( tableName, tbl, false, mDb, writer, first );  // INSERT
+    handleInserted( tableName, tbl, true, mDb, writer, first );   // DELETE
+    handleUpdated( tableName, tbl, mDb, writer, first );          // UPDATE
   }
 
 }
@@ -489,7 +489,7 @@ static void bindValue( sqlite3_stmt *stmt, int index, const Value &v )
     throw GeoDiffException( "bind failed" );
 }
 
-void SqliteDriver::applyChangeset( GeoDiffChangesetReader &reader )
+void SqliteDriver::applyChangeset( ChangesetReader &reader )
 {
   std::string lastTableName;
   std::unique_ptr<Sqlite3Stmt> stmtInsert, stmtUpdate, stmtDelete;
@@ -517,13 +517,13 @@ void SqliteDriver::applyChangeset( GeoDiffChangesetReader &reader )
       }
 
       stmtInsert.reset( new Sqlite3Stmt );
-      stmtInsert->prepare( db, sqlForInsert( tableName, tbl ) );
+      stmtInsert->prepare( mDb, sqlForInsert( tableName, tbl ) );
 
       stmtUpdate.reset( new Sqlite3Stmt );
-      stmtUpdate->prepare( db, sqlForUpdate( tableName, tbl ) );
+      stmtUpdate->prepare( mDb, sqlForUpdate( tableName, tbl ) );
 
       stmtDelete.reset( new Sqlite3Stmt );
-      stmtDelete->prepare( db, sqlForDelete( tableName, tbl ) );
+      stmtDelete->prepare( mDb, sqlForDelete( tableName, tbl ) );
     }
 
     if ( entry.op == SQLITE_INSERT )
@@ -535,7 +535,7 @@ void SqliteDriver::applyChangeset( GeoDiffChangesetReader &reader )
       }
       if ( sqlite3_step( stmtInsert->get() ) != SQLITE_DONE )
         throw GeoDiffException( "failed to insert" );
-      if ( sqlite3_changes( db->get() ) != 1 )
+      if ( sqlite3_changes( mDb->get() ) != 1 )
         throw GeoDiffException( "nothing inserted, but should have" );
       sqlite3_reset( stmtInsert->get() );
     }
@@ -553,7 +553,7 @@ void SqliteDriver::applyChangeset( GeoDiffChangesetReader &reader )
       }
       if ( sqlite3_step( stmtUpdate->get() ) != SQLITE_DONE )
         throw GeoDiffException( "failed to update" );
-      if ( sqlite3_changes( db->get() ) == 0 )
+      if ( sqlite3_changes( mDb->get() ) == 0 )
         throw GeoDiffException( "nothing updated, but should have" );
       sqlite3_reset( stmtUpdate->get() );
     }
@@ -566,7 +566,7 @@ void SqliteDriver::applyChangeset( GeoDiffChangesetReader &reader )
       }
       if ( sqlite3_step( stmtDelete->get() ) != SQLITE_DONE )
         throw GeoDiffException( "failed to delete" );
-      if ( sqlite3_changes( db->get() ) == 0 )
+      if ( sqlite3_changes( mDb->get() ) == 0 )
         throw GeoDiffException( "nothing deleted, but should have" );
       sqlite3_reset( stmtDelete->get() );
     }

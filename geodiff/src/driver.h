@@ -1,0 +1,104 @@
+/*
+ GEODIFF - MIT License
+ Copyright (C) 2020 Martin Dobias
+*/
+
+#ifndef DRIVER_H
+#define DRIVER_H
+
+#include <map>
+#include <vector>
+#include <string>
+
+#include "geodiff.h"
+#include "tableschema.h"
+
+class ChangesetReader;
+class ChangesetWriter;
+
+typedef std::map<std::string, std::string> DriverParametersMap;
+
+
+/**
+ * Abstracts all backend-specific work.
+ *
+ * A driver is normally opened with a reference to two data sources - the "base" ("old") source and
+ * the "modified" ("new") data source. By comparing the two sources, it can create changesets
+ * using createChangeset() method.
+ *
+ * When applying an existing changeset using applyChangeset() method, we only need one source which
+ * will be modified. In this case, a driver may be opened with a single source only, but it will
+ * not be possible to call createChangeset() because of missing second data source.
+ *
+ * Supported driver names:
+ *
+ * - "sqlite" - compares two sqlite database files. GeoPackages are supported as well.
+ *    Use sqliteParameters() or sqliteParametersSingleSource() to get parameters to open the driver.
+ *
+ * Use createDriver() to create instance of a driver.
+ */
+class GEODIFF_EXPORT Driver
+{
+  public:
+
+    /**
+     * Returns list of supported driver names
+     */
+    static std::vector<std::string> drivers();
+
+    /**
+     * Returns a new instance of a driver given its name. Returns nullptr if such driver does not exist.
+     */
+    static Driver* createDriver( const std::string &driverName );
+
+    /**
+     * Returns driver parameters for Sqlite driver - it needs filenames of two sqlite databases.
+     */
+    static DriverParametersMap sqliteParameters( const std::string &filenameBase, const std::string &filenameModified );
+
+    /**
+     * Returns driver parameters for Sqlite driver, but only using a single database.
+     */
+    static DriverParametersMap sqliteParametersSingleSource( const std::string &filename );
+
+    //
+
+    virtual ~Driver() = default;
+
+    /**
+     * Opens a geodiff session using a set of key-value pairs with connection configuration.
+     * The expected keys and values depend on the driver being used.
+     *
+     * On error the function throws GeoDiffException with the cause.
+     */
+    virtual void open( const DriverParametersMap& conn ) = 0;
+
+    /**
+     * Returns a list of tables in the current connection. The useModified argument
+     * decides whether the list should be created for the base file/schema or for the locally
+     * modified file/schema.
+     */
+    virtual std::vector<std::string> listTables( bool useModified = false ) = 0;
+
+    /**
+     * Returns table schema information for a given table. This is used to check compatibility
+     * between different tables.
+     */
+    virtual TableSchema tableSchema( const std::string &tableName, bool useModified = false ) = 0;
+
+    /**
+     * Writes changes between base and modified tables to the given writer
+     * \note This method requires that both 'base' and 'modified' databases have been specified
+     *       when opening the driver.
+     */
+    virtual void createChangeset( ChangesetWriter &writer ) = 0;
+
+    /**
+     * Reads changes from the given reader and tries to apply them to the tables.
+     * \note This method only uses 'base' database ('modified' does not need to be specified when opening)
+     */
+    virtual void applyChangeset( ChangesetReader &reader ) = 0;
+};
+
+
+#endif // DRIVER_H

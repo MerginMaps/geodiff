@@ -3,8 +3,8 @@
  Copyright (C) 2020 Martin Dobias
 */
 
-#ifndef VARINT_HELPERS_H
-#define VARINT_HELPERS_H
+#ifndef CHANGESETVARINT_H
+#define CHANGESETVARINT_H
 
 #include <stdint.h>
 
@@ -337,4 +337,4 @@ static int sqlite3PutVarint( unsigned char *p, u64 v )
   return putVarint64( p, v );
 }
 
-#endif // VARINT_HELPERS_H
+#endif // CHANGESETVARINT_H

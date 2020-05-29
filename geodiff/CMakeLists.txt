@@ -115,7 +115,11 @@ SET(gpkg_VERSION_MINOR 10)
 SET(gpkg_VERSION_PATCH 0)
 ADD_DEFINITIONS( -DGPKG_HAVE_CONFIG_H )
 CONFIGURE_FILE( "${libgpkg_dir}/gpkg/config.h.in" "${CMAKE_CURRENT_BINARY_DIR}/config.h" )
-INCLUDE_DIRECTORIES( ${CMAKE_CURRENT_BINARY_DIR} )
+INCLUDE_DIRECTORIES(
+  ${CMAKE_CURRENT_SOURCE_DIR}/src
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/drivers
+  ${CMAKE_CURRENT_BINARY_DIR}
+)
 
 # build
 SET(geodiff_src
@@ -130,12 +134,19 @@ SET(geodiff_src
   src/geodiffexporter.hpp
   src/geodifflogger.cpp
   src/geodifflogger.hpp
-  src/geodiffchangeset.cpp
-  src/geodiffchangeset.h
-  src/geodiffdriver.h
-  src/sqlitedriver.cpp
-  src/sqlitedriver.h
-  src/varint_helpers.h
+
+  src/driver.cpp
+  src/driver.h
+  src/changeset.h
+  src/changesetreader.cpp
+  src/changesetreader.h
+  src/changesetvarint.h
+  src/changesetwriter.cpp
+  src/changesetwriter.h
+  src/tableschema.h
+
+  src/drivers/sqlitedriver.cpp
+  src/drivers/sqlitedriver.h
 )
 
 IF ( BUILD_STATIC_LIBS )
