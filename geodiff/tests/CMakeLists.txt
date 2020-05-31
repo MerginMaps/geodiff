@@ -63,6 +63,7 @@ SET(TESTS
     test_concurrent_commits.cpp
     test_modified_scheme.cpp
     test_changeset_reader.cpp
+    test_changeset_utils.cpp
     test_driver_sqlite.cpp
 )
 
