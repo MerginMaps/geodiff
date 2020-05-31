@@ -33,15 +33,19 @@ struct Value
 
     Value( const Value &other )
     {
+      *this = other;
+    }
+
+    Value &operator=( const Value &other )
+    {
       mType = other.mType;
       mVal = other.mVal;
       if ( mType == TypeText || mType == TypeBlob )
       {
         mVal.str = new std::string( *mVal.str ); // make a deep copy
       }
+      return *this;
     }
-
-    Value &operator=( const Value &other ) = delete; // for now just to be sure
 
     //! Possible value types
     enum Type
