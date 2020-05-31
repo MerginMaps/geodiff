@@ -1,0 +1,41 @@
+{
+   "geodiff": [
+      {
+        "table": "gpkg_contents",
+        "type": "update",
+        "changes": [
+          {
+              "column": 0,
+              "old": "simple"
+          },
+          {
+              "column": 4,
+              "old": "2019-06-18T14:52:50.928Z",
+              "new": "2019-07-01T12:38:56.347Z"
+          }
+        ]
+      },
+      {
+        "table": "simple",
+        "type": "insert",
+        "changes": [
+          {
+              "column": 0,
+              "new": 4
+          },
+          {
+              "column": 1,
+              "new": "R1AAAeYQAAABAQAAAFyu1BOp6um/PoMqH8N01j8="
+          },
+          {
+              "column": 2,
+              "new": "my new point A"
+          },
+          {
+              "column": 3,
+              "new": 1
+          }
+        ]
+      }
+   ]
+}

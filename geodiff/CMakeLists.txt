@@ -135,6 +135,8 @@ SET(geodiff_src
   src/geodifflogger.cpp
   src/geodifflogger.hpp
 
+  src/base64utils.cpp
+  src/base64utils.h
   src/changeset.h
   src/changesetreader.cpp
   src/changesetreader.h

@@ -10,8 +10,12 @@ class ChangesetReader;
 class ChangesetWriter;
 
 #include "geodiff.h"
+#include <string>
 
 GEODIFF_EXPORT void invertChangeset( ChangesetReader &reader, ChangesetWriter &writer );
 
+GEODIFF_EXPORT std::string changesetToJSON( ChangesetReader &reader );
+
+GEODIFF_EXPORT std::string changesetToJSONSummary( ChangesetReader &reader );
 
 #endif // CHANGESETUTILS_H
