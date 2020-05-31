@@ -1,0 +1,39 @@
+{
+   "geodiff": [
+      {
+        "table": "gpkg_contents",
+        "type": "update",
+        "changes": [
+          {
+              "column": 0,
+              "old": "simple"
+          },
+          {
+              "column": 4,
+              "old": "2019-06-18T14:52:50.928Z",
+              "new": "2019-07-11T08:01:07.854Z"
+          }
+        ]
+      },
+      {
+        "table": "simple",
+        "type": "update",
+        "changes": [
+          {
+              "column": 0,
+              "old": 2
+          },
+          {
+              "column": 1,
+              "old": "R1AAAeYQAAABAQAAAPBDGq/kSde/+HS2Feb94T8=",
+              "new": "R1AAAeYQAAABAQAAAMp+uos0te2/hISLbYZyzj8="
+          },
+          {
+              "column": 3,
+              "old": 2,
+              "new": 9999
+          }
+        ]
+      }
+   ]
+}

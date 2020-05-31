@@ -34,7 +34,7 @@ static std::string checkDoubleInvertEqual( const std::string &testName, const st
   return invChangeset;
 }
 
-TEST( ChangesetReaderUtils, test_invert_insert )
+TEST( ChangesetUtils, test_invert_insert )
 {
   std::string invChangeset =
     checkDoubleInvertEqual( "test_invert_insert",
@@ -58,7 +58,7 @@ TEST( ChangesetReaderUtils, test_invert_insert )
   EXPECT_FALSE( readerInv.nextEntry( entry ) );
 }
 
-TEST( ChangesetReaderUtils, test_invert_delete )
+TEST( ChangesetUtils, test_invert_delete )
 {
   std::string invChangeset =
     checkDoubleInvertEqual( "test_invert_delete",
@@ -82,7 +82,7 @@ TEST( ChangesetReaderUtils, test_invert_delete )
   EXPECT_FALSE( readerInv.nextEntry( entry ) );
 }
 
-TEST( ChangesetReaderUtils, test_invert_update )
+TEST( ChangesetUtils, test_invert_update )
 {
   std::string invChangeset =
     checkDoubleInvertEqual( "test_invert_update",
@@ -111,6 +111,35 @@ TEST( ChangesetReaderUtils, test_invert_update )
   EXPECT_FALSE( readerInv.nextEntry( entry ) );
 }
 
+static void doExportAndCompare( const std::string &changesetBase, const std::string &changesetDest )
+{
+  ChangesetReader reader;
+  EXPECT_TRUE( reader.open( changesetBase + ".diff" ) );
+
+  std::string json = changesetToJSON( reader );
+
+  {
+    std::ofstream f( changesetDest );
+    EXPECT_TRUE( f.is_open() );
+    f << json;
+  }
+
+  EXPECT_TRUE( fileContentEquals( changesetBase + ".json", changesetDest ) );
+}
+
+TEST( ChangesetUtils, test_export_json )
+{
+  makedir( pathjoin( tmpdir(), "test_export_json" ) );
+
+  doExportAndCompare( pathjoin( testdir(), "2_inserts", "base-inserted_1_A" ),
+                      pathjoin( tmpdir(), "test_export_json", "insert-diff.json" ) );
+
+  doExportAndCompare( pathjoin( testdir(), "2_updates", "base-updated_A" ),
+                      pathjoin( tmpdir(), "test_export_json", "update-diff.json" ) );
+
+  doExportAndCompare( pathjoin( testdir(), "2_deletes", "base-deleted_A" ),
+                      pathjoin( tmpdir(), "test_export_json", "delete-diff.json" ) );
+}
 
 int main( int argc, char **argv )
 {
