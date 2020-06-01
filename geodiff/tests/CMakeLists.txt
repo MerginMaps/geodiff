@@ -71,5 +71,12 @@ FOREACH(TESTSRC ${TESTS})
     ADD_GEODIFF_TEST(${TESTSRC})
 ENDFOREACH(TESTSRC)
 
+IF (POSTGRES_FOUND)
+  ADD_GEODIFF_TEST(test_driver_postgres.cpp)
+  TARGET_INCLUDE_DIRECTORIES(geodiff_driver_postgres_test PRIVATE ${POSTGRES_INCLUDE_DIR})
+  TARGET_LINK_LIBRARIES(geodiff_driver_postgres_test ${POSTGRES_LIBRARY})
+ENDIF()
+
+
 # geodiffcmd utility test
 ADD_TEST(NAME geodiffinfo_test COMMAND $<TARGET_FILE:geodiffinfo> version )

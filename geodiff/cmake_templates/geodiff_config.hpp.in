@@ -1,0 +1,6 @@
+#ifndef GEODIFF_CONFIG_HPP
+#define GEODIFF_CONFIG_HPP
+
+#cmakedefine HAVE_POSTGRES
+
+#endif // GEODIFF_CONFIG_HPP

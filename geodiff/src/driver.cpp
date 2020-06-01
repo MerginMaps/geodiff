@@ -7,6 +7,11 @@
 
 #include "sqlitedriver.h"
 
+#include "geodiff_config.hpp"
+
+#ifdef HAVE_POSTGRES
+#include "postgresdriver.h"
+#endif
 
 Driver::Driver()
 {
@@ -23,16 +28,22 @@ std::vector<std::string> Driver::drivers()
   return names;
 }
 
-Driver *Driver::createDriver(const std::string &driverName)
+Driver *Driver::createDriver( const std::string &driverName )
 {
   if ( driverName == "sqlite" )
   {
     return new SqliteDriver;
   }
+#ifdef HAVE_POSTGRES
+  if ( driverName == "postgres" )
+  {
+    return new PostgresDriver;
+  }
+#endif
   return nullptr;
 }
 
-DriverParametersMap Driver::sqliteParameters(const std::string &filenameBase, const std::string &filenameModified)
+DriverParametersMap Driver::sqliteParameters( const std::string &filenameBase, const std::string &filenameModified )
 {
   DriverParametersMap conn;
   conn["base"] = filenameBase;
@@ -40,7 +51,7 @@ DriverParametersMap Driver::sqliteParameters(const std::string &filenameBase, co
   return conn;
 }
 
-DriverParametersMap Driver::sqliteParametersSingleSource(const std::string &filename)
+DriverParametersMap Driver::sqliteParametersSingleSource( const std::string &filename )
 {
   DriverParametersMap conn;
   conn["base"] = filename;

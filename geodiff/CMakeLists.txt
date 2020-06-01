@@ -7,11 +7,15 @@ SET(CMAKE_CXX_VISIBILITY_PRESET hidden)
 SET(CMAKE_VISIBILITY_INLINES_HIDDEN 1)
 SET(CMAKE_CXX_STANDARD 11)
 
+# set path to additional CMake modules
+SET(CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/cmake ${CMAKE_MODULE_PATH})
+
 SET(ENABLE_TESTS TRUE CACHE BOOL "Build tests?")
 SET(ENABLE_COVERAGE FALSE CACHE BOOL "Enable GCOV code coverage?")
 SET(BUILD_TOOLS TRUE CACHE BOOL "Build tool executables?")
 SET(BUILD_STATIC_LIBS FALSE CACHE BOOL "Build only static libraries?")
 SET(WITH_INTERNAL_SQLITE3 TRUE CACHE BOOL "Use internal copy of SQLITE3")
+SET(WITH_POSTGRESQL FALSE CACHE BOOL "Whether to build with PostgreSQL driver")
 
 IF(SKBUILD)
   MESSAGE(STATUS "The geodiff is built using scikit-build for pygeodiff Python package")
@@ -64,6 +68,13 @@ ELSE(WITH_INTERNAL_SQLITE3)
   CMAKE_POLICY(SET CMP0074 NEW)
   FIND_PACKAGE(SQLite3 REQUIRED)
 ENDIF(WITH_INTERNAL_SQLITE3)
+
+IF (WITH_POSTGRESQL)
+  FIND_PACKAGE(Postgres REQUIRED)
+  IF (POSTGRES_FOUND)
+    SET(HAVE_POSTGRES TRUE)   # used in geodiff_config.hpp
+  ENDIF()
+ENDIF()
 
 # Get libgpkg dependency
 IF(EXISTS "${CMAKE_BINARY_DIR}/libgpkg.tar.gz")
@@ -121,6 +132,10 @@ INCLUDE_DIRECTORIES(
   ${CMAKE_CURRENT_BINARY_DIR}
 )
 
+# create geodiff_config.h
+CONFIGURE_FILE(${CMAKE_SOURCE_DIR}/cmake_templates/geodiff_config.hpp.in ${CMAKE_BINARY_DIR}/geodiff_config.hpp)
+
+
 # build
 SET(geodiff_src
   ${geodiff_src}
@@ -154,6 +169,14 @@ SET(geodiff_src
   src/drivers/sqlitedriver.h
 )
 
+IF (POSTGRES_FOUND)
+  SET(geodiff_src
+    ${geodiff_src}
+    src/drivers/postgresdriver.cpp
+    src/drivers/postgresdriver.h
+  )
+ENDIF()
+
 IF ( BUILD_STATIC_LIBS )
   ADD_LIBRARY(${GEODIFF_NAME} STATIC ${geodiff_src} )
 ELSE ( BUILD_STATIC_LIBS )
@@ -186,6 +209,11 @@ ELSE(WITH_INTERNAL_SQLITE3)
 ENDIF(WITH_INTERNAL_SQLITE3)
 
 TARGET_INCLUDE_DIRECTORIES(${GEODIFF_NAME} PRIVATE ${libgpkg_dir}/gpkg)
+
+IF (POSTGRES_FOUND)
+  TARGET_INCLUDE_DIRECTORIES(${GEODIFF_NAME} PRIVATE ${POSTGRES_INCLUDE_DIR})
+  TARGET_LINK_LIBRARIES(${GEODIFF_NAME} PUBLIC ${POSTGRES_LIBRARY})
+ENDIF ()
 
 # tests
 IF (ENABLE_TESTS)
