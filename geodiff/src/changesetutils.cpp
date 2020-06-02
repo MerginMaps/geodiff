@@ -9,7 +9,17 @@
 #include "geodiffutils.hpp"
 #include "changesetreader.h"
 #include "changesetwriter.h"
+#include "tableschema.h"
 
+
+ChangesetTable schemaToChangesetTable( const std::string &tableName, const TableSchema &tbl )
+{
+  ChangesetTable chTable;
+  chTable.name = tableName;
+  for ( auto c : tbl.columns )
+    chTable.primaryKeys.push_back( c.isPrimaryKey );
+  return chTable;
+}
 
 void invertChangeset( ChangesetReader &reader, ChangesetWriter &writer )
 {
