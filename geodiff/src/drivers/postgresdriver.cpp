@@ -7,99 +7,11 @@
 
 #include "geodiffutils.hpp"
 #include "changeset.h"
+#include "changesetutils.h"
 #include "changesetwriter.h"
+#include "postgresutils.h"
 
-#include <assert.h>
 #include <iostream>
-
-
-
-static std::string quotedIdentifier( const std::string &ident )
-{
-  std::string result = replace( ident, "\"", "\"\"" );
-  return "\"" + result + "\"";
-}
-
-static std::string quotedString( const std::string &value )
-{
-  std::string result = replace( value, "'", "''" );
-  if ( result.find( '\\' ) != std::string::npos )
-  {
-    result = replace( result, "\\", "\\\\" );
-    return "E'" + result + "'";
-  }
-  else
-    return "'" +  result + "'";
-}
-
-class PostgresResult
-{
-  public:
-    PostgresResult( PGresult *result ) : mResult( result ) {}
-    ~PostgresResult()
-    {
-      if ( mResult )
-        ::PQclear( mResult );
-      mResult = nullptr;
-    }
-
-    ExecStatusType status()
-    {
-      return mResult ? ::PQresultStatus( mResult ) : PGRES_FATAL_ERROR;
-    }
-
-    int rowCount()
-    {
-      assert( mResult );
-      return ::PQntuples( mResult );
-    }
-
-    std::string value( int row, int col )
-    {
-      assert( mResult );
-      return isNull( row, col )
-             ? std::string()
-             : std::string( ::PQgetvalue( mResult, row, col ) );
-    }
-
-    bool isNull( int row, int col )
-    {
-      assert( mResult );
-      return ::PQgetisnull( mResult, row, col );
-    }
-
-  private:
-    PGresult *mResult = nullptr;
-
-};
-
-
-static PGresult *execSql( PGconn *c, const std::string &sql )
-{
-  PGresult *res = ::PQexec( c, sql.c_str() );
-
-  if ( res && ::PQstatus( c ) == CONNECTION_OK )
-  {
-    int errorStatus = PQresultStatus( res );
-    if ( errorStatus != PGRES_COMMAND_OK && errorStatus != PGRES_TUPLES_OK )
-    {
-      std::cerr << "postgres cmd error: " << errorStatus << " | " << PQresultErrorMessage( res ) << std::endl;
-    }
-
-    return res;
-  }
-  if ( PQstatus( c ) != CONNECTION_OK )
-  {
-    std::cerr << "postgres conn error: " << PQstatus( c ) << " | " << PQerrorMessage( c ) << std::endl;
-  }
-  else
-  {
-    std::cerr << "no result buffer" << std::endl;  // TODO: huh?
-  }
-
-  // TODO: clear?
-  return nullptr;
-}
 
 
 PostgresDriver::~PostgresDriver()
@@ -198,17 +110,6 @@ TableSchema PostgresDriver::tableSchema( const std::string &tableName, bool useM
     schema.columns.push_back( col );
   }
   return schema;
-}
-
-
-// TODO: same copy in sqlitedriver
-static ChangesetTable schemaToChangesetTable( const std::string &tableName, const TableSchema &tbl )
-{
-  ChangesetTable chTable;
-  chTable.name = tableName;
-  for ( auto c : tbl.columns )
-    chTable.primaryKeys.push_back( c.isPrimaryKey );
-  return chTable;
 }
 
 

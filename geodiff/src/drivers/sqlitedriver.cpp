@@ -7,6 +7,7 @@
 
 #include "changesetreader.h"
 #include "changesetwriter.h"
+#include "changesetutils.h"
 
 #include <memory.h>
 
@@ -208,14 +209,6 @@ static std::string sqlFindModified( const std::string &tableName, const TableSch
   return sql;
 }
 
-static ChangesetTable schemaToChangesetTable( const std::string &tableName, const TableSchema &tbl )
-{
-  ChangesetTable chTable;
-  chTable.name = tableName;
-  for ( auto c : tbl.columns )
-    chTable.primaryKeys.push_back( c.isPrimaryKey );
-  return chTable;
-}
 
 static bool valuesEqual( sqlite3_value *v1, sqlite3_value *v2 )
 {

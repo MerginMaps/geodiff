@@ -174,6 +174,8 @@ IF (POSTGRES_FOUND)
     ${geodiff_src}
     src/drivers/postgresdriver.cpp
     src/drivers/postgresdriver.h
+    src/drivers/postgresutils.cpp
+    src/drivers/postgresutils.h
   )
 ENDIF()
 

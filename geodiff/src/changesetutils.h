@@ -12,6 +12,11 @@ class ChangesetWriter;
 #include "geodiff.h"
 #include <string>
 
+struct ChangesetTable;
+struct TableSchema;
+
+ChangesetTable schemaToChangesetTable( const std::string &tableName, const TableSchema &tbl );
+
 GEODIFF_EXPORT void invertChangeset( ChangesetReader &reader, ChangesetWriter &writer );
 
 GEODIFF_EXPORT std::string changesetToJSON( ChangesetReader &reader );
