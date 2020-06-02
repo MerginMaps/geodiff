@@ -47,6 +47,26 @@ struct Value
       return *this;
     }
 
+    bool operator==( const Value &other ) const
+    {
+      if ( mType != other.mType )
+        return false;
+      if ( mType == TypeUndefined || mType == TypeUndefined )
+        return true;
+      if ( mType == TypeInt )
+        return getInt() == other.getInt();
+      if ( mType == TypeDouble )
+        return getDouble() == other.getDouble();
+      if ( mType == TypeText || mType == TypeBlob )
+        return getString() == other.getString();
+      assert( false );
+    }
+
+    bool operator!=( const Value &other ) const
+    {
+      return !(*this == other);
+    }
+
     //! Possible value types
     enum Type
     {

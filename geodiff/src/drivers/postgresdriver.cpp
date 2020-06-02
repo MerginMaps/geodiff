@@ -7,6 +7,7 @@
 
 #include "geodiffutils.hpp"
 #include "changeset.h"
+#include "changesetreader.h"
 #include "changesetutils.h"
 #include "changesetwriter.h"
 #include "postgresutils.h"
@@ -155,8 +156,6 @@ static std::string sqlFindModified( const std::string &schemaNameBase, const std
       if ( !exprOther.empty() )
         exprOther += " OR ";
 
-      // TODO: rewrite as not ( (a=b) or (a is null and b is null) )
-
       std::string colBase = quotedIdentifier( schemaNameBase ) + "." + quotedIdentifier( tableName ) + "." + quotedIdentifier( c.name );
       std::string colModified = quotedIdentifier( schemaNameModified ) + "." + quotedIdentifier( tableName ) + "." + quotedIdentifier( c.name );
       exprOther += "NOT ((" + colBase + " IS NULL AND " + colModified + " IS NULL) OR (" + colBase + " = " + colModified + "))";
@@ -176,6 +175,99 @@ static Value changesetValue( const std::string &v )
   Value w;
   w.setString( Value::TypeText, v.c_str(), v.size() );
   return w;
+}
+
+static bool isColumnInt( const TableColumnInfo &col )
+{
+  // TODO: qgis uses "int2", "int4", "int8"
+  return col.type == "integer";
+}
+
+static bool isColumnDouble( const TableColumnInfo &col )
+{
+  // TODO: numeric, decimal ?
+  return col.type == "real" || col.type == "double precision";
+}
+
+static bool isColumnText( const TableColumnInfo &col )
+{
+  return col.type == "char" || col.type == "varchar" || col.type == "text" || col.type == "citext";
+}
+
+static bool isColumnGeometry( const TableColumnInfo &col )
+{
+  return col.type == "geometry";
+}
+
+static Value resultToValue( const PostgresResult &res, int r, size_t i, const TableColumnInfo &col )
+{
+  Value v;
+  if ( res.isNull( r, i ) )
+  {
+    v.setNull();
+  }
+  else
+  {
+    std::string valueStr = res.value( r, i );
+    if ( col.type == "bool" )
+    {
+      v.setInt( valueStr == "t" );  // PostgreSQL uses 't' for true and 'f' for false
+    }
+    else if ( isColumnInt( col ) )
+    {
+      v.setInt( atol( valueStr.c_str() ) );
+    }
+    else if ( isColumnDouble( col ) )
+    {
+      v.setDouble( atof( valueStr.c_str() ) );
+    }
+    else if ( isColumnText( col ) )
+    {
+      v.setString( Value::TypeText, valueStr.c_str(), valueStr.size() );
+    }
+    else if ( isColumnGeometry( col ) )
+    {
+      // TODO: handle geometry:
+      // 1. convert from hex representation ("FF" -> '\xff')
+      // 2. convert WKB binary (or GeoPackage geom. encoding)
+      v.setString( Value::TypeText, valueStr.c_str(), valueStr.size() );
+    }
+    else
+    {
+      // TODO: handling of other types (date/time, list, blob, ...)
+      throw GeoDiffException("unknown value type: " + col.type );
+    }
+  }
+  return v;
+}
+
+static std::string valueToSql( const Value &v, const TableColumnInfo &col )
+{
+  if ( v.type() == Value::TypeUndefined )
+  {
+    throw GeoDiffException( "this should not happen!");
+  }
+  else if ( v.type() == Value::TypeNull )
+  {
+    return "NULL";
+  }
+  else if ( v.type() == Value::TypeInt )
+  {
+    return std::to_string( v.getInt() );
+  }
+  else if ( v.type() == Value::TypeDouble )
+  {
+    return std::to_string( v.getDouble() );
+  }
+  else if ( v.type() == Value::TypeText || v.type() == Value::TypeBlob )
+  {
+    // TODO: handling of geometries
+    return quotedString( v.getString() );
+  }
+  else
+  {
+    throw GeoDiffException("unexpected value");
+  }
 }
 
 static void handleInserted( const std::string &schemaNameBase, const std::string &schemaNameModified, const std::string &tableName, const TableSchema &tbl, bool reverse, PGconn *conn, ChangesetWriter &writer, bool &first )
@@ -199,11 +291,11 @@ static void handleInserted( const std::string &schemaNameBase, const std::string
     size_t numColumns = tbl.columns.size();
     for ( size_t i = 0; i < numColumns; ++i )
     {
-      std::string val = res.value( r, i );
+      Value v( resultToValue( res, r, i, tbl.columns[i] ) );
       if ( reverse )
-        e.oldValues.push_back( changesetValue( val ) );
+        e.oldValues.push_back( v );
       else
-        e.newValues.push_back( changesetValue( val ) );
+        e.newValues.push_back( v );
     }
 
     writer.writeEntry( e );
@@ -242,12 +334,12 @@ static void handleUpdated( const std::string &schemaNameBase, const std::string 
     size_t numColumns = tbl.columns.size();
     for ( size_t i = 0; i < numColumns; ++i )
     {
-      std::string v1 = res.value( r, i + numColumns );
-      std::string v2 = res.value( r, i );
+      Value v1( resultToValue( res, r, i + numColumns, tbl.columns[i] ) );
+      Value v2( resultToValue( res, r, i, tbl.columns[i] ) );
       bool pkey = tbl.columns[i].isPrimaryKey;
       bool updated = v1 != v2;
-      e.oldValues.push_back( ( pkey || updated ) ? changesetValue( v1 ) : Value() );
-      e.newValues.push_back( updated ? changesetValue( v2 ) : Value() );
+      e.oldValues.push_back( ( pkey || updated ) ? v1 : Value() );
+      e.newValues.push_back( updated ? v2 : Value() );
     }
 
     writer.writeEntry( e );
@@ -289,10 +381,159 @@ void PostgresDriver::createChangeset( ChangesetWriter &writer )
 }
 
 
+
+static std::string sqlForInsert( const std::string &schemaName, const std::string &tableName, const TableSchema &tbl, const std::vector<Value> &values )
+{
+  /*
+   * For a table defined like this: CREATE TABLE x(a, b, c, d, PRIMARY KEY(a, c));
+   *
+   * INSERT INTO x (a, b, c, d) VALUES (?, ?, ?, ?)
+   */
+
+  std::string sql;
+  sql += "INSERT INTO " + quotedIdentifier( schemaName ) + "." + quotedIdentifier( tableName ) + " (";
+  for ( size_t i = 0; i < tbl.columns.size(); ++i )
+  {
+    if ( i > 0 )
+      sql += ", ";
+    sql += quotedIdentifier( tbl.columns[i].name );
+  }
+  sql += ") VALUES (";
+  for ( size_t i = 0; i < tbl.columns.size(); ++i )
+  {
+    if ( i > 0 )
+      sql += ", ";
+    sql += valueToSql( values[i], tbl.columns[i] );
+  }
+  sql += ")";
+  return sql;
+}
+
+static std::string sqlForUpdate( const std::string &schemaName, const std::string &tableName, const TableSchema &tbl, const std::vector<Value> &oldValues, const std::vector<Value> &newValues )
+{
+  std::string sql;
+  sql += "UPDATE " + quotedIdentifier( schemaName ) + "." + quotedIdentifier( tableName ) + " SET ";
+
+  bool first = true;
+  for ( size_t i = 0; i < tbl.columns.size(); ++i )
+  {
+    if ( newValues[i].type() != Value::TypeUndefined )
+    {
+      if ( !first )
+        sql += ", ";
+      first = false;
+      sql += quotedIdentifier( tbl.columns[i].name ) + " = " + valueToSql( newValues[i], tbl.columns[i] );
+    }
+  }
+  first = true;
+  sql += " WHERE ";
+  for ( size_t i = 0; i < tbl.columns.size(); ++i )
+  {
+    if ( oldValues[i].type() != Value::TypeUndefined )
+    {
+      if ( !first )
+        sql += " AND ";
+      first = false;
+      sql += quotedIdentifier( tbl.columns[i].name ) + " = " + valueToSql( oldValues[i], tbl.columns[i] );
+    }
+  }
+
+  return sql;
+}
+
+
+static std::string sqlForDelete( const std::string &schemaName, const std::string &tableName, const TableSchema &tbl, const std::vector<Value> &values )
+{
+  std::string sql;
+  sql += "DELETE FROM " + quotedIdentifier( schemaName ) + "." + quotedIdentifier( tableName ) + " WHERE ";
+  for ( size_t i = 0; i < tbl.columns.size(); ++i )
+  {
+    if ( i > 0 )
+      sql += " AND ";
+    if ( tbl.columns[i].isPrimaryKey )
+      sql += quotedIdentifier( tbl.columns[i].name ) + " = " + valueToSql( values[i], tbl.columns[i] );
+    else
+    {
+      if ( values[i].type() == Value::TypeNull )
+        sql += quotedIdentifier( tbl.columns[i].name ) + " IS NULL";
+      else
+        sql += quotedIdentifier( tbl.columns[i].name ) + " = " + valueToSql( values[i], tbl.columns[i] ) ;
+    }
+  }
+  return sql;
+}
+
+
 void PostgresDriver::applyChangeset( ChangesetReader &reader )
 {
   if ( !mConn )
     throw GeoDiffException( "Not connected to a database" );
 
-  // TODO
+  std::string lastTableName;
+  TableSchema tbl;
+
+  ChangesetEntry entry;
+  while ( reader.nextEntry( entry ) )
+  {
+    if ( entry.table->name != lastTableName )
+    {
+      std::string tableName = entry.table->name;
+      lastTableName = tableName;
+      tbl = tableSchema( tableName );
+
+      if ( tbl.columns.size() == 0 )
+        throw GeoDiffException( "No such table: " + tableName );
+
+      if ( tbl.columns.size() != entry.table->primaryKeys.size() )
+        throw GeoDiffException( "Wrong number of columns for table: " + tableName );
+
+      for ( size_t i = 0; i < entry.table->primaryKeys.size(); ++i )
+      {
+        if ( tbl.columns[i].isPrimaryKey != entry.table->primaryKeys[i] )
+          throw GeoDiffException( "Mismatch of primary keys in table: " + tableName );
+      }
+    }
+
+    if ( entry.op == ChangesetEntry::OpInsert )
+    {
+      std::string sql = sqlForInsert( mBaseSchema, entry.table->name, tbl, entry.newValues );
+      PostgresResult res( execSql( mConn, sql ) );
+      if ( res.status() != PGRES_COMMAND_OK )
+      {
+        throw GeoDiffException( "Failure doing INSERT: " + res.statusErrorMessage() );
+      }
+      if ( res.affectedRows() != "1" )
+      {
+        throw GeoDiffException( "Wrong number of affected rows! Expected 1, got: " + res.affectedRows() );
+      }
+    }
+    else if ( entry.op == ChangesetEntry::OpUpdate )
+    {
+      std::string sql = sqlForUpdate( mBaseSchema, entry.table->name, tbl, entry.oldValues, entry.newValues );
+      PostgresResult res( execSql( mConn, sql ) );
+      if ( res.status() != PGRES_COMMAND_OK )
+      {
+        throw GeoDiffException( "Failure doing UPDATE: " + res.statusErrorMessage() );
+      }
+      if ( res.affectedRows() != "1" )
+      {
+        throw GeoDiffException( "Wrong number of affected rows! Expected 1, got: " + res.affectedRows() );
+      }
+    }
+    else if ( entry.op == ChangesetEntry::OpDelete )
+    {
+      std::string sql = sqlForDelete( mBaseSchema, entry.table->name, tbl, entry.oldValues );
+      PostgresResult res( execSql( mConn, sql ) );
+      if ( res.status() != PGRES_COMMAND_OK )
+      {
+        throw GeoDiffException( "Failure doing DELETE: " + res.statusErrorMessage() );
+      }
+      if ( res.affectedRows() != "1" )
+      {
+        throw GeoDiffException( "Wrong number of affected rows! Expected 1, got: " + res.affectedRows() );
+      }
+    }
+    else
+      throw GeoDiffException( "Unexpected operation" );
+  }
 }
