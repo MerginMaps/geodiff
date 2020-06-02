@@ -26,18 +26,30 @@ class PostgresResult
       mResult = nullptr;
     }
 
-    ExecStatusType status()
+    ExecStatusType status() const
     {
       return mResult ? ::PQresultStatus( mResult ) : PGRES_FATAL_ERROR;
     }
 
-    int rowCount()
+    std::string statusErrorMessage() const
+    {
+      assert( mResult );
+      return ::PQresultErrorMessage( mResult );
+    }
+
+    int rowCount() const
     {
       assert( mResult );
       return ::PQntuples( mResult );
     }
 
-    std::string value( int row, int col )
+    std::string affectedRows() const
+    {
+      assert( mResult );
+      return ::PQcmdTuples( mResult );
+    }
+
+    std::string value( int row, int col ) const
     {
       assert( mResult );
       return isNull( row, col )
@@ -45,7 +57,7 @@ class PostgresResult
              : std::string( ::PQgetvalue( mResult, row, col ) );
     }
 
-    bool isNull( int row, int col )
+    bool isNull( int row, int col ) const
     {
       assert( mResult );
       return ::PQgetisnull( mResult, row, col );
