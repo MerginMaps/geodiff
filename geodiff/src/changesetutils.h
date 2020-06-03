@@ -6,12 +6,11 @@
 #ifndef CHANGESETUTILS_H
 #define CHANGESETUTILS_H
 
-class ChangesetReader;
-class ChangesetWriter;
-
 #include "geodiff.h"
 #include <string>
 
+class ChangesetReader;
+class ChangesetWriter;
 struct ChangesetTable;
 struct TableSchema;
 

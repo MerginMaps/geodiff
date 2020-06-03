@@ -43,6 +43,9 @@ struct TableSchema
 {
   std::vector<TableColumnInfo> columns;
 
+  //! Returns true if at least one column is a part of table's primary key
+  bool hasPrimaryKey() const;
+
   bool operator==( const TableSchema &other ) const
   {
     return columns == other.columns;

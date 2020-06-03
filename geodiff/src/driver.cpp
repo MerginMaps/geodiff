@@ -28,19 +28,19 @@ std::vector<std::string> Driver::drivers()
   return names;
 }
 
-Driver *Driver::createDriver( const std::string &driverName )
+std::unique_ptr<Driver> Driver::createDriver( const std::string &driverName )
 {
   if ( driverName == "sqlite" )
   {
-    return new SqliteDriver;
+    return std::unique_ptr<Driver>( new SqliteDriver );
   }
 #ifdef HAVE_POSTGRES
   if ( driverName == "postgres" )
   {
-    return new PostgresDriver;
+    return std::unique_ptr<Driver>( new PostgresDriver );
   }
 #endif
-  return nullptr;
+  return std::unique_ptr<Driver>();
 }
 
 DriverParametersMap Driver::sqliteParameters( const std::string &filenameBase, const std::string &filenameModified )

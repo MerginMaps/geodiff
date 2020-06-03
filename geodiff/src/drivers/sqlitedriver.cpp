@@ -164,7 +164,7 @@ static std::string sqlitePrintf( const char *zFormat, ... )
 static std::string sqlFindInserted( const std::string &tableName, const TableSchema &tbl, bool reverse )
 {
   std::string exprPk;
-  for ( auto c : tbl.columns )
+  for ( const TableColumnInfo &c : tbl.columns )
   {
     if ( c.isPrimaryKey )
     {
@@ -186,7 +186,7 @@ static std::string sqlFindModified( const std::string &tableName, const TableSch
 {
   std::string exprPk;
   std::string exprOther;
-  for ( auto c : tbl.columns )
+  for ( const TableColumnInfo &c : tbl.columns )
   {
     if ( c.isPrimaryKey )
     {
@@ -341,7 +341,7 @@ void SqliteDriver::createChangeset( ChangesetWriter &writer )
 {
   std::vector<std::string> tables = listTables();
 
-  for ( auto tableName : tables )
+  for ( const std::string &tableName : tables )
   {
     TableSchema tbl = tableSchema( tableName );
     TableSchema tblNew = tableSchema( tableName, true );
@@ -350,14 +350,7 @@ void SqliteDriver::createChangeset( ChangesetWriter &writer )
     if ( tbl != tblNew )
       throw GeoDiffException( "table schemas are not the same" );
 
-    bool hasPkey = false;
-    for ( auto c : tbl.columns )
-    {
-      if ( c.isPrimaryKey )
-        hasPkey = true;
-    }
-
-    if ( !hasPkey )
+    if ( !tbl.hasPrimaryKey() )
       continue;  // ignore tables without primary key - they can't be compared properly
 
     bool first = true;

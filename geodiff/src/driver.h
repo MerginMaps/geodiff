@@ -7,6 +7,7 @@
 #define DRIVER_H
 
 #include <map>
+#include <memory>
 #include <vector>
 #include <string>
 
@@ -49,7 +50,7 @@ class GEODIFF_EXPORT Driver
     /**
      * Returns a new instance of a driver given its name. Returns nullptr if such driver does not exist.
      */
-    static Driver *createDriver( const std::string &driverName );
+    static std::unique_ptr<Driver> createDriver( const std::string &driverName );
 
     /**
      * Returns driver parameters for Sqlite driver - it needs filenames of two sqlite databases.
