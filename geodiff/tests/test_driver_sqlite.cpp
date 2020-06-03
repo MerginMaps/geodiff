@@ -17,7 +17,7 @@ static void testCreateChangeset( const std::string &testname, const std::string 
   makedir( pathjoin( tmpdir(), testname ) );
   std::string fileOutput = pathjoin( tmpdir(), testname, "output.diff" );
 
-  std::unique_ptr<Driver> driver( Driver::createDriver("sqlite") );
+  std::unique_ptr<Driver> driver( Driver::createDriver( "sqlite" ) );
   driver->open( Driver::sqliteParameters( fileBase, fileModified ) );
 
   {
@@ -37,7 +37,7 @@ static void testApplyChangeset( const std::string &testname, const std::string &
   std::string testdb = pathjoin( tmpdir(), testname, "output.gpkg" );
   filecopy( testdb, fileBase );
 
-  std::unique_ptr<Driver> driver( Driver::createDriver("sqlite") );
+  std::unique_ptr<Driver> driver( Driver::createDriver( "sqlite" ) );
   driver->open( Driver::sqliteParametersSingleSource( testdb ) );
 
   {
@@ -56,7 +56,7 @@ static void testApplyChangeset( const std::string &testname, const std::string &
 
 TEST( SqliteDriverTest, test_basic )
 {
-  std::unique_ptr<Driver> driver( Driver::createDriver("sqlite") );
+  std::unique_ptr<Driver> driver( Driver::createDriver( "sqlite" ) );
   ASSERT_TRUE( driver );
   driver->open( Driver::sqliteParametersSingleSource( pathjoin( testdir(), "base.gpkg" ) ) );
 
@@ -81,31 +81,31 @@ TEST( SqliteDriverTest, test_open )
   std::map<std::string, std::string> conn;
 
   {
-    std::unique_ptr<Driver> driver( Driver::createDriver("sqlite") );
+    std::unique_ptr<Driver> driver( Driver::createDriver( "sqlite" ) );
     EXPECT_ANY_THROW( driver->open( conn ) );
   }
 
   conn["base"] = "invalid_file";
   {
-    std::unique_ptr<Driver> driver( Driver::createDriver("sqlite") );
+    std::unique_ptr<Driver> driver( Driver::createDriver( "sqlite" ) );
     EXPECT_ANY_THROW( driver->open( conn ) );
   }
 
   conn["base"] = pathjoin( testdir(), "base.gpkg" );
   {
-    std::unique_ptr<Driver> driver( Driver::createDriver("sqlite") );
+    std::unique_ptr<Driver> driver( Driver::createDriver( "sqlite" ) );
     EXPECT_NO_THROW( driver->open( conn ) );
   }
 
   conn["modified"] = "invalid_file";
   {
-    std::unique_ptr<Driver> driver( Driver::createDriver("sqlite") );
+    std::unique_ptr<Driver> driver( Driver::createDriver( "sqlite" ) );
     EXPECT_ANY_THROW( driver->open( conn ) );
   }
 
   conn["modified"] = pathjoin( testdir(), "base.gpkg" );
   {
-    std::unique_ptr<Driver> driver( Driver::createDriver("sqlite") );
+    std::unique_ptr<Driver> driver( Driver::createDriver( "sqlite" ) );
     EXPECT_NO_THROW( driver->open( conn ) );
   }
 }

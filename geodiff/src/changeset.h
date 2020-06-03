@@ -64,7 +64,7 @@ struct Value
 
     bool operator!=( const Value &other ) const
     {
-      return !(*this == other);
+      return !( *this == other );
     }
 
     //! Possible value types
