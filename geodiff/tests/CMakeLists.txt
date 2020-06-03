@@ -47,6 +47,7 @@ INCLUDE_DIRECTORIES(
 )
 
 ADD_LIBRARY(geodifftestutils OBJECT geodiff_testutils.hpp geodiff_testutils.cpp)
+TARGET_COMPILE_DEFINITIONS(geodifftestutils PUBLIC -DGEODIFF_STATIC)
 
 MACRO (ADD_GEODIFF_TEST TESTSRC)
   SET (TESTNAME  ${TESTSRC})
