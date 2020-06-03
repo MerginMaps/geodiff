@@ -23,4 +23,7 @@ GEODIFF_EXPORT std::string changesetToJSON( ChangesetReader &reader );
 
 GEODIFF_EXPORT std::string changesetToJSONSummary( ChangesetReader &reader );
 
+std::string hex2bin( const std::string &str );
+std::string bin2hex( const std::string &str );
+
 #endif // CHANGESETUTILS_H

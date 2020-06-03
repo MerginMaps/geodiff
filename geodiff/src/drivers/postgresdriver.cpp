@@ -13,6 +13,7 @@
 #include "postgresutils.h"
 
 #include <iostream>
+#include <memory.h>
 
 
 PostgresDriver::~PostgresDriver()
@@ -21,6 +22,7 @@ PostgresDriver::~PostgresDriver()
     PQfinish( mConn );
   mConn = nullptr;
 }
+
 
 void PostgresDriver::open( const DriverParametersMap &conn )
 {
@@ -48,12 +50,8 @@ void PostgresDriver::open( const DriverParametersMap &conn )
   }
 
   mConn = c;
-
-  PostgresResult r( execSql( c, "SELECT 1+1" ) );
-  std::cout << "num tuples" << r.rowCount() << std::endl;
-  std::cout << "res " << r.value( 0, 0 ) << std::endl;
-
 }
+
 
 std::vector<std::string> PostgresDriver::listTables( bool useModified )
 {
@@ -74,6 +72,7 @@ std::vector<std::string> PostgresDriver::listTables( bool useModified )
   return tables;
 }
 
+
 TableSchema PostgresDriver::tableSchema( const std::string &tableName, bool useModified )
 {
   if ( !mConn )
@@ -82,6 +81,21 @@ TableSchema PostgresDriver::tableSchema( const std::string &tableName, bool useM
     throw GeoDiffException( "Should use modified schema, but it was not set" );
 
   std::string schemaName = useModified ? mModifiedSchema : mBaseSchema;
+
+  // try to figure out details of the geometry columns (if any)
+  std::string sqlGeomDetails = "SELECT f_geometry_column, type, srid FROM geometry_columns WHERE f_table_schema = " + quotedString( schemaName ) + " AND f_table_name = " + quotedString( tableName );
+  std::map<std::string, std::string> geomTypes;
+  std::map<std::string, int> geomSrids;
+  PostgresResult resGeomDetails( execSql( mConn, sqlGeomDetails ) );
+  for ( int i = 0; i < resGeomDetails.rowCount(); ++i )
+  {
+    std::string name = resGeomDetails.value( i, 0 );
+    std::string type = resGeomDetails.value( i, 1 );
+    std::string srid = resGeomDetails.value( i, 2 );
+    int sridInt = srid.empty() ? -1 : atoi( srid.c_str() );
+    geomTypes[name] = type;
+    geomSrids[name] = sridInt;
+  }
 
   std::string sqlColumns =
     "SELECT a.attname, pg_catalog.format_type(a.atttypid, a.atttypmod), i.indisprimary"
@@ -108,9 +122,42 @@ TableSchema PostgresDriver::tableSchema( const std::string &tableName, bool useM
     col.name = res.value( i, 0 );
     col.type = res.value( i, 1 );
     col.isPrimaryKey = ( res.value( i, 2 ) == "t" );
+
+    if ( col.type.rfind( "geometry", 0 ) == 0 )
+    {
+      col.isGeometry = true;
+      if ( geomTypes.find( col.name ) != geomTypes.end() )
+      {
+        col.geomType = geomTypes[col.name];
+        col.geomSrsId = geomSrids[col.name];
+      }
+    }
+
     schema.columns.push_back( col );
   }
   return schema;
+}
+
+
+static std::string allColumnNames( const TableSchema &tbl, const std::string &prefix = "" )
+{
+  std::string columns;
+  for ( auto c : tbl.columns )
+  {
+    if ( !columns.empty() )
+      columns += ", ";
+
+    std::string name;
+    if ( !prefix.empty() )
+      name = prefix + ".";
+    name += quotedIdentifier( c.name );
+
+    if ( c.isGeometry )
+      columns += "ST_AsBinary(" + name + ")";
+    else
+      columns += name;
+  }
+  return columns;
 }
 
 
@@ -129,7 +176,7 @@ static std::string sqlFindInserted( const std::string &schemaNameBase, const std
     }
   }
 
-  std::string sql = "SELECT * FROM " +
+  std::string sql = "SELECT " + allColumnNames( tbl ) + " FROM " +
                     quotedIdentifier( reverse ? schemaNameBase : schemaNameModified ) + "." + tableName +
                     " WHERE NOT EXISTS ( SELECT 1 FROM " +
                     quotedIdentifier( reverse ? schemaNameModified : schemaNameBase ) + "." + tableName +
@@ -148,44 +195,35 @@ static std::string sqlFindModified( const std::string &schemaNameBase, const std
     {
       if ( !exprPk.empty() )
         exprPk += " AND ";
-      exprPk += quotedIdentifier( schemaNameBase ) + "." + quotedIdentifier( tableName ) + "." + quotedIdentifier( c.name ) + "=" +
-                quotedIdentifier( schemaNameModified ) + "." + quotedIdentifier( tableName ) + "." + quotedIdentifier( c.name );
+      exprPk += "b." + quotedIdentifier( c.name ) + "=" +
+                "a." + quotedIdentifier( c.name );
     }
     else // not a primary key column
     {
       if ( !exprOther.empty() )
         exprOther += " OR ";
 
-      std::string colBase = quotedIdentifier( schemaNameBase ) + "." + quotedIdentifier( tableName ) + "." + quotedIdentifier( c.name );
-      std::string colModified = quotedIdentifier( schemaNameModified ) + "." + quotedIdentifier( tableName ) + "." + quotedIdentifier( c.name );
+      std::string colBase = "b." + quotedIdentifier( c.name );
+      std::string colModified = "a." + quotedIdentifier( c.name );
       exprOther += "NOT ((" + colBase + " IS NULL AND " + colModified + " IS NULL) OR (" + colBase + " = " + colModified + "))";
     }
   }
 
-  std::string sql = "SELECT * FROM " +
-                    quotedIdentifier( schemaNameModified ) + "." + quotedIdentifier( tableName ) + ", " +
-                    quotedIdentifier( schemaNameBase ) + "." + quotedIdentifier( tableName ) +
+  std::string sql = "SELECT " + allColumnNames( tbl, "a" ) + ", " + allColumnNames( tbl, "b" ) + " FROM " +
+                    quotedIdentifier( schemaNameModified ) + "." + quotedIdentifier( tableName ) + " a, " +
+                    quotedIdentifier( schemaNameBase ) + "." + quotedIdentifier( tableName ) + " b" +
                     " WHERE " + exprPk + " AND (" + exprOther + ")";
   return sql;
 }
 
 
-static Value changesetValue( const std::string &v )
-{
-  Value w;
-  w.setString( Value::TypeText, v.c_str(), v.size() );
-  return w;
-}
-
 static bool isColumnInt( const TableColumnInfo &col )
 {
-  // TODO: qgis uses "int2", "int4", "int8"
   return col.type == "integer";
 }
 
 static bool isColumnDouble( const TableColumnInfo &col )
 {
-  // TODO: numeric, decimal ?
   return col.type == "real" || col.type == "double precision";
 }
 
@@ -196,8 +234,9 @@ static bool isColumnText( const TableColumnInfo &col )
 
 static bool isColumnGeometry( const TableColumnInfo &col )
 {
-  return col.type == "geometry";
+  return col.type.rfind( "geometry", 0 ) == 0; // starts with "geometry" prefix
 }
+
 
 static Value resultToValue( const PostgresResult &res, int r, size_t i, const TableColumnInfo &col )
 {
@@ -227,25 +266,41 @@ static Value resultToValue( const PostgresResult &res, int r, size_t i, const Ta
     }
     else if ( isColumnGeometry( col ) )
     {
-      // TODO: handle geometry:
-      // 1. convert from hex representation ("FF" -> '\xff')
+      // the value we get should have this format: "\x01234567890abcdef"
+      if ( valueStr.size() < 2 )
+        throw GeoDiffException( "Unexpected geometry value" );
+      if ( valueStr[0] != '\\' || valueStr[1] != 'x' )
+        throw GeoDiffException( "Unexpected prefix in geometry value" );
+
+      // 1. convert from hex representation to proper binary stream
+      std::string binString = hex2bin( valueStr.substr( 2 ) );
       // 2. convert WKB binary (or GeoPackage geom. encoding)
-      v.setString( Value::TypeText, valueStr.c_str(), valueStr.size() );
+      std::string outBinString( 8 + binString.size(), 0 );
+      memcpy( &outBinString[0], "GP\x00\x01", 4 );
+      // write SRID in little endian
+      outBinString[4] = 0xff & ( col.geomSrsId >> 0 );
+      outBinString[5] = 0xff & ( col.geomSrsId >> 8 );
+      outBinString[6] = 0xff & ( col.geomSrsId >> 16 );
+      outBinString[7] = 0xff & ( col.geomSrsId >> 24 );
+
+      memcpy( &outBinString[8], binString.data(), binString.size() );
+      v.setString( Value::TypeBlob, outBinString.data(), outBinString.size() );
     }
     else
     {
       // TODO: handling of other types (date/time, list, blob, ...)
-      throw GeoDiffException("unknown value type: " + col.type );
+      throw GeoDiffException( "unknown value type: " + col.type );
     }
   }
   return v;
 }
 
+
 static std::string valueToSql( const Value &v, const TableColumnInfo &col )
 {
   if ( v.type() == Value::TypeUndefined )
   {
-    throw GeoDiffException( "this should not happen!");
+    throw GeoDiffException( "this should not happen!" );
   }
   else if ( v.type() == Value::TypeNull )
   {
@@ -261,14 +316,22 @@ static std::string valueToSql( const Value &v, const TableColumnInfo &col )
   }
   else if ( v.type() == Value::TypeText || v.type() == Value::TypeBlob )
   {
-    // TODO: handling of geometries
+    if ( col.isGeometry )
+    {
+      // handling of geometries - they are encoded with GPKG header
+      std::string gpkgWkb = v.getString();
+      std::string wkb( gpkgWkb.size() - 8, 0 );
+      memcpy( &wkb[0], &gpkgWkb[8], gpkgWkb.size() - 8 );
+      return "ST_GeomFromWKB('\\x" + bin2hex( wkb ) + "', " + std::to_string( col.geomSrsId ) + ")";
+    }
     return quotedString( v.getString() );
   }
   else
   {
-    throw GeoDiffException("unexpected value");
+    throw GeoDiffException( "unexpected value" );
   }
 }
+
 
 static void handleInserted( const std::string &schemaNameBase, const std::string &schemaNameModified, const std::string &tableName, const TableSchema &tbl, bool reverse, PGconn *conn, ChangesetWriter &writer, bool &first )
 {
@@ -301,6 +364,7 @@ static void handleInserted( const std::string &schemaNameBase, const std::string
     writer.writeEntry( e );
   }
 }
+
 
 static void handleUpdated( const std::string &schemaNameBase, const std::string &schemaNameModified, const std::string &tableName, const TableSchema &tbl, PGconn *conn, ChangesetWriter &writer, bool &first )
 {
@@ -346,6 +410,7 @@ static void handleUpdated( const std::string &schemaNameBase, const std::string 
   }
 }
 
+
 void PostgresDriver::createChangeset( ChangesetWriter &writer )
 {
   if ( !mConn )
@@ -381,7 +446,6 @@ void PostgresDriver::createChangeset( ChangesetWriter &writer )
 }
 
 
-
 static std::string sqlForInsert( const std::string &schemaName, const std::string &tableName, const TableSchema &tbl, const std::vector<Value> &values )
 {
   /*
@@ -408,6 +472,7 @@ static std::string sqlForInsert( const std::string &schemaName, const std::strin
   sql += ")";
   return sql;
 }
+
 
 static std::string sqlForUpdate( const std::string &schemaName, const std::string &tableName, const TableSchema &tbl, const std::vector<Value> &oldValues, const std::vector<Value> &newValues )
 {

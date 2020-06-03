@@ -39,4 +39,10 @@ bool equals( const std::string &file1,
 //! Tests whether two files are binary equal
 bool fileContentEquals( const std::string &file1, const std::string &file2 );
 
+//! Tests whether a file exists (it is accessible)
+bool fileExists( const std::string &filepath );
+
+//! Tests whether a file is empty (has zero size). \note returns false when file does not exist
+bool isFileEmpty( const std::string &filepath );
+
 #endif // GEODIFF_TESTUTILS_HPP

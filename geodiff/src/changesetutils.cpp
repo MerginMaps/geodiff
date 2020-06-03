@@ -244,3 +244,48 @@ std::string changesetToJSONSummary( ChangesetReader &reader )
   res += "}";
   return res;
 }
+
+
+inline int hex2num( unsigned char i )
+{
+  if ( i <= '9' && i >= '0' )
+    return i - '0';
+  if ( i >= 'A' && i <= 'F' )
+    return 10 + i - 'A';
+  if ( i >= 'a' && i <= 'f' )
+    return 10 + i - 'a';
+  assert( false );
+}
+
+inline char num2hex( int n )
+{
+  assert( n >= 0 && n < 16 );
+  if ( n >= 0 && n < 10 )
+    return '0' + n;
+  else if ( n >= 10 && n < 16 )
+    return 'A' + n - 10;
+}
+
+std::string hex2bin( const std::string &str )
+{
+  assert( str.size() % 2 == 0 );
+  std::string output( str.size() / 2, 0 );
+  for ( size_t i = 0; i < str.size(); i += 2 )
+  {
+    int n1 = hex2num( str[i] ), n2 = hex2num( str[i + 1] );
+    output[i / 2] = n1 * 16 + n2;
+  }
+  return output;
+}
+
+std::string bin2hex( const std::string &str )
+{
+  std::string output( str.size() * 2, 0 );
+  for ( size_t i = 0; i < str.size(); ++i )
+  {
+    unsigned char ch = str[i];
+    output[i * 2] = num2hex( ch / 16 );
+    output[i * 2 + 1] = num2hex( ch % 16 );
+  }
+  return output;
+}

@@ -217,6 +217,21 @@ int fileContains( const std::string &filepath, const std::string key )
   }
 }
 
+
+bool fileExists( const std::string &filepath )
+{
+  struct stat buffer;
+  return ( stat( filepath.c_str(), &buffer ) == 0 );
+}
+
+bool isFileEmpty( const std::string &filepath )
+{
+  std::ifstream f( filepath );
+  if ( !f.is_open() )
+    return false;
+  return file_size( f ) == 0;
+}
+
 bool containsConflict( const std::string &conflictFile, const std::string key )
 {
   return fileContains( conflictFile, key ) > 0;
