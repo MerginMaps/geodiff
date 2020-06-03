@@ -20,7 +20,7 @@ class Buffer;
  *
  * See changeset-format.md for the documentation of the format.
  */
-class GEODIFF_EXPORT ChangesetReader
+class ChangesetReader
 {
   public:
     ChangesetReader();
