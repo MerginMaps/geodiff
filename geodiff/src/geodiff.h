@@ -6,6 +6,9 @@
 #ifndef GEODIFF_H
 #define GEODIFF_H
 
+#ifdef GEODIFF_STATIC
+#  define GEODIFF_EXPORT
+#else
 #if defined _WIN32 || defined __CYGWIN__
 #  ifdef geodiff_EXPORTS
 #    ifdef __GNUC__
@@ -26,6 +29,7 @@
 #  else
 #    define GEODIFF_EXPORT
 #  endif
+#endif
 #endif
 
 #define GEODIFF_SUCCESS 0 //!< Success
