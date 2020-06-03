@@ -83,7 +83,8 @@ TableSchema PostgresDriver::tableSchema( const std::string &tableName, bool useM
   std::string schemaName = useModified ? mModifiedSchema : mBaseSchema;
 
   // try to figure out details of the geometry columns (if any)
-  std::string sqlGeomDetails = "SELECT f_geometry_column, type, srid FROM geometry_columns WHERE f_table_schema = " + quotedString( schemaName ) + " AND f_table_name = " + quotedString( tableName );
+  std::string sqlGeomDetails = "SELECT f_geometry_column, type, srid FROM geometry_columns WHERE f_table_schema = " +
+                               quotedString( schemaName ) + " AND f_table_name = " + quotedString( tableName );
   std::map<std::string, std::string> geomTypes;
   std::map<std::string, int> geomSrids;
   PostgresResult resGeomDetails( execSql( mConn, sqlGeomDetails ) );
@@ -142,7 +143,7 @@ TableSchema PostgresDriver::tableSchema( const std::string &tableName, bool useM
 static std::string allColumnNames( const TableSchema &tbl, const std::string &prefix = "" )
 {
   std::string columns;
-  for ( auto c : tbl.columns )
+  for ( const TableColumnInfo &c : tbl.columns )
   {
     if ( !columns.empty() )
       columns += ", ";
@@ -165,7 +166,7 @@ static std::string allColumnNames( const TableSchema &tbl, const std::string &pr
 static std::string sqlFindInserted( const std::string &schemaNameBase, const std::string &schemaNameModified, const std::string &tableName, const TableSchema &tbl, bool reverse )
 {
   std::string exprPk;
-  for ( auto c : tbl.columns )
+  for ( const TableColumnInfo &c : tbl.columns )
   {
     if ( c.isPrimaryKey )
     {
@@ -189,7 +190,7 @@ static std::string sqlFindModified( const std::string &schemaNameBase, const std
 {
   std::string exprPk;
   std::string exprOther;
-  for ( auto c : tbl.columns )
+  for ( const TableColumnInfo &c : tbl.columns )
   {
     if ( c.isPrimaryKey )
     {
@@ -300,7 +301,7 @@ static std::string valueToSql( const Value &v, const TableColumnInfo &col )
 {
   if ( v.type() == Value::TypeUndefined )
   {
-    throw GeoDiffException( "this should not happen!" );
+    throw GeoDiffException( "valueToSql: got 'undefined' value (malformed changeset?)" );
   }
   else if ( v.type() == Value::TypeNull )
   {
@@ -418,7 +419,7 @@ void PostgresDriver::createChangeset( ChangesetWriter &writer )
 
   std::vector<std::string> tables = listTables();
 
-  for ( auto tableName : tables )
+  for ( const std::string &tableName : tables )
   {
     TableSchema tbl = tableSchema( tableName );
     TableSchema tblNew = tableSchema( tableName, true );
@@ -427,14 +428,7 @@ void PostgresDriver::createChangeset( ChangesetWriter &writer )
     if ( tbl != tblNew )
       throw GeoDiffException( "table schemas are not the same" );
 
-    bool hasPkey = false;
-    for ( auto c : tbl.columns )
-    {
-      if ( c.isPrimaryKey )
-        hasPkey = true;
-    }
-
-    if ( !hasPkey )
+    if ( !tbl.hasPrimaryKey() )
       continue;  // ignore tables without primary key - they can't be compared properly
 
     bool first = true;

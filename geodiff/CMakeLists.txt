@@ -128,6 +128,7 @@ ADD_DEFINITIONS( -DGPKG_HAVE_CONFIG_H )
 CONFIGURE_FILE( "${libgpkg_dir}/gpkg/config.h.in" "${CMAKE_CURRENT_BINARY_DIR}/config.h" )
 INCLUDE_DIRECTORIES(
   ${CMAKE_CURRENT_SOURCE_DIR}/src
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/3rdparty
   ${CMAKE_CURRENT_SOURCE_DIR}/src/drivers
   ${CMAKE_CURRENT_BINARY_DIR}
 )
@@ -150,8 +151,6 @@ SET(geodiff_src
   src/geodifflogger.cpp
   src/geodifflogger.hpp
 
-  src/base64utils.cpp
-  src/base64utils.h
   src/changeset.h
   src/changesetreader.cpp
   src/changesetreader.h
@@ -162,8 +161,12 @@ SET(geodiff_src
   src/changesetwriter.h
   src/driver.cpp
   src/driver.h
-  src/portableendian.h
+  src/tableschema.cpp
   src/tableschema.h
+
+  src/3rdparty/base64utils.cpp
+  src/3rdparty/base64utils.h
+  src/3rdparty/portableendian.h
 
   src/drivers/sqlitedriver.cpp
   src/drivers/sqlitedriver.h

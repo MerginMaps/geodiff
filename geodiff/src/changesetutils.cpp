@@ -16,7 +16,7 @@ ChangesetTable schemaToChangesetTable( const std::string &tableName, const Table
 {
   ChangesetTable chTable;
   chTable.name = tableName;
-  for ( auto c : tbl.columns )
+  for ( const TableColumnInfo &c : tbl.columns )
     chTable.primaryKeys.push_back( c.isPrimaryKey );
   return chTable;
 }
@@ -28,6 +28,7 @@ void invertChangeset( ChangesetReader &reader, ChangesetWriter &writer )
   ChangesetEntry entry;
   while ( reader.nextEntry( entry ) )
   {
+    assert( entry.table );
     if ( entry.table->name != currentTableName )
     {
       writer.beginTable( *entry.table );

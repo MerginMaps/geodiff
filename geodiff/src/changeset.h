@@ -186,6 +186,15 @@ struct ChangesetEntry
   std::vector<Value> oldValues;
   //! Column values for "new" record - only valid for UPDATE and INSERT
   std::vector<Value> newValues;
+  /**
+   * Optional pointer to the source table information as stored in changeset.
+   *
+   * When the changeset entry has been read by ChangesetReader, the table always will be set to a valid
+   * instance. Do not delete the instance - it is owned by ChangesetReader.
+   *
+   * When the changeset entry is being passed to ChangesetWriter, the table pointer is ignored
+   * and it does not need to be set (writer has an explicit beginTable() call to set table).
+   */
   ChangesetTable *table = nullptr;
 };
 
