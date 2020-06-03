@@ -49,7 +49,7 @@ class GEODIFF_EXPORT Driver
     /**
      * Returns a new instance of a driver given its name. Returns nullptr if such driver does not exist.
      */
-    static Driver* createDriver( const std::string &driverName );
+    static Driver *createDriver( const std::string &driverName );
 
     /**
      * Returns driver parameters for Sqlite driver - it needs filenames of two sqlite databases.
@@ -72,7 +72,7 @@ class GEODIFF_EXPORT Driver
      *
      * On error the function throws GeoDiffException with the cause.
      */
-    virtual void open( const DriverParametersMap& conn ) = 0;
+    virtual void open( const DriverParametersMap &conn ) = 0;
 
     /**
      * Returns a list of tables in the current connection. The useModified argument
