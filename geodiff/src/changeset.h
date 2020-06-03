@@ -38,6 +38,7 @@ struct Value
 
     Value &operator=( const Value &other )
     {
+      reset();
       mType = other.mType;
       mVal = other.mVal;
       if ( mType == TypeText || mType == TypeBlob )
