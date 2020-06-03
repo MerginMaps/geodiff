@@ -18,11 +18,19 @@ struct TableColumnInfo
   //! Type of the column as reported by the database
   std::string type;
   //! Whether this column is a part of the table's primary key
-  bool isPrimaryKey;
+  bool isPrimaryKey = false;
+
+  //! Whether the column encodes geometry data
+  bool isGeometry = false;
+  //! In case of geometry column - contains geometry type (e.g. POINT / LINESTRING / POLYGON / ...)
+  std::string geomType;
+  //! In case of geometry column - contains ID of the spatial ref. system
+  int geomSrsId = -1;
 
   bool operator==( const TableColumnInfo &other ) const
   {
-    return name == other.name && type == other.type && isPrimaryKey == other.isPrimaryKey;
+    return name == other.name && type == other.type && isPrimaryKey == other.isPrimaryKey &&
+           isGeometry == other.isGeometry && geomType == other.geomType && geomSrsId == other.geomSrsId;
   }
   bool operator!=( const TableColumnInfo &other ) const
   {
