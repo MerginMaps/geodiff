@@ -38,7 +38,7 @@ typedef std::map<std::string, std::string> DriverParametersMap;
  *
  * Use createDriver() to create instance of a driver.
  */
-class GEODIFF_EXPORT Driver
+class Driver
 {
   public:
 

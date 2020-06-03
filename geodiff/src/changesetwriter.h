@@ -20,7 +20,7 @@
  *
  * See changeset-format.md for the documentation of the format.
  */
-class GEODIFF_EXPORT ChangesetWriter
+class ChangesetWriter
 {
   public:
 

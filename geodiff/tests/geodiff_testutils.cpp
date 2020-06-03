@@ -57,13 +57,6 @@ std::string pathjoin( const std::string &dir, const std::string &dir2, const std
   return res;
 }
 
-void filecopy( const std::string &to, const std::string &from )
-{
-  std::ifstream  src( from, std::ios::binary );
-  std::ofstream  dst( to,   std::ios::binary );
-  dst << src.rdbuf();
-}
-
 std::string testdir()
 {
   return TEST_DATA_DIR;
