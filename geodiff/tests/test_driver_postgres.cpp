@@ -45,6 +45,9 @@ void execSqlCommands( const std::string &conninfo, const std::string &filename )
 
 TEST( PostgresDriverTest, test_basic )
 {
+  std::vector<std::string> driverNames = Driver::drivers();
+  EXPECT_TRUE( std::find( driverNames.begin(), driverNames.end(), "postgres" ) != driverNames.end() );
+
   std::string conninfo = "";
   execSqlCommands( conninfo, pathjoin( testdir(), "postgres", "base.sql" ) );
 

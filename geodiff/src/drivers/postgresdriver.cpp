@@ -26,17 +26,17 @@ PostgresDriver::~PostgresDriver()
 
 void PostgresDriver::open( const DriverParametersMap &conn )
 {
-  auto connInfo = conn.find( "conninfo" );
+  DriverParametersMap::const_iterator connInfo = conn.find( "conninfo" );
   if ( connInfo == conn.end() )
     throw GeoDiffException( "Missing 'conninfo' parameter" );
   std::string connInfoStr = connInfo->second;
 
-  auto baseSchema = conn.find( "base" );
+  DriverParametersMap::const_iterator baseSchema = conn.find( "base" );
   if ( baseSchema == conn.end() )
     throw GeoDiffException( "Missing 'base' parameter" );
   mBaseSchema = baseSchema->second;
 
-  auto modifiedSchema = conn.find( "modified" );
+  DriverParametersMap::const_iterator modifiedSchema = conn.find( "modified" );
   mModifiedSchema = ( modifiedSchema == conn.end() ) ? std::string() : modifiedSchema->second;
 
   if ( mConn )

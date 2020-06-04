@@ -111,12 +111,13 @@ TEST( ChangesetUtils, test_invert_update )
   EXPECT_FALSE( readerInv.nextEntry( entry ) );
 }
 
-static void doExportAndCompare( const std::string &changesetBase, const std::string &changesetDest )
+static void doExportAndCompare( const std::string &changesetBase, const std::string &changesetDest, bool summary = false )
 {
   ChangesetReader reader;
   EXPECT_TRUE( reader.open( changesetBase + ".diff" ) );
 
-  std::string json = changesetToJSON( reader );
+  std::string json = summary ? changesetToJSONSummary( reader ) : changesetToJSON( reader );
+  std::string expectedFilename = changesetBase + ( summary ? "-summary.json" : ".json" );
 
   {
     std::ofstream f( changesetDest );
@@ -124,7 +125,7 @@ static void doExportAndCompare( const std::string &changesetBase, const std::str
     f << json;
   }
 
-  EXPECT_TRUE( fileContentEquals( changesetBase + ".json", changesetDest ) );
+  EXPECT_TRUE( fileContentEquals( expectedFilename, changesetDest ) );
 }
 
 TEST( ChangesetUtils, test_export_json )
@@ -139,6 +140,22 @@ TEST( ChangesetUtils, test_export_json )
 
   doExportAndCompare( pathjoin( testdir(), "2_deletes", "base-deleted_A" ),
                       pathjoin( tmpdir(), "test_export_json", "delete-diff.json" ) );
+}
+
+TEST( ChangesetUtils, test_export_json_summary )
+{
+  makedir( pathjoin( tmpdir(), "test_export_json_summary" ) );
+
+  doExportAndCompare( pathjoin( testdir(), "2_updates", "base-updated_A" ),
+                      pathjoin( tmpdir(), "test_export_json_summary", "update-diff-summary.json" ), true );
+
+}
+
+TEST( ChangesetUtils, test_hex_conversion )
+{
+  EXPECT_EQ( bin2hex( "A\xff" ), "41FF" );
+  EXPECT_EQ( hex2bin( "41FF" ), "A\xff" );
+  EXPECT_EQ( hex2bin( "41ff" ), "A\xff" );
 }
 
 int main( int argc, char **argv )

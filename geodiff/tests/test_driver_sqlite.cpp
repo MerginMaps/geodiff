@@ -56,6 +56,9 @@ static void testApplyChangeset( const std::string &testname, const std::string &
 
 TEST( SqliteDriverTest, test_basic )
 {
+  std::vector<std::string> driverNames = Driver::drivers();
+  EXPECT_TRUE( std::find( driverNames.begin(), driverNames.end(), "sqlite" ) != driverNames.end() );
+
   std::unique_ptr<Driver> driver( Driver::createDriver( "sqlite" ) );
   ASSERT_TRUE( driver );
   driver->open( Driver::sqliteParametersSingleSource( pathjoin( testdir(), "base.gpkg" ) ) );
