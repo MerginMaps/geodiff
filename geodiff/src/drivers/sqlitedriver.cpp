@@ -13,11 +13,11 @@
 
 void SqliteDriver::open( const DriverParametersMap &conn )
 {
-  auto connBaseIt = conn.find( "base" );
+  DriverParametersMap::const_iterator connBaseIt = conn.find( "base" );
   if ( connBaseIt == conn.end() )
     throw GeoDiffException( "Missing 'base' file" );
 
-  auto connModifiedIt = conn.find( "modified" );
+  DriverParametersMap::const_iterator connModifiedIt = conn.find( "modified" );
   mHasModified = connModifiedIt != conn.end();
 
   std::string base = connBaseIt->second;

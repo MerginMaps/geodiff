@@ -25,6 +25,9 @@ std::vector<std::string> Driver::drivers()
 {
   std::vector<std::string> names;
   names.push_back( "sqlite" );
+#ifdef HAVE_POSTGRES
+  names.push_back( "postgres" );
+#endif
   return names;
 }
 

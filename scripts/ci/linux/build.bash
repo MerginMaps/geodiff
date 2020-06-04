@@ -46,7 +46,7 @@ make
 CTEST_TARGET_SYSTEM=Linux-gcc; ctest -VV
 
 lcov --directory . --capture --output-file coverage.info
-lcov --remove coverage.info '*/tests/*' '/usr/*' '*googletest/*' --output-file coverage.info
+lcov --remove coverage.info '*/tests/*' '/usr/*' '*googletest/*' '*/3rdparty/*' --output-file coverage.info
 lcov --list coverage.info
 # The value of ${COVERALLS_REPO_TOKEN}  is set in the settings page Travis project
 # coveralls-lcov --repo-token ${COVERALLS_REPO_TOKEN} coverage.info
