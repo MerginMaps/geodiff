@@ -236,7 +236,9 @@ int countConflicts( const std::string &conflictFile )
   return fileContains( conflictFile, "fid" );
 }
 
-str::string pgTestConnInfo()
-{
-  return _getEnvVar("GEODIFF_PG_CONNINFO", "");
-}
+#ifdef HAVE_POSTGRES
+  std::string pgTestConnInfo()
+  {
+    return _getEnvVar("GEODIFF_PG_CONNINFO", "");
+  }
+#endif
