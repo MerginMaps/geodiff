@@ -14,6 +14,7 @@ jobs:
 
       - name: install deps
         run: |
+          sudo apt-get install -y lcov
           sudo apt-get install libpq-dev
           sudo apt-get install postgresql-10 postgresql-common postgresql-contrib
 
