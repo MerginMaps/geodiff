@@ -22,7 +22,7 @@ jobs:
               -DENABLE_COVERAGE=ON \
               -DWITH_POSTGRESQL=TRUE \
               -DWITH_INTERNAL_SQLITE3=FALSE \
-              ..
+              ../geodiff
           make
 
       - name: Run tests
