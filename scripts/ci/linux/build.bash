@@ -38,18 +38,22 @@ if grep -q "Defects:" "memcheck.log"; then
 fi
 cd ..
 
-echo "Linux code coverage"
-mkdir -p build_coverage_lnx
-cd build_coverage_lnx
-cmake ${CMAKE_OPTIONS} -DCMAKE_BUILD_TYPE=Debug -DENABLE_TESTS=ON -DENABLE_COVERAGE=ON ..
-make
-CTEST_TARGET_SYSTEM=Linux-gcc; ctest -VV
+#
+# echo "Linux code coverage"
+# mkdir -p build_coverage_lnx
+# cd build_coverage_lnx
+# cmake ${CMAKE_OPTIONS} -DCMAKE_BUILD_TYPE=Debug -DENABLE_TESTS=ON -DENABLE_COVERAGE=ON ..
+# make
 
-lcov --directory . --capture --output-file coverage.info
-lcov --remove coverage.info '*/tests/*' '/usr/*' '*googletest/*' '*/3rdparty/*' --output-file coverage.info
-lcov --list coverage.info
+# CTEST_TARGET_SYSTEM=Linux-gcc; ctest -VV
+
+# lcov --directory . --capture --output-file coverage.info
+# lcov --remove coverage.info '*/tests/*' '/usr/*' '*googletest/*' '*/3rdparty/*' --output-file coverage.info
+# lcov --list coverage.info
 # The value of ${COVERALLS_REPO_TOKEN}  is set in the settings page Travis project
 # coveralls-lcov --repo-token ${COVERALLS_REPO_TOKEN} coverage.info
-coveralls-lcov coverage.info
+# coveralls-lcov coverage.info
+
+
 
 cd ..
