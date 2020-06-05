@@ -47,12 +47,12 @@ bool fileExists( const std::string &filepath );
 bool isFileEmpty( const std::string &filepath );
 
 #ifdef HAVE_POSTGRES
-  /**
-   * Returns the connection info for the postgres database
-   * Use GEODIFF_PG_CONNINFO env variable for setup
-   * Returns empty string by default
-   */
-  std::string pgTestConnInfo();
+/**
+ * Returns the connection info for the postgres database
+ * Use GEODIFF_PG_CONNINFO env variable for setup
+ * Returns empty string by default
+ */
+std::string pgTestConnInfo();
 #endif
 
 #endif // GEODIFF_TESTUTILS_HPP

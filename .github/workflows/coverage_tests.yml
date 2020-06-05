@@ -16,7 +16,7 @@ jobs:
 
       - name: create PG user
         run: |
-          sudo runuser -l postgres -c 'psql -c "CREATE USER geodiffuser WITH PASSWORD 'geodiffpass';"'
+          sudo runuser -l postgres -c 'psql -c "CREATE USER geodiffuser WITH PASSWORD \'geodiffpass\';"'
           sudo runuser -l postgres -c 'psql -c "CREATE DATABASE geodiffdb'
           sudo runuser -l postgres -c 'psql -c "GRANT ALL PRIVILEGES ON DATABASE geodiffdb TO geodiffuser"'
 
