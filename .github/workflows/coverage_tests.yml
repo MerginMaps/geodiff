@@ -1,7 +1,7 @@
 name: Coverage Tests
 on: [push]
 jobs:
-  tests:
+  coverage_tests:
     if: github.repository == 'lutraconsulting/geodiff'
     runs-on: ubuntu-latest
     steps:
@@ -10,7 +10,7 @@ jobs:
 
       - name: install deps
         run: |
-          sudo apt-get install libsqlite3-dev libpq-dev
+          sudo apt-get install libpq-dev
 
       - name: build geodiff with coverage
         run: |
@@ -21,7 +21,6 @@ jobs:
               -DENABLE_TESTS=ON \
               -DENABLE_COVERAGE=ON \
               -DWITH_POSTGRESQL=TRUE \
-              -DWITH_INTERNAL_SQLITE3=FALSE \
               ../geodiff
           make
 
