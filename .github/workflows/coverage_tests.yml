@@ -5,9 +5,9 @@ jobs:
     if: github.repository == 'lutraconsulting/geodiff'
     runs-on: ubuntu-latest
     env:
-      POSTGRES_PASSWORD: geodiffpass
-      POSTGRES_USER: geodiffuser
-      POSTGRES_DB: geodiffdb
+      POSTGRES_PASSWORD: secretpass
+      POSTGRES_USER: postgres
+      POSTGRES_DB: postgres
 
     steps:
       - name: Checkout Geodiff
@@ -16,6 +16,8 @@ jobs:
       - name: install deps
         run: |
           sudo apt-get install libpq-dev
+          sudo apt-get install postgresql postgresql-contrib
+          echo "${POSTGRES_PASSWORD}" | passwd --stdin ${POSTGRES_USER}
 
       - name: build geodiff with coverage
         run: |
@@ -34,10 +36,8 @@ jobs:
           CTEST_TARGET_SYSTEM: Linux-gcc
           GEODIFF_PG_CONNINFO: "host=localhost port=5432 user=${POSTGRES_USER} dbname=${POSTGRES_DB} password=${POSTGRES_PASSWORD}"
         run: |
-          sudo docker run --name geodiff_pg -p5432:5432 -e POSTGRES_USER=${POSTGRES_USER} -e POSTGRES_DB=${POSTGRES_DB} -e POSTGRES_PASSWORD=${POSTGRES_PASSWORD} -d postgres
           cd build_coverage_lnx
           ctest -VV
-          sudo docker stop geodiff_pg
 
       - name: Prepare coverage report
         run: |
