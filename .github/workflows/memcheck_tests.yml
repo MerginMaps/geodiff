@@ -1,0 +1,57 @@
+name: MemCheck Tests
+on: [push]
+jobs:
+  memcheck_tests:
+    if: github.repository == 'lutraconsulting/geodiff'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Geodiff
+        uses: actions/checkout@v2
+
+      - name: install deps
+        run: |
+          sudo apt-get install libpq-dev
+          sudo apt-get install libc6-dbg gdb valgrind
+          sudo apt-get install postgresql-10 postgresql-common postgresql-contrib postgis
+          valgrind --version
+
+      - name: create PG user
+        run: |
+          sudo runuser -l postgres -c 'echo -e "geodiffpass\ngeodiffpass" | createuser -P -e geodiffuser'
+          sudo runuser -l postgres -c 'psql -c "CREATE DATABASE geodiffdb"'
+          sudo runuser -l postgres -c 'psql -d "geodiffdb" -c "CREATE EXTENSION postgis;"'
+          sudo runuser -l postgres -c 'psql -c "GRANT ALL PRIVILEGES ON DATABASE geodiffdb TO geodiffuser"'
+
+
+      - name: build geodiff with valgrind
+        run: |
+          mkdir -p build_memcheck_lnx
+          cd build_memcheck_lnx
+          cmake \
+              -DCMAKE_BUILD_TYPE=Debug \
+              -DENABLE_TESTS=ON \
+              -DMEMORYCHECK_COMMAND_OPTIONS="--leak-check=yes --show-leak-kinds=definite --gen-suppressions=all --track-origins=yes --num-callers=20 --leak-resolution=high --show-reachable=no" \
+              -DMEMORYCHECK_SUPPRESSIONS_FILE=../scripts/ci/linux/valgrind.supp \
+              -DWITH_POSTGRESQL=TRUE \
+              ../geodiff
+          make -j`nproc`
+
+      - name: Run tests
+        env:
+          CTEST_TARGET_SYSTEM: Linux-gcc
+          GLIBCPP_FORCE_NEW: 1
+          GLIBCXX_FORCE_NEW: 1
+          GEODIFF_PG_CONNINFO: "host=localhost port=5432 user=geodiffuser password=geodiffpass dbname=geodiffdb"
+        run: |
+          cd build_memcheck_lnx
+          ctest -T memcheck 2>&1 | tee memcheck.log
+
+      - name: Check memcheck for errors
+        run: |
+          cd build_memcheck_lnx
+          if grep -q "Defects:" "memcheck.log"; then
+            echo "Error: Show memcheck results"
+            ls -la Testing/Temporary/MemoryChecker.*.log
+            cat Testing/Temporary/MemoryChecker.*.log
+            exit 1
+          fi

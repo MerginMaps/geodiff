@@ -10,6 +10,7 @@
 #include <vector>
 
 #include "geodiff.h"
+#include "geodiff_config.hpp"
 
 std::string testdir();
 std::string tmpdir();
@@ -44,5 +45,14 @@ bool fileExists( const std::string &filepath );
 
 //! Tests whether a file is empty (has zero size). \note returns false when file does not exist
 bool isFileEmpty( const std::string &filepath );
+
+#ifdef HAVE_POSTGRES
+/**
+ * Returns the connection info for the postgres database
+ * Use GEODIFF_PG_CONNINFO env variable for setup
+ * Returns empty string by default
+ */
+std::string pgTestConnInfo();
+#endif
 
 #endif // GEODIFF_TESTUTILS_HPP

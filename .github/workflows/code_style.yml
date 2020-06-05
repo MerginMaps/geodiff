@@ -12,4 +12,5 @@ jobs:
 
       - name: Run astyle check
         run: |
-          ./scripts/ci/linux/codestyle.bash
+          cd scripts
+          ./run_astyle.sh `find ../geodiff -name \*.h* -print -o -name \*.c* -print`

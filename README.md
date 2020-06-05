@@ -13,6 +13,8 @@ Use case 1: user has a GeoPackage with some data, then creates a copy and modifi
 
 Use case 2: two users start with the same copy of GeoPackage file which they modify independently. This may create conflicts when trying to merge edits of the two users back into one file. The library takes care of resolving any potential conflicts so that the changes can be applied cleanly.
 
+Use case 3: user has a PostgreSQL database with some GIS data, and wants to sync it with the GeoPackage file to be used for field survey. Both GeoPackage and PostgreSQL could be modified, and the library can create "difference" (delta) file, apply them to both sources and keep them in sync.
+
 The library is used by [Mergin](https://public.cloudmergin.com/) - a platform for easy sharing of spatial data.
 
 ## Envirmonment
@@ -38,14 +40,18 @@ tag the master on github and it will be automatically published!
 
 ## Changesets
 
-Changes between datasets are read from and written to a [binary changeset format](changeset-format.md).
+Changes between datasets are read from and written to a [binary changeset format](docs/changeset-format.md).
 
 ## Development
+- Install postgresql client and sqlite3 library, e.g. for Linux
+```
+    sudo apt-get install libsqlite3-dev libpq-dev
+```
 - Compile geodiff shared library
 ```
   mkdir build
   cd build
-  cmake ../geodiff
+  cmake ../geodiff -DWITH_POSTGRESQL=TRUE -DWITH_INTERNAL_SQLITE3=FALSE
   make
 ```
 Run tests and check it is ok `./test_geodiff`
@@ -59,5 +65,7 @@ Run tests and check it is ok `./test_geodiff`
 # Dependencies & Licensing
 
 Library uses its own copy of
+ - [base64](geodiff/src/3rdparty/base64utils.cpp)
+ - [endian](geodiff/src/3rdparty/portableendian.h)
  - [sqlite3](https://sqlite.org/index.html) (Public Domain)
  - [libgpkg](https://github.com/luciad/libgpkg) (Apache-2)

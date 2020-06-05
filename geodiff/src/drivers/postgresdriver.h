@@ -13,6 +13,7 @@ extern "C"
 #include <libpq-fe.h>
 }
 
+// TODO: add docs!
 class PostgresDriver : public Driver
 {
   public:
