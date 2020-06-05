@@ -18,7 +18,6 @@ jobs:
           sudo apt-get install libpq-dev
           sudo apt-get install postgresql-10 postgresql-common postgresql-contrib
           echo -e "${POSTGRES_PASSWORD}\n${POSTGRES_PASSWORD}" | sudo passwd ${POSTGRES_USER}
-          sudo runuser -l ${POSTGRES_USER} -c '/usr/lib/postgresql/10/bin/pg_ctl -D /var/lib/postgresql/10/main -l logfile start'
 
       - name: build geodiff with coverage
         run: |
