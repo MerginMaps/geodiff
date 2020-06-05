@@ -17,7 +17,8 @@ jobs:
         run: |
           sudo apt-get install libpq-dev
           sudo apt-get install postgresql postgresql-contrib
-          echo "${POSTGRES_PASSWORD}" | passwd --stdin ${POSTGRES_USER}
+          sudo /usr/lib/postgresql/10/bin/pg_ctl -D /var/lib/postgresql/10/main -l logfile start
+          echo "${POSTGRES_PASSWORD}\n${POSTGRES_PASSWORD}" | passwd ${POSTGRES_USER}
 
       - name: build geodiff with coverage
         run: |
