@@ -35,6 +35,7 @@ typedef std::map<std::string, std::string> DriverParametersMap;
  *
  * - "sqlite" - compares two sqlite database files. GeoPackages are supported as well.
  *    Use sqliteParameters() or sqliteParametersSingleSource() to get parameters to open the driver.
+ * - "postgres" - TODO:add docs
  *
  * Use createDriver() to create instance of a driver.
  */

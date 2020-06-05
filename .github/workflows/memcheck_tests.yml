@@ -16,7 +16,7 @@ jobs:
 
       - name: build geodiff with valgrind
         run: |
-          mkdir -p build_coverage_lnx
+          mkdir -p build_memcheck_lnx
           cd build_memcheck_lnx
           cmake \
               -DCMAKE_BUILD_TYPE=Debug \
@@ -25,7 +25,7 @@ jobs:
               -DMEMORYCHECK_SUPPRESSIONS_FILE=../scripts/ci/linux/valgrind.supp \
               -DWITH_POSTGRESQL=TRUE \
               ../geodiff
-          make
+          make -j`nproc`
 
       - name: Run tests
         env:
