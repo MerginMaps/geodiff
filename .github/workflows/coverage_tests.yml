@@ -4,10 +4,6 @@ jobs:
   coverage_tests:
     if: github.repository == 'lutraconsulting/geodiff'
     runs-on: ubuntu-latest
-    env:
-      POSTGRES_USER: postgres
-      POSTGRES_DB: postgres
-
     steps:
       - name: Checkout Geodiff
         uses: actions/checkout@v2
@@ -17,6 +13,12 @@ jobs:
           sudo apt-get install -y lcov
           sudo apt-get install libpq-dev
           sudo apt-get install postgresql-10 postgresql-common postgresql-contrib
+
+      - name: create PG user
+        run: |
+          sudo runuser -l postgres -c 'psql -c "CREATE USER geodiffuser WITH PASSWORD 'geodiffpass';"'
+          sudo runuser -l postgres -c 'psql -c "CREATE DATABASE geodiffdb'
+          sudo runuser -l postgres -c 'psql -c "GRANT ALL PRIVILEGES ON DATABASE geodiffdb TO geodiffuser"'
 
       - name: build geodiff with coverage
         run: |
@@ -33,10 +35,10 @@ jobs:
       - name: Run tests
         env:
           CTEST_TARGET_SYSTEM: Linux-gcc
-          GEODIFF_PG_CONNINFO: "host=localhost port=5432"
+          GEODIFF_PG_CONNINFO: "host=localhost port=5432 user=geodiffuser password=geodiffpass dbname=geodiffdb"
         run: |
           cd build_coverage_lnx
-          sudo runuser -l ${POSTGRES_USER} -c 'ctest -VV'
+          ctest -VV
 
       - name: Prepare coverage report
         run: |

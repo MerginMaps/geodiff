@@ -4,10 +4,6 @@ jobs:
   memcheck_tests:
     if: github.repository == 'lutraconsulting/geodiff'
     runs-on: ubuntu-latest
-    env:
-      POSTGRES_PASSWORD: geodiffpass
-      POSTGRES_USER: geodiffuser
-      POSTGRES_DB: geodiffdb
     steps:
       - name: Checkout Geodiff
         uses: actions/checkout@v2
@@ -18,6 +14,12 @@ jobs:
           sudo apt-get install libc6-dbg gdb valgrind
           sudo apt-get install postgresql-10 postgresql-common postgresql-contrib
           valgrind --version
+
+      - name: create PG user
+        run: |
+          sudo runuser -l postgres -c 'psql -c "CREATE USER geodiffuser WITH PASSWORD 'geodiffpass';"'
+          sudo runuser -l postgres -c 'psql -c "CREATE DATABASE geodiffdb'
+          sudo runuser -l postgres -c 'psql -c "GRANT ALL PRIVILEGES ON DATABASE geodiffdb TO geodiffuser"'
 
       - name: build geodiff with valgrind
         run: |
@@ -37,10 +39,10 @@ jobs:
           CTEST_TARGET_SYSTEM: Linux-gcc
           GLIBCPP_FORCE_NEW: 1
           GLIBCXX_FORCE_NEW: 1
-          GEODIFF_PG_CONNINFO: "host=localhost port=5432"
+          GEODIFF_PG_CONNINFO: "host=localhost port=5432 user=geodiffuser password=geodiffpass dbname=geodiffdb"
         run: |
           cd build_memcheck_lnx
-          sudo runuser -l ${POSTGRES_USER} -c 'ctest -T memcheck 2>&1 | tee memcheck.log'
+          ctest -T memcheck 2>&1 | tee memcheck.log
 
       - name: Check memcheck for errors
         run: |
