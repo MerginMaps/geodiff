@@ -4,6 +4,10 @@ jobs:
   memcheck_tests:
     if: github.repository == 'lutraconsulting/geodiff'
     runs-on: ubuntu-latest
+    env:
+      POSTGRES_PASSWORD: geodiffpass
+      POSTGRES_USER: geodiffuser
+      POSTGRES_DB: geodiffdb
     steps:
       - name: Checkout Geodiff
         uses: actions/checkout@v2
@@ -32,9 +36,12 @@ jobs:
           CTEST_TARGET_SYSTEM: Linux-gcc
           GLIBCPP_FORCE_NEW: 1
           GLIBCXX_FORCE_NEW: 1
+          GEODIFF_PG_CONNINFO: "host=localhost port=5432 user=${POSTGRES_USER} dbname=${POSTGRES_DB} password=${POSTGRES_PASSWORD}"
         run: |
+          sudo docker run --name geodiff_pg -p5432:5432 -e POSTGRES_USER=${POSTGRES_USER} -e POSTGRES_DB=${POSTGRES_DB} -e POSTGRES_PASSWORD=${POSTGRES_PASSWORD} -d postgres
           cd build_memcheck_lnx
           ctest -T memcheck 2>&1 | tee memcheck.log
+          sudo docker stop geodiff_pg
 
       - name: Check memcheck for errors
         run: |

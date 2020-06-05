@@ -32,7 +32,7 @@ jobs:
       - name: Run tests
         env:
           CTEST_TARGET_SYSTEM: Linux-gcc
-          GEODIFF_PG_CONNINFO: "host=localhost port=5432 user={POSTGRES_USER} dbname=${POSTGRES_DB} password=${POSTGRES_PASSWORD}"
+          GEODIFF_PG_CONNINFO: "host=localhost port=5432 user=${POSTGRES_USER} dbname=${POSTGRES_DB} password=${POSTGRES_PASSWORD}"
         run: |
           sudo docker run --name geodiff_pg -p5432:5432 -e POSTGRES_USER=${POSTGRES_USER} -e POSTGRES_DB=${POSTGRES_DB} -e POSTGRES_PASSWORD=${POSTGRES_PASSWORD} -d postgres
           cd build_coverage_lnx
