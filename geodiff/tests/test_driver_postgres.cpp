@@ -47,7 +47,7 @@ TEST( PostgresDriverTest, test_basic )
   std::vector<std::string> driverNames = Driver::drivers();
   EXPECT_TRUE( std::find( driverNames.begin(), driverNames.end(), "postgres" ) != driverNames.end() );
 
-  std::string conninfo = pgConnInfo();
+  std::string conninfo = pgTestConnInfo();
   execSqlCommands( conninfo, pathjoin( testdir(), "postgres", "base.sql" ) );
 
   DriverParametersMap params;
@@ -122,7 +122,7 @@ void testCreateChangeset( const std::string &testname, const std::string &connin
 
 TEST( PostgresDriverTest, test_create_changeset )
 {
-  std::string conninfo = pgConnInfo();
+  std::string conninfo = pgTestConnInfo();
   execSqlCommands( conninfo, pathjoin( testdir(), "postgres", "inserted_1_a.sql" ) );
   execSqlCommands( conninfo, pathjoin( testdir(), "postgres", "updated_a.sql" ) );
   execSqlCommands( conninfo, pathjoin( testdir(), "postgres", "deleted_a.sql" ) );
@@ -180,7 +180,7 @@ void testApplyChangeset( const std::string &changeset, const std::string &connin
 
 TEST( PostgresDriverTest, test_apply_changeset )
 {
-  std::string conninfo = pgConnInfo();
+  std::string conninfo = pgTestConnInfo();
 
   testApplyChangeset( pathjoin( testdir(), "postgres", "inserted_1_a.diff" ), conninfo, "gd_inserted_1_a" );
   testApplyChangeset( pathjoin( testdir(), "postgres", "updated_a.diff" ), conninfo, "gd_updated_a" );
