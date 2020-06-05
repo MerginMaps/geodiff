@@ -10,27 +10,27 @@ jobs:
 
       - name: install deps
         run: |
-          - sudo apt-get install libsqlite3-dev libpq-dev
+          sudo apt-get install libsqlite3-dev libpq-dev
 
       - name: build geodiff with coverage
         run: |
-          - mkdir -p build_coverage_lnx
-          - cd build_coverage_lnx
-          - cmake \
+          mkdir -p build_coverage_lnx
+          cd build_coverage_lnx
+          cmake \
               -DCMAKE_BUILD_TYPE=Debug \
               -DENABLE_TESTS=ON \
               -DENABLE_COVERAGE=ON \
               -DWITH_POSTGRESQL=TRUE \
               -DWITH_INTERNAL_SQLITE3=FALSE \
               ..
-          - make
+          make
 
       - name: Run tests
         env:
           CTEST_TARGET_SYSTEM: Linux-gcc
         run: |
-          - cd build_coverage_lnx
-          - ctest -VV
+          cd build_coverage_lnx
+          ctest -VV
 
       - name: Prepare coverage report
         run: |
