@@ -1,5 +1,7 @@
 [![Build Status](https://travis-ci.org/lutraconsulting/geodiff.svg?branch=master)](https://travis-ci.org/lutraconsulting/geodiff)
 
+[![Coverage Tests](https://github.com/lutraconsulting/geodiff/workflows/Coverage%20Tests/badge.svg)](https://github.com/lutraconsulting/geodiff/actions?query=workflow%3A%22Coverage+Tests%22)
+[![MemCheck Tests](https://github.com/lutraconsulting/geodiff/workflows/MemCheck%20Tests/badge.svg)](https://github.com/lutraconsulting/geodiff/actions?query=workflow%3A%22MemCheck+Tests%22)
 [![Code Style](https://github.com/lutraconsulting/geodiff/workflows/Code%20Layout/badge.svg)](https://github.com/lutraconsulting/geodiff/actions?query=workflow%3A%22Code+Layout%22)
 
 [![Build status](https://ci.appveyor.com/api/projects/status/94xich0m3x2pu4u3?svg=true)](https://ci.appveyor.com/project/PeterPetrik/geodiff)
