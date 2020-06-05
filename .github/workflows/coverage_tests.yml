@@ -5,7 +5,6 @@ jobs:
     if: github.repository == 'lutraconsulting/geodiff'
     runs-on: ubuntu-latest
     env:
-      POSTGRES_PASSWORD: secretpass
       POSTGRES_USER: postgres
       POSTGRES_DB: postgres
 
@@ -17,7 +16,6 @@ jobs:
         run: |
           sudo apt-get install libpq-dev
           sudo apt-get install postgresql-10 postgresql-common postgresql-contrib
-          echo -e "${POSTGRES_PASSWORD}\n${POSTGRES_PASSWORD}" | sudo passwd ${POSTGRES_USER}
 
       - name: build geodiff with coverage
         run: |
@@ -34,10 +32,10 @@ jobs:
       - name: Run tests
         env:
           CTEST_TARGET_SYSTEM: Linux-gcc
-          GEODIFF_PG_CONNINFO: "host=localhost port=5432 user=${POSTGRES_USER} dbname=${POSTGRES_DB} password=${POSTGRES_PASSWORD}"
+          GEODIFF_PG_CONNINFO: "host=localhost port=5432"
         run: |
           cd build_coverage_lnx
-          ctest -VV
+          sudo runuser -l ${POSTGRES_USER} -c 'ctest -VV'
 
       - name: Prepare coverage report
         run: |
