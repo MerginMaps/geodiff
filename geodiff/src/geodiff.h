@@ -232,6 +232,17 @@ GEODIFF_EXPORT int GEODIFF_listChangesSummary(
   const char *jsonfile
 );
 
+
+GEODIFF_EXPORT int GEODIFF_makeCopy( const char *driverSrcName, const char *driverSrcExtraInfo, const char *src,
+                                     const char *driverDstName, const char *driverDstExtraInfo, const char *dst );
+
+GEODIFF_EXPORT int GEODIFF_createChangesetEx( const char *driverName, const char *driverExtraInfo,
+    const char *base, const char *modified,
+    const char *changeset );
+
+GEODIFF_EXPORT int GEODIFF_applyChangesetEx( const char *driverName, const char *driverExtraInfo,
+    const char *base, const char *changeset );
+
 #ifdef __cplusplus
 }
 #endif

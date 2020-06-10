@@ -22,6 +22,9 @@ void help()
   printf( "[apply changeset] geodiffinfo applyChangeset base changeset\n" );
   printf( "[list changes (JSON) in changeset] geodiffinfo listChanges changeset json\n" );
   printf( "[list summary of changes (JSON) in changeset] geodiffinfo listChangesSummary changeset json\n" );
+  printf( "[make copy of a database/schema] geodiffinfo makeCopy driverSrcName driverSrcExtraInfo src driverDstName driverDstExtraInfo dst\n" );
+  printf( "[create changeset with driver] geodiffinfo createChangesetEx driverName driverExtraInfo base modified changeset\n" );
+  printf( "[apply changeset with driver] geodiffinfo applyChangesetEx driverName driverExtraInfo base changeset\n" );
 }
 
 int err( const std::string msg )
@@ -86,9 +89,48 @@ int listChangesSummary( int argc, char *argv[] )
   return ret;
 }
 
+int makeCopy( int argc, char *argv[] )
+{
+  if ( argc < 1 + 7 )
+  {
+    return err( "invalid number of arguments to makeCopy" );
+  }
+
+  int ret = GEODIFF_makeCopy( argv[2], argv[3], argv[4], argv[5], argv[6], argv[7] );
+  return ret;
+}
+
+int createChangesetEx( int argc, char *argv[] )
+{
+  if ( argc < 1 + 6 )
+  {
+    return err( "invalid number of arguments to createChangesetEx" );
+  }
+
+  int ret = GEODIFF_createChangesetEx( argv[2], argv[3], argv[4], argv[5], argv[6] );
+  return ret;
+}
+
+int applyChangesetEx( int argc, char *argv[] )
+{
+  if ( argc < 1 + 5 )
+  {
+    return err( "invalid number of arguments to applyChangesetEx" );
+  }
+
+  int ret = GEODIFF_applyChangesetEx( argv[2], argv[3], argv[4], argv[5] );
+  return ret;
+}
+
 int main( int argc, char *argv[] )
 {
   GEODIFF_init();
+
+  if ( !getenv( "GEODIFF_LOGGER_LEVEL" ) )
+  {
+    GEODIFF_setMaximumLoggerLevel( LevelWarning );
+  }
+
   if ( argc > 1 )
   {
     std::string mode( argv[1] );
@@ -116,6 +158,18 @@ int main( int argc, char *argv[] )
     else if ( mode == "listChangesSummary" )
     {
       return listChangesSummary( argc, argv );
+    }
+    else if ( mode == "makeCopy" )
+    {
+      return makeCopy( argc, argv );
+    }
+    else if ( mode == "createChangesetEx" )
+    {
+      return createChangesetEx( argc, argv );
+    }
+    else if ( mode == "applyChangesetEx" )
+    {
+      return applyChangesetEx( argc, argv );
     }
     else
     {
