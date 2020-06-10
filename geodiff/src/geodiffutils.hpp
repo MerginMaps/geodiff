@@ -32,6 +32,8 @@ class Sqlite3Db
     Sqlite3Db();
     ~Sqlite3Db();
     void open( const std::string &filename );
+    //! Creates DB file (overwrites if one exists already)
+    void create( const std::string &filename );
     void exec( const Buffer &buf );
 
     sqlite3 *get();
@@ -229,6 +231,9 @@ void get_primary_key( Sqlite3ChangesetIter &pp, int pOp, int &fid, int &nColumn 
 bool register_gpkg_extensions( std::shared_ptr<Sqlite3Db> db );
 
 bool isGeoPackage( std::shared_ptr<Sqlite3Db> db );
+
+//! Returns temporary directory (including trailing slash)
+std::string tmpdir();
 
 // WRITE CHANGESET API
 

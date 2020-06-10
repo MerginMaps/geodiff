@@ -9,6 +9,10 @@
 #include "geodiffexporter.hpp"
 #include "geodifflogger.hpp"
 
+#include "driver.h"
+#include "changesetreader.h"
+#include "changesetwriter.h"
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdarg.h>
@@ -539,4 +543,132 @@ int GEODIFF_rebase( const char *base,
     Logger::instance().error( exc );
     return GEODIFF_ERROR;
   }
+}
+
+
+int GEODIFF_makeCopy( const char *driverSrcName, const char *driverSrcExtraInfo, const char *src,
+                      const char *driverDstName, const char *driverDstExtraInfo, const char *dst )
+{
+  std::unique_ptr<Driver> driverSrc( Driver::createDriver( std::string( driverSrcName ) ) );
+  if ( !driverSrc )
+  {
+    Logger::instance().error( "Cannot create driver " + std::string( driverSrcName ) );
+    return GEODIFF_ERROR;
+  }
+
+  std::unique_ptr<Driver> driverDst( Driver::createDriver( std::string( driverDstName ) ) );
+  if ( !driverDst )
+  {
+    Logger::instance().error( "Cannot create driver " + std::string( driverDstName ) );
+    return GEODIFF_ERROR;
+  }
+
+  TmpFile tmpFileChangeset( tmpdir() + "geodiff_changeset" + std::to_string( rand() ) );
+
+  try
+  {
+    // open source
+    std::map<std::string, std::string> connSrc;
+    connSrc["base"] = std::string( src );
+    if ( driverSrcExtraInfo )
+      connSrc["conninfo"] = std::string( driverSrcExtraInfo );
+    driverSrc->open( connSrc );
+
+    // get source tables
+    std::vector<TableSchema> tables;
+    std::vector<std::string> tableNames = driverSrc->listTables();
+    for ( const std::string &tableName : tableNames )
+    {
+      TableSchema tbl = driverSrc->tableSchema( tableName );
+      tableSchemaConvert( driverSrcName, driverDstName, tbl );
+      tables.push_back( tbl );
+    }
+
+    // get source data
+    {
+      ChangesetWriter writer;
+      writer.open( tmpFileChangeset.c_path() );
+      driverSrc->dumpData( writer );
+    }
+
+    // create destination
+    std::map<std::string, std::string> connDst;
+    connDst["base"] = dst;
+    if ( driverDstExtraInfo )
+      connDst["conninfo"] = std::string( driverDstExtraInfo );
+    driverDst->create( connDst, true );
+
+    // create tables in destination
+    driverDst->createTables( tables );
+
+    // insert data to destination
+    {
+      ChangesetReader reader;
+      reader.open( tmpFileChangeset.c_path() );
+      driverDst->applyChangeset( reader );
+    }
+  }
+  catch ( GeoDiffException exc )
+  {
+    Logger::instance().error( exc );
+    return GEODIFF_ERROR;
+  }
+
+  // TODO: add spatial index to tables with geometry columns?
+
+  return GEODIFF_SUCCESS;
+}
+
+
+int GEODIFF_createChangesetEx( const char *driverName, const char *driverExtraInfo,
+                               const char *base, const char *modified,
+                               const char *changeset )
+{
+  try
+  {
+    std::map<std::string, std::string> conn;
+    conn["base"] = std::string( base );
+    conn["modified"] = std::string( modified );
+    if ( driverExtraInfo )
+      conn["conninfo"] = std::string( driverExtraInfo );
+    std::unique_ptr<Driver> driver( Driver::createDriver( std::string( driverName ) ) );
+    driver->open( conn );
+
+    ChangesetWriter writer;
+    writer.open( changeset );
+    driver->createChangeset( writer );
+  }
+  catch ( GeoDiffException exc )
+  {
+    Logger::instance().error( exc );
+    return GEODIFF_ERROR;
+  }
+
+  return GEODIFF_SUCCESS;
+}
+
+
+int GEODIFF_applyChangesetEx( const char *driverName, const char *driverExtraInfo,
+                              const char *base, const char *changeset )
+{
+  try
+  {
+    std::map<std::string, std::string> conn;
+    conn["base"] = std::string( base );
+    if ( driverExtraInfo )
+      conn["conninfo"] = std::string( driverExtraInfo );
+    std::unique_ptr<Driver> driver( Driver::createDriver( std::string( driverName ) ) );
+    driver->open( conn );
+
+    ChangesetReader reader;
+    reader.open( changeset );
+    driver->applyChangeset( reader );
+  }
+  catch ( GeoDiffException exc )
+  {
+    Logger::instance().error( exc );
+    return GEODIFF_ERROR;
+  }
+
+  return GEODIFF_SUCCESS;
 }

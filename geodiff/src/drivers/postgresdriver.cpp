@@ -18,13 +18,11 @@
 
 PostgresDriver::~PostgresDriver()
 {
-  if ( mConn )
-    PQfinish( mConn );
-  mConn = nullptr;
+  close();
 }
 
 
-void PostgresDriver::open( const DriverParametersMap &conn )
+void PostgresDriver::openPrivate( const DriverParametersMap &conn )
 {
   DriverParametersMap::const_iterator connInfo = conn.find( "conninfo" );
   if ( connInfo == conn.end() )
@@ -52,6 +50,53 @@ void PostgresDriver::open( const DriverParametersMap &conn )
   mConn = c;
 }
 
+void PostgresDriver::close()
+{
+  mBaseSchema.clear();
+  mModifiedSchema.clear();
+  if ( mConn )
+    PQfinish( mConn );
+  mConn = nullptr;
+}
+
+void PostgresDriver::open( const DriverParametersMap &conn )
+{
+  openPrivate( conn );
+
+  {
+    PostgresResult resBase( execSql( mConn, "SELECT 1 FROM pg_namespace WHERE nspname = " + quotedString( mBaseSchema ) ) );
+    if ( resBase.rowCount() == 0 )
+    {
+      close();
+      throw GeoDiffException( "The base schema does not exist: " + mBaseSchema );
+    }
+  }
+
+  if ( !mModifiedSchema.empty() )
+  {
+    PostgresResult resBase( execSql( mConn, "SELECT 1 FROM pg_namespace WHERE nspname = " + quotedString( mModifiedSchema ) ) );
+    if ( resBase.rowCount() == 0 )
+    {
+      close();
+      throw GeoDiffException( "The base schema does not exist: " + mModifiedSchema );
+    }
+  }
+}
+
+void PostgresDriver::create( const DriverParametersMap &conn, bool overwrite )
+{
+  openPrivate( conn );
+
+  std::string sql;
+  if ( overwrite )
+    sql += "DROP SCHEMA IF EXISTS " + quotedIdentifier( mBaseSchema ) + " CASCADE; ";
+  sql += "CREATE SCHEMA " + quotedIdentifier( mBaseSchema ) + ";";
+
+  PostgresResult res( execSql( mConn, sql ) );
+  if ( res.status() != PGRES_COMMAND_OK )
+    throw GeoDiffException( "Failure creating table: " + res.statusErrorMessage() );
+}
+
 
 std::vector<std::string> PostgresDriver::listTables( bool useModified )
 {
@@ -70,6 +115,43 @@ std::vector<std::string> PostgresDriver::listTables( bool useModified )
     tables.push_back( res.value( i, 0 ) );
   }
   return tables;
+}
+
+struct GeomTypeDetails
+{
+  const char *flatType;
+  bool hasZ;
+  bool hasM;
+};
+
+static void extractGeometryTypeDetails( const std::string &geomType, std::string &flatGeomType, bool &hasZ, bool &hasM )
+{
+  std::map<std::string, GeomTypeDetails> d =
+  {
+    { "POINT",   { "POINT", false, false } },
+    { "POINTZ",  { "POINT", true,  false } },
+    { "POINTM",  { "POINT", false, true  } },
+    { "POINTZM", { "POINT", true,  true  } },
+    { "LINESTRING",   { "LINESTRING", false, false } },
+    { "LINESTRINGZ",  { "LINESTRING", true,  false } },
+    { "LINESTRINGM",  { "LINESTRING", false, true  } },
+    { "LINESTRINGZM", { "LINESTRING", true,  true  } },
+    { "POLYGON",   { "POLYGON", false, false } },
+    { "POLYGONZ",  { "POLYGON", true,  false } },
+    { "POLYGONM",  { "POLYGON", false, true  } },
+    { "POLYGONZM", { "POLYGON", true,  true  } },
+    // TODO: multi-part types
+  };
+
+  auto it = d.find( geomType );
+  if ( it != d.end() )
+  {
+    flatGeomType = it->second.flatType;
+    hasZ = it->second.hasZ;
+    hasM = it->second.hasM;
+  }
+  else
+    throw GeoDiffException( "Unknown geometry type: " + geomType );
 }
 
 
@@ -99,7 +181,16 @@ TableSchema PostgresDriver::tableSchema( const std::string &tableName, bool useM
   }
 
   std::string sqlColumns =
-    "SELECT a.attname, pg_catalog.format_type(a.atttypid, a.atttypmod), i.indisprimary"
+    "SELECT a.attname, pg_catalog.format_type(a.atttypid, a.atttypmod), i.indisprimary, a.attnotnull, "
+    "    EXISTS ("
+    "             SELECT FROM pg_attrdef ad"
+    "             WHERE  ad.adrelid = a.attrelid"
+    "             AND    ad.adnum   = a.attnum"
+    "             AND    pg_get_expr(ad.adbin, ad.adrelid)"
+    "                  = 'nextval('''"
+    "                 || (pg_get_serial_sequence (a.attrelid::regclass::text, a.attname))::regclass"
+    "                 || '''::regclass)'"
+    "       ) AS has_sequence"
     " FROM pg_catalog.pg_attribute a"
     " LEFT JOIN pg_index i ON a.attrelid = i.indrelid AND a.attnum = ANY(i.indkey)"
     " WHERE"
@@ -116,7 +207,9 @@ TableSchema PostgresDriver::tableSchema( const std::string &tableName, bool useM
 
   PostgresResult res( execSql( mConn, sqlColumns ) );
 
+  int srsId = -1;
   TableSchema schema;
+  schema.name = tableName;
   for ( int i = 0; i < res.rowCount(); ++i )
   {
     TableColumnInfo col;
@@ -129,13 +222,33 @@ TableSchema PostgresDriver::tableSchema( const std::string &tableName, bool useM
       col.isGeometry = true;
       if ( geomTypes.find( col.name ) != geomTypes.end() )
       {
-        col.geomType = geomTypes[col.name];
+        extractGeometryTypeDetails( geomTypes[col.name], col.geomType, col.geomHasZ, col.geomHasM );
         col.geomSrsId = geomSrids[col.name];
+        srsId = col.geomSrsId;
       }
     }
 
+    col.isNotNull = ( res.value( i, 3 ) == "t" );
+    col.isAutoIncrement = ( res.value( i, 4 ) == "t" );
+
     schema.columns.push_back( col );
   }
+
+  //
+  // get CRS details
+  //
+
+  if ( srsId != -1 )
+  {
+    PostgresResult resCrs( execSql( mConn, "SELECT auth_name, auth_srid, srtext FROM spatial_ref_sys WHERE srid = " + std::to_string( srsId ) ) );
+    if ( resCrs.rowCount() == 0 )
+      throw GeoDiffException( "Unknown CRS in table " + tableName );
+    schema.crs.srsId = srsId;
+    schema.crs.authName = resCrs.value( 0, 0 );
+    schema.crs.authCode = atoi( resCrs.value( 0, 1 ).c_str() );
+    schema.crs.wkt = resCrs.value( 0, 2 );
+  }
+
   return schema;
 }
 
@@ -534,6 +647,9 @@ void PostgresDriver::applyChangeset( ChangesetReader &reader )
   ChangesetEntry entry;
   while ( reader.nextEntry( entry ) )
   {
+    if ( entry.table->name.rfind( "gpkg_", 0 ) == 0 )
+      continue;   // skip any changes to GPKG meta tables
+
     if ( entry.table->name != lastTableName )
     {
       std::string tableName = entry.table->name;
@@ -594,5 +710,79 @@ void PostgresDriver::applyChangeset( ChangesetReader &reader )
     }
     else
       throw GeoDiffException( "Unexpected operation" );
+  }
+}
+
+void PostgresDriver::createTables( const std::vector<TableSchema> &tables )
+{
+  for ( const TableSchema &tbl : tables )
+  {
+    std::string sql, pkeyCols, columns;
+    for ( const TableColumnInfo &c : tbl.columns )
+    {
+      if ( !columns.empty() )
+        columns += ", ";
+
+      std::string type = c.type;
+      if ( c.isAutoIncrement )
+        type = "SERIAL";   // there is also "smallserial", "bigserial" ...
+      columns += quotedIdentifier( c.name ) + " " + type;
+
+      if ( c.isNotNull )
+        columns += " NOT NULL";
+
+      if ( c.isPrimaryKey )
+      {
+        if ( !pkeyCols.empty() )
+          pkeyCols += ", ";
+        pkeyCols += quotedIdentifier( c.name );
+      }
+    }
+
+    sql = "CREATE TABLE " + quotedIdentifier( mBaseSchema ) + "." + tbl.name + " (";
+    sql += columns;
+    sql += ", PRIMARY KEY (" + pkeyCols + ")";
+    sql += ");";
+
+    PostgresResult res( execSql( mConn, sql ) );
+    if ( res.status() != PGRES_COMMAND_OK )
+      throw GeoDiffException( "Failure creating table: " + res.statusErrorMessage() );
+  }
+}
+
+
+void PostgresDriver::dumpData( ChangesetWriter &writer, bool useModified )
+{
+  if ( !mConn )
+    throw GeoDiffException( "Not connected to a database" );
+
+  std::vector<std::string> tables = listTables();
+  for ( const std::string &tableName : tables )
+  {
+    TableSchema tbl = tableSchema( tableName, useModified );
+    if ( !tbl.hasPrimaryKey() )
+      continue;  // ignore tables without primary key - they can't be compared properly
+
+    std::string sql = "SELECT " + allColumnNames( tbl ) + " FROM " +
+                      quotedIdentifier( useModified ? mModifiedSchema : mBaseSchema ) + "." + tableName;
+
+    PostgresResult res( execSql( mConn, sql ) );
+    int rows = res.rowCount();
+    for ( int r = 0; r < rows; ++r )
+    {
+      if ( r == 0 )
+      {
+        writer.beginTable( schemaToChangesetTable( tableName, tbl ) );
+      }
+
+      ChangesetEntry e;
+      e.op = ChangesetEntry::OpInsert;
+      size_t numColumns = tbl.columns.size();
+      for ( size_t i = 0; i < numColumns; ++i )
+      {
+        e.newValues.push_back( Value( resultToValue( res, r, i, tbl.columns[i] ) ) );
+      }
+      writer.writeEntry( e );
+    }
   }
 }

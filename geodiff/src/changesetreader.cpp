@@ -132,7 +132,7 @@ void ChangesetReader::readRowValues( std::vector<Value> &values )
     else if ( type == Value::TypeText || type == Value::TypeBlob ) // 0x03 or 0x04
     {
       int len = readVarint();
-      if ( mOffset + len >= mBuffer->size() )
+      if ( mOffset + len > mBuffer->size() )
         throwReaderError( "readRowValues: text/blob: at the end of buffer" );
       values[i].setString( type == Value::TypeText ? Value::TypeText : Value::TypeBlob, mBuffer->c_buf() + mOffset, len );
       mOffset += len;

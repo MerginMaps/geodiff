@@ -6,6 +6,7 @@
 #include "gtest/gtest.h"
 #include "geodiff_testutils.hpp"
 #include "geodiff.h"
+#include "geodiff_config.hpp"
 
 #include "changesetreader.h"
 #include "changesetwriter.h"
@@ -68,15 +69,37 @@ TEST( SqliteDriverTest, test_basic )
   ASSERT_TRUE( std::find( tableNames.begin(), tableNames.end(), "simple" ) != tableNames.end() );
 
   TableSchema tbl = driver->tableSchema( "simple" );
+  ASSERT_EQ( tbl.name, "simple" );
   EXPECT_EQ( tbl.columns.size(), 4 );
   EXPECT_EQ( tbl.columns[0].name, "fid" );
   EXPECT_EQ( tbl.columns[1].name, "geometry" );
   EXPECT_EQ( tbl.columns[2].name, "name" );
   EXPECT_EQ( tbl.columns[3].name, "rating" );
+
+  EXPECT_EQ( tbl.columns[0].type, "INTEGER" );
+  EXPECT_EQ( tbl.columns[1].type, "POINT" );
+  EXPECT_EQ( tbl.columns[2].type, "TEXT" );
+  EXPECT_EQ( tbl.columns[3].type, "MEDIUMINT" );
+
   EXPECT_EQ( tbl.columns[0].isPrimaryKey, true );
   EXPECT_EQ( tbl.columns[1].isPrimaryKey, false );
   EXPECT_EQ( tbl.columns[2].isPrimaryKey, false );
   EXPECT_EQ( tbl.columns[3].isPrimaryKey, false );
+
+  EXPECT_EQ( tbl.columns[0].isNotNull, true );
+  EXPECT_EQ( tbl.columns[1].isNotNull, false );
+  EXPECT_EQ( tbl.columns[2].isNotNull, false );
+  EXPECT_EQ( tbl.columns[3].isNotNull, false );
+
+  EXPECT_EQ( tbl.columns[0].isGeometry, false );
+  EXPECT_EQ( tbl.columns[1].isGeometry, true );
+  EXPECT_EQ( tbl.columns[2].isGeometry, false );
+  EXPECT_EQ( tbl.columns[3].isGeometry, false );
+
+  EXPECT_EQ( tbl.columns[1].geomType, "POINT" );
+  EXPECT_EQ( tbl.columns[1].geomSrsId, 4326 );
+  EXPECT_EQ( tbl.columns[1].geomHasZ, false );
+  EXPECT_EQ( tbl.columns[1].geomHasM, false );
 }
 
 TEST( SqliteDriverTest, test_open )
@@ -176,6 +199,89 @@ TEST( SqliteDriverTest, apply_changeset_delete )
                     );
 }
 
+
+TEST( SqliteDriverTest, test_create_from_gpkg )
+{
+  std::string testname = "test_create_from_gpkg";
+  makedir( pathjoin( tmpdir(), testname ) );
+  std::string testdb = pathjoin( tmpdir(), testname, "output.gpkg" );
+  std::string dumpfile = pathjoin( tmpdir(), testname, "dump.diff" );
+
+  // get table schema in the base database
+  std::map<std::string, std::string> connBase;
+  connBase["base"] = pathjoin( testdir(), "base.gpkg" );
+  std::unique_ptr<Driver> driverBase( Driver::createDriver( "sqlite" ) );
+  EXPECT_NO_THROW( driverBase->open( connBase ) );
+  TableSchema tblBaseSimple = driverBase->tableSchema( "simple" );
+
+  // create the new database
+  std::map<std::string, std::string> conn;
+  conn["base"] = testdb;
+  std::unique_ptr<Driver> driver( Driver::createDriver( "sqlite" ) );
+  EXPECT_NO_THROW( driver->create( conn, true ) );
+  EXPECT_ANY_THROW( driver->tableSchema( "simple" ) );
+
+  // create table
+  std::vector<TableSchema> tables;
+  tables.push_back( tblBaseSimple );
+  driver->createTables( tables );
+
+  // verify it worked
+  EXPECT_NO_THROW( driver->tableSchema( "simple" ) );
+
+  TableSchema tblNewSimple = driver->tableSchema( "simple" );
+  EXPECT_EQ( tblBaseSimple.name, tblNewSimple.name );
+  EXPECT_EQ( tblBaseSimple.columns.size(), tblNewSimple.columns.size() );
+  EXPECT_EQ( tblBaseSimple.columns[0], tblNewSimple.columns[0] );
+  EXPECT_EQ( tblBaseSimple.columns[1], tblNewSimple.columns[1] );
+  EXPECT_EQ( tblBaseSimple.columns[2], tblNewSimple.columns[2] );
+  EXPECT_EQ( tblBaseSimple.columns[3], tblNewSimple.columns[3] );
+  EXPECT_EQ( tblBaseSimple.crs.srsId, tblNewSimple.crs.srsId );
+  EXPECT_EQ( tblBaseSimple.crs.authName, tblNewSimple.crs.authName );
+  EXPECT_EQ( tblBaseSimple.crs.authCode, tblNewSimple.crs.authCode );
+  //EXPECT_EQ( tblBaseSimple.crs.wkt, tblNewSimple.crs.wkt );  // WKTs differ in whitespaces
+}
+
+
+#ifdef HAVE_POSTGRES
+TEST( SqliteDriverTest, test_create_from_postgres )
+{
+  std::string conninfo = "";
+
+  std::string testname = "test_create_from_postgres";
+  makedir( pathjoin( tmpdir(), testname ) );
+  std::string testdb = pathjoin( tmpdir(), testname, "output.gpkg" );
+
+  // get table schema in the base database
+  std::map<std::string, std::string> connBase;
+  connBase["conninfo"] = conninfo;
+  connBase["base"] = "gd_base";
+  std::unique_ptr<Driver> driverBase( Driver::createDriver( "postgres" ) );
+  EXPECT_NO_THROW( driverBase->open( connBase ) );
+  TableSchema tblBaseSimple = driverBase->tableSchema( "simple" );
+
+  tableSchemaPostgresToSqlite( tblBaseSimple );   // make it sqlite driver friendly
+
+  // create the new database
+  std::map<std::string, std::string> conn;
+  conn["base"] = testdb;
+  std::unique_ptr<Driver> driver( Driver::createDriver( "sqlite" ) );
+  EXPECT_NO_THROW( driver->create( conn, true ) );
+  EXPECT_ANY_THROW( driver->tableSchema( "simple" ) );
+
+  // create table
+  std::vector<TableSchema> schemas;
+  schemas.push_back( tblBaseSimple );
+  driver->createTables( schemas );
+
+  // verify it worked
+  EXPECT_NO_THROW( driver->tableSchema( "simple" ) );
+
+  TableSchema tblNewSimple = driver->tableSchema( "simple" );
+  EXPECT_EQ( tblBaseSimple.name, tblNewSimple.name );
+  EXPECT_EQ( tblBaseSimple.columns.size(), tblNewSimple.columns.size() );
+}
+#endif
 
 
 int main( int argc, char **argv )

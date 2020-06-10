@@ -60,6 +60,22 @@ void Sqlite3Db::open( const std::string &filename )
   }
 }
 
+void Sqlite3Db::create( const std::string &filename )
+{
+  close();
+
+  if ( fileexists( filename ) )
+  {
+    throw GeoDiffException( "Unable to create sqlite3 database - already exists: " + filename );
+  }
+
+  int rc = sqlite3_open_v2( filename.c_str(), &mDb, SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE, nullptr );
+  if ( rc )
+  {
+    throw GeoDiffException( "Unable to create " + filename + " as sqlite3 database" );
+  }
+}
+
 void Sqlite3Db::exec( const Buffer &buf )
 {
   int rc = sqlite3_exec( get(), buf.c_buf(), NULL, 0, NULL );
@@ -1269,6 +1285,29 @@ void flushString( const std::string &filename, const std::string &str )
   std::ofstream out( filename );
   out << str;
   out.close();
+}
+
+std::string _getEnvVar( std::string const &key, const std::string &defaultVal )
+{
+  char *val = getenv( key.c_str() );
+  return val == nullptr ? defaultVal : std::string( val );
+}
+
+std::string tmpdir()
+{
+#ifdef WIN32
+  ;
+  TCHAR lpTempPathBuffer[MAX_PATH];
+
+  DWORD dwRetVal = GetTempPath( MAX_PATH, lpTempPathBuffer );
+  if ( dwRetVal > MAX_PATH || ( dwRetVal == 0 ) )
+  {
+    return std::string( "C:/temp/" );
+  }
+  return std::string( lpTempPathBuffer );
+#else
+  return _getEnvVar( "TMPDIR", "/tmp/" );
+#endif
 }
 
 TmpFile::TmpFile( const std::string &path ):

@@ -77,6 +77,13 @@ class Driver
     virtual void open( const DriverParametersMap &conn ) = 0;
 
     /**
+     * Opens a new geodiff session that creates data source. For example, for Sqlite this means creating
+     * a new database file, for Postgres this is creation of the specified database schema (namespace).
+     * \note This method only uses 'base' database ('modified' does not need to be specified)
+     */
+    virtual void create( const DriverParametersMap &conn, bool overwrite = false ) = 0;
+
+    /**
      * Returns a list of tables in the current connection. The useModified argument
      * decides whether the list should be created for the base file/schema or for the locally
      * modified file/schema.
@@ -101,6 +108,17 @@ class Driver
      * \note This method only uses 'base' database ('modified' does not need to be specified when opening)
      */
     virtual void applyChangeset( ChangesetReader &reader ) = 0;
+
+    /**
+     * Creates empty tables based on the definition given by 'tables' argument.
+     * \note This method only uses 'base' database ('modified' does not need to be specified when opening)
+     */
+    virtual void createTables( const std::vector<TableSchema> &tables ) = 0;
+
+    /**
+     * Writes all contents of tables to a changeset (it will output only INSERT operations)
+     */
+    virtual void dumpData( ChangesetWriter &writer, bool useModified = false ) = 0;
 };
 
 

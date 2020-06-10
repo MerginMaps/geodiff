@@ -17,15 +17,21 @@ extern "C"
 class PostgresDriver : public Driver
 {
   public:
-    ~PostgresDriver();
+    ~PostgresDriver() override;
 
     void open( const DriverParametersMap &conn ) override;
+    void create( const DriverParametersMap &conn, bool overwrite = false ) override;
     std::vector<std::string> listTables( bool useModified = false ) override;
     TableSchema tableSchema( const std::string &tableName, bool useModified = false ) override;
     void createChangeset( ChangesetWriter &writer ) override;
     void applyChangeset( ChangesetReader &reader ) override;
+    void createTables( const std::vector<TableSchema> &tables ) override;
+    void dumpData( ChangesetWriter &writer, bool useModified = false ) override;
 
   private:
+    void openPrivate( const DriverParametersMap &conn );
+    void close();
+
     PGconn *mConn = nullptr;
     std::string mBaseSchema;
     std::string mModifiedSchema;

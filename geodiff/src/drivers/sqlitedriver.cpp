@@ -49,20 +49,40 @@ void SqliteDriver::open( const DriverParametersMap &conn )
 
 }
 
-std::vector<std::string> SqliteDriver::listTables( bool useModified )
+void SqliteDriver::create( const DriverParametersMap &conn, bool overwrite )
 {
-  std::string dbName;
+  DriverParametersMap::const_iterator connBaseIt = conn.find( "base" );
+  if ( connBaseIt == conn.end() )
+    throw GeoDiffException( "Missing 'base' file" );
+
+  std::string base = connBaseIt->second;
+
+  if ( overwrite )
+  {
+    fileremove( base );  // remove if the file exists already
+  }
+
+  mDb = std::make_shared<Sqlite3Db>();
+  mDb->create( base );
+}
+
+std::string SqliteDriver::databaseName( bool useModified )
+{
   if ( mHasModified )
   {
-    dbName = useModified ? "main" : "aux";
+    return useModified ? "main" : "aux";
   }
   else
   {
     if ( useModified )
       throw GeoDiffException( "'modified' table not open" );
-    dbName = "main";
+    return "main";
   }
+}
 
+std::vector<std::string> SqliteDriver::listTables( bool useModified )
+{
+  std::string dbName = databaseName( useModified );
   std::vector<std::string> tableNames;
   std::string all_tables_sql = "SELECT name FROM " + dbName + ".sqlite_master\n"
                                " WHERE type='table' AND sql NOT LIKE 'CREATE VIRTUAL%%'\n"
@@ -110,19 +130,10 @@ std::vector<std::string> SqliteDriver::listTables( bool useModified )
 
 TableSchema SqliteDriver::tableSchema( const std::string &tableName, bool useModified )
 {
-  std::string dbName;
-  if ( mHasModified )
-  {
-    dbName = useModified ? "main" : "aux";
-  }
-  else
-  {
-    if ( useModified )
-      throw GeoDiffException( "'modified' table not open" );
-    dbName = "main";
-  }
+  std::string dbName = databaseName( useModified );
 
   TableSchema tbl;
+  tbl.name = tableName;
 
   Sqlite3Stmt statament;
   statament.prepare( mDb, "PRAGMA '%q'.table_info('%q')", dbName.c_str(), tableName.c_str() );
@@ -134,9 +145,78 @@ TableSchema SqliteDriver::tableSchema( const std::string &tableName, bool useMod
 
     TableColumnInfo columnInfo;
     columnInfo.name = ( const char * )zName;
+    columnInfo.type = ( const char * ) sqlite3_column_text( statament.get(), 2 );
+    columnInfo.isNotNull = sqlite3_column_int( statament.get(), 3 );
     columnInfo.isPrimaryKey = sqlite3_column_int( statament.get(), 5 );
     tbl.columns.push_back( columnInfo );
   }
+
+  //
+  // get geometry column details (geometry type, whether it has Z/M values, CRS id)
+  //
+
+  int srsId = -1;
+  Sqlite3Stmt stmtGeomCol;
+  stmtGeomCol.prepare( mDb, "SELECT * FROM \"%w\".gpkg_geometry_columns WHERE table_name = '%q'", dbName.c_str(), tableName.c_str() );
+  if ( SQLITE_ROW == sqlite3_step( stmtGeomCol.get() ) )
+  {
+    const unsigned char *chrColumnName = sqlite3_column_text( stmtGeomCol.get(), 1 );
+    const unsigned char *chrTypeName = sqlite3_column_text( stmtGeomCol.get(), 2 );
+    if ( chrColumnName == nullptr )
+      throw GeoDiffException( "NULL column name in gpkg_geometry_columns: " + tableName );
+    if ( chrTypeName == nullptr )
+      throw GeoDiffException( "NULL type name in gpkg_geometry_columns: " + tableName );
+
+    std::string geomColName = ( const char * ) chrColumnName;
+    std::string geomTypeName = ( const char * ) chrTypeName;
+    srsId = sqlite3_column_int( stmtGeomCol.get(), 3 );
+    bool hasZ = sqlite3_column_int( stmtGeomCol.get(), 4 );
+    bool hasM = sqlite3_column_int( stmtGeomCol.get(), 5 );
+
+    bool foundGeomColumn = false;
+    for ( size_t i = 0; i < tbl.columns.size(); ++i )
+    {
+      TableColumnInfo &col = tbl.columns[i];
+      if ( geomColName == col.name )
+      {
+        col.isGeometry = true;
+        col.geomType = geomTypeName;
+        col.geomSrsId = srsId;
+        col.geomHasZ = hasZ;
+        col.geomHasM = hasM;
+        foundGeomColumn = true;
+        break;
+      }
+    }
+
+    if ( !foundGeomColumn )
+      throw GeoDiffException( "Inconsistent entry in gpkg_geometry_columns - geometry column not found: " + geomColName );
+  }
+
+  //
+  // get CRS information
+  //
+
+  if ( srsId != -1 )
+  {
+    Sqlite3Stmt stmtCrs;
+    stmtCrs.prepare( mDb, "SELECT * FROM \"%w\".gpkg_spatial_ref_sys WHERE srs_id = %d", dbName.c_str(), srsId );
+    if ( SQLITE_ROW != sqlite3_step( stmtCrs.get() ) )
+      throw GeoDiffException( "Unable to find entry in gpkg_spatial_ref_sys for srs_id = " + std::to_string( srsId ) );
+
+    const unsigned char *chrAuthName = sqlite3_column_text( stmtCrs.get(), 2 );
+    const unsigned char *chrWkt = sqlite3_column_text( stmtCrs.get(), 4 );
+    if ( chrAuthName == nullptr )
+      throw GeoDiffException( "NULL auth name in gpkg_spatial_ref_sys: " + tableName );
+    if ( chrWkt == nullptr )
+      throw GeoDiffException( "NULL definition in gpkg_spatial_ref_sys: " + tableName );
+
+    tbl.crs.srsId = srsId;
+    tbl.crs.authName = ( const char * ) chrAuthName;
+    tbl.crs.authCode = sqlite3_column_int( stmtCrs.get(), 3 );
+    tbl.crs.wkt = ( const char * ) chrWkt;
+  }
+
   return tbl;
 }
 
@@ -558,5 +638,172 @@ void SqliteDriver::applyChangeset( ChangesetReader &reader )
     }
     else
       throw GeoDiffException( "Unexpected operation" );
+  }
+}
+
+
+static void addGpkgCrsDefinition( std::shared_ptr<Sqlite3Db> db, const CrsDefinition &crs )
+{
+  // gpkg_spatial_ref_sys
+  //   srs_name TEXT NOT NULL, srs_id INTEGER NOT NULL PRIMARY KEY,
+  //   organization TEXT NOT NULL, organization_coordsys_id INTEGER NOT NULL,
+  //   definition  TEXT NOT NULL, description TEXT
+
+  Sqlite3Stmt stmtCheck;
+  stmtCheck.prepare( db, "select count(*) from gpkg_spatial_ref_sys where srs_id = %d;", crs.srsId );
+  int res = sqlite3_step( stmtCheck.get() );
+  if ( res != SQLITE_ROW )
+    throw GeoDiffException( "Failed to access gpkg_spatial_ref_sys table" );
+
+  if ( sqlite3_column_int( stmtCheck.get(), 0 ) )
+    return;  // already there
+
+  Sqlite3Stmt stmt;
+  stmt.prepare( db, "INSERT INTO gpkg_spatial_ref_sys VALUES ('%q:%d', %d, '%q', %d, '%q', '')",
+                crs.authName.c_str(), crs.authCode, crs.srsId, crs.authName.c_str(), crs.authCode,
+                crs.wkt.c_str() );
+  res = sqlite3_step( stmt.get() );
+  if ( res != SQLITE_DONE )
+    throw GeoDiffException( "Failed to insert CRS to gpkg_spatial_ref_sys table" );
+}
+
+static void addGpkgSpatialTable( std::shared_ptr<Sqlite3Db> db, const TableSchema &tbl, const Extent &extent )
+{
+  std::string geomColumn;
+  std::string geomType;
+  int srsId = -1;
+  bool hasZ = false, hasM = false;
+  for ( const TableColumnInfo &col : tbl.columns )
+  {
+    if ( col.isGeometry )
+    {
+      geomColumn = col.name;
+      geomType = col.geomType;
+      srsId = col.geomSrsId;
+      hasZ = col.geomHasZ;
+      hasM = col.geomHasM;
+      break;   // GPKG allows only one geom. column anyway
+    }
+  }
+
+  // gpkg_contents
+  //   table_name TEXT NOT NULL PRIMARY KEY, data_type TEXT NOT NULL,
+  //   identifier TEXT, description TEXT DEFAULT '',
+  //   last_change DATETIME NOT NULL DEFAULT (...),
+  //   min_x DOUBLE, min_y DOUBLE, max_x DOUBLE, max_y DOUBLE,
+  //   srs_id INTEGER
+
+  Sqlite3Stmt stmt;
+  stmt.prepare( db, "INSERT INTO gpkg_contents (table_name, data_type, identifier, min_x, min_y, max_x, max_y, srs_id) "
+                "VALUES ('%q', 'features', '%q', %f, %f, %f, %f, %d)",
+                tbl.name.c_str(), tbl.name.c_str(), extent.minX, extent.minY, extent.maxX, extent.maxY, srsId );
+  int res = sqlite3_step( stmt.get() );
+  if ( res != SQLITE_DONE )
+    throw GeoDiffException( "Failed to insert row to gpkg_contents table" );
+
+  // gpkg_geometry_columns
+  //   table_name TEXT NOT NULL, column_name TEXT NOT NULL,
+  //   geometry_type_name TEXT NOT NULL, srs_id INTEGER NOT NULL,
+  //   z TINYINT NOT NULL,m TINYINT NOT NULL
+
+  Sqlite3Stmt stmtGeomCol;
+  stmtGeomCol.prepare( db, "INSERT INTO gpkg_geometry_columns VALUES ('%q', '%q', '%q', %d, %d, %d)",
+                       tbl.name.c_str(), geomColumn.c_str(), geomType.c_str(), srsId, hasZ, hasM );
+  res = sqlite3_step( stmtGeomCol.get() );
+  if ( res != SQLITE_DONE )
+    throw GeoDiffException( "Failed to insert row to gpkg_geometry_columns table" );
+}
+
+void SqliteDriver::createTables( const std::vector<TableSchema> &tables )
+{
+  // maybe this should be done already when opening/creating - it should not hurt - it just registers functions
+  bool success = register_gpkg_extensions( mDb );
+  if ( !success )
+  {
+    throw GeoDiffException( "Unable to enable sqlite3/gpkg extensions" );
+  }
+
+  // currently we always create geopackage meta tables. Maybe in the future we can skip
+  // that if there is a reason, and have that optional if none of the tables are spatial.
+  Sqlite3Stmt stmt;
+  stmt.prepare( mDb, "SELECT InitSpatialMetadata('main');" );
+  int res = sqlite3_step( stmt.get() );
+  if ( res != SQLITE_ROW )
+    throw GeoDiffException( "Failure initializing spatial metadata" );
+
+  for ( const TableSchema &tbl : tables )
+  {
+    addGpkgCrsDefinition( mDb, tbl.crs );
+    addGpkgSpatialTable( mDb, tbl, Extent() );   // TODO: is it OK to set zeros?
+
+    std::string sql, pkeyCols, columns;
+    for ( const TableColumnInfo &c : tbl.columns )
+    {
+      if ( !columns.empty() )
+        columns += ", ";
+
+      columns += sqlitePrintf( "\"%w\" %s", c.name.c_str(), c.type.c_str() );
+
+      if ( c.isNotNull )
+        columns += " NOT NULL";
+
+      // we have also c.isAutoIncrement, but the SQLite AUTOINCREMENT keyword only applies
+      // to primary keys, and according to the docs, ordinary tables with INTEGER PRIMARY KEY column
+      // (which becomes alias to ROWID) does auto-increment, and AUTOINCREMENT just prevents
+      // reuse of ROWIDs from previously deleted rows.
+      // See https://sqlite.org/autoinc.html
+
+      if ( c.isPrimaryKey )
+      {
+        if ( !pkeyCols.empty() )
+          pkeyCols += ", ";
+        pkeyCols += sqlitePrintf( "\"%w\"", c.name.c_str() );
+      }
+    }
+
+    sql = sqlitePrintf( "CREATE TABLE \"%w\".\"%w\" (", "main", tbl.name.c_str() );
+    sql += columns;
+    sql += ", PRIMARY KEY (" + pkeyCols + ")";
+    sql += ");";
+
+    Sqlite3Stmt stmt;
+    stmt.prepare( mDb, sql );
+    if ( sqlite3_step( stmt.get() ) != SQLITE_DONE )
+      throw GeoDiffException( "Failure creating table: " + tbl.name );
+  }
+}
+
+
+void SqliteDriver::dumpData( ChangesetWriter &writer, bool useModified )
+{
+  std::string dbName = databaseName( useModified );
+  std::vector<std::string> tables = listTables();
+  for ( const std::string &tableName : tables )
+  {
+    TableSchema tbl = tableSchema( tableName, useModified );
+    if ( !tbl.hasPrimaryKey() )
+      continue;  // ignore tables without primary key - they can't be compared properly
+
+    bool first = true;
+    Sqlite3Stmt statementI;
+    statementI.prepare( mDb, "SELECT * FROM \"%w\".\"%w\"", dbName.c_str(), tableName.c_str() );
+    while ( SQLITE_ROW == sqlite3_step( statementI.get() ) )
+    {
+      if ( first )
+      {
+        writer.beginTable( schemaToChangesetTable( tableName, tbl ) );
+        first = false;
+      }
+
+      ChangesetEntry e;
+      e.op = ChangesetEntry::OpInsert;
+      size_t numColumns = tbl.columns.size();
+      for ( size_t i = 0; i < numColumns; ++i )
+      {
+        Sqlite3Value v( sqlite3_column_value( statementI.get(), static_cast<int>( i ) ) );
+        e.newValues.push_back( changesetValue( v.value() ) );
+      }
+      writer.writeEntry( e );
+    }
   }
 }

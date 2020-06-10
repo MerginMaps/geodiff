@@ -34,11 +34,6 @@ std::string _replace( const std::string &str, const std::string &substr, const s
   return res;
 }
 
-std::string _getEnvVar( std::string const &key, const std::string &defaultVal )
-{
-  char *val = getenv( key.c_str() );
-  return val == nullptr ? defaultVal : std::string( val );
-}
 
 std::string pathjoin( const std::string &dir, const std::string &filename )
 {
@@ -60,23 +55,6 @@ std::string pathjoin( const std::string &dir, const std::string &dir2, const std
 std::string testdir()
 {
   return TEST_DATA_DIR;
-}
-
-std::string tmpdir()
-{
-#ifdef WIN32
-  ;
-  TCHAR lpTempPathBuffer[MAX_PATH];
-
-  DWORD dwRetVal = GetTempPath( MAX_PATH, lpTempPathBuffer );
-  if ( dwRetVal > MAX_PATH || ( dwRetVal == 0 ) )
-  {
-    return std::string( "C:/temp/" );
-  }
-  return std::string( lpTempPathBuffer );
-#else
-  return _getEnvVar( "TMPDIR", "/tmp/" );
-#endif
 }
 
 std::string test_file( std::string basename )
