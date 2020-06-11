@@ -233,13 +233,44 @@ GEODIFF_EXPORT int GEODIFF_listChangesSummary(
 );
 
 
+/**
+ * Makes a copy of the source dataset (a collection of tables) to the specified destination.
+ *
+ * This will open the source dataset, get list of tables, their structure, dump data
+ * to a temporary changeset file. Then it will create the destination dataset, create tables
+ * and insert data from changeset file.
+ *
+ * Supported drivers:
+ *
+ * - "sqlite" - does not need extra connection info (may be null). A dataset is a single Sqlite3
+ *   database (a GeoPackage) - a path to a local file is expected.
+ *
+ * - "postgres" - only available if compiled with postgres support. Needs extra connection info
+ *   argument which is passed to libpq's PQconnectdb(), see PostgreSQL docs for syntax.
+ *   A datasource identifies a PostgreSQL schema name (namespace) within the current database.
+ *
+ */
 GEODIFF_EXPORT int GEODIFF_makeCopy( const char *driverSrcName, const char *driverSrcExtraInfo, const char *src,
                                      const char *driverDstName, const char *driverDstExtraInfo, const char *dst );
 
+/**
+ * This is an extended version of GEODIFF_createChangeset() which also allows specification
+ * of the driver and its extra connection info. The original GEODIFF_createChangeset() function
+ * only supports Sqlite driver.
+ *
+ * See documentation of GEODIFF_makeCopy() for details about supported drivers.
+ */
 GEODIFF_EXPORT int GEODIFF_createChangesetEx( const char *driverName, const char *driverExtraInfo,
     const char *base, const char *modified,
     const char *changeset );
 
+/**
+ * This is an extended version of GEODIFF_applyChangeset() which also allows specification
+ * of the driver and its extra connection info. The original GEODIFF_applyChangeset() function
+ * only supports Sqlite driver.
+ *
+ * See documentation of GEODIFF_makeCopy() for details about supported drivers.
+ */
 GEODIFF_EXPORT int GEODIFF_applyChangesetEx( const char *driverName, const char *driverExtraInfo,
     const char *base, const char *changeset );
 

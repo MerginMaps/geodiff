@@ -116,7 +116,7 @@ class Driver
     virtual void createTables( const std::vector<TableSchema> &tables ) = 0;
 
     /**
-     * Writes all contents of tables to a changeset (it will output only INSERT operations)
+     * Writes all rows of the specified table to a changeset (it will output only INSERT operations)
      */
     virtual void dumpData( ChangesetWriter &writer, bool useModified = false ) = 0;
 };

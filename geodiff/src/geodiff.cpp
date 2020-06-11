@@ -549,6 +549,12 @@ int GEODIFF_rebase( const char *base,
 int GEODIFF_makeCopy( const char *driverSrcName, const char *driverSrcExtraInfo, const char *src,
                       const char *driverDstName, const char *driverDstExtraInfo, const char *dst )
 {
+  if ( !driverSrcName || !src || !driverDstName || !dst )
+  {
+    Logger::instance().error( "NULL arguments to GEODIFF_makeCopy" );
+    return GEODIFF_ERROR;
+  }
+
   std::unique_ptr<Driver> driverSrc( Driver::createDriver( std::string( driverSrcName ) ) );
   if ( !driverSrc )
   {
@@ -624,6 +630,12 @@ int GEODIFF_createChangesetEx( const char *driverName, const char *driverExtraIn
                                const char *base, const char *modified,
                                const char *changeset )
 {
+  if ( !driverName || !base || !modified || !changeset )
+  {
+    Logger::instance().error( "NULL arguments to GEODIFF_createChangesetEx" );
+    return GEODIFF_ERROR;
+  }
+
   try
   {
     std::map<std::string, std::string> conn;
@@ -651,6 +663,12 @@ int GEODIFF_createChangesetEx( const char *driverName, const char *driverExtraIn
 int GEODIFF_applyChangesetEx( const char *driverName, const char *driverExtraInfo,
                               const char *base, const char *changeset )
 {
+  if ( !driverName || !base || !changeset )
+  {
+    Logger::instance().error( "NULL arguments to GEODIFF_applyChangesetEx" );
+    return GEODIFF_ERROR;
+  }
+
   try
   {
     std::map<std::string, std::string> conn;
