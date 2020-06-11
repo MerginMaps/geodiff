@@ -92,6 +92,12 @@ struct TableSchema
   //! Returns true if at least one column is a part of table's primary key
   bool hasPrimaryKey() const;
 
+  //! Returns column index for the given column name (returns SIZE_MAX if column not is not found)
+  size_t columnFromName( const std::string &name );
+
+  //! Returns index of the first encountered geometry column (returns SIZE_MAX if no geometry column is found)
+  size_t geometryColumn() const;
+
   bool operator==( const TableSchema &other ) const
   {
     return name == other.name && columns == other.columns && crs == other.crs;

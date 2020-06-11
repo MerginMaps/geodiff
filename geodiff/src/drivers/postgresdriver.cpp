@@ -117,7 +117,7 @@ std::vector<std::string> PostgresDriver::listTables( bool useModified )
   return tables;
 }
 
-struct GeomTypeDetails
+struct GeometryTypeDetails
 {
   const char *flatType;
   bool hasZ;
@@ -126,7 +126,7 @@ struct GeomTypeDetails
 
 static void extractGeometryTypeDetails( const std::string &geomType, std::string &flatGeomType, bool &hasZ, bool &hasM )
 {
-  std::map<std::string, GeomTypeDetails> d =
+  std::map<std::string, GeometryTypeDetails> d =
   {
     { "POINT",   { "POINT", false, false } },
     { "POINTZ",  { "POINT", true,  false } },
@@ -240,7 +240,10 @@ TableSchema PostgresDriver::tableSchema( const std::string &tableName, bool useM
 
   if ( srsId != -1 )
   {
-    PostgresResult resCrs( execSql( mConn, "SELECT auth_name, auth_srid, srtext FROM spatial_ref_sys WHERE srid = " + std::to_string( srsId ) ) );
+    PostgresResult resCrs( execSql( mConn,
+                                    "SELECT auth_name, auth_srid, srtext "
+                                    "FROM spatial_ref_sys WHERE srid = " + std::to_string( srsId ) ) );
+
     if ( resCrs.rowCount() == 0 )
       throw GeoDiffException( "Unknown CRS in table " + tableName );
     schema.crs.srsId = srsId;
@@ -647,6 +650,7 @@ void PostgresDriver::applyChangeset( ChangesetReader &reader )
   ChangesetEntry entry;
   while ( reader.nextEntry( entry ) )
   {
+    // TODO: in the future sqlite driver should not add any changes to meta tables
     if ( entry.table->name.rfind( "gpkg_", 0 ) == 0 )
       continue;   // skip any changes to GPKG meta tables
 

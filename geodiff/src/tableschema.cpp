@@ -18,6 +18,26 @@ bool TableSchema::hasPrimaryKey() const
   return false;
 }
 
+size_t TableSchema::columnFromName( const std::string &name )
+{
+  for ( size_t i = 0; i < columns.size(); ++i )
+  {
+    if ( name == columns[i].name )
+      return i;
+  }
+  return SIZE_MAX;
+}
+
+size_t TableSchema::geometryColumn() const
+{
+  for ( size_t i = 0; i < columns.size(); ++i )
+  {
+    if ( columns[i].isGeometry )
+      return i;
+  }
+  return SIZE_MAX;
+}
+
 void tableSchemaPostgresToSqlite( TableSchema &tbl )
 {
   // SQLite does not really care much about column types
