@@ -154,11 +154,11 @@ sqlite3_stmt *Sqlite3Stmt::db_vprepare( sqlite3 *db, const char *zFormat, va_lis
   }
 
   rc = sqlite3_prepare_v2( db, zSql, -1, &pStmt, nullptr );
+  sqlite3_free( zSql );
   if ( rc )
   {
-    throw GeoDiffException( "SQL statement error" );
+    throw GeoDiffException( "SQL statement error: " + std::string( sqlite3_errmsg( db ) ) );
   }
-  sqlite3_free( zSql );
   return pStmt;
 }
 
@@ -179,7 +179,7 @@ void Sqlite3Stmt::prepare( std::shared_ptr<Sqlite3Db> db, const std::string &sql
   int rc = sqlite3_prepare_v2( db->get(), sql.c_str(), -1, &pStmt, nullptr );
   if ( rc )
   {
-    throw GeoDiffException( "SQL statement error" );
+    throw GeoDiffException( "SQL statement error: " + std::string( sqlite3_errmsg( db->get() ) ) );
   }
   mStmt = pStmt;
 }
@@ -304,6 +304,7 @@ void Buffer::read( const std::string &filename )
   int rc = fseek( fp, 0L, SEEK_END );
   if ( 0 != rc )
   {
+    fclose( fp );
     throw GeoDiffException( "Unable to seek the end of " + filename );
   }
 
@@ -311,6 +312,7 @@ void Buffer::read( const std::string &filename )
   /* Byte offset to the end of the file (size) */
   if ( 0 > ( off_end = ftell( fp ) ) )
   {
+    fclose( fp );
     throw GeoDiffException( "Unable to read file size of " + filename );
   }
   mAlloc = ( size_t )off_end;
@@ -319,6 +321,7 @@ void Buffer::read( const std::string &filename )
   if ( mAlloc == 0 )
   {
     // empty file
+    fclose( fp );
     return;
   }
 
@@ -326,6 +329,7 @@ void Buffer::read( const std::string &filename )
   mZ = ( char * ) sqlite3_malloc( mAlloc );
   if ( mZ == nullptr )
   {
+    fclose( fp );
     throw GeoDiffException( "Out of memory to read " + filename + " to internal buffer" );
   }
 
@@ -335,6 +339,7 @@ void Buffer::read( const std::string &filename )
   /* Slurp file into buffer */
   if ( mAlloc != fread( mZ, 1, mAlloc, fp ) )
   {
+    fclose( fp );
     throw GeoDiffException( "Unable to read " + filename + " to internal buffer" );
   }
 
