@@ -1292,7 +1292,7 @@ void flushString( const std::string &filename, const std::string &str )
   out.close();
 }
 
-std::string _getEnvVar( std::string const &key, const std::string &defaultVal )
+std::string getEnvVar( std::string const &key, const std::string &defaultVal )
 {
   char *val = getenv( key.c_str() );
   return val == nullptr ? defaultVal : std::string( val );
@@ -1311,7 +1311,7 @@ std::string tmpdir()
   }
   return std::string( lpTempPathBuffer );
 #else
-  return _getEnvVar( "TMPDIR", "/tmp/" );
+  return getEnvVar( "TMPDIR", "/tmp/" );
 #endif
 }
 

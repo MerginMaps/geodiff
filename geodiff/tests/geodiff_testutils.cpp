@@ -23,6 +23,9 @@
 #include <sys/stat.h>
 #endif
 
+std::string getEnvVar( std::string const &key, const std::string &defaultVal );
+
+
 std::string _replace( const std::string &str, const std::string &substr, const std::string &replacestr )
 {
   std::string res( str );
@@ -217,6 +220,6 @@ int countConflicts( const std::string &conflictFile )
 #ifdef HAVE_POSTGRES
 std::string pgTestConnInfo()
 {
-  return _getEnvVar( "GEODIFF_PG_CONNINFO", "" );
+  return getEnvVar( "GEODIFF_PG_CONNINFO", "" );
 }
 #endif

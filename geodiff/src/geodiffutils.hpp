@@ -232,6 +232,9 @@ bool register_gpkg_extensions( std::shared_ptr<Sqlite3Db> db );
 
 bool isGeoPackage( std::shared_ptr<Sqlite3Db> db );
 
+//! Returns value of an environment variable - or returns default value if it is not set
+std::string getEnvVar( std::string const &key, const std::string &defaultVal );
+
 //! Returns temporary directory (including trailing slash)
 std::string tmpdir();
 

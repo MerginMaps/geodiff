@@ -205,7 +205,7 @@ TEST( PostgresDriverTest, test_apply_changeset )
 
 TEST( PostgresDriverTest, test_dump_data )
 {
-  std::string conninfo = "";
+  std::string conninfo = pgTestConnInfo();
 
   makedir( pathjoin( tmpdir(), "test_postgres_dump_data" ) );
   std::string output = pathjoin( tmpdir(), "test_postgres_dump_data", "output.diff" );
@@ -231,7 +231,7 @@ TEST( PostgresDriverTest, test_dump_data )
 
 TEST( PostgresDriverTest, test_create_tables )
 {
-  std::string conninfo = "";
+  std::string conninfo = pgTestConnInfo();
 
   execSqlCommands( conninfo, pathjoin( testdir(), "postgres", "base.sql" ) );
 
