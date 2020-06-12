@@ -13,6 +13,10 @@ jobs:
           sudo apt-get install -y lcov
           sudo apt-get install libpq-dev
           sudo apt-get install postgresql postgresql-common postgresql-contrib postgis
+
+      - name: start PG database
+        run: |
+          sudo pg_ctlcluster 12 main start
           sudo pg_lsclusters
 
       - name: create PG user
