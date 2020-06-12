@@ -257,7 +257,7 @@ TEST( SqliteDriverTest, test_create_from_postgres )
   connBase["conninfo"] = conninfo;
   connBase["base"] = "gd_base";
   std::unique_ptr<Driver> driverBase( Driver::createDriver( "postgres" ) );
-  EXPECT_NO_THROW( driverBase->open( connBase ) );
+  driverBase->open( connBase );
   TableSchema tblBaseSimple = driverBase->tableSchema( "simple" );
 
   tableSchemaPostgresToSqlite( tblBaseSimple );   // make it sqlite driver friendly
