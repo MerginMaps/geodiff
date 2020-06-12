@@ -38,6 +38,7 @@ void execSqlCommands( const std::string &conninfo, const std::string &filename )
     std::cerr << "execSqlCommands error: " << ::PQresultErrorMessage( res ) << std::endl;
   }
 
+  PQclear( res );
   PQfinish( c );
 }
 
@@ -289,6 +290,46 @@ TEST( PostgresDriverTest, test_create_tables )
 
   ASSERT_TRUE( isFileEmpty( output ) );
 }
+
+
+TEST( PostgresDriverTest, test_create_sqlite_from_postgres )
+{
+  std::string conninfo = pgTestConnInfo();
+
+  std::string testname = "test_create_from_postgres";
+  makedir( pathjoin( tmpdir(), testname ) );
+  std::string testdb = pathjoin( tmpdir(), testname, "output.gpkg" );
+
+  // get table schema in the base database
+  std::map<std::string, std::string> connBase;
+  connBase["conninfo"] = conninfo;
+  connBase["base"] = "gd_base";
+  std::unique_ptr<Driver> driverBase( Driver::createDriver( "postgres" ) );
+  driverBase->open( connBase );
+  TableSchema tblBaseSimple = driverBase->tableSchema( "simple" );
+
+  tableSchemaPostgresToSqlite( tblBaseSimple );   // make it sqlite driver friendly
+
+  // create the new database
+  std::map<std::string, std::string> conn;
+  conn["base"] = testdb;
+  std::unique_ptr<Driver> driver( Driver::createDriver( "sqlite" ) );
+  EXPECT_NO_THROW( driver->create( conn, true ) );
+  EXPECT_ANY_THROW( driver->tableSchema( "simple" ) );
+
+  // create table
+  std::vector<TableSchema> schemas;
+  schemas.push_back( tblBaseSimple );
+  driver->createTables( schemas );
+
+  // verify it worked
+  EXPECT_NO_THROW( driver->tableSchema( "simple" ) );
+
+  TableSchema tblNewSimple = driver->tableSchema( "simple" );
+  EXPECT_EQ( tblBaseSimple.name, tblNewSimple.name );
+  EXPECT_EQ( tblBaseSimple.columns.size(), tblNewSimple.columns.size() );
+}
+
 
 int main( int argc, char **argv )
 {

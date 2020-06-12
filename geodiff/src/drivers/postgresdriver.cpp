@@ -67,8 +67,9 @@ void PostgresDriver::open( const DriverParametersMap &conn )
     PostgresResult resBase( execSql( mConn, "SELECT 1 FROM pg_namespace WHERE nspname = " + quotedString( mBaseSchema ) ) );
     if ( resBase.rowCount() == 0 )
     {
+      std::string baseSchema = mBaseSchema;  // close() will erase mBaseSchema...
       close();
-      throw GeoDiffException( "The base schema does not exist: " + mBaseSchema );
+      throw GeoDiffException( "The base schema does not exist: " + baseSchema );
     }
   }
 
@@ -77,8 +78,9 @@ void PostgresDriver::open( const DriverParametersMap &conn )
     PostgresResult resBase( execSql( mConn, "SELECT 1 FROM pg_namespace WHERE nspname = " + quotedString( mModifiedSchema ) ) );
     if ( resBase.rowCount() == 0 )
     {
+      std::string modifiedSchema = mModifiedSchema;  // close() will erase mModifiedSchema...
       close();
-      throw GeoDiffException( "The base schema does not exist: " + mModifiedSchema );
+      throw GeoDiffException( "The base schema does not exist: " + modifiedSchema );
     }
   }
 }

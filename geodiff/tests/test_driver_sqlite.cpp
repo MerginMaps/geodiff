@@ -243,47 +243,6 @@ TEST( SqliteDriverTest, test_create_from_gpkg )
 }
 
 
-#ifdef HAVE_POSTGRES
-TEST( SqliteDriverTest, test_create_from_postgres )
-{
-  std::string conninfo = "";
-
-  std::string testname = "test_create_from_postgres";
-  makedir( pathjoin( tmpdir(), testname ) );
-  std::string testdb = pathjoin( tmpdir(), testname, "output.gpkg" );
-
-  // get table schema in the base database
-  std::map<std::string, std::string> connBase;
-  connBase["conninfo"] = conninfo;
-  connBase["base"] = "gd_base";
-  std::unique_ptr<Driver> driverBase( Driver::createDriver( "postgres" ) );
-  EXPECT_NO_THROW( driverBase->open( connBase ) );
-  TableSchema tblBaseSimple = driverBase->tableSchema( "simple" );
-
-  tableSchemaPostgresToSqlite( tblBaseSimple );   // make it sqlite driver friendly
-
-  // create the new database
-  std::map<std::string, std::string> conn;
-  conn["base"] = testdb;
-  std::unique_ptr<Driver> driver( Driver::createDriver( "sqlite" ) );
-  EXPECT_NO_THROW( driver->create( conn, true ) );
-  EXPECT_ANY_THROW( driver->tableSchema( "simple" ) );
-
-  // create table
-  std::vector<TableSchema> schemas;
-  schemas.push_back( tblBaseSimple );
-  driver->createTables( schemas );
-
-  // verify it worked
-  EXPECT_NO_THROW( driver->tableSchema( "simple" ) );
-
-  TableSchema tblNewSimple = driver->tableSchema( "simple" );
-  EXPECT_EQ( tblBaseSimple.name, tblNewSimple.name );
-  EXPECT_EQ( tblBaseSimple.columns.size(), tblNewSimple.columns.size() );
-}
-#endif
-
-
 int main( int argc, char **argv )
 {
   testing::InitGoogleTest( &argc, argv );
