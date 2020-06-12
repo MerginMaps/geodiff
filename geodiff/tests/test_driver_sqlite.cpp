@@ -246,7 +246,7 @@ TEST( SqliteDriverTest, test_create_from_gpkg )
 #ifdef HAVE_POSTGRES
 TEST( SqliteDriverTest, test_create_from_postgres )
 {
-  std::string conninfo = "";
+  std::string conninfo = pgTestConnInfo();
 
   std::string testname = "test_create_from_postgres";
   makedir( pathjoin( tmpdir(), testname ) );
