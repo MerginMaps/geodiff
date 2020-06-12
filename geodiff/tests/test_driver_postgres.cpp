@@ -38,6 +38,7 @@ void execSqlCommands( const std::string &conninfo, const std::string &filename )
     std::cerr << "execSqlCommands error: " << ::PQresultErrorMessage( res ) << std::endl;
   }
 
+  PQclear( res );
   PQfinish( c );
 }
 
