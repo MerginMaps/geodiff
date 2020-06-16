@@ -14,6 +14,7 @@
 
 #include "sqlite3.h"
 #include "geodiff.h"
+#include "changeset.h"
 
 class Buffer;
 
@@ -226,7 +227,8 @@ bool has_same_table_schema( std::shared_ptr<Sqlite3Db> db,
                             const std::string &tableName,
                             std::string &errStr );
 
-void get_primary_key( Sqlite3ChangesetIter &pp, int pOp, int &fid, int &nColumn );
+struct ChangesetEntry;
+void get_primary_key( const ChangesetEntry &entry, int &fid, int &nColumn );
 
 bool register_gpkg_extensions( std::shared_ptr<Sqlite3Db> db );
 
@@ -238,47 +240,6 @@ std::string getEnvVar( std::string const &key, const std::string &defaultVal );
 //! Returns temporary directory (including trailing slash)
 std::string tmpdir();
 
-// WRITE CHANGESET API
-
-class BinaryStream
-{
-  public:
-    BinaryStream( const std::string &path, bool temporary );
-    ~BinaryStream();
-    void open();
-    bool isValid();
-
-    // returns true on error
-    bool appendTo( FILE *stream );
-
-    /*
-    ** Write an SQLite value onto out.
-    */
-    void putValue( sqlite3_value *ppValue );
-    void putValue( int ppValue );
-
-    /*
-    ** Write a 64-bit signed integer as a varint onto out
-    ** Copied from sqldiff.c
-    */
-    void putsVarint( sqlite3_uint64 v );
-
-    // see stdio.h::putc
-    int put( int v );
-
-    // see stdio.h::fwrite
-    size_t write( const void *ptr, size_t size, size_t nitems );
-
-    // plain copy of iteration to buffer
-    void putChangesetIter( Sqlite3ChangesetIter &pp, int pnCol, int pOp );
-
-  private:
-    void close();
-    void remove();
-    std::string mPath;
-    bool mIsTemporary;
-    FILE *mBuffer;
-};
 
 class TmpFile
 {
@@ -293,25 +254,26 @@ class TmpFile
     std::string mPath;
 };
 
+
 class ConflictItem
 {
   public:
     ConflictItem(
       int column,
-      std::shared_ptr<Sqlite3Value> base,
-      std::shared_ptr<Sqlite3Value> theirs,
-      std::shared_ptr<Sqlite3Value> ours );
+      const Value &base,
+      const Value &theirs,
+      const Value &ours );
 
-    std::shared_ptr<Sqlite3Value> base() const;
-    std::shared_ptr<Sqlite3Value> theirs() const;
-    std::shared_ptr<Sqlite3Value> ours() const;
+    Value base() const;
+    Value theirs() const;
+    Value ours() const;
     int column() const;
 
   private:
     int mColumn;
-    std::shared_ptr<Sqlite3Value> mBase;
-    std::shared_ptr<Sqlite3Value> mTheirs;
-    std::shared_ptr<Sqlite3Value> mOurs;
+    Value mBase;
+    Value mTheirs;
+    Value mOurs;
 };
 
 class ConflictFeature

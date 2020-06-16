@@ -32,6 +32,12 @@ class ChangesetReader
     //! Reads next changeset entry to the passed object
     bool nextEntry( ChangesetEntry &entry );
 
+    //! Returns whether the changeset being read is completely empty
+    bool isEmpty() const;
+
+    //! Resets the reader position back to the start of the changeset
+    void rewind();
+
   private:
 
     char readByte();

@@ -64,6 +64,17 @@ bool ChangesetReader::nextEntry( ChangesetEntry &entry )
   return false;
 }
 
+bool ChangesetReader::isEmpty() const
+{
+  return mBuffer->size() == 0;
+}
+
+void ChangesetReader::rewind()
+{
+  mOffset = 0;
+  mCurrentTable = ChangesetTable();
+}
+
 char ChangesetReader::readByte()
 {
   if ( mOffset >= mBuffer->size() )

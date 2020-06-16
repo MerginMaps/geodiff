@@ -34,6 +34,9 @@ class GeoDiffExporter
     void addValue( std::string &stream,
                    sqlite3_value *ppValue, const std::string &type ) const;
 
+    void addValue( std::string &stream,
+                   const Value &value, const std::string &type ) const;
+
     std::shared_ptr<Sqlite3Db> mDb; // to be able to run ST_* functions
 };
 

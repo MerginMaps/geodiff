@@ -6,6 +6,7 @@
 #include "geodiff.h"
 #include "geodiffexporter.hpp"
 #include "sqlite3.h"
+#include "changesetutils.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -75,6 +76,21 @@ std::string GeoDiffExporter::toString( sqlite3_changeset_iter *pp )
   }
   ret << std::endl;
   return ret.str();
+}
+
+void GeoDiffExporter::addValue( std::string &stream,
+                                const Value &value, const std::string &type ) const
+{
+  if ( value.type() == Value::TypeUndefined )
+  {
+    // TODO: hmmm this is not the same thing as NULL value! shouldn't we skip this value altogether?
+    stream += "              \"" + type + "\": null";
+  }
+  else
+  {
+    std::string val = valueToJSON( value );
+    stream += "              \"" + type + "\": \"" + val + "\"";
+  }
 }
 
 void GeoDiffExporter::addValue( std::string &stream,

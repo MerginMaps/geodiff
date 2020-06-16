@@ -22,6 +22,9 @@ std::string changesetToJSON( ChangesetReader &reader );
 
 std::string changesetToJSONSummary( ChangesetReader &reader );
 
+struct Value;
+std::string valueToJSON( const Value &value );
+
 std::string hex2bin( const std::string &str );
 std::string bin2hex( const std::string &str );
 
