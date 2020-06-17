@@ -286,7 +286,7 @@ int _find_mapping_for_new_changeset( ChangesetReader &reader, const DatabaseReba
 
 bool _handle_insert( const ChangesetEntry &entry, const RebaseMapping &mapping, ChangesetEntry &outEntry )
 {
-  size_t numColumns = entry.table->primaryKeys.size();
+  size_t numColumns = entry.table->columnCount();
 
   outEntry.op = ChangesetEntry::OpInsert;
   outEntry.newValues.resize( numColumns );
@@ -318,7 +318,7 @@ bool _handle_insert( const ChangesetEntry &entry, const RebaseMapping &mapping, 
 bool _handle_delete( const ChangesetEntry &entry, const RebaseMapping &mapping,
                      const TableRebaseInfo &tableInfo, ChangesetEntry &outEntry )
 {
-  size_t numColumns = entry.table->primaryKeys.size();
+  size_t numColumns = entry.table->columnCount();
 
   outEntry.op = ChangesetEntry::OpDelete;
   outEntry.oldValues.resize( numColumns );
@@ -388,7 +388,7 @@ bool _handle_update( const ChangesetEntry &entry, const RebaseMapping &mapping,
                      const TableRebaseInfo &tableInfo, ChangesetEntry &outEntry,
                      std::vector<ConflictFeature> &conflicts )
 {
-  size_t numColumns = entry.table->primaryKeys.size();
+  size_t numColumns = entry.table->columnCount();
 
   outEntry.op = ChangesetEntry::OpUpdate;
   outEntry.oldValues.resize( numColumns );

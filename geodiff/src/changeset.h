@@ -157,6 +157,9 @@ struct ChangesetTable
   std::string name;
   //! Array of true/false values (one for each column) - indicating whether particular column is a part of primary key
   std::vector<bool> primaryKeys;
+
+  //! Returns number of columns
+  size_t columnCount() const { return primaryKeys.size(); }
 };
 
 

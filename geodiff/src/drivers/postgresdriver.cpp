@@ -665,10 +665,10 @@ void PostgresDriver::applyChangeset( ChangesetReader &reader )
       if ( tbl.columns.size() == 0 )
         throw GeoDiffException( "No such table: " + tableName );
 
-      if ( tbl.columns.size() != entry.table->primaryKeys.size() )
+      if ( tbl.columns.size() != entry.table->columnCount() )
         throw GeoDiffException( "Wrong number of columns for table: " + tableName );
 
-      for ( size_t i = 0; i < entry.table->primaryKeys.size(); ++i )
+      for ( size_t i = 0; i < entry.table->columnCount(); ++i )
       {
         if ( tbl.columns[i].isPrimaryKey != entry.table->primaryKeys[i] )
           throw GeoDiffException( "Mismatch of primary keys in table: " + tableName );

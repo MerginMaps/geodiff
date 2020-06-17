@@ -78,19 +78,12 @@ std::string GeoDiffExporter::toString( sqlite3_changeset_iter *pp )
   return ret.str();
 }
 
-void GeoDiffExporter::addValue( std::string &stream,
-                                const Value &value, const std::string &type ) const
+std::string GeoDiffExporter::formatValue( const Value &value, const std::string &type ) const
 {
   if ( value.type() == Value::TypeUndefined )
-  {
-    // TODO: hmmm this is not the same thing as NULL value! shouldn't we skip this value altogether?
-    stream += "              \"" + type + "\": null";
-  }
-  else
-  {
-    std::string val = valueToJSON( value );
-    stream += "              \"" + type + "\": \"" + val + "\"";
-  }
+    return std::string();
+
+  return "              \"" + type + "\": " + valueToJSON( value );
 }
 
 void GeoDiffExporter::addValue( std::string &stream,
@@ -342,15 +335,21 @@ std::string GeoDiffExporter::toJSON( const ConflictFeature &conflict ) const
     {
       res += ",\n          {\n";
     }
-    res += "              \"column\": " + std::to_string( item.column() ) + ",\n";
-    addValue( res, item.base(), "base" );
-    res += ",\n";
-    addValue( res, item.theirs(), "old" );
-    res += ",\n";
-    addValue( res, item.ours(), "new" );
+    res += "              \"column\": " + std::to_string( item.column() );
+
+    std::string strBase = formatValue( item.base(), "base" );
+    std::string strOld = formatValue( item.theirs(), "old" );
+    std::string strNew = formatValue( item.ours(), "new" );
+
+    if ( !strBase.empty() )
+      res += ",\n" + strBase;
+    if ( !strOld.empty() )
+      res += ",\n" + strOld;
+    if ( !strNew.empty() )
+      res += ",\n" + strNew;
+
     res += "\n";
     res += "          }";
-
   }
   // close brackets
   res += "\n        ]\n"; // end properties

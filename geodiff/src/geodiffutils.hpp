@@ -17,6 +17,7 @@
 #include "changeset.h"
 
 class Buffer;
+struct ChangesetEntry;
 
 class GeoDiffException: public std::exception
 {
@@ -227,7 +228,6 @@ bool has_same_table_schema( std::shared_ptr<Sqlite3Db> db,
                             const std::string &tableName,
                             std::string &errStr );
 
-struct ChangesetEntry;
 void get_primary_key( const ChangesetEntry &entry, int &fid, int &nColumn );
 
 bool register_gpkg_extensions( std::shared_ptr<Sqlite3Db> db );

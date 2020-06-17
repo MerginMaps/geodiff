@@ -128,7 +128,7 @@ std::string changesetEntryToJSON( const ChangesetEntry &entry )
   bool first = true;
 
   Value valueOld, valueNew;
-  for ( size_t i = 0; i < entry.table->primaryKeys.size(); ++i )
+  for ( size_t i = 0; i < entry.table->columnCount(); ++i )
   {
     valueNew = ( entry.op == ChangesetEntry::OpUpdate || entry.op == ChangesetEntry::OpInsert ) ? entry.newValues[i] : Value();
     valueOld = ( entry.op == ChangesetEntry::OpUpdate || entry.op == ChangesetEntry::OpDelete ) ? entry.oldValues[i] : Value();
