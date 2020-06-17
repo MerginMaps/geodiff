@@ -5,6 +5,7 @@
 
 #include "geodiff.h"
 #include "geodiffutils.hpp"
+#include "changeset.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -539,214 +540,6 @@ std::string conflict2Str( int c )
   return std::to_string( c );
 }
 
-BinaryStream::BinaryStream( const std::string &path, bool temporary )
-  :
-  mPath( path ),
-  mIsTemporary( temporary ),
-  mBuffer( nullptr )
-{
-}
-
-BinaryStream::~BinaryStream()
-{
-  close();
-  if ( mIsTemporary )
-  {
-    remove();
-  }
-}
-
-void BinaryStream::open()
-{
-  close();
-  remove();
-  mBuffer = fopen( mPath.c_str(), "wb" );
-}
-
-bool BinaryStream::isValid()
-{
-  return mBuffer != nullptr;
-}
-
-bool BinaryStream::appendTo( FILE *stream )
-{
-  close();
-  FILE *buf = fopen( mPath.c_str(), "rb" );
-  if ( !buf )
-    return true;
-
-  char buffer[1]; //do not be lazy, use bigger buffer
-  while ( fread( buffer, 1, 1, buf ) > 0 )
-    fwrite( buffer, 1, 1, stream );
-
-  fclose( buf );
-  return false;
-}
-
-void BinaryStream::putsVarint( sqlite3_uint64 v )
-{
-  if ( !isValid() )
-    return;
-
-  int i, n;
-  unsigned char p[12];
-  if ( v & ( ( ( sqlite3_uint64 )0xff000000 ) << 32 ) )
-  {
-    p[8] = ( unsigned char )v;
-    v >>= 8;
-    for ( i = 7; i >= 0; i-- )
-    {
-      p[i] = ( unsigned char )( ( v & 0x7f ) | 0x80 );
-      v >>= 7;
-    }
-    write( p, 8, 1 );
-  }
-  else
-  {
-    n = 9;
-    do
-    {
-      p[n--] = ( unsigned char )( ( v & 0x7f ) | 0x80 );
-      v >>= 7;
-    }
-    while ( v != 0 );
-    p[9] &= 0x7f;
-    write( p + n + 1, 9 - n, 1 );
-  }
-}
-
-int BinaryStream::put( int v )
-{
-  if ( !isValid() )
-    return -1;
-
-  return putc( v, mBuffer );
-}
-
-size_t BinaryStream::write( const void *ptr, size_t size, size_t nitems )
-{
-  if ( !isValid() )
-    return 0;
-
-  return fwrite( ptr, size, nitems, mBuffer );
-}
-
-void BinaryStream::putChangesetIter( Sqlite3ChangesetIter &pp, int pnCol, int pOp )
-{
-  put( pOp );
-  put( 0 );
-
-  if ( pOp == SQLITE_INSERT )
-  {
-    sqlite3_value *value;
-    for ( int i = 0; i < pnCol; i++ )
-    {
-      pp.newValue( i, &value );
-      putValue( value );
-    }
-  }
-  else if ( pOp == SQLITE_UPDATE )
-  {
-    sqlite3_value *value;
-
-    for ( int i = 0; i < pnCol; i++ )
-    {
-      pp.oldValue( i, &value );
-      putValue( value );
-    }
-    for ( int i = 0; i < pnCol; i++ )
-    {
-      pp.newValue( i, &value );
-      putValue( value );
-    }
-  }
-  else if ( pOp == SQLITE_DELETE )
-  {
-    sqlite3_value *value;
-    for ( int i = 0; i < pnCol; i++ )
-    {
-      pp.oldValue( i, &value );
-      putValue( value );
-    }
-  }
-}
-
-void BinaryStream::close()
-{
-  if ( mBuffer )
-  {
-    fclose( mBuffer );
-    mBuffer = nullptr;
-  }
-}
-
-void BinaryStream::remove()
-{
-  if ( fileexists( mPath ) )
-  {
-    fileremove( mPath );
-  }
-}
-
-void BinaryStream::putValue( sqlite3_value *ppValue )
-{
-  if ( !isValid() )
-    return;
-
-  if ( !ppValue )
-  {
-    put( 0 );
-  }
-  else
-  {
-    int iDType = sqlite3_value_type( ppValue );
-    sqlite3_int64 iX;
-    double rX;
-    sqlite3_uint64 uX;
-    int j;
-
-    put( iDType );
-    switch ( iDType )
-    {
-      case SQLITE_INTEGER:
-        iX = sqlite3_value_int64( ppValue );
-        memcpy( &uX, &iX, 8 );
-        for ( j = 56; j >= 0; j -= 8 ) put( ( uX >> j ) & 0xff );
-        break;
-      case SQLITE_FLOAT:
-        rX = sqlite3_value_double( ppValue );
-        memcpy( &uX, &rX, 8 );
-        for ( j = 56; j >= 0; j -= 8 ) put( ( uX >> j ) & 0xff );
-        break;
-      case SQLITE_TEXT:
-        iX = sqlite3_value_bytes( ppValue );
-        putsVarint( ( sqlite3_uint64 )iX );
-        write( sqlite3_value_text( ppValue ), 1, ( size_t )iX );
-        break;
-      case SQLITE_BLOB:
-        iX = sqlite3_value_bytes( ppValue );
-        putsVarint( ( sqlite3_uint64 )iX );
-        write( sqlite3_value_blob( ppValue ), 1, ( size_t )iX );
-        break;
-      case SQLITE_NULL:
-        break;
-    }
-  }
-}
-
-void BinaryStream::putValue( int ppValue )
-{
-  if ( !isValid() )
-    return;
-
-  sqlite3_uint64 uX;
-  sqlite3_int64 iX = ppValue;
-
-  memcpy( &uX, &iX, 8 );
-  put( SQLITE_INTEGER );
-  for ( int j = 56; j >= 0; j -= 8 ) put( ( uX >> j ) & 0xff );
-}
-
 
 void filecopy( const std::string &to, const std::string &from )
 {
@@ -1186,24 +979,17 @@ std::string convertGeometryToWKT( std::shared_ptr<Sqlite3Db> db, sqlite3_value *
   return ret;
 }
 
-void get_primary_key( Sqlite3ChangesetIter &pp, int pOp, int &fid, int &nColumn )
-{
-  if ( !pp.get() )
-    throw GeoDiffException( "internal error in _get_primary_key" );
+////
 
-  unsigned char *pabPK;
-  int pnCol;
-  int rc = sqlite3changeset_pk( pp.get(),  &pabPK, &pnCol );
-  if ( rc )
-  {
-    throw GeoDiffException( "internal error in _get_primary_key" );
-  }
+void get_primary_key( const ChangesetEntry &entry, int &fid, int &nColumn )
+{
+  const std::vector<bool> &tablePkeys = entry.table->primaryKeys;
 
   // lets assume for now it has only one PK and it is int...
   int pk_column_number = -1;
-  for ( int i = 0; i < pnCol; ++i )
+  for ( size_t i = 0; i < tablePkeys.size(); ++i )
   {
-    if ( pabPK[i] == 0x01 )
+    if ( tablePkeys[i] )
     {
       if ( pk_column_number >= 0 )
       {
@@ -1221,33 +1007,33 @@ void get_primary_key( Sqlite3ChangesetIter &pp, int pOp, int &fid, int &nColumn 
   nColumn = pk_column_number;
 
   // now get the value
-  sqlite3_value *ppValue = nullptr;
-  if ( pOp == SQLITE_INSERT )
+  Value pkeyValue;
+  if ( entry.op == ChangesetEntry::OpInsert )
   {
-    pp.newValue( pk_column_number, &ppValue );
+    pkeyValue = entry.newValues[pk_column_number];
   }
-  else if ( pOp == SQLITE_DELETE || pOp == SQLITE_UPDATE )
+  else if ( entry.op == ChangesetEntry::OpDelete || entry.op == ChangesetEntry::OpUpdate )
   {
-    pp.oldValue( pk_column_number, &ppValue );
+    pkeyValue = entry.oldValues[pk_column_number];
   }
-  if ( !ppValue )
+  if ( pkeyValue.type() == Value::TypeUndefined || pkeyValue.type() == Value::TypeNull )
     throw GeoDiffException( "internal error in _get_primary_key: unable to get value of primary key" );
 
-  int type = sqlite3_value_type( ppValue );
-  if ( type == SQLITE_INTEGER )
+  if ( pkeyValue.type() == Value::TypeInt )
   {
-    int val = sqlite3_value_int( ppValue );
+    int val = pkeyValue.getInt();
     fid = val;
     return;
   }
-  else if ( type == SQLITE_TEXT )
+  else if ( pkeyValue.type() == Value::TypeText )
   {
-    const unsigned char *valT = sqlite3_value_text( ppValue );
+    std::string str = pkeyValue.getString();
+    const char *strData = str.data();
     int hash = 0;
-    int len = strlen( ( const char * ) valT );
+    int len = str.size();
     for ( int i = 0; i < len; i++ )
     {
-      hash = 33 * hash + ( unsigned char )valT[i];
+      hash = 33 * hash + ( unsigned char )strData[i];
     }
     fid = hash;
   }
@@ -1256,6 +1042,7 @@ void get_primary_key( Sqlite3ChangesetIter &pp, int pOp, int &fid, int &nColumn 
     throw GeoDiffException( "internal error in _get_primary_key: unsuported type of primary key" );
   }
 }
+
 
 bool register_gpkg_extensions( std::shared_ptr<Sqlite3Db> db )
 {
@@ -1370,7 +1157,8 @@ std::vector<ConflictItem> ConflictFeature::items() const
   return mItems;
 }
 
-ConflictItem::ConflictItem( int column, std::shared_ptr<Sqlite3Value> base, std::shared_ptr<Sqlite3Value> theirs, std::shared_ptr<Sqlite3Value> ours )
+ConflictItem::ConflictItem( int column, const Value &base,
+                            const Value &theirs, const Value &ours )
   : mColumn( column )
   , mBase( base )
   , mTheirs( theirs )
@@ -1379,17 +1167,17 @@ ConflictItem::ConflictItem( int column, std::shared_ptr<Sqlite3Value> base, std:
 
 }
 
-std::shared_ptr<Sqlite3Value> ConflictItem::base() const
+Value ConflictItem::base() const
 {
   return mBase;
 }
 
-std::shared_ptr<Sqlite3Value> ConflictItem::theirs() const
+Value ConflictItem::theirs() const
 {
   return mTheirs;
 }
 
-std::shared_ptr<Sqlite3Value> ConflictItem::ours() const
+Value ConflictItem::ours() const
 {
   return mOurs;
 }

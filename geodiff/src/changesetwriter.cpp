@@ -29,8 +29,8 @@ void ChangesetWriter::beginTable( const ChangesetTable &table )
   mCurrentTable = table;
 
   writeByte( 'T' );
-  writeVarint( table.primaryKeys.size() );
-  for ( size_t i = 0; i < table.primaryKeys.size(); ++i )
+  writeVarint( table.columnCount() );
+  for ( size_t i = 0; i < table.columnCount(); ++i )
     writeByte( table.primaryKeys[i] );
   writeNullTerminatedString( table.name );
 }
@@ -67,10 +67,10 @@ void ChangesetWriter::writeNullTerminatedString( const std::string &str )
 
 void ChangesetWriter::writeRowValues( const std::vector<Value> &values )
 {
-  if ( values.size() != mCurrentTable.primaryKeys.size() )
+  if ( values.size() != mCurrentTable.columnCount() )
     throw GeoDiffException( "wrong number of rows in the entry" );
 
-  for ( size_t i = 0; i < mCurrentTable.primaryKeys.size(); ++i )
+  for ( size_t i = 0; i < mCurrentTable.columnCount(); ++i )
   {
     Value::Type type = values[i].type();
     writeByte( type );

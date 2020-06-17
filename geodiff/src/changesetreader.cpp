@@ -64,6 +64,17 @@ bool ChangesetReader::nextEntry( ChangesetEntry &entry )
   return false;
 }
 
+bool ChangesetReader::isEmpty() const
+{
+  return mBuffer->size() == 0;
+}
+
+void ChangesetReader::rewind()
+{
+  mOffset = 0;
+  mCurrentTable = ChangesetTable();
+}
+
 char ChangesetReader::readByte()
 {
   if ( mOffset >= mBuffer->size() )
@@ -99,12 +110,12 @@ std::string ChangesetReader::readNullTerminatedString()
 void ChangesetReader::readRowValues( std::vector<Value> &values )
 {
   // let's ensure we have the right size of array
-  if ( values.size() != mCurrentTable.primaryKeys.size() )
+  if ( values.size() != mCurrentTable.columnCount() )
   {
-    values.resize( mCurrentTable.primaryKeys.size() );
+    values.resize( mCurrentTable.columnCount() );
   }
 
-  for ( size_t i = 0; i < mCurrentTable.primaryKeys.size(); ++i )
+  for ( size_t i = 0; i < mCurrentTable.columnCount(); ++i )
   {
     int type = readByte();
     if ( type == Value::TypeInt ) // 0x01
