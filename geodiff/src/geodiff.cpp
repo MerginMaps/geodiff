@@ -60,183 +60,92 @@ void GEODIFF_setMaximumLoggerLevel( GEODIFF_LoggerLevel maxLogLevel )
 
 int GEODIFF_createChangeset( const char *base, const char *modified, const char *changeset )
 {
-  if ( !base || !modified || !changeset )
-  {
-    Logger::instance().error( "NULL arguments to GEODIFF_createChangeset" );
-    return GEODIFF_ERROR;
-  }
+  return GEODIFF_createChangesetEx( "sqlite", nullptr, base, modified, changeset );
+}
 
-  if ( !fileexists( base ) || !fileexists( modified ) )
+int GEODIFF_applyChangeset( const char *base, const char *changeset )
+{
+  return GEODIFF_applyChangesetEx( "sqlite", nullptr, base, changeset );
+}
+
+
+int GEODIFF_createChangesetEx( const char *driverName, const char *driverExtraInfo,
+                               const char *base, const char *modified,
+                               const char *changeset )
+{
+  if ( !driverName || !base || !modified || !changeset )
   {
-    Logger::instance().error( "Missing input files in GEODIFF_createChangeset" );
+    Logger::instance().error( "NULL arguments to GEODIFF_createChangesetEx" );
     return GEODIFF_ERROR;
   }
 
   try
   {
-    std::shared_ptr<Sqlite3Db> db = std::make_shared<Sqlite3Db>();
-    db->open( modified );
+    std::map<std::string, std::string> conn;
+    conn["base"] = std::string( base );
+    conn["modified"] = std::string( modified );
+    if ( driverExtraInfo )
+      conn["conninfo"] = std::string( driverExtraInfo );
+    std::unique_ptr<Driver> driver( Driver::createDriver( std::string( driverName ) ) );
+    if ( !driver )
+      throw GeoDiffException( "Unable to use driver: " + std::string( driverName ) );
+    driver->open( conn );
 
-    Buffer sqlBuf;
-    sqlBuf.printf( "ATTACH '%s' AS aux", base );
-    db->exec( sqlBuf );
-
-    Sqlite3Session session;
-    session.create( db, "main" );
-
-    // names are sorted and gpkg tables are filtered out
-    std::vector<std::string> mainTableNames;
-    tables( db, "main", mainTableNames );
-
-    // names are sorted and gpkg tables are filtered out
-    std::vector<std::string> auxTableNames;
-    tables( db, "aux", auxTableNames );
-
-    if ( auxTableNames.size() != mainTableNames.size() )
-    {
-      Logger::instance().error( "Modified does contain different number of tables than base in GEODIFF_createChangeset" );
-      return GEODIFF_UNSUPPORTED_CHANGE;
-    }
-
-    for ( size_t i = 0; i < mainTableNames.size(); ++i )
-    {
-      const std::string &table = mainTableNames.at( i );
-      const std::string &auxTable = auxTableNames.at( i );
-      if ( auxTable != table )
-      {
-        Logger::instance().error( "Modified renamed table " + table + " to " + auxTable + " in GEODIFF_createChangeset" );
-        return GEODIFF_UNSUPPORTED_CHANGE;
-      }
-
-      std::string errMsg;
-      bool hasSameSchema = has_same_table_schema( db, table, errMsg );
-      if ( !hasSameSchema )
-      {
-        Logger::instance().error( errMsg + " in GEODIFF_createChangeset" );
-        return GEODIFF_UNSUPPORTED_CHANGE;
-      }
-
-      int rc = sqlite3session_attach( session.get(), table.c_str() );
-      if ( rc )
-      {
-        Logger::instance().error( "Unable to attach session to database in GEODIFF_createChangeset" );
-        return GEODIFF_ERROR;
-      }
-      rc = sqlite3session_diff( session.get(), "aux", table.c_str(), NULL );
-      if ( rc )
-      {
-        Logger::instance().error( "Unable to diff tables in GEODIFF_createChangeset" );
-        return GEODIFF_ERROR;
-      }
-    }
-
-    Buffer changesetBuf;
-    changesetBuf.read( session );
-    changesetBuf.write( changeset );
-
-    return GEODIFF_SUCCESS;
+    ChangesetWriter writer;
+    if ( !writer.open( changeset ) )
+      throw GeoDiffException( "Unable to open changeset file for writing: " + std::string( changeset ) );
+    driver->createChangeset( writer );
   }
   catch ( GeoDiffException exc )
   {
     Logger::instance().error( exc );
     return GEODIFF_ERROR;
   }
+
+  return GEODIFF_SUCCESS;
 }
 
-static int conflict_callback( void *ctx, int conflict, sqlite3_changeset_iter *iterator )
-{
-  int *nconflicts = static_cast<int *>( ctx );
-  *nconflicts += 1;
-  std::string s = conflict2Str( conflict );
-  std::string vals = GeoDiffExporter::toString( iterator );
-  Logger::instance().warn( "CONFLICT: " + s  + ": " + vals );
-  return SQLITE_CHANGESET_REPLACE;
-}
 
-int GEODIFF_applyChangeset( const char *base, const char *changeset )
+int GEODIFF_applyChangesetEx( const char *driverName, const char *driverExtraInfo,
+                              const char *base, const char *changeset )
 {
-  if ( !base || !changeset )
+  if ( !driverName || !base || !changeset )
   {
-    Logger::instance().error( "NULL arguments to GEODIFF_applyChangeset" );
-    return GEODIFF_ERROR;
-  }
-
-  if ( !fileexists( base ) || !fileexists( changeset ) )
-  {
-    Logger::instance().error( "Missing input files in GEODIFF_applyChangeset" );
+    Logger::instance().error( "NULL arguments to GEODIFF_applyChangesetEx" );
     return GEODIFF_ERROR;
   }
 
   try
   {
-    int nconflicts = 0;
+    std::map<std::string, std::string> conn;
+    conn["base"] = std::string( base );
+    if ( driverExtraInfo )
+      conn["conninfo"] = std::string( driverExtraInfo );
+    std::unique_ptr<Driver> driver( Driver::createDriver( std::string( driverName ) ) );
+    if ( !driver )
+      throw GeoDiffException( "Unable to use driver: " + std::string( driverName ) );
+    driver->open( conn );
 
-    // read changeset to buffer
-    Buffer cbuf;
-    cbuf.read( changeset );
-    if ( cbuf.isEmpty() )
+    ChangesetReader reader;
+    if ( !reader.open( changeset ) )
+      throw GeoDiffException( "Unable to open changeset file for reading: " + std::string( changeset ) );
+    if ( reader.isEmpty() )
     {
       Logger::instance().debug( "--- no changes ---" );
       return GEODIFF_SUCCESS;
     }
 
-    std::shared_ptr<Sqlite3Db> db = std::make_shared<Sqlite3Db>();
-    db->open( base );
-
-    if ( isGeoPackage( db ) )
-    {
-      bool success = register_gpkg_extensions( db );
-      if ( !success )
-      {
-        Logger::instance().error( "Unable to enable sqlite3/gpkg extensions" );
-        return GEODIFF_ERROR;
-      }
-    }
-
-    // get all triggers sql commands
-    // that we do not recognize (gpkg triggers are filtered)
-    std::vector<std::string> triggerNames;
-    std::vector<std::string> triggerCmds;
-    triggers( db, triggerNames, triggerCmds );
-
-    Sqlite3Stmt statament;
-    for ( std::string name : triggerNames )
-    {
-      statament.prepare( db, "drop trigger %s", name.c_str() );
-      sqlite3_step( statament.get() );
-      statament.close();
-    }
-
-    // apply changeset
-    int rc = sqlite3changeset_apply( db->get(), cbuf.size(), cbuf.v_buf(), nullptr, conflict_callback, &nconflicts );
-    if ( rc )
-    {
-      Logger::instance().error( "Unable to perform sqlite3changeset_apply" );
-      return GEODIFF_ERROR;
-    }
-
-    // recreate triggers
-    for ( std::string cmd : triggerCmds )
-    {
-      statament.prepare( db, "%s", cmd.c_str() );
-      sqlite3_step( statament.get() );
-      statament.close();
-    }
-
-    if ( nconflicts > 0 )
-    {
-      Logger::instance().warn( "NConflicts " + std::to_string( nconflicts ) + " found " );
-      return GEODIFF_CONFICTS;
-    }
-    return GEODIFF_SUCCESS;
-
+    driver->applyChangeset( reader );
   }
   catch ( GeoDiffException exc )
   {
     Logger::instance().error( exc );
     return GEODIFF_ERROR;
   }
+
+  return GEODIFF_SUCCESS;
 }
+
 
 int GEODIFF_createRebasedChangeset( const char *base,
                                     const char *modified,
@@ -621,72 +530,6 @@ int GEODIFF_makeCopy( const char *driverSrcName, const char *driverSrcExtraInfo,
   }
 
   // TODO: add spatial index to tables with geometry columns?
-
-  return GEODIFF_SUCCESS;
-}
-
-
-int GEODIFF_createChangesetEx( const char *driverName, const char *driverExtraInfo,
-                               const char *base, const char *modified,
-                               const char *changeset )
-{
-  if ( !driverName || !base || !modified || !changeset )
-  {
-    Logger::instance().error( "NULL arguments to GEODIFF_createChangesetEx" );
-    return GEODIFF_ERROR;
-  }
-
-  try
-  {
-    std::map<std::string, std::string> conn;
-    conn["base"] = std::string( base );
-    conn["modified"] = std::string( modified );
-    if ( driverExtraInfo )
-      conn["conninfo"] = std::string( driverExtraInfo );
-    std::unique_ptr<Driver> driver( Driver::createDriver( std::string( driverName ) ) );
-    driver->open( conn );
-
-    ChangesetWriter writer;
-    writer.open( changeset );
-    driver->createChangeset( writer );
-  }
-  catch ( GeoDiffException exc )
-  {
-    Logger::instance().error( exc );
-    return GEODIFF_ERROR;
-  }
-
-  return GEODIFF_SUCCESS;
-}
-
-
-int GEODIFF_applyChangesetEx( const char *driverName, const char *driverExtraInfo,
-                              const char *base, const char *changeset )
-{
-  if ( !driverName || !base || !changeset )
-  {
-    Logger::instance().error( "NULL arguments to GEODIFF_applyChangesetEx" );
-    return GEODIFF_ERROR;
-  }
-
-  try
-  {
-    std::map<std::string, std::string> conn;
-    conn["base"] = std::string( base );
-    if ( driverExtraInfo )
-      conn["conninfo"] = std::string( driverExtraInfo );
-    std::unique_ptr<Driver> driver( Driver::createDriver( std::string( driverName ) ) );
-    driver->open( conn );
-
-    ChangesetReader reader;
-    reader.open( changeset );
-    driver->applyChangeset( reader );
-  }
-  catch ( GeoDiffException exc )
-  {
-    Logger::instance().error( exc );
-    return GEODIFF_ERROR;
-  }
 
   return GEODIFF_SUCCESS;
 }

@@ -8,8 +8,80 @@
 #include "changesetreader.h"
 #include "changesetwriter.h"
 #include "changesetutils.h"
+#include "geodifflogger.hpp"
 
 #include <memory.h>
+
+
+static void logApplyConflict( const std::string &type, const ChangesetEntry &entry )
+{
+  Logger::instance().warn( "CONFLICT: " + type + ":\n" + changesetEntryToJSON( entry ) );
+}
+
+/**
+ * Wrapper around SQLite database wide mutex.
+ */
+class Sqlite3DbMutexLocker
+{
+  public:
+    Sqlite3DbMutexLocker( std::shared_ptr<Sqlite3Db> db )
+      : mDb( db )
+    {
+      sqlite3_mutex_enter( sqlite3_db_mutex( mDb.get()->get() ) );
+    }
+    ~Sqlite3DbMutexLocker()
+    {
+      sqlite3_mutex_leave( sqlite3_db_mutex( mDb.get()->get() ) );
+    }
+
+  private:
+    std::shared_ptr<Sqlite3Db> mDb;
+};
+
+/**
+ * Wrapper around SQLite Savepoint Transactions.
+ *
+ * Constructor start a trasaction, it needs to be confirmed by a call to commitChanges() when
+ * changes are ready to be written. If commitChanges() is not called, changes since the constructor
+ * will be rolled back (so that on exception everything gets cleaned up properly).
+ */
+class Sqlite3SavepointTransaction
+{
+  public:
+    Sqlite3SavepointTransaction( std::shared_ptr<Sqlite3Db> db )
+      : mDb( db )
+    {
+      if ( sqlite3_exec( mDb.get()->get(), "SAVEPOINT changeset_apply", 0, 0, 0 ) != SQLITE_OK )
+        throw GeoDiffException( "Unable to start savepoint" );
+    }
+
+    ~Sqlite3SavepointTransaction()
+    {
+      if ( mDb )
+      {
+        // we had some problems - roll back any pending changes
+        sqlite3_exec( mDb.get()->get(), "ROLLBACK TO changeset_apply", 0, 0, 0 );
+        sqlite3_exec( mDb.get()->get(), "RELEASE changeset_apply", 0, 0, 0 );
+      }
+    }
+
+    void commitChanges()
+    {
+      assert( mDb );
+      // there were no errors - release the savepoint and our changes get saved
+      if ( sqlite3_exec( mDb.get()->get(), "RELEASE changeset_apply", 0, 0, 0 ) != SQLITE_OK )
+        throw GeoDiffException( "Failed to release savepoint" );
+      // reset handler to the database so that the destructor does nothing
+      mDb.reset();
+    }
+
+  private:
+    std::shared_ptr<Sqlite3Db> mDb;
+};
+
+
+///////
+
 
 void SqliteDriver::open( const DriverParametersMap &conn )
 {
@@ -21,11 +93,22 @@ void SqliteDriver::open( const DriverParametersMap &conn )
   mHasModified = connModifiedIt != conn.end();
 
   std::string base = connBaseIt->second;
+  if ( !fileexists( base ) )
+  {
+    throw GeoDiffException( "Missing 'base' file when opening sqlite driver: " + base );
+  }
 
   mDb = std::make_shared<Sqlite3Db>();
   if ( mHasModified )
   {
-    mDb->open( connModifiedIt->second );
+    std::string modified = connModifiedIt->second;
+
+    if ( !fileexists( modified ) )
+    {
+      throw GeoDiffException( "Missing 'modified' file when opening sqlite driver: " + base );
+    }
+
+    mDb->open( modified );
 
     Buffer sqlBuf;
     sqlBuf.printf( "ATTACH '%s' AS aux", base.c_str() );
@@ -134,9 +217,20 @@ std::vector<std::string> SqliteDriver::listTables( bool useModified )
   return tableNames;
 }
 
+bool tableExists( std::shared_ptr<Sqlite3Db> db, const std::string &tableName, const std::string &dbName )
+{
+  Sqlite3Stmt stmtHasGeomColumnsInfo;
+  stmtHasGeomColumnsInfo.prepare( db, "SELECT name FROM \"%w\".sqlite_master WHERE type='table' "
+                                  "AND name='%q'", dbName.c_str(), tableName.c_str() );
+  return sqlite3_step( stmtHasGeomColumnsInfo.get() ) == SQLITE_ROW;
+}
+
 TableSchema SqliteDriver::tableSchema( const std::string &tableName, bool useModified )
 {
   std::string dbName = databaseName( useModified );
+
+  if ( !tableExists( mDb, tableName, dbName ) )
+    throw GeoDiffException( "Table does not exist: " + tableName );
 
   TableSchema tbl;
   tbl.name = tableName;
@@ -156,6 +250,10 @@ TableSchema SqliteDriver::tableSchema( const std::string &tableName, bool useMod
     columnInfo.isPrimaryKey = sqlite3_column_int( statement.get(), 5 );
     tbl.columns.push_back( columnInfo );
   }
+
+  // check if the geometry columns table is present (it may not be if this is a "pure" sqlite file)
+  if ( !tableExists( mDb, "gpkg_geometry_columns", dbName ) )
+    return tbl;
 
   //
   // get geometry column details (geometry type, whether it has Z/M values, CRS id)
@@ -414,12 +512,19 @@ static void handleUpdated( const std::string &tableName, const TableSchema &tbl,
   }
 }
 
-
 void SqliteDriver::createChangeset( ChangesetWriter &writer )
 {
-  std::vector<std::string> tables = listTables();
+  std::vector<std::string> tablesBase = listTables( false );
+  std::vector<std::string> tablesModified = listTables( true );
 
-  for ( const std::string &tableName : tables )
+  if ( tablesBase != tablesModified )
+  {
+    throw GeoDiffException( "Table names are not matching between the input databases.\n"
+                            "Base:     " + concatNames( tablesBase ) + "\n" +
+                            "Modified: " + concatNames( tablesModified ) );
+  }
+
+  for ( const std::string &tableName : tablesBase )
   {
     TableSchema tbl = tableSchema( tableName );
     TableSchema tblNew = tableSchema( tableName, true );
@@ -553,12 +658,38 @@ static void bindValue( sqlite3_stmt *stmt, int index, const Value &v )
     throw GeoDiffException( "bind failed" );
 }
 
+
 void SqliteDriver::applyChangeset( ChangesetReader &reader )
 {
   std::string lastTableName;
   std::unique_ptr<Sqlite3Stmt> stmtInsert, stmtUpdate, stmtDelete;
   TableSchema tbl;
 
+  // this will acquire DB mutex and release it when the function ends (or when an exception is thrown)
+  Sqlite3DbMutexLocker dbMutexLocker( mDb );
+
+  // start transaction!
+  Sqlite3SavepointTransaction savepointTransaction( mDb );
+
+  // TODO: when we deal with foreign keys, it may be useful to temporarily set "PRAGMA defer_foreign_keys = 1"
+  // so that if a foreign key is violated, the constraint violation is tolerated until we commit the changes
+  // (and at that point the violation may have been fixed by some other commands). Sqlite3session does that.
+
+  // get all triggers sql commands
+  // that we do not recognize (gpkg triggers are filtered)
+  std::vector<std::string> triggerNames;
+  std::vector<std::string> triggerCmds;
+  triggers( mDb, triggerNames, triggerCmds );
+
+  Sqlite3Stmt statament;
+  for ( std::string name : triggerNames )
+  {
+    statament.prepare( mDb, "drop trigger %s", name.c_str() );
+    sqlite3_step( statament.get() );
+    statament.close();
+  }
+
+  int conflictCount = 0;
   ChangesetEntry entry;
   while ( reader.nextEntry( entry ) )
   {
@@ -598,9 +729,13 @@ void SqliteDriver::applyChangeset( ChangesetReader &reader )
         bindValue( stmtInsert->get(), static_cast<int>( i ) + 1, v );
       }
       if ( sqlite3_step( stmtInsert->get() ) != SQLITE_DONE )
-        throw GeoDiffException( "failed to insert" );
+      {
+        // it could be that the primary key already exists or some constraint violation (e.g. not null, unique)
+        logApplyConflict( "insert_failed", entry );
+        ++conflictCount;
+      }
       if ( sqlite3_changes( mDb->get() ) != 1 )
-        throw GeoDiffException( "nothing inserted, but should have" );
+        throw GeoDiffException( "Nothing inserted (this should never happen)" );
       sqlite3_reset( stmtInsert->get() );
     }
     else if ( entry.op == SQLITE_UPDATE )
@@ -616,9 +751,17 @@ void SqliteDriver::applyChangeset( ChangesetReader &reader )
           bindValue( stmtUpdate->get(), static_cast<int>( i ) * 3 + 3, vNew );
       }
       if ( sqlite3_step( stmtUpdate->get() ) != SQLITE_DONE )
-        throw GeoDiffException( "failed to update" );
+      {
+        // a constraint must have been violated (e.g. foreign key, not null, unique)
+        logApplyConflict( "update_failed", entry );
+        ++conflictCount;
+      }
       if ( sqlite3_changes( mDb->get() ) == 0 )
-        throw GeoDiffException( "nothing updated, but should have" );
+      {
+        // either the row with such pkey does not exist or its data have been modified
+        logApplyConflict( "update_nothing", entry );
+        ++conflictCount;
+      }
       sqlite3_reset( stmtUpdate->get() );
     }
     else if ( entry.op == SQLITE_DELETE )
@@ -629,13 +772,38 @@ void SqliteDriver::applyChangeset( ChangesetReader &reader )
         bindValue( stmtDelete->get(), static_cast<int>( i ) + 1, v );
       }
       if ( sqlite3_step( stmtDelete->get() ) != SQLITE_DONE )
-        throw GeoDiffException( "failed to delete" );
+      {
+        // a foreign key constraint must have been violated
+        logApplyConflict( "delete_failed", entry );
+        ++conflictCount;
+      }
       if ( sqlite3_changes( mDb->get() ) == 0 )
-        throw GeoDiffException( "nothing deleted, but should have" );
+      {
+        // either the row with such pkey does not exist or its data have been modified
+        logApplyConflict( "delete_nothing", entry );
+        ++conflictCount;
+      }
       sqlite3_reset( stmtDelete->get() );
     }
     else
       throw GeoDiffException( "Unexpected operation" );
+  }
+
+  // recreate triggers
+  for ( std::string cmd : triggerCmds )
+  {
+    statament.prepare( mDb, "%s", cmd.c_str() );
+    sqlite3_step( statament.get() );
+    statament.close();
+  }
+
+  if ( !conflictCount )
+  {
+    savepointTransaction.commitChanges();
+  }
+  else
+  {
+    throw GeoDiffException( "Conflicts encountered while applying changes! Total " + std::to_string( conflictCount ) );
   }
 }
 

@@ -218,6 +218,8 @@ ForeignKeys foreignKeys( std::shared_ptr<Sqlite3Db> db, const std::string &dbNam
 
 int indexOf( const std::vector<std::string> &arr, const std::string &val );
 
+std::string concatNames( const std::vector<std::string> &names );
+
 std::vector<std::string> columnNames(
   std::shared_ptr<Sqlite3Db> db,
   const std::string &zDb,

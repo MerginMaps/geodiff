@@ -11,6 +11,7 @@
 
 class ChangesetReader;
 class ChangesetWriter;
+struct ChangesetEntry;
 struct ChangesetTable;
 struct TableSchema;
 struct Value;
@@ -18,6 +19,8 @@ struct Value;
 ChangesetTable schemaToChangesetTable( const std::string &tableName, const TableSchema &tbl );
 
 void invertChangeset( ChangesetReader &reader, ChangesetWriter &writer );
+
+std::string changesetEntryToJSON( const ChangesetEntry &entry );
 
 std::string changesetToJSON( ChangesetReader &reader );
 
