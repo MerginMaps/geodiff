@@ -199,6 +199,31 @@ TEST( SqliteDriverTest, apply_changeset_delete )
                     );
 }
 
+TEST( SqliteDriverTest, apply_changeset_conflict )
+{
+  // the diff file contains one regular delete and one wrong delete
+  // we test that 1. applyChangeset will fail AND 2. the first (regular) delete will be rolled back
+  std::string testname = "test_apply_changeset_conflict";
+  std::string fileBase = pathjoin( testdir(), "base.gpkg" );
+  std::string fileChangeset = pathjoin( testdir(), "conflict", "base-conflict-delete.diff" );
+
+  makedir( pathjoin( tmpdir(), testname ) );
+  std::string testdb = pathjoin( tmpdir(), testname, "output.gpkg" );
+  filecopy( testdb, fileBase );
+
+  std::unique_ptr<Driver> driver( Driver::createDriver( "sqlite" ) );
+  driver->open( Driver::sqliteParametersSingleSource( testdb ) );
+
+  {
+    ChangesetReader reader;
+    bool res = reader.open( fileChangeset );
+    ASSERT_TRUE( res );
+    EXPECT_ANY_THROW( driver->applyChangeset( reader ) );
+  }
+
+  ASSERT_TRUE( equals( testdb, fileBase ) );
+}
+
 
 TEST( SqliteDriverTest, test_create_from_gpkg )
 {

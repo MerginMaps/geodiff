@@ -144,7 +144,7 @@ TEST( SingleCommitSqlite3Test, retype_attribute )
                     pathjoin( "modified_scheme", "added_attribute_different_type.gpkg" ),
                     4
                   );
-  ASSERT_TRUE( ret );
+  ASSERT_FALSE( ret );
 }
 
 TEST( SingleCommitSqlite3Test, reprojected )
@@ -155,7 +155,7 @@ TEST( SingleCommitSqlite3Test, reprojected )
                     pathjoin( "modified_scheme", "reprojected2.gpkg" ),
                     6
                   );
-  ASSERT_TRUE( ret );
+  ASSERT_FALSE( ret );
 }
 
 TEST( SingleCommitSqlite3Test, SingleCommitFkTest )

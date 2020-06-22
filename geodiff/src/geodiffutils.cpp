@@ -1195,3 +1195,15 @@ int indexOf( const std::vector<std::string> &arr, const std::string &val )
   else
     return std::distance( arr.begin(), result );
 }
+
+std::string concatNames( const std::vector<std::string> &names )
+{
+  std::string output;
+  for ( const std::string &name : names )
+  {
+    if ( !output.empty() )
+      output += ", ";
+    output += name;
+  }
+  return output;
+}

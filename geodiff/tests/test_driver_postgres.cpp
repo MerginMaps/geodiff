@@ -149,6 +149,33 @@ TEST( PostgresDriverTest, test_create_changeset )
   testCreateChangeset( "test_postgres_delete", conninfo, "gd_base", "gd_deleted_a", "deleted_a.diff" );
 }
 
+bool schemasEqual( const std::string &conninfo, const std::string &schema1, const std::string &schema2, const std::string &changesetComparePath )
+{
+  std::string changesetCompare = pathjoin( changesetComparePath, "compare.diff" );
+  makedir( changesetComparePath );
+  remove( changesetCompare.c_str() );
+  EXPECT_FALSE( fileExists( changesetCompare ) );
+
+  {
+    DriverParametersMap paramsCompare;
+    paramsCompare["conninfo"] = conninfo;
+    paramsCompare["base"] = schema1;
+    paramsCompare["modified"] = schema2;
+
+    std::unique_ptr<Driver> driver( Driver::createDriver( "postgres" ) );
+    EXPECT_TRUE( driver );
+    driver->open( paramsCompare );
+
+    ChangesetWriter writer;
+    writer.open( changesetCompare );
+    driver->createChangeset( writer );
+  }
+
+  EXPECT_TRUE( fileExists( changesetCompare ) );
+
+  return isFileEmpty( changesetCompare );
+}
+
 void testApplyChangeset( const std::string &changeset, const std::string &conninfo, const std::string &schemaFinal )
 {
   // create table in the base schema and move it to our "gd_test_apply" schema where we'll apply changeset
@@ -171,28 +198,7 @@ void testApplyChangeset( const std::string &changeset, const std::string &connin
 
   // now check that if we compare the table with applied changeset, we get no changes
 
-  std::string changesetCompare = pathjoin( tmpdir(), "test_postgres", "compare.diff" );
-  makedir( pathjoin( tmpdir(), "test_postgres" ) );
-  remove( changesetCompare.c_str() );
-  EXPECT_FALSE( fileExists( changesetCompare ) );
-
-  {
-    DriverParametersMap paramsCompare;
-    paramsCompare["conninfo"] = conninfo;
-    paramsCompare["base"] = schemaFinal;
-    paramsCompare["modified"] = "gd_test_apply";
-
-    std::unique_ptr<Driver> driver( Driver::createDriver( "postgres" ) );
-    ASSERT_TRUE( driver );
-    driver->open( paramsCompare );
-
-    ChangesetWriter writer;
-    writer.open( changesetCompare );
-    driver->createChangeset( writer );
-  }
-
-  EXPECT_TRUE( fileExists( changesetCompare ) );
-  EXPECT_TRUE( isFileEmpty( changesetCompare ) );
+  EXPECT_TRUE( schemasEqual( conninfo, schemaFinal, "gd_test_apply", pathjoin( tmpdir(), "test_postgres" ) ) );
 }
 
 TEST( PostgresDriverTest, test_apply_changeset )
@@ -202,6 +208,37 @@ TEST( PostgresDriverTest, test_apply_changeset )
   testApplyChangeset( pathjoin( testdir(), "postgres", "inserted_1_a.diff" ), conninfo, "gd_inserted_1_a" );
   testApplyChangeset( pathjoin( testdir(), "postgres", "updated_a.diff" ), conninfo, "gd_updated_a" );
   testApplyChangeset( pathjoin( testdir(), "postgres", "deleted_a.diff" ), conninfo, "gd_deleted_a" );
+}
+
+TEST( PostgresDriverTest, test_apply_changeset_conflict )
+{
+  // the diff file contains one regular delete and one wrong delete
+  // we test that 1. applyChangeset will fail AND 2. the first (regular) delete will be rolled back
+  std::string fileChangeset = pathjoin( testdir(), "conflict", "base-conflict-delete.diff" );
+  std::string conninfo = pgTestConnInfo();
+
+  // create table in the base schema and move it to our "gd_test_apply" schema where we'll apply changeset
+  execSqlCommands( conninfo, pathjoin( testdir(), "postgres", "base.sql" ) );
+  execSqlCommands( conninfo, pathjoin( testdir(), "postgres", "test_apply.sql" ) );
+  execSqlCommands( conninfo, pathjoin( testdir(), "postgres", "base.sql" ) );
+
+  DriverParametersMap params;
+  params["conninfo"] = conninfo;
+  params["base"] = "gd_test_apply";
+
+  {
+    std::unique_ptr<Driver> driver( Driver::createDriver( "postgres" ) );
+    ASSERT_TRUE( driver );
+    driver->open( params );
+
+    ChangesetReader reader;
+    reader.open( fileChangeset );
+    EXPECT_ANY_THROW( driver->applyChangeset( reader ) );
+  }
+
+  // now check that if we compare the table with applied changeset, we get no changes
+
+  EXPECT_TRUE( schemasEqual( conninfo, "gd_base", "gd_test_apply", pathjoin( tmpdir(), "test_postgres" ) ) );
 }
 
 TEST( PostgresDriverTest, test_dump_data )

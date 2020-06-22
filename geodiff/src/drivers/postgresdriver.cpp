@@ -5,6 +5,7 @@
 
 #include "postgresdriver.h"
 
+#include "geodifflogger.hpp"
 #include "geodiffutils.hpp"
 #include "changeset.h"
 #include "changesetreader.h"
@@ -14,6 +15,57 @@
 
 #include <iostream>
 #include <memory.h>
+
+
+/**
+ * Wrapper around PostgreSQL transactions.
+ *
+ * Constructor start a trasaction, it needs to be confirmed by a call to commitChanges() when
+ * changes are ready to be written. If commitChanges() is not called, changes since the constructor
+ * will be rolled back (so that on exception everything gets cleaned up properly).
+ */
+class PostgresTransaction
+{
+  public:
+    PostgresTransaction( PGconn *conn )
+      : mConn( conn )
+    {
+      PostgresResult res( execSql( mConn, "BEGIN" ) );
+      if ( res.status() != PGRES_COMMAND_OK )
+        throw GeoDiffException( "Unable to start transaction" );
+    }
+
+    ~PostgresTransaction()
+    {
+      if ( mConn )
+      {
+        // we had some problems - roll back any pending changes
+        PostgresResult res( execSql( mConn, "ROLLBACK" ) );
+      }
+    }
+
+    void commitChanges()
+    {
+      assert( mConn );
+      PostgresResult res( execSql( mConn, "COMMIT" ) );
+      if ( res.status() != PGRES_COMMAND_OK )
+        throw GeoDiffException( "Unable to commit transaction" );
+
+      // reset handler to the database so that the destructor does nothing
+      mConn = nullptr;
+    }
+
+  private:
+    PGconn *mConn = nullptr;
+};
+
+
+static void logApplyConflict( const std::string &type, const ChangesetEntry &entry )
+{
+  Logger::instance().warn( "CONFLICT: " + type + ":\n" + changesetEntryToJSON( entry ) );
+}
+
+/////
 
 
 PostgresDriver::~PostgresDriver()
@@ -535,9 +587,17 @@ void PostgresDriver::createChangeset( ChangesetWriter &writer )
   if ( !mConn )
     throw GeoDiffException( "Not connected to a database" );
 
-  std::vector<std::string> tables = listTables();
+  std::vector<std::string> tablesBase = listTables( false );
+  std::vector<std::string> tablesModified = listTables( true );
 
-  for ( const std::string &tableName : tables )
+  if ( tablesBase != tablesModified )
+  {
+    throw GeoDiffException( "Table names are not matching between the input databases.\n"
+                            "Base:     " + concatNames( tablesBase ) + "\n" +
+                            "Modified: " + concatNames( tablesModified ) );
+  }
+
+  for ( const std::string &tableName : tablesBase )
   {
     TableSchema tbl = tableSchema( tableName );
     TableSchema tblNew = tableSchema( tableName, true );
@@ -649,6 +709,10 @@ void PostgresDriver::applyChangeset( ChangesetReader &reader )
   std::string lastTableName;
   TableSchema tbl;
 
+  // start a transaction, so that all changes get committed at once (or nothing get committed)
+  PostgresTransaction transaction( mConn );
+
+  int conflictCount = 0;
   ChangesetEntry entry;
   while ( reader.nextEntry( entry ) )
   {
@@ -681,7 +745,9 @@ void PostgresDriver::applyChangeset( ChangesetReader &reader )
       PostgresResult res( execSql( mConn, sql ) );
       if ( res.status() != PGRES_COMMAND_OK )
       {
-        throw GeoDiffException( "Failure doing INSERT: " + res.statusErrorMessage() );
+        logApplyConflict( "insert_failed", entry );
+        ++conflictCount;
+        Logger::instance().warn( "Failure doing INSERT: " + res.statusErrorMessage() );
       }
       if ( res.affectedRows() != "1" )
       {
@@ -694,11 +760,15 @@ void PostgresDriver::applyChangeset( ChangesetReader &reader )
       PostgresResult res( execSql( mConn, sql ) );
       if ( res.status() != PGRES_COMMAND_OK )
       {
-        throw GeoDiffException( "Failure doing UPDATE: " + res.statusErrorMessage() );
+        logApplyConflict( "update_failed", entry );
+        ++conflictCount;
+        Logger::instance().warn( "Failure doing UPDATE: " + res.statusErrorMessage() );
       }
       if ( res.affectedRows() != "1" )
       {
-        throw GeoDiffException( "Wrong number of affected rows! Expected 1, got: " + res.affectedRows() );
+        logApplyConflict( "update_nothing", entry );
+        ++conflictCount;
+        Logger::instance().warn( "Wrong number of affected rows! Expected 1, got: " + res.affectedRows() );
       }
     }
     else if ( entry.op == ChangesetEntry::OpDelete )
@@ -707,15 +777,27 @@ void PostgresDriver::applyChangeset( ChangesetReader &reader )
       PostgresResult res( execSql( mConn, sql ) );
       if ( res.status() != PGRES_COMMAND_OK )
       {
-        throw GeoDiffException( "Failure doing DELETE: " + res.statusErrorMessage() );
+        logApplyConflict( "delete_failed", entry );
+        ++conflictCount;
+        Logger::instance().warn( "Failure doing DELETE: " + res.statusErrorMessage() );
       }
       if ( res.affectedRows() != "1" )
       {
-        throw GeoDiffException( "Wrong number of affected rows! Expected 1, got: " + res.affectedRows() );
+        logApplyConflict( "delete_nothing", entry );
+        Logger::instance().warn( "Wrong number of affected rows! Expected 1, got: " + res.affectedRows() );
       }
     }
     else
       throw GeoDiffException( "Unexpected operation" );
+  }
+
+  if ( !conflictCount )
+  {
+    transaction.commitChanges();
+  }
+  else
+  {
+    throw GeoDiffException( "Conflicts encountered while applying changes! Total " + std::to_string( conflictCount ) );
   }
 }
 
