@@ -19,4 +19,4 @@ CTEST_TARGET_SYSTEM=Linux-gcc; ctest -VV
 
 echo "Linux Python tests"
 cd ../../
-GEODIFFLIB=`pwd`/geodiff/build_lnx/libgeodiff.so nose2
+GEODIFFLIB=`pwd`/geodiff/build_rel_lnx/libgeodiff.so nose2

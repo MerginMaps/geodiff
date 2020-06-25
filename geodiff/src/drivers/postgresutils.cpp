@@ -17,8 +17,9 @@ PGresult *execSql( PGconn *c, const std::string &sql )
     int errorStatus = PQresultStatus( res );
     if ( errorStatus != PGRES_COMMAND_OK && errorStatus != PGRES_TUPLES_OK )
     {
+      std::string err( PQresultErrorMessage( res ) );
       PQclear( res );
-      throw GeoDiffException( "postgres cmd error: " + std::string( PQresultErrorMessage( res ) ) );
+      throw GeoDiffException( "postgres cmd error: " + err  );
     }
 
     return res;
