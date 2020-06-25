@@ -19,8 +19,8 @@ class UnitTestsPythonErrors(GeoDiffTests):
 
         try:
             self.geodiff.create_changeset(base, modified, changeset)
-            raise TestError("expected GeoDiffLibUnsupportedChangeError")
-        except pygeodiff.GeoDiffLibUnsupportedChangeError:
+            raise TestError("expected GeoDiffLibError")
+        except pygeodiff.GeoDiffLibError:
             pass
 
     def test_conflict_error(self):
