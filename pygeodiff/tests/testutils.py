@@ -90,6 +90,10 @@ def compare_json(json, expected_json):
         json_expected = fin.read()
 
     if json_generated.strip() != json_expected.strip():
+        print("---- JSON GENERATED ----")
+        print(json_generated)
+        print("---- JSON EXPECTED ----")
+        print(json_expected)
         raise TestError("JSON generated is different from expected")
 
 
