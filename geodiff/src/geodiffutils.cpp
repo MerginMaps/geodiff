@@ -101,39 +101,6 @@ void Sqlite3Db::close()
 }
 
 
-Sqlite3Session::Sqlite3Session() = default;
-
-Sqlite3Session::~Sqlite3Session()
-{
-  close();
-}
-
-void Sqlite3Session::create( std::shared_ptr<Sqlite3Db> db, const std::string &name )
-{
-  close();
-  if ( db && db->get() )
-  {
-    int rc = sqlite3session_create( db->get(), name.c_str(), &mSession );
-    if ( rc )
-    {
-      throw GeoDiffException( "Unable to open session " + name );
-    }
-  }
-}
-
-sqlite3_session *Sqlite3Session::get() const
-{
-  return mSession;
-}
-
-void Sqlite3Session::close()
-{
-  if ( mSession )
-  {
-    sqlite3session_delete( mSession );
-    mSession = nullptr;
-  }
-}
 
 Sqlite3Stmt::Sqlite3Stmt() = default;
 
@@ -205,59 +172,6 @@ std::string Sqlite3Stmt::expandedSql() const
   std::string sql( str );
   sqlite3_free( str );
   return sql;
-}
-
-Sqlite3ChangesetIter::Sqlite3ChangesetIter() = default;
-
-Sqlite3ChangesetIter::~Sqlite3ChangesetIter()
-{
-  close();
-}
-
-void Sqlite3ChangesetIter::start( const Buffer &buf )
-{
-  int rc = sqlite3changeset_start(
-             &mChangesetIter,
-             buf.size(),
-             buf.v_buf()
-           );
-  if ( rc != SQLITE_OK )
-  {
-    throw GeoDiffException( "sqlite3changeset_start error" );
-  }
-}
-
-sqlite3_changeset_iter *Sqlite3ChangesetIter::get()
-{
-  return mChangesetIter;
-}
-
-void Sqlite3ChangesetIter::close()
-{
-  if ( mChangesetIter )
-  {
-    sqlite3changeset_finalize( mChangesetIter );
-
-    mChangesetIter = nullptr;
-  }
-}
-
-void Sqlite3ChangesetIter::oldValue( int i, sqlite3_value **val )
-{
-  int rc = sqlite3changeset_old( mChangesetIter, i, val );
-  if ( rc != SQLITE_OK )
-  {
-    throw GeoDiffException( "sqlite3changeset_old error" );
-  }
-}
-
-void Sqlite3ChangesetIter::newValue( int i, sqlite3_value **val )
-{
-  int rc = sqlite3changeset_new( mChangesetIter, i, val );
-  if ( rc != SQLITE_OK )
-  {
-    throw GeoDiffException( "sqlite3changeset_new error" );
-  }
 }
 
 // ////////////////////////////////////////////////////////////////////////
@@ -356,21 +270,6 @@ void Buffer::read( int size, void *stream )
   mAlloc = size;
   mUsed = size;
   mZ = ( char * ) stream;
-}
-
-void Buffer::read( const Sqlite3Session &session )
-{
-  free();
-  if ( !session.get() )
-  {
-    throw GeoDiffException( "Invalid session" );
-  }
-  int rc = sqlite3session_changeset( session.get(), &mAlloc, ( void ** ) &mZ );
-  mUsed = mAlloc;
-  if ( rc )
-  {
-    throw GeoDiffException( "Unable to read sqlite3 session to internal buffer" );
-  }
 }
 
 void Buffer::printf( const char *zFormat, ... )

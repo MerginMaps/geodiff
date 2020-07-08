@@ -247,6 +247,77 @@ std::string changesetToJSONSummary( ChangesetReader &reader )
 }
 
 
+std::string conflictToJSON( const ConflictFeature &conflict )
+{
+  std::string status = "conflict";
+
+  std::string res = "      {\n";
+  res += "        \"table\": \"" + std::string( conflict.tableName() ) + "\",\n";
+  res += "        \"type\": \"" + status + "\",\n";
+  res += "        \"fid\": \"" + std::to_string( conflict.pk() ) + "\",\n";
+  res += "        \"changes\": [";
+  bool first = true;
+
+  const std::vector<ConflictItem> items = conflict.items();
+  for ( const ConflictItem &item : items )
+  {
+    if ( first )
+    {
+      first = false;
+      res += "\n          {\n";
+    }
+    else
+    {
+      res += ",\n          {\n";
+    }
+    res += "              \"column\": " + std::to_string( item.column() );
+
+    std::string strValueBase = valueToJSON( item.base() );
+    std::string strValueOld = valueToJSON( item.theirs() );
+    std::string strValueNew = valueToJSON( item.ours() );
+    if ( !strValueBase.empty() )
+      res += ",\n              \"base\": " + strValueBase;
+    if ( !strValueOld.empty() )
+      res += ",\n              \"old\": " + strValueOld;
+    if ( !strValueNew.empty() )
+      res += ",\n              \"new\": " + strValueNew;
+
+    res += "\n";
+    res += "          }";
+  }
+  // close brackets
+  res += "\n        ]\n"; // end properties
+  res += "      }"; // end feature
+  return res;
+}
+
+std::string conflictsToJSON( const std::vector<ConflictFeature> &conflicts )
+{
+  std::string res = "{\n   \"geodiff\": [";
+
+  bool first = true;
+  for ( const ConflictFeature &item : conflicts )
+  {
+    std::string msg = conflictToJSON( item );
+    if ( msg.empty() )
+      continue;
+
+    if ( first )
+    {
+      res += "\n" + msg;
+      first = false;
+    }
+    else
+    {
+      res += ",\n" + msg;
+    }
+  }
+
+  res += "\n   ]\n";
+  res += "}";
+  return res;
+}
+
 inline int hex2num( unsigned char i )
 {
   if ( i <= '9' && i >= '0' )

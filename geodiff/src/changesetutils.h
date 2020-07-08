@@ -8,7 +8,9 @@
 
 #include "geodiff.h"
 #include <string>
+#include <vector>
 
+class ConflictFeature;
 class ChangesetReader;
 class ChangesetWriter;
 struct ChangesetEntry;
@@ -25,6 +27,8 @@ std::string changesetEntryToJSON( const ChangesetEntry &entry );
 std::string changesetToJSON( ChangesetReader &reader );
 
 std::string changesetToJSONSummary( ChangesetReader &reader );
+
+std::string conflictsToJSON( const std::vector<ConflictFeature> &conflicts );
 
 std::string valueToJSON( const Value &value );
 

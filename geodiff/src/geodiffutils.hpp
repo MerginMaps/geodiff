@@ -48,17 +48,6 @@ class Sqlite3Db
 //! to be able to run ST_* functions
 std::shared_ptr<Sqlite3Db> blankGeopackageDb();
 
-class Sqlite3Session
-{
-  public:
-    Sqlite3Session();
-    ~Sqlite3Session();
-    void create( std::shared_ptr<Sqlite3Db> db, const std::string &name );
-    sqlite3_session *get() const;
-    void close();
-  private:
-    sqlite3_session *mSession = nullptr;
-};
 
 class Sqlite3Stmt
 {
@@ -76,25 +65,6 @@ class Sqlite3Stmt
     sqlite3_stmt *mStmt = nullptr;
 };
 
-class Sqlite3ChangesetIter
-{
-  public:
-    Sqlite3ChangesetIter();
-    ~Sqlite3ChangesetIter();
-    void start( const Buffer &buf );
-    sqlite3_changeset_iter *get();
-    void close();
-    //! do not delete, you are not owner
-    void oldValue( int i, sqlite3_value **val );
-    //! do not delete, you are not owner
-    void newValue( int i, sqlite3_value **val );
-
-    static std::string toString( sqlite3_changeset_iter *pp );
-
-    std::string toJSON( std::shared_ptr<Sqlite3Db> db, Sqlite3ChangesetIter &pp );
-  private:
-    sqlite3_changeset_iter *mChangesetIter = nullptr;
-};
 
 /**
  * Buffer for sqlite statements
@@ -115,12 +85,6 @@ class Buffer
 
     /** Populates from stream. Takes ownership of stream */
     void read( int size, void *stream );
-
-    /**
-     * Populates buffer from sqlite3 session
-     * Frees the existing buffer if exists
-     */
-    void read( const Sqlite3Session &session );
 
     /**
      * Adds formatted text to the end of a buffer

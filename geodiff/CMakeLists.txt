@@ -146,8 +146,6 @@ SET(geodiff_src
   src/geodiffutils.hpp
   src/geodiffrebase.cpp
   src/geodiffrebase.hpp
-  src/geodiffexporter.cpp
-  src/geodiffexporter.hpp
   src/geodifflogger.cpp
   src/geodifflogger.hpp
 

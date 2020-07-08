@@ -6,11 +6,11 @@
 #include "geodiff.h"
 #include "geodiffutils.hpp"
 #include "geodiffrebase.hpp"
-#include "geodiffexporter.hpp"
 #include "geodifflogger.hpp"
 
 #include "driver.h"
 #include "changesetreader.h"
+#include "changesetutils.h"
 #include "changesetwriter.h"
 
 #include <stdio.h>
@@ -202,8 +202,7 @@ int GEODIFF_createRebasedChangeset( const char *base,
       }
       else
       {
-        GeoDiffExporter exporter;
-        std::string res = exporter.toJSON( conflicts );
+        std::string res = conflictsToJSON( conflicts );
         flushString( conflictfile, res );
       }
     }
@@ -218,56 +217,43 @@ int GEODIFF_createRebasedChangeset( const char *base,
 
 int GEODIFF_hasChanges( const char *changeset )
 {
-  try
+  if ( !changeset )
   {
-    Buffer buf;
-    buf.read( changeset );
-    if ( buf.isEmpty() )
-    {
-      return 0;
-    }
-
-    Sqlite3ChangesetIter pp;
-    pp.start( buf );
-    while ( SQLITE_ROW == sqlite3changeset_next( pp.get() ) )
-    {
-      // ok we have at least one change
-      return 1;
-    }
-    return 0; // no changes
-  }
-  catch ( GeoDiffException exc )
-  {
-    Logger::instance().error( exc );
+    Logger::instance().error( "NULL arguments to GEODIFF_hasChanges" );
     return -1;
   }
+
+  ChangesetReader reader;
+  if ( !reader.open( changeset ) )
+  {
+    Logger::instance().error( "Could not open changeset: " + std::string( changeset ) );
+    return -1;
+  }
+
+  return !reader.isEmpty();
 }
 
 int GEODIFF_changesCount( const char *changeset )
 {
-  try
+  if ( !changeset )
   {
-    int nchanges = 0;
-    Buffer buf;
-    buf.read( changeset );
-    if ( buf.isEmpty() )
-    {
-      return nchanges;
-    }
-
-    Sqlite3ChangesetIter pp;
-    pp.start( buf );
-    while ( SQLITE_ROW == sqlite3changeset_next( pp.get() ) )
-    {
-      ++nchanges;
-    }
-    return nchanges;
-  }
-  catch ( GeoDiffException exc )
-  {
-    Logger::instance().error( exc );
+    Logger::instance().error( "NULL arguments to GEODIFF_changesCount" );
     return -1;
   }
+
+  ChangesetReader reader;
+  if ( !reader.open( changeset ) )
+  {
+    Logger::instance().error( "Could not open changeset: " + std::string( changeset ) );
+    return -1;
+  }
+
+  int changesCount = 0;
+  ChangesetEntry entry;
+  while ( reader.nextEntry( entry ) )
+    ++changesCount;
+
+  return changesCount;
 }
 
 static int listChangesJSON( const char *changeset, const char *jsonfile, bool onlySummary )
@@ -278,25 +264,28 @@ static int listChangesJSON( const char *changeset, const char *jsonfile, bool on
     return GEODIFF_ERROR;
   }
 
+  ChangesetReader reader;
+  if ( !reader.open( changeset ) )
+  {
+    Logger::instance().error( "Could not open changeset: " + std::string( changeset ) );
+    return GEODIFF_ERROR;
+  }
+
+  std::string res;
   try
   {
-    Buffer buf;
-    buf.read( changeset );
-    if ( buf.isEmpty() )
-    {
-      return 0;
-    }
-
-    GeoDiffExporter exporter;
-    std::string res = onlySummary ? exporter.toJSONSummary( buf ) : exporter.toJSON( buf );
-    flushString( jsonfile, res );
-    return GEODIFF_SUCCESS;
+    if ( onlySummary )
+      res = changesetToJSONSummary( reader );
+    else
+      res = changesetToJSON( reader );
   }
   catch ( GeoDiffException exc )
   {
     Logger::instance().error( exc );
     return GEODIFF_ERROR;
   }
+  flushString( jsonfile, res );
+  return GEODIFF_SUCCESS;
 }
 
 int GEODIFF_listChanges( const char *changeset, const char *jsonfile )
@@ -323,40 +312,31 @@ int GEODIFF_invertChangeset( const char *changeset, const char *changeset_inv )
     return GEODIFF_ERROR;
   }
 
+  ChangesetReader reader;
+  if ( !reader.open( changeset ) )
+  {
+    Logger::instance().error( "Could not open changeset: " + std::string( changeset ) );
+    return GEODIFF_ERROR;
+  }
+
+  ChangesetWriter writer;
+  if ( !writer.open( changeset_inv ) )
+  {
+    Logger::instance().error( "Could not open file for writing: " + std::string( changeset_inv ) );
+    return GEODIFF_ERROR;
+  }
+
   try
   {
-    Buffer buf;
-    buf.read( changeset );
-    if ( buf.isEmpty() )
-    {
-      return GEODIFF_SUCCESS;
-    }
-
-    int pnOut = 0;
-    void *ppOut = nullptr;
-
-    int rc = sqlite3changeset_invert(
-               buf.size(), buf.v_buf(),       /* Input changeset */
-               &pnOut, &ppOut        /* OUT: Inverse of input */
-             );
-
-    if ( rc )
-    {
-      Logger::instance().error( "Unable to perform sqlite3changeset_invert" );
-      return GEODIFF_ERROR;
-    }
-
-    Buffer out;
-    out.read( pnOut, ppOut );
-    out.write( changeset_inv );
-
-    return GEODIFF_SUCCESS;
+    invertChangeset( reader, writer );
   }
   catch ( GeoDiffException exc )
   {
     Logger::instance().error( exc );
     return GEODIFF_ERROR;
   }
+
+  return GEODIFF_SUCCESS;
 }
 
 int GEODIFF_rebase( const char *base,
