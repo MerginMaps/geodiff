@@ -6,8 +6,7 @@
         "changes": [
           {
               "column": 0,
-              "old": "simple",
-              "new": null
+              "old": "simple"
           },
           {
               "column": 4,
@@ -22,23 +21,19 @@
         "changes": [
           {
               "column": 0,
-              "old": null,
-              "new": "4"
+              "new": 4
           },
           {
               "column": 1,
-              "old": null,
-              "new": "Point (-0.9226055746 0.5013519905)"
+              "new": "R1AAAeYQAAABAQAAAHJ3RCD8he2/qrZYVBML4D8="
           },
           {
               "column": 2,
-              "old": null,
-              "new": "n/a"
+              "new": null
           },
           {
               "column": 3,
-              "old": null,
-              "new": "2"
+              "new": 2
           }
         ]
       },
@@ -48,23 +43,19 @@
         "changes": [
           {
               "column": 0,
-              "old": null,
-              "new": "5"
+              "new": 5
           },
           {
               "column": 1,
-              "old": null,
-              "new": "Point (-0.7146397257 0.2021070133)"
+              "new": "R1AAAeYQAAABAQAAAEtzTyFU3ua/iJw/gqTeyT8="
           },
           {
               "column": 2,
-              "old": null,
               "new": "hello"
           },
           {
               "column": 3,
-              "old": null,
-              "new": "4"
+              "new": 4
           }
         ]
       },
@@ -74,23 +65,19 @@
         "changes": [
           {
               "column": 0,
-              "old": null,
-              "new": "6"
+              "new": 6
           },
           {
               "column": 1,
-              "old": null,
-              "new": "Point (-0.9169796529 0.4980123099)"
+              "new": "R1AAAeYQAAABAQAAAA4lg7blV+2/ZHkBBm/f3z8="
           },
           {
               "column": 2,
-              "old": null,
               "new": "\n\t\r\"';,"
           },
           {
               "column": 3,
-              "old": null,
-              "new": "n/a"
+              "new": null
           }
         ]
       },
@@ -100,23 +87,19 @@
         "changes": [
           {
               "column": 0,
-              "old": "2",
-              "new": null
+              "old": 2
           },
           {
               "column": 1,
-              "old": "Point (-0.3638850889 0.5622435021)",
-              "new": null
+              "old": "R1AAAeYQAAABAQAAAPBDGq/kSde/+HS2Feb94T8="
           },
           {
               "column": 2,
-              "old": "feature2",
-              "new": null
+              "old": "feature2"
           },
           {
               "column": 3,
-              "old": "2",
-              "new": null
+              "old": 2
           }
         ]
       },
@@ -126,13 +109,12 @@
         "changes": [
           {
               "column": 0,
-              "old": "1",
-              "new": null
+              "old": 1
           },
           {
               "column": 1,
-              "old": "Point (-1.088919289 0.4610123119)",
-              "new": "Point (-0.9423670354 0.3169116901)"
+              "old": "R1AAAeYQAAABAQAAAB54y6E2bPG/cOaqyDmB3T8=",
+              "new": "R1AAAeYQAAABAQAAAKSTueneJ+6/BF8n+EdI1D8="
           }
         ]
       },
@@ -142,8 +124,7 @@
         "changes": [
           {
               "column": 0,
-              "old": "3",
-              "new": null
+              "old": 3
           },
           {
               "column": 2,

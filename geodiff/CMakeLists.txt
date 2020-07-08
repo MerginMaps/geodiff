@@ -168,6 +168,8 @@ SET(geodiff_src
 
   src/drivers/sqlitedriver.cpp
   src/drivers/sqlitedriver.h
+  src/drivers/sqliteutils.cpp
+  src/drivers/sqliteutils.h
 )
 
 IF (POSTGRES_FOUND)

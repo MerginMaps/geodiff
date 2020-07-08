@@ -78,11 +78,11 @@ void invertChangeset( ChangesetReader &reader, ChangesetWriter &writer )
 
 std::string escapeJSONString( std::string val )
 {
+  //val = replace( val, "\\", "\\\\" );  // TODO: escaping of backslashes?
   val = replace( val, "\n", "\\n" );
   val = replace( val, "\r", "\\r" );
   val = replace( val, "\t", "\\t" );
   val = replace( val, "\"", "\\\"" );
-  val = replace( val, "\\", "\\\\" );
   return "\"" + val + "\"";
 }
 
