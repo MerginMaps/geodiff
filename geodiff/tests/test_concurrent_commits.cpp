@@ -338,6 +338,39 @@ TEST( ConcurrentCommitsSqlite3Test, test_update_2_different_tables )
   ASSERT_TRUE( ret );
 }
 
+TEST( ConcurrentCommitsSqlite3Test, test_insert_multiple )
+{
+  std::cout << "both concurrent insert rows, e.g. A adds 4,5, B adds fids 4,5,6, " << std::endl;
+  std::cout << "when B is rebasing on top of A, we should get fids 6,7,8 in rebased B" << std::endl;
+  std::cout << "https://github.com/lutraconsulting/geodiff/issues/62" << std::endl;
+
+  bool ret = _test(
+               "base.gpkg",
+               "insert_multiple",
+               "a_4_5.gpkg",
+               "b_4_5_6.gpkg",
+               "ab_rebased.gpkg",
+               2,  // expected_changes_A
+               3,  // expected_changes_AB
+               5,  // expected_changes_XB
+               0   // expected_conflicts
+             );
+  ASSERT_TRUE( ret );
+
+  bool ret2 = _test(
+                "base.gpkg",
+                "insert_multiple",
+                "a_4_5.gpkg",
+                "c_4_5_6_7_8.gpkg",
+                "ac_rebased.gpkg",
+                2,  // expected_changes_A
+                5,  // expected_changes_AB
+                7,  // expected_changes_XB
+                0   // expected_conflicts
+              );
+  ASSERT_TRUE( ret2 );
+}
+
 TEST( ConcurrentCommitsSqlite3Test, test_fk_2_updates )
 {
   std::cout << "new tree specie & tree is added on both A and B" << std::endl;
