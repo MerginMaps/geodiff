@@ -93,6 +93,13 @@ struct RebaseMapping
   // table name -> old fid --> new fid
   std::map<std::string, std::map < int, int > > mapIds;
 
+  // table name -> set of fids of inserts that have been untouched
+  // (this is important because our mapping could cause FID conflicts
+  // with FIDs that weren't previously in conflict, e.g. if 4,5,6
+  // get mapped 4->6, 5->7 then the original 6 will need to be remapped
+  // too: 6->8)
+  std::map<std::string, std::set<int> > unmappedInsertIds;
+
   // special pkey value for deleted rows
   static const int INVALID_FID = -1;
 
@@ -292,6 +299,11 @@ int _find_mapping_for_new_changeset( const Buffer &buf,
         // increase counter
         it->second ++;
       }
+      else
+      {
+        // keep IDs of inserts later - we may need to remap them too
+        mapping.unmappedInsertIds[pzTab].insert( pk );
+      }
     }
     else if ( pOp == SQLITE_UPDATE )
     {
@@ -311,6 +323,37 @@ int _find_mapping_for_new_changeset( const Buffer &buf,
       {
         // delete of deleted feature...
         mapping.addPkeyMapping( pzTab, pk, RebaseMapping::INVALID_FID );
+      }
+    }
+  }
+
+  // finalize mapping of inserted features: e.g. if we have newly inserted IDs
+  // 4,5,6 where we will get mapping 4->6, 5->7 that conflicts with unmapped IDs
+  for ( auto pair : mapping.unmappedInsertIds )
+  {
+    std::string tableName = pair.first;
+
+    // make a set of all new pkeys
+    std::set<int> usedNewPkeys;
+    for ( auto oldNewPair : mapping.mapIds[tableName] )
+      usedNewPkeys.insert( oldNewPair.second );
+
+    std::set<int> pkeys = pair.second;
+    for ( int pk : pkeys )
+    {
+      if ( usedNewPkeys.find( pk ) != usedNewPkeys.end() )
+      {
+        // our mapping has previously introduced a new conflict in IDs -> remap this old pkey as well
+
+        auto it = freeIndices.find( tableName );
+        if ( it == freeIndices.end() )
+          throw GeoDiffException( "internal error: freeIndices (2)" );
+
+        mapping.addPkeyMapping( tableName, pk, it->second );
+        usedNewPkeys.insert( it->second );
+
+        // increase counter
+        it->second ++;
       }
     }
   }
