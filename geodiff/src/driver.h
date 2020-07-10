@@ -119,6 +119,15 @@ class Driver
      * Writes all rows of the specified table to a changeset (it will output only INSERT operations)
      */
     virtual void dumpData( ChangesetWriter &writer, bool useModified = false ) = 0;
+
+    /**
+     * Tests whether the table schemas are compatible with our rebase algorithm, i.e. no unsupported
+     * database features are used. Currently, for example, geodiff rebase does not deal with foreign
+     * keys or with user-defined triggers.
+     *
+     * If the check fails, GeoDiffException is thrown.
+     */
+    virtual void checkCompatibleForRebase( bool useModified = false ) = 0;
 };
 
 

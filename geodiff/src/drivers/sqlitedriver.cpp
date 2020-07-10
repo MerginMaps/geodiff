@@ -531,7 +531,7 @@ void SqliteDriver::createChangeset( ChangesetWriter &writer )
 
     // test that table schema in the modified is the same
     if ( tbl != tblNew )
-      throw GeoDiffException( "table schemas are not the same" );
+      throw GeoDiffException( "table schemas are not the same for table: " + tableName );
 
     if ( !tbl.hasPrimaryKey() )
       continue;  // ignore tables without primary key - they can't be compared properly
@@ -679,7 +679,7 @@ void SqliteDriver::applyChangeset( ChangesetReader &reader )
   // that we do not recognize (gpkg triggers are filtered)
   std::vector<std::string> triggerNames;
   std::vector<std::string> triggerCmds;
-  triggers( mDb, triggerNames, triggerCmds );
+  sqliteTriggers( mDb, triggerNames, triggerCmds );
 
   Sqlite3Stmt statament;
   for ( std::string name : triggerNames )
@@ -958,5 +958,30 @@ void SqliteDriver::dumpData( ChangesetWriter &writer, bool useModified )
       }
       writer.writeEntry( e );
     }
+  }
+}
+
+void SqliteDriver::checkCompatibleForRebase( bool useModified )
+{
+  std::string dbName = databaseName( useModified );
+
+  // get all triggers sql commands
+  // and make sure that there are only triggers we recognize
+  // we deny rebase changesets with unrecognized triggers
+  std::vector<std::string> triggerNames;
+  std::vector<std::string> triggerCmds;
+  sqliteTriggers( mDb, triggerNames, triggerCmds );  // TODO: use dbName
+  if ( !triggerNames.empty() )
+  {
+    std::string msg = "Unable to perform rebase for database with unknown triggers:\n";
+    for ( size_t i = 0; i < triggerNames.size(); ++i )
+      msg += triggerNames[i] + "\n";
+    throw GeoDiffException( msg );
+  }
+
+  ForeignKeys fks = sqliteForeignKeys( mDb, dbName );
+  if ( !fks.empty() )
+  {
+    throw GeoDiffException( "Unable to perform rebase for database with foreign keys" );
   }
 }

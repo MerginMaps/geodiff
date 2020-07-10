@@ -1,13 +1,15 @@
 /*
  GEODIFF - MIT License
- Copyright (C) 2020 Martin Dobias
+ Copyright (C) 2020 Peter Petrik, Martin Dobias
 */
 
 #ifndef SQLITEUTILS_H
 #define SQLITEUTILS_H
 
-#include <string>
+#include <map>
 #include <memory>
+#include <string>
+#include <vector>
 
 #include "sqlite3.h"
 
@@ -79,5 +81,32 @@ class Sqlite3Value
   private:
     sqlite3_value *mVal = nullptr;
 };
+
+
+bool register_gpkg_extensions( std::shared_ptr<Sqlite3Db> db );
+
+bool isGeoPackage( std::shared_ptr<Sqlite3Db> db );
+
+void sqliteTriggers( std::shared_ptr<Sqlite3Db> db,
+                     std::vector<std::string> &triggerNames,
+                     std::vector<std::string> &triggerCmds );
+
+typedef std::pair<std::string, int> TableColumn; //table name, column ID tree, 4(specie)
+typedef std::map<TableColumn, TableColumn> ForeignKeys; // key is FK to value, e.g tree, 4(specie) -> species, 1(fid)
+
+ForeignKeys sqliteForeignKeys( std::shared_ptr<Sqlite3Db> db, const std::string &dbName );
+
+// TODO: remove duplicate code (SqliteDriver::listTables)
+void sqliteTables( std::shared_ptr<Sqlite3Db> db,
+                   const std::string &dbName,
+                   std::vector<std::string> &tableNames );
+
+// TODO: remove potentially duplicate code (SqliteDriver::tableSchema)
+std::vector<std::string> sqliteColumnNames(
+  std::shared_ptr<Sqlite3Db> db,
+  const std::string &zDb,
+  const std::string &tableName
+);
+
 
 #endif // SQLITEUTILS_H

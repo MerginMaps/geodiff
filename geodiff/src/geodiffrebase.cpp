@@ -27,6 +27,8 @@
 #include <fstream>
 #include <sstream>
 
+#include "sqlite3.h"  // for concatChangesets
+
 /**
  * structure that keeps track of information needed for rebase extracted
  * from the original changeset (for a single table)

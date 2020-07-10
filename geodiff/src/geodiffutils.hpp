@@ -12,7 +12,6 @@
 #include <vector>
 #include <map>
 
-#include "sqlite3.h"
 #include "geodiff.h"
 #include "changeset.h"
 
@@ -27,16 +26,6 @@ class GeoDiffException: public std::exception
   private:
     std::string mMsg;
 };
-
-
-#include "sqliteutils.h"
-
-//! Create black simple geopackage database
-//! to be able to run ST_* functions
-std::shared_ptr<Sqlite3Db> blankGeopackageDb();
-
-
-
 
 
 /**
@@ -105,45 +94,17 @@ void flushString( const std::string &filename, const std::string &str );
 
 // SOME SQL
 
-// WKT geometry
-std::string convertGeometryToWKT(
-  std::shared_ptr<Sqlite3Db> db,
-  sqlite3_value *wkb
-);
-
-void triggers( std::shared_ptr<Sqlite3Db> db,
-               std::vector<std::string> &triggerNames,
-               std::vector<std::string> &triggerCmds );
-
-void tables( std::shared_ptr<Sqlite3Db> db,
-             const std::string &dbName,
-             std::vector<std::string> &tableNames );
-
 bool isLayerTable( const std::string &tableName );
 
-typedef std::pair<std::string, int> TableColumn; //table name, column ID tree, 4(specie)
-typedef std::map<TableColumn, TableColumn> ForeignKeys; // key is FK to value, e.g tree, 4(specie) -> species, 1(fid)
-ForeignKeys foreignKeys( std::shared_ptr<Sqlite3Db> db, const std::string &dbName );
 
 int indexOf( const std::vector<std::string> &arr, const std::string &val );
 
 std::string concatNames( const std::vector<std::string> &names );
 
-std::vector<std::string> columnNames(
-  std::shared_ptr<Sqlite3Db> db,
-  const std::string &zDb,
-  const std::string &tableName
-);
-
-bool has_same_table_schema( std::shared_ptr<Sqlite3Db> db,
-                            const std::string &tableName,
-                            std::string &errStr );
 
 void get_primary_key( const ChangesetEntry &entry, int &fid, int &nColumn );
 
-bool register_gpkg_extensions( std::shared_ptr<Sqlite3Db> db );
 
-bool isGeoPackage( std::shared_ptr<Sqlite3Db> db );
 
 //! Returns value of an environment variable - or returns default value if it is not set
 std::string getEnvVar( std::string const &key, const std::string &defaultVal );

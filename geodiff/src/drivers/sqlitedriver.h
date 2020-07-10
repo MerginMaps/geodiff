@@ -6,8 +6,8 @@
 #ifndef SQLITEDRIVER_H
 #define SQLITEDRIVER_H
 
-#include "geodiffutils.hpp"
 #include "driver.h"
+#include "sqliteutils.h"
 
 /**
  * Support for diffs between Sqlite-based files (including GeoPackage)
@@ -33,6 +33,7 @@ class SqliteDriver : public Driver
     void applyChangeset( ChangesetReader &reader ) override;
     void createTables( const std::vector<TableSchema> &tables ) override;
     void dumpData( ChangesetWriter &writer, bool useModified = false ) override;
+    void checkCompatibleForRebase( bool useModified = false ) override;
 
   private:
 

@@ -163,27 +163,16 @@ int GEODIFF_createRebasedChangeset( const char *base,
 
   try
   {
-    // get all triggers sql commands
-    // and make sure that there are only triggers we recognize
-    // we deny rebase changesets with unrecognized triggers
-    std::shared_ptr<Sqlite3Db> db = std::make_shared<Sqlite3Db>();
-    db->open( modified );
-    std::vector<std::string> triggerNames;
-    std::vector<std::string> triggerCmds;
-    triggers( db, triggerNames, triggerCmds );
-    if ( !triggerNames.empty() )
+    // first verify if we are able to do rebase on this database schema at all
     {
-      for ( size_t i = 0; i < triggerNames.size(); ++i )
-        Logger::instance().debug( "Unexpected trigger: " + triggerNames[i] );
-      Logger::instance().error( "Unable to perform rebase for database with unknown triggers" );
-      return GEODIFF_ERROR;
-    }
+      std::map<std::string, std::string> conn;
+      conn["base"] = std::string( modified );
+      std::unique_ptr<Driver> driver( Driver::createDriver( "sqlite" ) );
+      if ( !driver )
+        throw GeoDiffException( "Unable to use driver: sqlite" );
+      driver->open( conn );
 
-    ForeignKeys fks = foreignKeys( db, "main" );
-    if ( !fks.empty() )
-    {
-      Logger::instance().error( "Unable to perform rebase for database with foreign keys" );
-      return GEODIFF_ERROR;
+      driver->checkCompatibleForRebase();  // will throw GeoDiffException in case of problems
     }
 
     TmpFile changeset_BASE_MODIFIED( std::string( changeset ) + "_BASE_MODIFIED" );

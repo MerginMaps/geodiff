@@ -604,7 +604,7 @@ void PostgresDriver::createChangeset( ChangesetWriter &writer )
 
     // test that table schema in the modified is the same
     if ( tbl != tblNew )
-      throw GeoDiffException( "table schemas are not the same" );
+      throw GeoDiffException( "table schemas are not the same for table: " + tableName );
 
     if ( !tbl.hasPrimaryKey() )
       continue;  // ignore tables without primary key - they can't be compared properly
@@ -873,4 +873,9 @@ void PostgresDriver::dumpData( ChangesetWriter &writer, bool useModified )
       writer.writeEntry( e );
     }
   }
+}
+
+void PostgresDriver::checkCompatibleForRebase( bool )
+{
+  throw GeoDiffException( "Rebase with postgres not supported yet" );
 }
