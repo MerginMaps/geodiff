@@ -50,7 +50,11 @@ IF(WITH_INTERNAL_SQLITE3)
   IF(EXISTS "${CMAKE_BINARY_DIR}/sqlite3.tar.gz")
     MESSAGE("sqlite3 already downloaded")
   ELSE()
-    FILE(DOWNLOAD "https://www.sqlite.org/2019/sqlite-autoconf-3300100.tar.gz" ${CMAKE_BINARY_DIR}/sqlite3.tar.gz )
+    # the cannonical download URL is https://www.sqlite.org/2019/sqlite-autoconf-3300100.tar.gz
+    # but for an unknown reason Travis CI on macOS at some point stopped being able to download
+    # anything from sqlite.org, with any connections timing out without getting any response.
+    # A copy hosted on Lutra Dropbox seems to work...
+    FILE(DOWNLOAD "https://www.dropbox.com/s/8x1ese8mx0sif3c/sqlite-autoconf-3300100.tar.gz?dl=1" ${CMAKE_BINARY_DIR}/sqlite3.tar.gz )
     FILE(MAKE_DIRECTORY "${CMAKE_BINARY_DIR}/external")
     EXECUTE_PROCESS(COMMAND ${CMAKE_COMMAND} -E tar xfz ${CMAKE_BINARY_DIR}/sqlite3.tar.gz
       WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/external
