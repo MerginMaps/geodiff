@@ -38,10 +38,9 @@ struct TableRebaseInfo
   std::set<int> deleted;            //!< pkeys that were deleted
   std::map<int, SqValues> updated;  //!< new column values for each recorded row (identified by pkey)
 
-  void dump_set( const std::set<int> &data, const std::string &name, std::ostringstream &ret )
+  void dump_set( const std::set<int> &data, std::ostringstream &ret )
   {
-    ret << name << std::endl;
-    if ( inserted.empty() )
+    if ( data.empty() )
       ret << "--none --";
     else
     {
@@ -55,9 +54,15 @@ struct TableRebaseInfo
 
   void dump( std::ostringstream &ret )
   {
-    dump_set( inserted, "inserted", ret );
-    dump_set( deleted, "deleted", ret );
-    // TODO: dump updated too
+    ret << "  inserted ";
+    dump_set( inserted, ret );
+    ret << "  deleted  ";
+    dump_set( deleted, ret );
+    ret << "  updated  ";
+    std::set<int> updatedPkeys;
+    for ( auto pk : updated )
+      updatedPkeys.insert( pk.first );
+    dump_set( updatedPkeys, ret );
   }
 };
 
@@ -75,6 +80,7 @@ struct DatabaseRebaseInfo
       return;
 
     std::ostringstream ret;
+    ret << "rebase info (base2their / old)" << std::endl;
     for ( auto it : tables )
     {
       ret << "TABLE " << it.first << std::endl;
