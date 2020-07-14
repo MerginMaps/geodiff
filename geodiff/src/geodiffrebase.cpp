@@ -273,7 +273,7 @@ int _find_mapping_for_new_changeset( ChangesetReader &reader, const DatabaseReba
       else
       {
         // keep IDs of inserts later - we may need to remap them too
-        mapping.unmappedInsertIds[pzTab].insert( pk );
+        mapping.unmappedInsertIds[tableName].insert( pk );
       }
     }
     else if ( entry.op == ChangesetEntry::OpUpdate )
