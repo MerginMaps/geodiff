@@ -19,7 +19,7 @@ PGresult *execSql( PGconn *c, const std::string &sql )
     {
       std::string err( PQresultErrorMessage( res ) );
       PQclear( res );
-      throw GeoDiffException( "postgres cmd error: " + err );
+      throw GeoDiffException( "postgres cmd error: " + err + "\n\nSQL:\n" + sql );
     }
 
     return res;

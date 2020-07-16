@@ -37,6 +37,26 @@ struct TableColumnInfo
   //! Whether the geometry column includes M coordinates
   bool geomHasM = false;
 
+  std::string dump() const
+  {
+    std::string output = name + " | " + type + " | ";
+    if ( isPrimaryKey )
+      output += "pkey ";
+    if ( isNotNull )
+      output += "notnull ";
+    if ( isAutoIncrement )
+      output += "autoincrement";
+    if ( isGeometry )
+    {
+      output += "geometry:" + geomType + ":" + std::to_string( geomSrsId );
+      if ( geomHasZ )
+        output += "hasZ";
+      if ( geomHasM )
+        output += "hasM";
+    }
+    return output;
+  }
+
   bool operator==( const TableColumnInfo &other ) const
   {
     return name == other.name && type == other.type && isPrimaryKey == other.isPrimaryKey &&
@@ -98,6 +118,14 @@ struct TableSchema
   //! Returns index of the first encountered geometry column (returns SIZE_MAX if no geometry column is found)
   size_t geometryColumn() const;
 
+  std::string dump() const
+  {
+    std::string output = "TABLE " + name + "\n";
+    for ( const TableColumnInfo &col : columns )
+      output += "  " + col.dump() + "\n";
+    return output;
+  }
+
   bool operator==( const TableSchema &other ) const
   {
     return name == other.name && columns == other.columns && crs == other.crs;
@@ -111,6 +139,9 @@ struct TableSchema
 
 //! Tries to convert a table schema from PostgreSQL driver to SQLite driver
 void tableSchemaPostgresToSqlite( TableSchema &tbl );
+
+//! Tries to convert a table schema from SQLite driver to PostgreSQL driver
+void tableSchemaSqliteToPostgres( TableSchema &tbl );
 
 //! Tries to convert table schema from one driver to other, raises GeoDiffException if that is not supported
 void tableSchemaConvert( const std::string &driverSrcName, const std::string &driverDstName, TableSchema &tbl );

@@ -419,7 +419,7 @@ static Value resultToValue( const PostgresResult &res, int r, size_t i, const Ta
   else
   {
     std::string valueStr = res.value( r, i );
-    if ( col.type == "bool" )
+    if ( col.type == "bool" || col.type == "boolean" )
     {
       v.setInt( valueStr == "t" );  // PostgreSQL uses 't' for true and 'f' for false
     }
@@ -432,6 +432,10 @@ static Value resultToValue( const PostgresResult &res, int r, size_t i, const Ta
       v.setDouble( atof( valueStr.c_str() ) );
     }
     else if ( isColumnText( col ) )
+    {
+      v.setString( Value::TypeText, valueStr.c_str(), valueStr.size() );
+    }
+    else if ( col.type == "timestamp without time zone" )
     {
       v.setString( Value::TypeText, valueStr.c_str(), valueStr.size() );
     }
@@ -479,7 +483,10 @@ static std::string valueToSql( const Value &v, const TableColumnInfo &col )
   }
   else if ( v.type() == Value::TypeInt )
   {
-    return std::to_string( v.getInt() );
+    if ( col.type == "boolean" )
+      return v.getInt() ? "'t'" : "'f'";
+    else
+      return std::to_string( v.getInt() );
   }
   else if ( v.type() == Value::TypeDouble )
   {
@@ -805,6 +812,10 @@ void PostgresDriver::createTables( const std::vector<TableSchema> &tables )
 {
   for ( const TableSchema &tbl : tables )
   {
+    // TODO: in the future sqlite driver should not add any changes to meta tables
+    if ( tbl.name.rfind( "gpkg_" ) == 0 )
+      continue;   // skip any changes to GPKG meta tables
+
     std::string sql, pkeyCols, columns;
     for ( const TableColumnInfo &c : tbl.columns )
     {

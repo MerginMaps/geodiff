@@ -367,6 +367,42 @@ TEST( PostgresDriverTest, test_create_sqlite_from_postgres )
   EXPECT_EQ( tblBaseSimple.columns.size(), tblNewSimple.columns.size() );
 }
 
+TEST( PostgresDriverTest, test_create_postgres_from_sqlite )
+{
+  TableColumnInfo test1c1;
+  test1c1.name = "c1";
+  test1c1.type = "mediumint";
+  test1c1.isPrimaryKey = true;
+  test1c1.isAutoIncrement = true;
+
+  TableColumnInfo test1c2;
+  test1c2.name = "c2";
+  test1c2.type = "bool";
+
+  TableColumnInfo test1c3;
+  test1c3.name = "c3";
+  test1c3.type = "mediumint";
+
+  TableColumnInfo test1c4;
+  test1c4.name = "c4";
+  test1c4.type = "varchar(255)";
+
+  TableSchema tblTest1;
+  tblTest1.name = "test_1";
+  tblTest1.columns.push_back( test1c1 );
+  tblTest1.columns.push_back( test1c2 );
+  tblTest1.columns.push_back( test1c3 );
+  tblTest1.columns.push_back( test1c4 );
+
+  tableSchemaSqliteToPostgres( tblTest1 );   // make it postgres driver friendly
+
+  // check exported types
+  EXPECT_EQ( tblTest1.columns[0].type, "serial" );
+  EXPECT_EQ( tblTest1.columns[1].type, "boolean" );
+  EXPECT_EQ( tblTest1.columns[2].type, "integer" );
+  EXPECT_EQ( tblTest1.columns[3].type, "text" );
+
+}
 
 int main( int argc, char **argv )
 {
