@@ -819,7 +819,7 @@ void PostgresDriver::applyChangeset( ChangesetReader &reader )
   }
 
   // at the end, update any SEQUENCE objects if needed
-  for ( auto it : autoIncrementTablesToFix )
+  for ( const std::pair<std::string, int64_t> &it : autoIncrementTablesToFix )
     updateSequenceObject( tableNameToSequenceName[it.first], it.second );
 
   if ( !conflictCount )
