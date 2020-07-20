@@ -716,6 +716,10 @@ void PostgresDriver::applyChangeset( ChangesetReader &reader )
   std::string lastTableName;
   TableSchema tbl;
 
+  int autoIncrementPkeyIndex = -1;
+  std::map<std::string, int64_t> autoIncrementTablesToFix;  // key = table name, value = max. value in changeset
+  std::map<std::string, std::string> tableNameToSequenceName;  // key = table name, value = name of its pkey's sequence object
+
   // start a transaction, so that all changes get committed at once (or nothing get committed)
   PostgresTransaction transaction( mConn );
 
@@ -723,13 +727,14 @@ void PostgresDriver::applyChangeset( ChangesetReader &reader )
   ChangesetEntry entry;
   while ( reader.nextEntry( entry ) )
   {
+    std::string tableName = entry.table->name;
+
     // TODO: in the future sqlite driver should not add any changes to meta tables
-    if ( entry.table->name.rfind( "gpkg_", 0 ) == 0 )
+    if ( tableName.rfind( "gpkg_", 0 ) == 0 )
       continue;   // skip any changes to GPKG meta tables
 
-    if ( entry.table->name != lastTableName )
+    if ( tableName != lastTableName )
     {
-      std::string tableName = entry.table->name;
       lastTableName = tableName;
       tbl = tableSchema( tableName );
 
@@ -744,11 +749,17 @@ void PostgresDriver::applyChangeset( ChangesetReader &reader )
         if ( tbl.columns[i].isPrimaryKey != entry.table->primaryKeys[i] )
           throw GeoDiffException( "Mismatch of primary keys in table: " + tableName );
       }
+
+      // if a table has auto-incrementing pkey (using SEQUENCE object), we may need
+      // to update the sequence value after doing some inserts (or subsequent INSERTs would fail)
+      std::string seqName = getSequenceObjectName( tbl, autoIncrementPkeyIndex );
+      if ( autoIncrementPkeyIndex != -1 )
+        tableNameToSequenceName[tableName] = seqName;
     }
 
     if ( entry.op == ChangesetEntry::OpInsert )
     {
-      std::string sql = sqlForInsert( mBaseSchema, entry.table->name, tbl, entry.newValues );
+      std::string sql = sqlForInsert( mBaseSchema, tableName, tbl, entry.newValues );
       PostgresResult res( execSql( mConn, sql ) );
       if ( res.status() != PGRES_COMMAND_OK )
       {
@@ -760,10 +771,19 @@ void PostgresDriver::applyChangeset( ChangesetReader &reader )
       {
         throw GeoDiffException( "Wrong number of affected rows! Expected 1, got: " + res.affectedRows() );
       }
+
+      if ( autoIncrementPkeyIndex != -1 )
+      {
+        int64_t pkey = entry.newValues[autoIncrementPkeyIndex].getInt();
+        if ( autoIncrementTablesToFix.find( tableName ) == autoIncrementTablesToFix.end() )
+          autoIncrementTablesToFix[tableName] = pkey;
+        else
+          autoIncrementTablesToFix[tableName] = std::max( autoIncrementTablesToFix[tableName], pkey );
+      }
     }
     else if ( entry.op == ChangesetEntry::OpUpdate )
     {
-      std::string sql = sqlForUpdate( mBaseSchema, entry.table->name, tbl, entry.oldValues, entry.newValues );
+      std::string sql = sqlForUpdate( mBaseSchema, tableName, tbl, entry.oldValues, entry.newValues );
       PostgresResult res( execSql( mConn, sql ) );
       if ( res.status() != PGRES_COMMAND_OK )
       {
@@ -780,7 +800,7 @@ void PostgresDriver::applyChangeset( ChangesetReader &reader )
     }
     else if ( entry.op == ChangesetEntry::OpDelete )
     {
-      std::string sql = sqlForDelete( mBaseSchema, entry.table->name, tbl, entry.oldValues );
+      std::string sql = sqlForDelete( mBaseSchema, tableName, tbl, entry.oldValues );
       PostgresResult res( execSql( mConn, sql ) );
       if ( res.status() != PGRES_COMMAND_OK )
       {
@@ -798,6 +818,10 @@ void PostgresDriver::applyChangeset( ChangesetReader &reader )
       throw GeoDiffException( "Unexpected operation" );
   }
 
+  // at the end, update any SEQUENCE objects if needed
+  for ( auto it : autoIncrementTablesToFix )
+    updateSequenceObject( tableNameToSequenceName[it.first], it.second );
+
   if ( !conflictCount )
   {
     transaction.commitChanges();
@@ -805,6 +829,48 @@ void PostgresDriver::applyChangeset( ChangesetReader &reader )
   else
   {
     throw GeoDiffException( "Conflicts encountered while applying changes! Total " + std::to_string( conflictCount ) );
+  }
+}
+
+std::string PostgresDriver::getSequenceObjectName( const TableSchema &tbl, int &autoIncrementPkeyIndex )
+{
+  std::string colName;
+  autoIncrementPkeyIndex = -1;
+  for ( size_t i = 0; i < tbl.columns.size(); ++i )
+  {
+    if ( tbl.columns[i].isPrimaryKey && tbl.columns[i].isAutoIncrement )
+    {
+      autoIncrementPkeyIndex = i;
+      colName = tbl.columns[i].name;
+      break;
+    }
+  }
+
+  if ( autoIncrementPkeyIndex == -1 )
+    return "";
+
+  std::string tableNameString = quotedIdentifier( mBaseSchema ) + "." + quotedIdentifier( tbl.name );
+  std::string sql = "select pg_get_serial_sequence(" + quotedString( tableNameString ) + ", " + quotedString( colName ) + ")";
+  PostgresResult resBase( execSql( mConn, sql ) );
+  if ( resBase.rowCount() != 1 )
+    throw GeoDiffException( "Unable to find sequence object for auto-incrementing pkey for table " + tbl.name );
+
+  return resBase.value( 0, 0 );
+}
+
+void PostgresDriver::updateSequenceObject( const std::string &seqName, int64_t maxValue )
+{
+  PostgresResult resCurrVal( execSql( mConn, "SELECT last_value FROM " + seqName ) );
+  std::string currValueStr = resCurrVal.value( 0, 0 );
+  int currValue = std::stoi( currValueStr );
+
+  if ( currValue < maxValue )
+  {
+    Logger::instance().info( "Updating sequence " + seqName + " from " + std::to_string( currValue ) + " to " + std::to_string( maxValue ) );
+
+    std::string sql = "SELECT setval(" + quotedString( seqName ) + ", " + std::to_string( maxValue ) + ")";
+    PostgresResult resSetVal( execSql( mConn, sql ) );
+    // the SQL just returns the new value we set
   }
 }
 

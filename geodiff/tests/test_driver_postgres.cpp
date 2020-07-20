@@ -11,6 +11,7 @@
 #include "changesetutils.h"
 #include "changesetwriter.h"
 #include "driver.h"
+#include "postgresutils.h"
 
 extern "C"
 {
@@ -418,6 +419,50 @@ TEST( PostgresDriverTest, test_create_postgres_from_sqlite )
   tables.push_back( tblTest1 );
   driver->createTables( tables );
 }
+
+TEST( PostgresDriverTest, test_updated_sequence )
+{
+  // here we test that after inserting rows within a changeset, the auto-increment primary key's
+  // sequence object gets updated accordingly
+
+  std::string conninfo = pgTestConnInfo();
+  // create table in the base schema and move it to our "gd_test_apply" schema where we'll apply changeset
+  execSqlCommands( conninfo, pathjoin( testdir(), "postgres", "base.sql" ) );
+  execSqlCommands( conninfo, pathjoin( testdir(), "postgres", "test_apply.sql" ) );
+  std::string changeset = pathjoin( testdir(), "postgres", "inserted_1_a.diff" );
+
+  PGconn *c = PQconnectdb( conninfo.c_str() );
+  ASSERT_EQ( PQstatus( c ), CONNECTION_OK );
+
+  PostgresResult res1( execSql( c, "SELECT last_value FROM gd_test_apply.simple_fid_seq" ) );
+  int lastValue1 = std::stoi( res1.value( 0, 0 ) );
+  EXPECT_TRUE( lastValue1 <= 3 );  // even though there are 3 rows in the table, sequence may be uninitialized
+
+  DriverParametersMap params;
+  params["conninfo"] = conninfo;
+  params["base"] = "gd_test_apply";
+
+  {
+    std::unique_ptr<Driver> driver( Driver::createDriver( "postgres" ) );
+    ASSERT_TRUE( driver );
+    driver->open( params );
+
+    ChangesetReader reader;
+    reader.open( changeset );
+    driver->applyChangeset( reader );
+  }
+
+  PostgresResult res2( execSql( c, "SELECT last_value FROM gd_test_apply.simple_fid_seq" ) );
+  int lastValue2 = std::stoi( res2.value( 0, 0 ) );
+  EXPECT_EQ( lastValue2, 4 );
+
+  // try to insert a new row - it should not fail
+  PostgresResult resInsert( execSql( c, "INSERT INTO gd_test_apply.simple (name, rating) VALUES ('test seq', 999);" ) );
+  EXPECT_EQ( resInsert.affectedRows(), "1" );
+
+  PQfinish( c );
+}
+
 
 int main( int argc, char **argv )
 {
