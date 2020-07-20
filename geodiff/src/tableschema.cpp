@@ -9,6 +9,7 @@
 #include "geodiffutils.hpp"
 
 #include <algorithm>
+#include <cctype>
 
 
 bool TableSchema::hasPrimaryKey() const
