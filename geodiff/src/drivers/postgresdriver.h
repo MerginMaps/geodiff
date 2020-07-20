@@ -32,6 +32,8 @@ class PostgresDriver : public Driver
   private:
     void openPrivate( const DriverParametersMap &conn );
     void close();
+    std::string getSequenceObjectName( const TableSchema &tbl, int &autoIncrementPkeyIndex );
+    void updateSequenceObject( const std::string &seqName, int64_t maxValue );
 
     PGconn *mConn = nullptr;
     std::string mBaseSchema;
