@@ -17,18 +17,13 @@ extern "C"
 #include <libpq-fe.h>
 }
 
-void execSqlCommands( const std::string &conninfo, const std::string &filename )
+void execSqlCommandsFromString( const std::string &conninfo, const std::string &sql )
 {
-  std::ifstream f( filename );
-  ASSERT_TRUE( f.is_open() );
-
-  std::string content( ( std::istreambuf_iterator<char>( f ) ), ( std::istreambuf_iterator<char>() ) );
-
   PGconn *c = PQconnectdb( conninfo.c_str() );
 
   ASSERT_EQ( PQstatus( c ), CONNECTION_OK );
 
-  PGresult *res = PQexec( c, content.c_str() );
+  PGresult *res = PQexec( c, sql.c_str() );
   ASSERT_TRUE( res );
 
   EXPECT_EQ( PQresultStatus( res ), PGRES_COMMAND_OK );
@@ -40,6 +35,15 @@ void execSqlCommands( const std::string &conninfo, const std::string &filename )
 
   PQclear( res );
   PQfinish( c );
+}
+
+void execSqlCommands( const std::string &conninfo, const std::string &filename )
+{
+  std::ifstream f( filename );
+  ASSERT_TRUE( f.is_open() );
+
+  std::string content( ( std::istreambuf_iterator<char>( f ) ), ( std::istreambuf_iterator<char>() ) );
+  execSqlCommandsFromString( conninfo, content );
 }
 
 
@@ -402,6 +406,17 @@ TEST( PostgresDriverTest, test_create_postgres_from_sqlite )
   EXPECT_EQ( tblTest1.columns[2].type, "integer" );
   EXPECT_EQ( tblTest1.columns[3].type, "text" );
 
+  execSqlCommandsFromString( pgTestConnInfo(), "DROP SCHEMA gd_test_postgres_from_sqlite CASCADE;" );
+
+  DriverParametersMap paramsBase;
+  paramsBase["conninfo"] = pgTestConnInfo();
+  paramsBase["base"] = "gd_test_postgres_from_sqlite";
+  std::unique_ptr<Driver> driver( Driver::createDriver( "postgres" ) );
+  ASSERT_TRUE( driver );
+  driver->create( paramsBase );
+  std::vector<TableSchema> tables;
+  tables.push_back( tblTest1 );
+  driver->createTables( tables );
 }
 
 int main( int argc, char **argv )

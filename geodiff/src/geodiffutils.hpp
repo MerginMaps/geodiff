@@ -87,6 +87,9 @@ bool fileexists( const std::string &path );
 //! whether string starts with substring
 bool startsWith( const std::string &str, const std::string &substr );
 
+//! Returns the same string converted to lower-case
+std::string lowercaseString( const std::string &str );
+
 std::string replace( const std::string &str, const std::string &substr, const std::string &replacestr );
 
 //! writes std::string to file

@@ -91,6 +91,11 @@ TEST( SqliteDriverTest, test_basic )
   EXPECT_EQ( tbl.columns[2].isNotNull, false );
   EXPECT_EQ( tbl.columns[3].isNotNull, false );
 
+  EXPECT_EQ( tbl.columns[0].isAutoIncrement, true );
+  EXPECT_EQ( tbl.columns[1].isAutoIncrement, false );
+  EXPECT_EQ( tbl.columns[2].isAutoIncrement, false );
+  EXPECT_EQ( tbl.columns[3].isAutoIncrement, false );
+
   EXPECT_EQ( tbl.columns[0].isGeometry, false );
   EXPECT_EQ( tbl.columns[1].isGeometry, true );
   EXPECT_EQ( tbl.columns[2].isGeometry, false );

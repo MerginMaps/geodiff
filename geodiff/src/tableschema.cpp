@@ -66,8 +66,7 @@ void tableSchemaSqliteToPostgres( TableSchema &tbl )
     TableColumnInfo &col = tbl.columns[i];
 
     // transform to lowercase first
-    std::transform( col.type.begin(), col.type.end(), col.type.begin(),
-    []( unsigned char c ) { return std::tolower( c ); } );
+    col.type = lowercaseString( col.type );
 
     // SQLite has very easy going approach to data types - it looks like anything is accepted
     // as a data type name, and SQLite only does some basic string matching to figure out

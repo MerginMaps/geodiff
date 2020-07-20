@@ -551,3 +551,11 @@ std::string concatNames( const std::vector<std::string> &names )
   }
   return output;
 }
+
+std::string lowercaseString( const std::string &str )
+{
+  std::string ret = str;
+  std::transform( ret.begin(), ret.end(), ret.begin(),
+  []( unsigned char c ) { return std::tolower( c ); } );
+  return ret;
+}

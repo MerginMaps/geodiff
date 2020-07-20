@@ -248,6 +248,13 @@ TableSchema SqliteDriver::tableSchema( const std::string &tableName, bool useMod
     columnInfo.type = ( const char * ) sqlite3_column_text( statement.get(), 2 );
     columnInfo.isNotNull = sqlite3_column_int( statement.get(), 3 );
     columnInfo.isPrimaryKey = sqlite3_column_int( statement.get(), 5 );
+
+    if ( columnInfo.isPrimaryKey && lowercaseString( columnInfo.type ) == "integer" )
+    {
+      // sqlite uses auto-increment automatically for INTEGER PRIMARY KEY - https://sqlite.org/autoinc.html
+      columnInfo.isAutoIncrement = true;
+    }
+
     tbl.columns.push_back( columnInfo );
   }
 
