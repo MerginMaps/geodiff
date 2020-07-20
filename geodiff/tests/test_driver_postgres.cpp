@@ -407,7 +407,7 @@ TEST( PostgresDriverTest, test_create_postgres_from_sqlite )
   EXPECT_EQ( tblTest1.columns[2].type, "integer" );
   EXPECT_EQ( tblTest1.columns[3].type, "text" );
 
-  execSqlCommandsFromString( pgTestConnInfo(), "DROP SCHEMA gd_test_postgres_from_sqlite CASCADE;" );
+  execSqlCommandsFromString( pgTestConnInfo(), "DROP SCHEMA IF EXISTS gd_test_postgres_from_sqlite CASCADE;" );
 
   DriverParametersMap paramsBase;
   paramsBase["conninfo"] = pgTestConnInfo();
