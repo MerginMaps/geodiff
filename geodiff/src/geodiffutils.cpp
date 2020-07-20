@@ -20,6 +20,7 @@
 #include <iostream>
 #include <sstream>
 #include <algorithm>
+#include <cctype>
 #include <gpkg.h>
 
 #ifdef _WIN32
