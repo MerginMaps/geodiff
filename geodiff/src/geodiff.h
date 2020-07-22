@@ -301,6 +301,13 @@ GEODIFF_EXPORT int GEODIFF_rebaseEx(
   const char *base2their,
   const char *conflictfile );
 
+
+/**
+ * Dumps all data from the data source as INSERT statements to a new changeset file.
+ */
+GEODIFF_EXPORT int GEODIFF_dumpData( const char *driverName, const char *driverExtraInfo,
+                                     const char *src, const char *changeset );
+
 #ifdef __cplusplus
 }
 #endif
