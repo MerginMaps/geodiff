@@ -556,3 +556,42 @@ int GEODIFF_makeCopy( const char *driverSrcName, const char *driverSrcExtraInfo,
 
   return GEODIFF_SUCCESS;
 }
+
+
+int GEODIFF_dumpData( const char *driverName, const char *driverExtraInfo, const char *src, const char *changeset )
+{
+  if ( !driverName || !src || !changeset )
+  {
+    Logger::instance().error( "NULL arguments to GEODIFF_dumpData" );
+    return GEODIFF_ERROR;
+  }
+
+  std::unique_ptr<Driver> driver( Driver::createDriver( std::string( driverName ) ) );
+  if ( !driver )
+  {
+    Logger::instance().error( "Cannot create driver " + std::string( driverName ) );
+    return GEODIFF_ERROR;
+  }
+
+  try
+  {
+    // open source
+    std::map<std::string, std::string> conn;
+    conn["base"] = std::string( src );
+    if ( driverExtraInfo )
+      conn["conninfo"] = std::string( driverExtraInfo );
+    driver->open( conn );
+
+    // get source data
+    ChangesetWriter writer;
+    writer.open( changeset );
+    driver->dumpData( writer );
+  }
+  catch ( GeoDiffException exc )
+  {
+    Logger::instance().error( exc );
+    return GEODIFF_ERROR;
+  }
+
+  return GEODIFF_SUCCESS;
+}
