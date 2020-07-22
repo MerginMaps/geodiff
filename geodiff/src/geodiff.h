@@ -274,6 +274,33 @@ GEODIFF_EXPORT int GEODIFF_createChangesetEx( const char *driverName, const char
 GEODIFF_EXPORT int GEODIFF_applyChangesetEx( const char *driverName, const char *driverExtraInfo,
     const char *base, const char *changeset );
 
+
+/**
+ * This function takes an existing changeset "base2modified" and rebases it on top of changes in
+ * "base2their" and writes output to a new changeset "rebased"
+ */
+GEODIFF_EXPORT int GEODIFF_createRebasedChangesetEx(
+  const char *driverName,
+  const char *driverExtraInfo,
+  const char *base,
+  const char *base2modified,
+  const char *base2their,
+  const char *rebased,
+  const char *conflictfile );
+
+
+/**
+ * This function takes care of updating "modified" dataset by taking any changes between "base"
+ * and "modified" datasets and rebasing them on top of base2their changeset.
+ */
+GEODIFF_EXPORT int GEODIFF_rebaseEx(
+  const char *driverName,
+  const char *driverExtraInfo,
+  const char *base,
+  const char *modified,
+  const char *base2their,
+  const char *conflictfile );
+
 #ifdef __cplusplus
 }
 #endif

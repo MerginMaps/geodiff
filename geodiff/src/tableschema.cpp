@@ -71,7 +71,8 @@ void tableSchemaSqliteToPostgres( TableSchema &tbl )
     // substring in data type name implies integer affinity, "DOUB" substring implies real number
     // affinity. (But columns can contain any data value type anyway.)
 
-    if ( col.type == "int" || col.type == "integer" || col.type == "smallint" || col.type == "mediumint" || col.type == "bigint" )
+    if ( col.type == "int" || col.type == "integer" || col.type == "smallint" ||
+         col.type == "mediumint" || col.type == "bigint" || col.type == "tinyint" )
     {
       col.type = "integer";
     }
@@ -83,7 +84,7 @@ void tableSchemaSqliteToPostgres( TableSchema &tbl )
     {
       col.type = "boolean";
     }
-    else if ( col.type.rfind( "text(" ) == 0 || col.type.rfind( "varchar(" ) == 0 )
+    else if ( col.type == "text" || col.type.rfind( "text(" ) == 0 || col.type.rfind( "varchar(" ) == 0 )
     {
       col.type = "text";
     }

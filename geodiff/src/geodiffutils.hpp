@@ -115,6 +115,9 @@ std::string getEnvVar( std::string const &key, const std::string &defaultVal );
 //! Returns temporary directory (including trailing slash)
 std::string tmpdir();
 
+//! Returns string given number of random alpha-numeric characters
+std::string randomString( size_t length );
+
 
 class TmpFile
 {

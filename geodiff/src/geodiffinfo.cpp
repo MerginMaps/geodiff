@@ -25,6 +25,7 @@ void help()
   printf( "[make copy of a database/schema] geodiffinfo makeCopy driverSrcName driverSrcExtraInfo src driverDstName driverDstExtraInfo dst\n" );
   printf( "[create changeset with driver] geodiffinfo createChangesetEx driverName driverExtraInfo base modified changeset\n" );
   printf( "[apply changeset with driver] geodiffinfo applyChangesetEx driverName driverExtraInfo base changeset\n" );
+  printf( "[rebase data with driver] geodiffinfo rebaseEx driverName driverExtraInfo base modified base2their conflict\n" );
 }
 
 int err( const std::string msg )
@@ -122,6 +123,17 @@ int applyChangesetEx( int argc, char *argv[] )
   return ret;
 }
 
+int rebaseEx( int argc, char *argv[] )
+{
+  if ( argc < 1 + 7 )
+  {
+    return err( "invalid number of arguments to rebaseEx" );
+  }
+
+  int ret = GEODIFF_rebaseEx( argv[2], argv[3], argv[4], argv[5], argv[6], argv[7] );
+  return ret;
+}
+
 int main( int argc, char *argv[] )
 {
   GEODIFF_init();
@@ -170,6 +182,10 @@ int main( int argc, char *argv[] )
     else if ( mode == "applyChangesetEx" )
     {
       return applyChangesetEx( argc, argv );
+    }
+    else if ( mode == "rebaseEx" )
+    {
+      return rebaseEx( argc, argv );
     }
     else
     {
