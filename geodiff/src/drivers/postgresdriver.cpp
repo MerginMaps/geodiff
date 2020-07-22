@@ -331,6 +331,12 @@ static std::string allColumnNames( const TableSchema &tbl, const std::string &pr
 
     if ( c.isGeometry )
       columns += "ST_AsBinary(" + name + ")";
+    else if ( c.type == "timestamp without time zone" )
+    {
+      // by default postgresql would return date/time as a formatted string
+      // e.g. "2020-07-13 16:17:54" but we want IS0-8601 format "2020-07-13T16:17:54Z"
+      columns += "to_char(" + name + ",'YYYY-MM-DD\"T\"HH24:MI:SS\"Z\"')";
+    }
     else
       columns += name;
   }
