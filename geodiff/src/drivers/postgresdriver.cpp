@@ -13,6 +13,7 @@
 #include "changesetwriter.h"
 #include "postgresutils.h"
 
+#include <algorithm>
 #include <iostream>
 #include <memory.h>
 
@@ -168,6 +169,11 @@ std::vector<std::string> PostgresDriver::listTables( bool useModified )
   {
     tables.push_back( res.value( i, 0 ) );
   }
+
+  // make sure tables are in alphabetical order, so that if we compare table names
+  // from different schemas, they should be matching
+  std::sort( tables.begin(), tables.end() );
+
   return tables;
 }
 
