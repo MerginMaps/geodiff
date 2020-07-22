@@ -463,6 +463,47 @@ TEST( PostgresDriverTest, test_updated_sequence )
   PQfinish( c );
 }
 
+TEST( PostgresDriverTest, test_rebase )
+{
+  std::string conninfo = pgTestConnInfo();
+  execSqlCommands( conninfo, pathjoin( testdir(), "postgres", "base.sql" ) );  // gd_base
+  execSqlCommands( conninfo, pathjoin( testdir(), "postgres", "inserted_1_a.sql" ) );  // gd_inserted_1_a
+  execSqlCommands( conninfo, pathjoin( testdir(), "postgres", "inserted_1_b.sql" ) );  // gd_inserted_1_b
+
+  std::string testname = "test_postgres_rebase";
+  makedir( pathjoin( tmpdir(), testname ) );
+  std::string base2our = pathjoin( tmpdir(), testname, "base2our" );
+  std::string base2their = pathjoin( tmpdir(), testname, "base2their" );
+  std::string conflictfile = pathjoin( tmpdir(), testname, "conflict" );
+
+  int res1 = GEODIFF_createChangesetEx( "postgres", conninfo.c_str(), "gd_base", "gd_inserted_1_a", base2our.c_str() );
+  int res2 = GEODIFF_createChangesetEx( "postgres", conninfo.c_str(), "gd_base", "gd_inserted_1_b", base2their.c_str() );
+  EXPECT_EQ( res1, GEODIFF_SUCCESS );
+  EXPECT_EQ( res2, GEODIFF_SUCCESS );
+
+  int rc = GEODIFF_rebaseEx( "postgres", conninfo.c_str(), "gd_base", "gd_inserted_1_a", base2their.c_str(), conflictfile.c_str() );
+  EXPECT_EQ( rc, GEODIFF_SUCCESS );
+
+  // check the actual results
+
+  PGconn *c = PQconnectdb( conninfo.c_str() );
+  ASSERT_EQ( PQstatus( c ), CONNECTION_OK );
+
+  // check the actual number of rows: 3 rows from base + 1 row from 1_a + 1 row from 1_b = 5
+  // first there should be the new row from inserted_1_b ("my new point B") and then there
+  // should be the new row from inserted_1_a ("my new point A") which was rebased
+
+  PostgresResult resTestCount( execSql( c, "select count(*) from gd_inserted_1_a.simple" ) );
+  EXPECT_EQ( std::stoi( resTestCount.value( 0, 0 ) ), 5 );
+
+  PostgresResult resTestFid4( execSql( c, "select name from gd_inserted_1_a.simple where fid = 4" ) );
+  EXPECT_EQ( resTestFid4.value( 0, 0 ), "my new point B" );
+
+  PostgresResult resTestFid5( execSql( c, "select name from gd_inserted_1_a.simple where fid = 5" ) );
+  EXPECT_EQ( resTestFid5.value( 0, 0 ), "my new point A" );
+
+  PQfinish( c );
+}
 
 int main( int argc, char **argv )
 {

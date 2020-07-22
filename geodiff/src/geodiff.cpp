@@ -180,8 +180,38 @@ int GEODIFF_createRebasedChangeset( const char *base,
     if ( rc != GEODIFF_SUCCESS )
       return rc;
 
+    return GEODIFF_createRebasedChangesetEx( "sqlite", "", base, changeset_BASE_MODIFIED.c_path(), changeset_their, changeset, conflictfile );
+  }
+  catch ( GeoDiffException exc )
+  {
+    Logger::instance().error( exc );
+    return GEODIFF_ERROR;
+  }
+}
+
+int GEODIFF_createRebasedChangesetEx( const char *driverName,
+                                      const char *driverExtraInfo,
+                                      const char *base,
+                                      const char *base2modified,
+                                      const char *base2their,
+                                      const char *rebased,
+                                      const char *conflictfile )
+{
+  if ( !driverName || !base || !base2modified || !base2their || !rebased || !conflictfile )
+  {
+    Logger::instance().error( "NULL arguments to GEODIFF_createRebasedChangesetEx" );
+    return GEODIFF_ERROR;
+  }
+
+  // TODO: use driverName + driverExtraInfo + base when creating rebased
+  // changeset (e.g. to check whether a newly created ID is actually free)
+
+  // TODO: call checkCompatibleForRebase()
+
+  try
+  {
     std::vector<ConflictFeature> conflicts;
-    rc = rebase( changeset_their, changeset, changeset_BASE_MODIFIED.path(), conflicts );
+    int rc = rebase( base2their, rebased, base2modified, conflicts );
     if ( rc == GEODIFF_SUCCESS )
     {
       // output conflicts
@@ -203,6 +233,7 @@ int GEODIFF_createRebasedChangeset( const char *base,
     return GEODIFF_ERROR;
   }
 }
+
 
 int GEODIFF_hasChanges( const char *changeset )
 {
@@ -328,12 +359,14 @@ int GEODIFF_invertChangeset( const char *changeset, const char *changeset_inv )
   return GEODIFF_SUCCESS;
 }
 
+
+
 int GEODIFF_rebase( const char *base,
                     const char *modified_their,
                     const char *modified,
                     const char *conflictfile )
 {
-  if ( !base || !modified || !modified || !conflictfile )
+  if ( !base || !modified_their || !modified || !conflictfile )
   {
     Logger::instance().error( "NULL arguments to GEODIFF_rebase" );
     return GEODIFF_ERROR;
@@ -345,25 +378,44 @@ int GEODIFF_rebase( const char *base,
     return GEODIFF_ERROR;
   }
 
+  std::string root = std::string( modified );
+
+  TmpFile base2theirs( root + "_base2theirs.bin" );
+  if ( GEODIFF_createChangeset( base, modified_their, base2theirs.c_path() ) != GEODIFF_SUCCESS )
+  {
+    Logger::instance().error( "Unable to perform GEODIFF_createChangeset base2theirs" );
+    return GEODIFF_ERROR;
+  }
+
+  return GEODIFF_rebaseEx( "sqlite", "", base, modified, base2theirs.c_path(), conflictfile );
+}
+
+
+int GEODIFF_rebaseEx( const char *driverName,
+                      const char *driverExtraInfo,
+                      const char *base,
+                      const char *modified,
+                      const char *base2their,
+                      const char *conflictfile )
+{
+  if ( !base || !modified || !modified || !conflictfile )
+  {
+    Logger::instance().error( "NULL arguments to GEODIFF_rebase" );
+    return GEODIFF_ERROR;
+  }
+
   try
   {
-    std::string root = std::string( modified );
-
-    TmpFile base2theirs( root + "_base2theirs.bin" );
-    if ( GEODIFF_createChangeset( base, modified_their, base2theirs.c_path() ) != GEODIFF_SUCCESS )
-    {
-      Logger::instance().error( "Unable to perform GEODIFF_createChangeset base2theirs" );
-      return GEODIFF_ERROR;
-    }
+    std::string root = tmpdir() + "geodiff_" + randomString( 6 );
 
     // situation 1: base2theirs is null, so we do not need rebase. modified is already fine
-    if ( !GEODIFF_hasChanges( base2theirs.c_path() ) )
+    if ( !GEODIFF_hasChanges( base2their ) )
     {
       return GEODIFF_SUCCESS;
     }
 
     TmpFile base2modified( root + "_base2modified.bin" );
-    if ( GEODIFF_createChangeset( base, modified, base2modified.c_path() ) != GEODIFF_SUCCESS )
+    if ( GEODIFF_createChangesetEx( driverName, driverExtraInfo, base, modified, base2modified.c_path() ) != GEODIFF_SUCCESS )
     {
       Logger::instance().error( "Unable to perform GEODIFF_createChangeset base2modified" );
       return GEODIFF_ERROR;
@@ -372,7 +424,7 @@ int GEODIFF_rebase( const char *base,
     // situation 2: we do not have changes (modified == base), so result is modified_theirs
     if ( !GEODIFF_hasChanges( base2modified.c_path() ) )
     {
-      if ( GEODIFF_applyChangeset( modified, base2theirs.c_path() ) != GEODIFF_SUCCESS )
+      if ( GEODIFF_applyChangesetEx( driverName, driverExtraInfo, modified, base2their ) != GEODIFF_SUCCESS )
       {
         Logger::instance().error( "Unable to perform GEODIFF_applyChangeset base2theirs" );
         return GEODIFF_ERROR;
@@ -385,7 +437,9 @@ int GEODIFF_rebase( const char *base,
 
     // 3A) Create all changesets
     TmpFile theirs2final( root + "_theirs2final.bin" );
-    if ( GEODIFF_createRebasedChangeset( base, modified, base2theirs.c_path(), theirs2final.c_path(), conflictfile ) != GEODIFF_SUCCESS )
+    if ( GEODIFF_createRebasedChangesetEx( driverName, driverExtraInfo, base,
+                                           base2modified.c_path(), base2their,
+                                           theirs2final.c_path(), conflictfile ) != GEODIFF_SUCCESS )
     {
       Logger::instance().error( "Unable to perform GEODIFF_createChangeset theirs2final" );
       return GEODIFF_ERROR;
@@ -400,7 +454,7 @@ int GEODIFF_rebase( const char *base,
 
     // 3B) concat to single changeset
     TmpFile modified2final( root + "_modified2final.bin" );
-    bool error = concatChangesets( modified2base.path(), base2theirs.path(), theirs2final.path(), modified2final.path() );
+    bool error = concatChangesets( modified2base.path(), base2their, theirs2final.path(), modified2final.path() );
     if ( error )
     {
       Logger::instance().error( "Unable to perform concatChangesets" );
@@ -408,7 +462,7 @@ int GEODIFF_rebase( const char *base,
     }
 
     // 3C) apply at once
-    if ( GEODIFF_applyChangeset( modified, modified2final.c_path() ) != GEODIFF_SUCCESS )
+    if ( GEODIFF_applyChangesetEx( driverName, driverExtraInfo, modified, modified2final.c_path() ) != GEODIFF_SUCCESS )
     {
       Logger::instance().error( "Unable to perform GEODIFF_applyChangeset modified2final" );
       return GEODIFF_ERROR;

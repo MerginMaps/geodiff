@@ -678,7 +678,11 @@ static std::string sqlForUpdate( const std::string &schemaName, const std::strin
       if ( !first )
         sql += " AND ";
       first = false;
-      sql += quotedIdentifier( tbl.columns[i].name ) + " = " + valueToSql( oldValues[i], tbl.columns[i] );
+      sql += quotedIdentifier( tbl.columns[i].name );
+      if ( oldValues[i].type() == Value::TypeNull )
+        sql += " IS NULL";
+      else
+        sql += " = " + valueToSql( oldValues[i], tbl.columns[i] );
     }
   }
 
@@ -795,7 +799,7 @@ void PostgresDriver::applyChangeset( ChangesetReader &reader )
       {
         logApplyConflict( "update_nothing", entry );
         ++conflictCount;
-        Logger::instance().warn( "Wrong number of affected rows! Expected 1, got: " + res.affectedRows() );
+        Logger::instance().warn( "Wrong number of affected rows! Expected 1, got: " + res.affectedRows() + "\nSQL: " + sql );
       }
     }
     else if ( entry.op == ChangesetEntry::OpDelete )
