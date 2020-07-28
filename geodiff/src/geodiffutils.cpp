@@ -269,6 +269,7 @@ void Buffer::read( const std::string &filename )
   int rc = fseek( fp, 0L, SEEK_END );
   if ( 0 != rc )
   {
+    fclose( fp );
     throw GeoDiffException( "Unable to seek the end of " + filename );
   }
 
@@ -276,6 +277,7 @@ void Buffer::read( const std::string &filename )
   /* Byte offset to the end of the file (size) */
   if ( 0 > ( off_end = ftell( fp ) ) )
   {
+    fclose( fp );
     throw GeoDiffException( "Unable to read file size of " + filename );
   }
   mAlloc = ( size_t )off_end;
@@ -284,6 +286,7 @@ void Buffer::read( const std::string &filename )
   if ( mAlloc == 0 )
   {
     // empty file
+    fclose( fp );
     return;
   }
 
@@ -291,6 +294,7 @@ void Buffer::read( const std::string &filename )
   mZ = ( char * ) sqlite3_malloc( mAlloc );
   if ( mZ == nullptr )
   {
+    fclose( fp );
     throw GeoDiffException( "Out of memory to read " + filename + " to internal buffer" );
   }
 
@@ -300,6 +304,7 @@ void Buffer::read( const std::string &filename )
   /* Slurp file into buffer */
   if ( mAlloc != fread( mZ, 1, mAlloc, fp ) )
   {
+    fclose( fp );
     throw GeoDiffException( "Unable to read " + filename + " to internal buffer" );
   }
 
