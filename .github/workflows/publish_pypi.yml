@@ -1,0 +1,45 @@
+name: Publish to PyPI
+on: [push]
+env:
+  PYPI_REPO: testpypi
+  PYPI_TOKEN: ${{ secrets.TEST_PYPI_TOKEN }}
+jobs:
+  upload_source_package:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Geodiff
+        uses: actions/checkout@v2
+
+    steps:
+      - name: Install dependencies
+        run: |
+          docker pull quay.io/pypa/manylinux2010_x86_64
+          sudo apt-get install -y python3
+          sudo python3 ./scripts/ci/get-pip.py
+          sudo python3 -m pip install setuptools twine scikit-build wheel
+
+      - name: Build source package
+        run: |
+          python3 setup.py sdist
+          python3 -m twine upload dist/pygeodiff*.tar.gz --username "__token__" --password "$PYPI_TOKEN"  --skip-existing --repository $PYPI_REPO
+
+  upload_wheel:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Geodiff
+        uses: actions/checkout@v2
+
+      - name: Install dependencies
+        run: |
+          docker pull quay.io/pypa/manylinux2010_x86_64
+          sudo apt-get install -y python3
+          sudo python3 ./scripts/ci/get-pip.py
+          sudo python3 -m pip install setuptools twine scikit-build wheel
+
+      - name: Build wheels
+        run: |
+           docker run --rm -e PLAT=manylinux2010_x86_64 -v .:/io quay.io/pypa/manylinux2010_x86_64 /io/scripts/ci/linux/build_wheel.bash
+
+      - name: Upload wheels
+        run: |
+          python3 -m twine upload  dist/* --username "__token__" --password "$PYPI_TOKEN"  --skip-existing --repository $PYPI_REPO
