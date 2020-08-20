@@ -12,7 +12,6 @@ jobs:
 
       - name: Install dependencies
         run: |
-          docker pull quay.io/pypa/manylinux2010_x86_64
           sudo apt-get install -y python3
           sudo python3 ./scripts/ci/get-pip.py
           sudo python3 -m pip install setuptools twine scikit-build wheel
@@ -20,9 +19,12 @@ jobs:
       - name: Build source package
         run: |
           python3 setup.py sdist
+
+      - name: Upload source package
+        run: |
           python3 -m twine upload dist/pygeodiff*.tar.gz --username "__token__" --password "$PYPI_TOKEN"  --skip-existing --repository $PYPI_REPO
 
-  upload_wheel:
+  upload_wheel_linux:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Geodiff
@@ -42,3 +44,24 @@ jobs:
       - name: Upload wheels
         run: |
           python3 -m twine upload  dist/* --username "__token__" --password "$PYPI_TOKEN"  --skip-existing --repository $PYPI_REPO
+
+  upload_wheel_macos:
+    runs-on: macos-latest
+    steps:
+      - name: Checkout Geodiff
+        uses: actions/checkout@v2
+
+      - name: Install dependencies
+        run: |
+          brew update
+          brew install python3
+          brew install ninja
+          brew install pyenv
+          sudo python3 -m pip install nose2
+          sudo python3 -m pip install twine
+          pyenv install 3.7.4
+          pyenv install 3.6.8
+
+      - name: Build and upload wheels
+        run: |
+          ./scripts/ci/osx/build_wheel.bash
