@@ -37,7 +37,7 @@ jobs:
 
       - name: Build wheels
         run: |
-           docker run --rm -e PLAT=manylinux2010_x86_64 -v .:/io quay.io/pypa/manylinux2010_x86_64 /io/scripts/ci/linux/build_wheel.bash
+           docker run --rm -e PLAT=manylinux2010_x86_64 -v ${PWD}:/io quay.io/pypa/manylinux2010_x86_64 /io/scripts/ci/linux/build_wheel.bash
 
       - name: Upload wheels
         run: |
