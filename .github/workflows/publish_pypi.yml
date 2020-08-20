@@ -62,6 +62,10 @@ jobs:
           pyenv install 3.7.4
           pyenv install 3.6.8
 
-      - name: Build and upload wheels
+      - name: Build wheels
         run: |
           ./scripts/ci/osx/build_wheel.bash
+
+      - name: Upload wheels
+        run: |
+          python3 -m twine upload  dist/* --username "__token__" --password "$PYPI_TOKEN"  --skip-existing --repository $PYPI_REPO
