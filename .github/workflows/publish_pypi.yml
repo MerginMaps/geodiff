@@ -10,7 +10,6 @@ jobs:
       - name: Checkout Geodiff
         uses: actions/checkout@v2
 
-    steps:
       - name: Install dependencies
         run: |
           docker pull quay.io/pypa/manylinux2010_x86_64
