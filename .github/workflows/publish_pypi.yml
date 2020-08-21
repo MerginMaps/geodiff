@@ -1,5 +1,6 @@
 name: Publish to PyPI
 on:
+  workflow_dispatch:
   push:
     tags:
       - '[0-9]+.*'   # any release tag, e.g. 0.8.5
