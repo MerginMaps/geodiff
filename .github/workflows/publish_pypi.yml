@@ -1,8 +1,12 @@
 name: Publish to PyPI
-on: [push]
+on:
+  push:
+    tags:
+      - '[0-9]+.*'   # any release tag, e.g. 0.8.5
 env:
-  PYPI_REPO: testpypi
-  PYPI_TOKEN: ${{ secrets.TEST_PYPI_TOKEN }}
+  PYPI_REPO: pypi
+  PYPI_TOKEN: ${{ secrets.PYPI_TOKEN }}
+
 jobs:
   upload_source_package:
     runs-on: ubuntu-latest
