@@ -2,8 +2,8 @@ name: Publish to PyPI
 on:
   workflow_dispatch:
   push:
-    tags:
-      - '[0-9]+.*'   # any release tag, e.g. 0.8.5
+  #  tags:
+  #    - '[0-9]+.*'   # any release tag, e.g. 0.8.5
 env:
   PYPI_REPO: pypi
   PYPI_TOKEN: ${{ secrets.PYPI_TOKEN }}
