@@ -798,6 +798,16 @@ void triggers( std::shared_ptr<Sqlite3Db> db, std::vector<std::string> &triggerN
         - gpkg_tile_matrix_pixel_x_size_update
         - gpkg_tile_matrix_pixel_y_size_insert
         - gpkg_tile_matrix_pixel_y_size_update
+        - gpkg_metadata_md_scope_insert
+        - gpkg_metadata_md_scope_update
+        - gpkg_metadata_reference_reference_scope_insert
+        - gpkg_metadata_reference_reference_scope_update
+        - gpkg_metadata_reference_column_name_insert
+        - gpkg_metadata_reference_column_name_update
+        - gpkg_metadata_reference_row_id_value_insert
+        - gpkg_metadata_reference_row_id_value_update
+        - gpkg_metadata_reference_timestamp_insert
+        - gpkg_metadata_reference_timestamp_update
         - rtree_simple_geometry_insert
         - rtree_simple_geometry_update1
         - rtree_simple_geometry_update2
@@ -808,7 +818,7 @@ void triggers( std::shared_ptr<Sqlite3Db> db, std::vector<std::string> &triggerN
         - trigger_delete_feature_count_simple
      */
     const std::string triggerName( name );
-    if ( startsWith( triggerName, "gpkg_tile_matrix_" ) )
+    if ( startsWith( triggerName, "gpkg_" ) )
       continue;
     if ( startsWith( triggerName, "rtree_" ) )
       continue;
