@@ -169,6 +169,31 @@ TEST( SingleCommitSqlite3Test, SingleCommitFkTest )
   ASSERT_TRUE( ret );
 }
 
+TEST( SingleCommitSqlite3Test, GpkgTriggersTest )
+{
+  std::cout << "geopackage with many gpkg_ triggers" << std::endl;
+
+  bool ret1 = _test( "gpkg_triggers",
+                     pathjoin( "gpkg_triggers", "db-base.gpkg" ),
+                     pathjoin( "gpkg_triggers", "db-modified.gpkg" ),
+                     GEODIFF_changesCount( pathjoin( testdir(), "gpkg_triggers", "modified-changeset.diff" ).c_str() )
+                   );
+
+  bool ret2 = GEODIFF_createRebasedChangeset(
+                pathjoin( testdir(), "gpkg_triggers", "db-base.gpkg" ).c_str(),
+                pathjoin( testdir(), "gpkg_triggers", "db-modified.gpkg" ).c_str(),
+                pathjoin( testdir(), "gpkg_triggers", "modified-changeset.diff" ).c_str(),
+                pathjoin( testdir(), "gpkg_triggers", "res.diff" ).c_str(),
+                pathjoin( testdir(), "gpkg_triggers", "res.conflict" ).c_str()
+              ) == GEODIFF_SUCCESS;
+
+  ASSERT_TRUE( ret1 && ret2 );
+
+  // remove created diff and conflict files
+  remove( pathjoin( testdir(), "gpkg_triggers", "res.diff" ).c_str() );
+  remove( pathjoin( testdir(), "gpkg_triggers", "res.conflict" ).c_str() );
+}
+
 int main( int argc, char **argv )
 {
   testing::InitGoogleTest( &argc, argv );
