@@ -758,7 +758,7 @@ std::wstring stringToWString( const std::string &str )
   }
   catch ( const std::range_error & )
   {
-    Logger::instance().error( "Unable to convert UTF-8 to UTF-16." );
+    Logger::instance().error( "Unable to convert UTF-8 string to UTF-16: " + str );
     return std::wstring();
   }
 }
