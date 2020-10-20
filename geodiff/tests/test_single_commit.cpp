@@ -194,6 +194,18 @@ TEST( SingleCommitSqlite3Test, GpkgTriggersTest )
   remove( pathjoin( testdir(), "gpkg_triggers", "res.conflict" ).c_str() );
 }
 
+TEST( SingleCommitSqlite3Test, NonAsciiCharactersTest )
+{
+  std::cout << "non ascii characters in path test" << std::endl;
+
+  bool ret = _test( "non_ascii_\xc5\xa1", // add special sign also here, because changeset file is created from it
+                    pathjoin( "utf_test_\xc5\xa1\xc4\x8d\xc3\xa9", "test\xc3\xa1\xc3\xa1.gpkg" ), // testaa
+                    pathjoin( "utf_test_\xc5\xa1\xc4\x8d\xc3\xa9", "test\xc4\x8d\xc4\x8d.gpkg" ), // testcc
+                    3
+                  );
+  ASSERT_TRUE( ret );
+}
+
 int main( int argc, char **argv )
 {
   testing::InitGoogleTest( &argc, argv );

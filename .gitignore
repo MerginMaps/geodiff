@@ -14,3 +14,5 @@ MANIFEST
 /pygeodiff/tests/tmp/
 Pipfile
 .python-version
+.vs/*
+.vscode/*

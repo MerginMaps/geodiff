@@ -671,7 +671,7 @@ int _prepare_new_changeset( const Buffer &buf, const std::string &changesetNew,
   }
 
   // join buffers to one file
-  FILE *out = fopen( changesetNew.c_str(), "wb" );
+  FILE *out = openFile( changesetNew, "wb" );
   if ( !out )
   {
     std::cout << "unable to open file for writing " << changesetNew << std::endl;
