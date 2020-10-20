@@ -13,7 +13,11 @@
 #include <fstream>
 #include <vector>
 #include <math.h>
+#include <locale>
+#include <codecvt>
+
 #ifdef WIN32
+#define UNICODE
 #include <windows.h>
 #include <tchar.h>
 #else
@@ -58,9 +62,15 @@ std::string pathjoin( const std::string &dir, const std::string &dir2, const std
 
 void filecopy( const std::string &to, const std::string &from )
 {
+#ifdef WIN32
+    std::wstring _from = stringToWString( from );
+    std::wstring _to = stringToWString( to );
+    CopyFile( _from.c_str(), _to.c_str(), false );
+#else
   std::ifstream  src( from, std::ios::binary );
   std::ofstream  dst( to,   std::ios::binary );
   dst << src.rdbuf();
+#endif
 }
 
 std::string testdir()
@@ -71,15 +81,17 @@ std::string testdir()
 std::string tmpdir()
 {
 #ifdef WIN32
-  ;
-  TCHAR lpTempPathBuffer[MAX_PATH];
+  wchar_t arr[MAX_PATH];
+  DWORD dwRetVal = GetTempPathW( MAX_PATH, arr );
 
-  DWORD dwRetVal = GetTempPath( MAX_PATH, lpTempPathBuffer );
+  std::wstring tempDirPath( arr );
+
   if ( dwRetVal > MAX_PATH || ( dwRetVal == 0 ) )
   {
     return std::string( "C:/temp/" );
   }
-  return std::string( lpTempPathBuffer );
+  
+  return wstringToString( tempDirPath );
 #else
   return _getEnvVar( "TMPDIR", "/tmp/" );
 #endif
@@ -139,10 +151,45 @@ bool equals( const std::string &file1, const std::string &file2, bool ignore_tim
     return ( GEODIFF_changesCount( changeset.c_str() )  == expected_changes );
 }
 
+
+std::wstring stringToWString( const std::string &str )
+{
+  // we need to convert UTF-8 string to UTF-16 in order to use WindowsAPI
+  // https://stackoverflow.com/questions/2573834/c-convert-string-or-char-to-wstring-or-wchar-t
+  try 
+  {
+    std::wstring_convert< std::codecvt_utf8_utf16< wchar_t > > converter;
+    std::wstring wStr = converter.from_bytes( str );
+  
+    return wStr;
+  }
+  catch ( const std::range_error & )
+  {
+    return std::wstring();
+  }
+}
+
+std::string wstringToString( const std::wstring& wStr )
+{
+    // we need to convert UTF-16 string to UTF-8 in order to use WindowsAPI
+    // https://stackoverflow.com/questions/4804298/how-to-convert-wstring-into-string
+    try
+    {
+        std::wstring_convert< std::codecvt_utf8_utf16< wchar_t > > converter;
+        std::string str = converter.to_bytes( wStr );
+
+        return str;
+    }
+    catch ( const std::range_error& )
+    {
+        return std::string();
+    }
+}
+
 void makedir( const std::string &dir )
 {
 #ifdef WIN32
-  CreateDirectory( dir.c_str(), NULL );
+  CreateDirectory( stringToWString( dir ).c_str(), NULL );
 #else
   mkdir( dir.c_str(), S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH );
 #endif
