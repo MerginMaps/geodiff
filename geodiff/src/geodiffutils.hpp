@@ -187,6 +187,12 @@ std::string replace( const std::string &str, const std::string &substr, const st
 //! writes std::string to file
 void flushString( const std::string &filename, const std::string &str );
 
+//! converts std::string to std::wstring
+std::wstring stringToWString( const std::string &str );
+
+//! opens file with specific function for windows
+FILE* openFile( const std::string &path, const std::string &mode );
+
 // SOME SQL
 
 // WKT geometry

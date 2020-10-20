@@ -5,6 +5,7 @@
 
 #include "geodiff.h"
 #include "geodiffutils.hpp"
+#include "geodifflogger.hpp"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -20,10 +21,13 @@
 #include <sstream>
 #include <algorithm>
 #include <gpkg.h>
+#include <locale>
+#include <codecvt>
 
 #ifdef _WIN32
 #include <windows.h>
 #include <tchar.h>
+#include <shlwapi.h>
 #else
 #include <unistd.h>
 #include <errno.h>
@@ -53,7 +57,7 @@ Sqlite3Db::~Sqlite3Db()
 void Sqlite3Db::open( const std::string &filename )
 {
   close();
-  int rc = sqlite3_open( filename.c_str(), &mDb );
+  int rc = sqlite3_open_v2( filename.c_str(), &mDb, SQLITE_OPEN_READWRITE, nullptr );
   if ( rc )
   {
     throw GeoDiffException( "Unable to open " + filename + " as sqlite3 database" );
@@ -259,7 +263,7 @@ void Buffer::read( const std::string &filename )
   free();
 
   /* Open the file */
-  FILE *fp = fopen( filename.c_str(), "rb" );
+  FILE *fp = openFile( filename, "rb" );
   if ( nullptr == fp )
   {
     throw GeoDiffException( "Unable to open " + filename );
@@ -370,7 +374,7 @@ void Buffer::printf( const char *zFormat, ... )
 
 void Buffer::write( const std::string &filename )
 {
-  FILE *f = fopen( filename.c_str(), "wb" );
+  FILE *f = openFile( filename, "wb" );
   if ( !f )
   {
     throw GeoDiffException( "Unable to open " + filename + " for writing" );
@@ -525,7 +529,7 @@ void BinaryStream::open()
 {
   close();
   remove();
-  mBuffer = fopen( mPath.c_str(), "wb" );
+  mBuffer = openFile( mPath, "wb" );
 }
 
 bool BinaryStream::isValid()
@@ -536,7 +540,7 @@ bool BinaryStream::isValid()
 bool BinaryStream::appendTo( FILE *stream )
 {
   close();
-  FILE *buf = fopen( mPath.c_str(), "rb" );
+  FILE *buf = openFile( mPath, "rb" );
   if ( !buf )
     return true;
 
@@ -717,32 +721,67 @@ void filecopy( const std::string &to, const std::string &from )
 {
   fileremove( to );
 
+#ifdef WIN32
+  std::wstring _from = stringToWString( from );
+  std::wstring _to = stringToWString( to );
+  CopyFile( _from.c_str(), _to.c_str(), false);
+#else
   std::ifstream  src( from, std::ios::binary );
   std::ofstream  dst( to,   std::ios::binary );
 
   dst << src.rdbuf();
+#endif
 }
 
 void fileremove( const std::string &path )
 {
   if ( fileexists( path ) )
   {
+#ifdef WIN32
+    _wremove( stringToWString( path ).c_str() );
+#else
     remove( path.c_str() );
+#endif
   }
+}
+
+std::wstring stringToWString( const std::string &str )
+{
+  // we need to convert UTF-8 string to UTF-16 in order to use WindowsAPI
+  // https://stackoverflow.com/questions/2573834/c-convert-string-or-char-to-wstring-or-wchar-t
+  try 
+  {
+    std::wstring_convert< std::codecvt_utf8_utf16< wchar_t > > converter;
+    std::wstring wStr = converter.from_bytes( str );
+  
+    return wStr;
+  }
+  catch ( const std::range_error & )
+  {
+    Logger::instance().error( "Unable to convert UTF-8 to UTF-16." );
+    return std::wstring();
+  }
+}
+
+FILE* openFile( const std::string &path, const std::string &mode )
+{
+#ifdef WIN32
+  // convert string path to wstring
+  return _wfopen( stringToWString( path ).c_str(), stringToWString( mode ).c_str() );
+#else
+  return fopen( path.c_str(), mode );
+#endif
 }
 
 bool fileexists( const std::string &path )
 {
 #ifdef WIN32
-  WIN32_FIND_DATA FindFileData;
-  HANDLE handle = FindFirstFile( path.c_str(), &FindFileData ) ;
-  int found = handle != INVALID_HANDLE_VALUE;
-  if ( found )
-  {
-    //FindClose(&handle); this will crash
-    FindClose( handle );
-  }
-  return found;
+  std::wstring wPath = stringToWString( path );
+
+  if ( wPath.empty() )
+    return false;
+
+  return PathFileExists( wPath.c_str() );
 #else
   // https://stackoverflow.com/a/12774387/2838364
   struct stat buffer;
