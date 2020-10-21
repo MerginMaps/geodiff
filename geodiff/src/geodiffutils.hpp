@@ -125,6 +125,11 @@ class Buffer
      */
     void write( const std::string &filename );
 
+    /**
+     * Checks sqlite statement for wrong characters and executes sqlite3 print afterwards
+     */
+    void checkStmtAndPrintf( const char* zFormat, const char* data );
+
     void *v_buf() const;
     const char *c_buf() const;
     int size() const;
