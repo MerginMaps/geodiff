@@ -449,7 +449,7 @@ int GEODIFF_rebase( const char *base,
                     const char *modified,
                     const char *conflictfile )
 {
-  if ( !base || !modified || !modified || !conflictfile )
+  if ( !base || !modified_their || !modified || !conflictfile )
   {
     Logger::instance().error( "NULL arguments to GEODIFF_rebase" );
     return GEODIFF_ERROR;
