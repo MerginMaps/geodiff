@@ -13,7 +13,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install libpq-dev
           sudo apt-get install libc6-dbg gdb valgrind
-          sudo apt-get install postgresql postgresql-common postgresql-contrib postgis
+          sudo apt-get install postgresql-12 postgresql-common postgresql-contrib-12 postgis
           valgrind --version
 
       - name: start PG database
