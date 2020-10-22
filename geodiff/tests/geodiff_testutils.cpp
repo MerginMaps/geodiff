@@ -14,7 +14,11 @@
 #include <vector>
 #include <math.h>
 #include <memory.h>
+#include <locale>
+#include <codecvt>
+
 #ifdef WIN32
+#define UNICODE
 #include <windows.h>
 #include <tchar.h>
 #else
@@ -144,10 +148,44 @@ bool fileContentEquals( const std::string &file1, const std::string &file2 )
   return memcmp( content1.data(), content2.data(), size1 ) == 0;
 }
 
+std::wstring stringToWString( const std::string &str )
+{
+  // we need to convert UTF-8 string to UTF-16 in order to use WindowsAPI
+  // https://stackoverflow.com/questions/2573834/c-convert-string-or-char-to-wstring-or-wchar-t
+  try 
+  {
+    std::wstring_convert< std::codecvt_utf8_utf16< wchar_t > > converter;
+    std::wstring wStr = converter.from_bytes( str );
+  
+    return wStr;
+  }
+  catch ( const std::range_error & )
+  {
+    return std::wstring();
+  }
+}
+
+std::string wstringToString( const std::wstring& wStr )
+{
+    // we need to convert UTF-16 string to UTF-8 in order to use WindowsAPI
+    // https://stackoverflow.com/questions/4804298/how-to-convert-wstring-into-string
+    try
+    {
+        std::wstring_convert< std::codecvt_utf8_utf16< wchar_t > > converter;
+        std::string str = converter.to_bytes( wStr );
+
+        return str;
+    }
+    catch ( const std::range_error& )
+    {
+        return std::string();
+    }
+}
+
 void makedir( const std::string &dir )
 {
 #ifdef WIN32
-  CreateDirectory( dir.c_str(), NULL );
+  CreateDirectory( stringToWString( dir ).c_str(), NULL );
 #else
   mkdir( dir.c_str(), S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH );
 #endif
