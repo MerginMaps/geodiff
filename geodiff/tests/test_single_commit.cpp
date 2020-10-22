@@ -206,6 +206,19 @@ TEST( SingleCommitSqlite3Test, NonAsciiCharactersTest )
   ASSERT_TRUE( ret );
 }
 
+TEST( SingleCommitSqlite3Test, QuoteCharacterGpkgName )
+{
+  std::cout << "path with quote character" << std::endl;
+  bool ret = _test( "quote's test",
+                    pathjoin( "dir_with_quote's's", "base.gpkg" ),
+                    pathjoin( "dir_with_quote's's", "recreated.gpkg" ),
+                    9
+    );
+
+  ASSERT_TRUE(ret);
+}
+
+
 int main( int argc, char **argv )
 {
   testing::InitGoogleTest( &argc, argv );
