@@ -23,7 +23,6 @@
 #include <gpkg.h>
 #include <locale>
 #include <codecvt>
-#include <regex>
 
 #ifdef _WIN32
 #include <windows.h>
@@ -382,20 +381,6 @@ void Buffer::write( const std::string &filename )
   }
   fwrite( mZ, mAlloc, 1, f );
   fclose( f );
-}
-
-void Buffer::checkStmtAndPrintf( const char* zFormat, const char* data )
-{
-    std::string sData( data );
-
-    // quotes in path makes serious probles in sqlite3 and needs to be escaped by doubling them
-    // see https://github.com/lutraconsulting/geodiff/issues/74
-    if ( sData.find( "\'" ) != std::string::npos ) 
-    {
-        sData = std::regex_replace( sData, std::regex( "\'" ), "\'\'" );
-    }
-
-    printf( zFormat, sData.c_str() );
 }
 
 const char *Buffer::c_buf() const

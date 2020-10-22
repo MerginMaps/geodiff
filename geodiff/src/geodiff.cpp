@@ -74,7 +74,7 @@ int GEODIFF_createChangeset( const char *base, const char *modified, const char 
     db->open( modified );
 
     Buffer sqlBuf;
-    sqlBuf.checkStmtAndPrintf( "ATTACH '%s' AS aux", base );
+    sqlBuf.printf( "ATTACH '%q' AS aux", base );
     db->exec( sqlBuf );
 
     Sqlite3Session session;
