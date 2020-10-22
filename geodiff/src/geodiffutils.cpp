@@ -271,7 +271,7 @@ FILE *openFile( const std::string &path, const std::string &mode )
   // convert string path to wstring
   return _wfopen( stringToWString( path ).c_str(), stringToWString( mode ).c_str() );
 #else
-  return fopen( path.c_str(), mode );
+  return fopen( path.c_str(), mode.c_str() );
 #endif
 }
 
