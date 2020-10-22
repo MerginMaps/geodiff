@@ -213,9 +213,9 @@ TEST( SingleCommitSqlite3Test, QuoteCharacterGpkgName )
                     pathjoin( "dir_with_quote's's", "base.gpkg" ),
                     pathjoin( "dir_with_quote's's", "recreated.gpkg" ),
                     9
-    );
+                  );
 
-  ASSERT_TRUE(ret);
+  ASSERT_TRUE( ret );
 }
 
 

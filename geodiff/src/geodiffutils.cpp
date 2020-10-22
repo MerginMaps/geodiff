@@ -87,7 +87,7 @@ void Buffer::read( const std::string &filename )
   free();
 
   /* Open the file */
-  FILE* fp = openFile( filename, "rb" );
+  FILE *fp = openFile( filename, "rb" );
   if ( nullptr == fp )
   {
     throw GeoDiffException( "Unable to open " + filename );
@@ -265,7 +265,7 @@ std::string conflict2Str( int c )
   return std::to_string( c );
 }
 
-FILE* openFile( const std::string& path, const std::string& mode )
+FILE *openFile( const std::string &path, const std::string &mode )
 {
 #ifdef WIN32
   // convert string path to wstring
@@ -470,7 +470,7 @@ std::string tmpdir()
 #endif
 }
 
-std::wstring stringToWString( const std::string& str )
+std::wstring stringToWString( const std::string &str )
 {
   // we need to convert UTF-8 string to UTF-16 in order to use WindowsAPI
   // https://stackoverflow.com/questions/2573834/c-convert-string-or-char-to-wstring-or-wchar-t
@@ -481,14 +481,14 @@ std::wstring stringToWString( const std::string& str )
 
     return wStr;
   }
-  catch ( const std::range_error& )
+  catch ( const std::range_error & )
   {
     Logger::instance().error( "Unable to convert UTF-8 to UTF-16." );
     return std::wstring();
   }
 }
 
-std::string wstringToString( const std::wstring& wStr )
+std::string wstringToString( const std::wstring &wStr )
 {
   // we need to convert UTF-16 string to UTF-8 in order to use WindowsAPI
   // https://stackoverflow.com/questions/4804298/how-to-convert-wstring-into-string
@@ -499,7 +499,7 @@ std::string wstringToString( const std::wstring& wStr )
 
     return str;
   }
-  catch ( const std::range_error& )
+  catch ( const std::range_error & )
   {
     Logger::instance().error( "Unable to convert UTF-16 to UTF-8." );
     return std::string();

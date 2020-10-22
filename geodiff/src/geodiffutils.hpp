@@ -119,13 +119,13 @@ std::string tmpdir();
 std::string randomString( size_t length );
 
 //! converts std::string to std::wstring
-std::wstring stringToWString( const std::string& str );
+std::wstring stringToWString( const std::string &str );
 
 //! converts std::wstring to std::string
-std::string wstringToString( const std::wstring& str );
+std::string wstringToString( const std::wstring &str );
 
 //! opens file with specific function for windows
-FILE* openFile( const std::string& path, const std::string& mode );
+FILE *openFile( const std::string &path, const std::string &mode );
 
 
 
