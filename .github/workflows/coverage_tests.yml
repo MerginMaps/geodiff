@@ -14,6 +14,7 @@ jobs:
           sudo apt-get install -y lcov
           sudo apt-get install libpq-dev
           sudo apt-get install postgresql-12 postgresql-common postgresql-contrib-12 postgis
+          sudo apt-get remove postgresql-13 postgresql-contrib-13
           dpkg -l '*postgres*'
 
       - name: start PG database
