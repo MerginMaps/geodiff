@@ -74,7 +74,7 @@ int GEODIFF_createChangeset( const char *base, const char *modified, const char 
     db->open( modified );
 
     Buffer sqlBuf;
-    sqlBuf.printf( "ATTACH '%s' AS aux", base );
+    sqlBuf.printf( "ATTACH '%q' AS aux", base );
     db->exec( sqlBuf );
 
     Sqlite3Session session;
@@ -449,7 +449,7 @@ int GEODIFF_rebase( const char *base,
                     const char *modified,
                     const char *conflictfile )
 {
-  if ( !base || !modified || !modified || !conflictfile )
+  if ( !base || !modified_their || !modified || !conflictfile )
   {
     Logger::instance().error( "NULL arguments to GEODIFF_rebase" );
     return GEODIFF_ERROR;
