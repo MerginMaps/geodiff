@@ -17,7 +17,7 @@
 
 bool ChangesetWriter::open( const std::string &filename )
 {
-  mFile.open( filename, std::ios::out | std::ios::binary );
+  mFile.open( stringToWString( filename ), std::ios::out | std::ios::binary );
   if ( !mFile.is_open() )
     return false;
 
