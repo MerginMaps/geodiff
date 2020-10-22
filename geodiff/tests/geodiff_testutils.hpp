@@ -12,6 +12,10 @@
 #include "geodiff.h"
 #include "geodiff_config.hpp"
 
+#ifdef WIN32
+#define UNICODE
+#endif
+
 std::string testdir();
 std::string tmpdir();
 std::string pathjoin( const std::string &dir, const std::string &filename );

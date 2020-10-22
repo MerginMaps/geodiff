@@ -10,6 +10,7 @@
 #  define GEODIFF_EXPORT
 #else
 #if defined _WIN32 || defined __CYGWIN__
+#define UNICODE
 #  ifdef geodiff_EXPORTS
 #    ifdef __GNUC__
 #      define GEODIFF_EXPORT __attribute__ ((dllexport))
