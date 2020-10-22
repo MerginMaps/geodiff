@@ -111,7 +111,7 @@ void SqliteDriver::open( const DriverParametersMap &conn )
     mDb->open( modified );
 
     Buffer sqlBuf;
-    sqlBuf.printf( "ATTACH '%s' AS aux", base.c_str() );
+    sqlBuf.printf( "ATTACH '%q' AS aux", base.c_str() );
     mDb->exec( sqlBuf );
   }
   else
