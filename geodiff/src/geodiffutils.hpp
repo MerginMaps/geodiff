@@ -118,6 +118,16 @@ std::string tmpdir();
 //! Returns string given number of random alpha-numeric characters
 std::string randomString( size_t length );
 
+//! converts std::string to std::wstring
+std::wstring stringToWString( const std::string &str );
+
+//! converts std::wstring to std::string
+std::string wstringToString( const std::wstring &str );
+
+//! opens file with specific function for windows
+FILE *openFile( const std::string &path, const std::string &mode );
+
+
 
 class TmpFile
 {

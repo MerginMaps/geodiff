@@ -12,6 +12,10 @@
 #include "geodiff.h"
 #include "geodiff_config.hpp"
 
+#ifdef WIN32
+#define UNICODE
+#endif
+
 std::string testdir();
 std::string tmpdir();
 std::string pathjoin( const std::string &dir, const std::string &filename );
@@ -29,6 +33,9 @@ int fileContains( const std::string &filepath, const std::string key );
 void printJSON( const std::string &changeset, const std::string &json, const std::string &json_summary );
 void printFileToStdout( const std::string &caption, const std::string &filepath );
 int countConflicts( const std::string &conflictFile );
+
+std::wstring stringToWString( const std::string &str );
+std::string wstringToString( const std::wstring &wStr );
 
 /**
  * \param ignore_timestamp_change ignore last_change in table gpkg_contents

@@ -14,6 +14,9 @@
 #include <vector>
 #include <math.h>
 #include <memory.h>
+#include <locale>
+#include <codecvt>
+
 #ifdef WIN32
 #include <windows.h>
 #include <tchar.h>
@@ -147,7 +150,7 @@ bool fileContentEquals( const std::string &file1, const std::string &file2 )
 void makedir( const std::string &dir )
 {
 #ifdef WIN32
-  CreateDirectory( dir.c_str(), NULL );
+  CreateDirectory( stringToWString( dir ).c_str(), NULL );
 #else
   mkdir( dir.c_str(), S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH );
 #endif

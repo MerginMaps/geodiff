@@ -169,6 +169,56 @@ TEST( SingleCommitSqlite3Test, SingleCommitFkTest )
   ASSERT_TRUE( ret );
 }
 
+TEST( SingleCommitSqlite3Test, GpkgTriggersTest )
+{
+  std::cout << "geopackage with many gpkg_ triggers" << std::endl;
+
+  bool ret1 = _test( "gpkg_triggers",
+                     pathjoin( "gpkg_triggers", "db-base.gpkg" ),
+                     pathjoin( "gpkg_triggers", "db-modified.gpkg" ),
+                     GEODIFF_changesCount( pathjoin( testdir(), "gpkg_triggers", "modified-changeset.diff" ).c_str() )
+                   );
+
+  bool ret2 = GEODIFF_createRebasedChangeset(
+                pathjoin( testdir(), "gpkg_triggers", "db-base.gpkg" ).c_str(),
+                pathjoin( testdir(), "gpkg_triggers", "db-modified.gpkg" ).c_str(),
+                pathjoin( testdir(), "gpkg_triggers", "modified-changeset.diff" ).c_str(),
+                pathjoin( testdir(), "gpkg_triggers", "res.diff" ).c_str(),
+                pathjoin( testdir(), "gpkg_triggers", "res.conflict" ).c_str()
+              ) == GEODIFF_SUCCESS;
+
+  ASSERT_TRUE( ret1 && ret2 );
+
+  // remove created diff and conflict files
+  remove( pathjoin( testdir(), "gpkg_triggers", "res.diff" ).c_str() );
+  remove( pathjoin( testdir(), "gpkg_triggers", "res.conflict" ).c_str() );
+}
+
+TEST( SingleCommitSqlite3Test, NonAsciiCharactersTest )
+{
+  std::cout << "non ascii characters in path test" << std::endl;
+
+  bool ret = _test( "non_ascii_\xc5\xa1", // add special sign also here, because changeset file is created from it
+                    pathjoin( "utf_test_\xc5\xa1\xc4\x8d\xc3\xa9", "test\xc3\xa1\xc3\xa1.gpkg" ), // testaa
+                    pathjoin( "utf_test_\xc5\xa1\xc4\x8d\xc3\xa9", "test\xc4\x8d\xc4\x8d.gpkg" ), // testcc
+                    3
+                  );
+  ASSERT_TRUE( ret );
+}
+
+TEST( SingleCommitSqlite3Test, QuoteCharacterGpkgName )
+{
+  std::cout << "path with quote character" << std::endl;
+  bool ret = _test( "quote's test",
+                    pathjoin( "dir_with_quote's's", "base.gpkg" ),
+                    pathjoin( "dir_with_quote's's", "recreated.gpkg" ),
+                    9
+                  );
+
+  ASSERT_TRUE( ret );
+}
+
+
 int main( int argc, char **argv )
 {
   testing::InitGoogleTest( &argc, argv );
