@@ -49,6 +49,13 @@ Changes between datasets are read from and written to a [binary changeset format
 ```
     sudo apt-get install libsqlite3-dev libpq-dev
 ```
+or MacOS (using SQLite from [QGIS deps](https://qgis.org/downloads/macos/deps/)) by defining SQLite variables in 
+a cmake configuration as following:
+```
+    SQLite3_INCLUDE_DIR=/opt/QGIS/qgis-deps-${QGIS_DEPS_VERSION}/stage/include 
+    SQLite3_LIBRARY=/opt/QGIS/qgis-deps-${QGIS_DEPS_VERSION}/stage/lib/libsqlite3.dylib 
+```
+
 - Compile geodiff shared library
 ```
   mkdir build
