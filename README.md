@@ -19,7 +19,7 @@ Use case 3: user has a PostgreSQL database with some GIS data, and wants to sync
 
 The library is used by [Mergin](https://public.cloudmergin.com/) - a platform for easy sharing of spatial data.
 
-## Envirmonment
+## Environment
 
 Output messages could be adjusted by GEODIFF_LOGGER_LEVEL environment variable. 
 See [header](https://github.com/lutraconsulting/geodiff/blob/master/geodiff/src/geodiff.h) for details
