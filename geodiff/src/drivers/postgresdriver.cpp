@@ -360,9 +360,9 @@ static std::string sqlFindInserted( const std::string &schemaNameBase, const std
   }
 
   std::string sql = "SELECT " + allColumnNames( tbl ) + " FROM " +
-                    quotedIdentifier( reverse ? schemaNameBase : schemaNameModified ) + "." + tableName +
+                    quotedIdentifier( reverse ? schemaNameBase : schemaNameModified ) + "." + quotedIdentifier( tableName ) +
                     " WHERE NOT EXISTS ( SELECT 1 FROM " +
-                    quotedIdentifier( reverse ? schemaNameModified : schemaNameBase ) + "." + tableName +
+                    quotedIdentifier( reverse ? schemaNameModified : schemaNameBase ) + "." + quotedIdentifier( tableName ) +
                     " WHERE " + exprPk + ")";
   return sql;
 }
@@ -920,7 +920,7 @@ void PostgresDriver::createTables( const std::vector<TableSchema> &tables )
       }
     }
 
-    sql = "CREATE TABLE " + quotedIdentifier( mBaseSchema ) + "." + tbl.name + " (";
+    sql = "CREATE TABLE " + quotedIdentifier( mBaseSchema ) + "." + quotedIdentifier( tbl.name ) + " (";
     sql += columns;
     sql += ", PRIMARY KEY (" + pkeyCols + ")";
     sql += ");";

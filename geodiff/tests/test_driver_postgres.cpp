@@ -505,6 +505,37 @@ TEST( PostgresDriverTest, test_rebase )
   PQfinish( c );
 }
 
+TEST( PostgresDriverTest, test_capital_letters )
+{
+  std::string conninfo = pgTestConnInfo();
+
+  PGconn *c = PQconnectdb( conninfo.c_str() );
+  ASSERT_EQ( PQstatus( c ), CONNECTION_OK );
+
+  std::string testname = "test_capital_letters";
+
+  makedir( pathjoin( tmpdir(), testname ) );
+  std::string changeset = pathjoin( tmpdir(), testname, "changes.diff" );
+  std::string baseGpkg( pathjoin( testdir(), "capital-letters", "db-capital-base.gpkg" ) );
+  std::string modifiedGpkg( pathjoin( testdir(), "capital-letters", "db-capital-modified.gpkg" ) );
+
+  // try capital letters when in schema name
+  EXPECT_EQ( GEODIFF_makeCopy( "sqlite", "", baseGpkg.c_str(), "postgres", conninfo.c_str(), "GD_base" ), GEODIFF_SUCCESS );
+  EXPECT_EQ( GEODIFF_makeCopy( "sqlite", "", modifiedGpkg.c_str(), "postgres", conninfo.c_str(), "GD_modified" ), GEODIFF_SUCCESS );
+
+  EXPECT_EQ( GEODIFF_createChangesetEx( "postgres", conninfo.c_str(), "GD_base", "GD_modified", changeset.c_str() ), GEODIFF_SUCCESS );
+
+  ASSERT_TRUE( fileExists( changeset ) );
+
+  EXPECT_EQ( GEODIFF_applyChangesetEx( "postgres", conninfo.c_str(), "GD_base", changeset.c_str() ), GEODIFF_SUCCESS );
+
+  // check value
+  PostgresResult resTestFid5( execSql( c, "SELECT \"Name\" FROM \"GD_base\".\"CapitalCity\" where fid = 6" ) );
+  EXPECT_EQ( resTestFid5.value( 0, 0 ), "London" );
+
+  PQfinish( c );
+}
+
 int main( int argc, char **argv )
 {
   testing::InitGoogleTest( &argc, argv );
