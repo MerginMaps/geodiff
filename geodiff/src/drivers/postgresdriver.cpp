@@ -74,7 +74,6 @@ PostgresDriver::~PostgresDriver()
   close();
 }
 
-
 void PostgresDriver::openPrivate( const DriverParametersMap &conn )
 {
   DriverParametersMap::const_iterator connInfo = conn.find( "conninfo" );
@@ -482,7 +481,6 @@ static Value resultToValue( const PostgresResult &res, int r, size_t i, const Ta
   return v;
 }
 
-
 static std::string valueToSql( const Value &v, const TableColumnInfo &col )
 {
   if ( v.type() == Value::TypeUndefined )
@@ -510,8 +508,10 @@ static std::string valueToSql( const Value &v, const TableColumnInfo &col )
     {
       // handling of geometries - they are encoded with GPKG header
       std::string gpkgWkb = v.getString();
-      std::string wkb( gpkgWkb.size() - 8, 0 );
-      memcpy( &wkb[0], &gpkgWkb[8], gpkgWkb.size() - 8 );
+      int header_size = parseGpkgbHeaderSize( gpkgWkb );
+      std::string wkb( gpkgWkb.size() - header_size, 0 );
+
+      memcpy( &wkb[0], &gpkgWkb[header_size], gpkgWkb.size() - header_size );
       return "ST_GeomFromWKB('\\x" + bin2hex( wkb ) + "', " + std::to_string( col.geomSrsId ) + ")";
     }
     return quotedString( v.getString() );
