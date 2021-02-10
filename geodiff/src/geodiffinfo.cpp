@@ -11,22 +11,23 @@
 
 void help()
 {
-  printf( "GEODIFF %s", GEODIFF_version() );
-  printf( "geodiffinfo <mode> [args...]\n\n" );
+  printf( "GEODIFF %s\n", GEODIFF_version() );
+  printf( "usage: geodiffinfo <mode> [args...]\n\n" );
   printf( "you can control verbosity of the log by env variable\n" );
   printf( "GEODIFF_LOGGER_LEVEL 0(Nothing)-4(Debug)\n" );
   printf( "by default you get only errors printed to stdout\n\n" );
-  printf( "[version info] geodiffinfo version\n" );
-  printf( "[create changeset] geodiffinfo createChangeset base modified changeset\n" );
-  printf( "[create rebased changeset] geodiffinfo createRebasedChangeset base modified changeset_their changeset conflict\n" );
-  printf( "[apply changeset] geodiffinfo applyChangeset base changeset\n" );
-  printf( "[list changes (JSON) in changeset] geodiffinfo listChanges changeset json\n" );
-  printf( "[list summary of changes (JSON) in changeset] geodiffinfo listChangesSummary changeset json\n" );
-  printf( "[make copy of a database/schema] geodiffinfo makeCopy driverSrcName driverSrcExtraInfo src driverDstName driverDstExtraInfo dst\n" );
-  printf( "[create changeset with driver] geodiffinfo createChangesetEx driverName driverExtraInfo base modified changeset\n" );
-  printf( "[apply changeset with driver] geodiffinfo applyChangesetEx driverName driverExtraInfo base changeset\n" );
-  printf( "[rebase data with driver] geodiffinfo rebaseEx driverName driverExtraInfo base modified base2their conflict\n" );
-  printf( "[dump data] geodiffinfo dumpData driverName driverExtraInfo base changeset\n" );
+  printf( "Modes:\n\n" );
+  printf( " [version]                 = version info\n\n" );
+  printf( " [-c, createChangeset]     = creates changeset, args: base, modified, changeset\n\n" );
+  printf( " [createRebasedChangeset]  = creates rebased changeset, args: base modified changeset_their changeset conflict\n\n" );
+  printf( " [-a, applyChangeset]      = apply changeset, args: base changeset\n\n" );
+  printf( " [-l, listChanges]         = list changes (JSON) in changeset, args: changeset json\n\n" );
+  printf( " [-ls, listChangesSummary] = list summary of changes (JSON) in changeset, args: changeset json\n\n" );
+  printf( " [-mc, makeCopy]           = make copy of a database/schema, args: driverSrcName driverSrcExtraInfo src driverDstName driverDstExtraInfo dst\n\n" );
+  printf( " [-ce, createChangesetEx]  = create changeset with driver, args: driverName driverExtraInfo base modified changeset\n\n" );
+  printf( " [-ae, applyChangesetEx]   = apply changeset with driver, args: driverName driverExtraInfo base changeset\n\n" );
+  printf( " [rebaseEx]                = rebase data with driver, args: driverName driverExtraInfo base modified base2their conflict\n\n" );
+  printf( " [dumpData]                = dump data, args: driverName driverExtraInfo base changeset\n\n" );
 }
 
 int err( const std::string msg )
@@ -163,7 +164,7 @@ int main( int argc, char *argv[] )
       printf( "%s", GEODIFF_version() );
       return 0;
     }
-    else if ( mode == "createChangeset" )
+    else if ( mode == "createChangeset" || mode == "-c" )
     {
       return createChangeset( argc, argv );
     }
@@ -171,27 +172,27 @@ int main( int argc, char *argv[] )
     {
       return createRebasedChangeset( argc, argv );
     }
-    else if ( mode == "applyChangeset" )
+    else if ( mode == "applyChangeset" || mode == "-a" )
     {
       return applyChangeset( argc, argv );
     }
-    else if ( mode == "listChanges" )
+    else if ( mode == "listChanges" || mode == "-l" )
     {
       return listChanges( argc, argv );
     }
-    else if ( mode == "listChangesSummary" )
+    else if ( mode == "listChangesSummary" || mode == "-ls" )
     {
       return listChangesSummary( argc, argv );
     }
-    else if ( mode == "makeCopy" )
+    else if ( mode == "makeCopy" || mode == "-mc" )
     {
       return makeCopy( argc, argv );
     }
-    else if ( mode == "createChangesetEx" )
+    else if ( mode == "createChangesetEx" || mode == "-ce" )
     {
       return createChangesetEx( argc, argv );
     }
-    else if ( mode == "applyChangesetEx" )
+    else if ( mode == "applyChangesetEx" || mode == "-ae" )
     {
       return applyChangesetEx( argc, argv );
     }
