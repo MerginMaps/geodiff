@@ -536,6 +536,20 @@ TEST( PostgresDriverTest, test_capital_letters )
   PQfinish( c );
 }
 
+TEST( PostgresDriverTest, test_gpkg_with_envelope )
+{
+  std::string conninfo = pgTestConnInfo();
+
+  PGconn *c = PQconnectdb( conninfo.c_str() );
+  ASSERT_EQ( PQstatus( c ), CONNECTION_OK );
+
+  std::string envelopeGpkg( pathjoin( testdir(), "envelope_gpkg", "db-envelope.gpkg" ) );
+
+  EXPECT_EQ( GEODIFF_makeCopy( "sqlite", "", envelopeGpkg.c_str(), "postgres", conninfo.c_str(), "gd_envelope_test" ), GEODIFF_SUCCESS );
+
+  PQfinish( c );
+}
+
 int main( int argc, char **argv )
 {
   testing::InitGoogleTest( &argc, argv );
