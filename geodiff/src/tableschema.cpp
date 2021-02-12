@@ -43,7 +43,9 @@ void tableSchemaPostgresToSqlite( TableSchema &tbl )
 {
   // SQLite does not really care much about column types
   // but it does not like "geometry(X, Y)" type due to parentheses so let's convert
-  // that to a simple type
+  // that to a simple type. We also need to set date related columns to geopackage
+  // types DATE and DATETIME otherwise QGIS would assume these columns are text and
+  // set text widget for them (instead of calendar).
 
   for ( size_t i = 0; i < tbl.columns.size(); ++i )
   {
@@ -51,6 +53,14 @@ void tableSchemaPostgresToSqlite( TableSchema &tbl )
     if ( col.type.rfind( "geometry(", 0 ) == 0 )
     {
       col.type = col.geomType;
+    }
+    else if ( col.type == "timestamp without time zone" )
+    {
+      col.type = "DATETIME";
+    }
+    else if ( col.type == "date" )
+    {
+      col.type = "DATE";
     }
   }
 }
@@ -95,6 +105,10 @@ void tableSchemaSqliteToPostgres( TableSchema &tbl )
     else if ( col.type == "datetime" )
     {
       col.type = "timestamp";
+    }
+    else if ( col.type == "date" )
+    {
+      col.type = "date";
     }
     else if ( col.isGeometry )
     {

@@ -550,6 +550,54 @@ TEST( PostgresDriverTest, test_gpkg_with_envelope )
   PQfinish( c );
 }
 
+TEST( PostgresDriverTest, test_conversion_with_dates )
+{
+  std::string conninfo = pgTestConnInfo();
+
+  PGconn *c = PQconnectdb( conninfo.c_str() );
+  ASSERT_EQ( PQstatus( c ), CONNECTION_OK );
+
+  std::string testName( "test_conversion_with_dates" );
+  std::string timeGpkg( pathjoin( testdir(), "conversions", "db-time.gpkg" ) );
+
+  EXPECT_EQ( GEODIFF_makeCopy( "sqlite", "", timeGpkg.c_str(), "postgres", conninfo.c_str(), "gd_time" ), GEODIFF_SUCCESS );
+
+  DriverParametersMap params;
+  params["conninfo"] = conninfo;
+  params["base"] = "gd_time";
+
+  std::unique_ptr<Driver> driverPG( Driver::createDriver( "postgres" ) );
+  ASSERT_TRUE( driverPG );
+  driverPG->open( params );
+
+  std::vector<std::string> tables = driverPG->listTables();
+
+  TableSchema sch = driverPG->tableSchema( "city" );
+  ASSERT_EQ( sch.name, "city" );
+  ASSERT_EQ( sch.columns.size(), 5 );
+  ASSERT_EQ( sch.columns[3].type, "date" );
+  ASSERT_EQ( sch.columns[4].type, "timestamp without time zone" );
+
+  // convert back to sqlite
+  makedir( pathjoin( tmpdir(), testName ) );
+  std::string tmpGpkg( pathjoin( tmpdir(), testName, "tmpGpkg.gpkg" ) );
+
+  EXPECT_EQ( GEODIFF_makeCopy( "postgres", conninfo.c_str(), "gd_time",  "sqlite", "", tmpGpkg.c_str() ), GEODIFF_SUCCESS );
+
+  std::unique_ptr<Driver> driverGPKG( Driver::createDriver( "sqlite" ) );
+  ASSERT_TRUE( driverGPKG );
+  driverGPKG->open( Driver::sqliteParametersSingleSource( tmpGpkg ) );
+
+  tables = driverGPKG->listTables();
+  sch = driverGPKG->tableSchema( "city" );
+  ASSERT_EQ( sch.name, "city" );
+  ASSERT_EQ( sch.columns.size(), 5 );
+  ASSERT_EQ( sch.columns[3].type, "DATE" );
+  ASSERT_EQ( sch.columns[4].type, "DATETIME" );
+
+  PQfinish( c );
+}
+
 int main( int argc, char **argv )
 {
   testing::InitGoogleTest( &argc, argv );
