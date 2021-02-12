@@ -166,6 +166,9 @@ std::vector<std::string> PostgresDriver::listTables( bool useModified )
   std::vector<std::string> tables;
   for ( int i = 0; i < res.rowCount(); ++i )
   {
+    if ( startsWith( res.value( i, 0 ), "gpkg_" ) )
+      continue;
+
     tables.push_back( res.value( i, 0 ) );
   }
 
@@ -276,7 +279,7 @@ TableSchema PostgresDriver::tableSchema( const std::string &tableName, bool useM
     col.type = res.value( i, 1 );
     col.isPrimaryKey = ( res.value( i, 2 ) == "t" );
 
-    if ( col.type.rfind( "geometry", 0 ) == 0 )
+    if ( col.type().rfind( "geometry", 0 ) == 0 )
     {
       col.isGeometry = true;
       if ( geomTypes.find( col.name ) != geomTypes.end() )
@@ -416,7 +419,7 @@ static bool isColumnText( const TableColumnInfo &col )
 
 static bool isColumnGeometry( const TableColumnInfo &col )
 {
-  return col.type.rfind( "geometry", 0 ) == 0; // starts with "geometry" prefix
+  return col.type().rfind( "geometry", 0 ) == 0; // starts with "geometry" prefix
 }
 
 
@@ -474,8 +477,8 @@ static Value resultToValue( const PostgresResult &res, int r, size_t i, const Ta
     }
     else
     {
-      // TODO: handling of other types (date/time, list, blob, ...)
-      throw GeoDiffException( "unknown value type: " + col.type );
+      // TODO: handling of other types (list, blob, ...)
+      throw GeoDiffException( "unknown value type: " + col.type() );
     }
   }
   return v;
@@ -746,7 +749,7 @@ void PostgresDriver::applyChangeset( ChangesetReader &reader )
     std::string tableName = entry.table->name;
 
     // TODO: in the future sqlite driver should not add any changes to meta tables
-    if ( tableName.rfind( "gpkg_", 0 ) == 0 )
+    if ( startsWith( tableName, "gpkg_" ) )
       continue;   // skip any changes to GPKG meta tables
 
     if ( tableName != lastTableName )
@@ -895,7 +898,7 @@ void PostgresDriver::createTables( const std::vector<TableSchema> &tables )
   for ( const TableSchema &tbl : tables )
   {
     // TODO: in the future sqlite driver should not add any changes to meta tables
-    if ( tbl.name.rfind( "gpkg_" ) == 0 )
+    if ( startsWith( tbl.name, "gpkg_" ) )
       continue;   // skip any changes to GPKG meta tables
 
     std::string sql, pkeyCols, columns;
@@ -904,7 +907,7 @@ void PostgresDriver::createTables( const std::vector<TableSchema> &tables )
       if ( !columns.empty() )
         columns += ", ";
 
-      std::string type = c.type;
+      std::string type = c.type();
       if ( c.isAutoIncrement )
         type = "SERIAL";   // there is also "smallserial", "bigserial" ...
       columns += quotedIdentifier( c.name ) + " " + type;

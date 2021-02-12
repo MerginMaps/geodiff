@@ -13,6 +13,10 @@
 #include "postgresdriver.h"
 #endif
 
+// define driver names
+const std::string Driver::SQLITEDRIVERNAME = "sqlite";
+const std::string Driver::POSTGRESDRIVERNAME = "postgres";
+
 Driver::Driver()
 {
 }
@@ -24,21 +28,21 @@ Driver::~Driver()
 std::vector<std::string> Driver::drivers()
 {
   std::vector<std::string> names;
-  names.push_back( "sqlite" );
+  names.push_back( SQLITEDRIVERNAME );
 #ifdef HAVE_POSTGRES
-  names.push_back( "postgres" );
+  names.push_back( POSTGRESDRIVERNAME );
 #endif
   return names;
 }
 
 std::unique_ptr<Driver> Driver::createDriver( const std::string &driverName )
 {
-  if ( driverName == "sqlite" )
+  if ( driverName == SQLITEDRIVERNAME )
   {
     return std::unique_ptr<Driver>( new SqliteDriver );
   }
 #ifdef HAVE_POSTGRES
-  if ( driverName == "postgres" )
+  if ( driverName == POSTGRESDRIVERNAME )
   {
     return std::unique_ptr<Driver>( new PostgresDriver );
   }

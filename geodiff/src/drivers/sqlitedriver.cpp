@@ -201,7 +201,7 @@ std::vector<std::string> SqliteDriver::listTables( bool useModified )
     */
 
     // table handled by triggers trigger_*_feature_count_*
-    if ( startsWith( tableName, "gpkg_ogr_contents" ) )
+    if ( startsWith( tableName, "gpkg_" ) )
       continue;
     // table handled by triggers rtree_*_geometry_*
     if ( startsWith( tableName, "rtree_" ) )
@@ -893,8 +893,14 @@ void SqliteDriver::createTables( const std::vector<TableSchema> &tables )
 
   for ( const TableSchema &tbl : tables )
   {
-    addGpkgCrsDefinition( mDb, tbl.crs );
-    addGpkgSpatialTable( mDb, tbl, Extent() );   // TODO: is it OK to set zeros?
+    if ( startsWith( tbl.name, "gpkg_" ) )
+      continue;
+
+    if ( tbl.geometryColumn() != SIZE_MAX )
+    {
+      addGpkgCrsDefinition( mDb, tbl.crs );
+      addGpkgSpatialTable( mDb, tbl, Extent() );   // TODO: is it OK to set zeros?
+    }
 
     std::string sql, pkeyCols, columns;
     for ( const TableColumnInfo &c : tbl.columns )
@@ -902,7 +908,7 @@ void SqliteDriver::createTables( const std::vector<TableSchema> &tables )
       if ( !columns.empty() )
         columns += ", ";
 
-      columns += sqlitePrintf( "\"%w\" %s", c.name.c_str(), c.type.c_str() );
+      columns += sqlitePrintf( "\"%w\" %s", c.name.c_str(), c.type().c_str() );
 
       if ( c.isNotNull )
         columns += " NOT NULL";

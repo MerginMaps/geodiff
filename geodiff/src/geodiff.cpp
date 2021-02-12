@@ -518,7 +518,7 @@ int GEODIFF_makeCopy( const char *driverSrcName, const char *driverSrcExtraInfo,
     for ( const std::string &tableName : tableNames )
     {
       TableSchema tbl = driverSrc->tableSchema( tableName );
-      tableSchemaConvert( driverSrcName, driverDstName, tbl );
+      tableSchemaConvert( driverSrcName, driverDstName, tbl ); // TODO: this should not be needed in modern program!
       tables.push_back( tbl );
     }
 
