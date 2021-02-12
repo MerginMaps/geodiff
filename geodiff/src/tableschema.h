@@ -8,7 +8,71 @@
 
 #include <string>
 #include <vector>
+#include <iostream>
+#include <algorithm>
 
+#include "geodiffutils.hpp"
+
+std::string toBaseType( const std::string &type );
+
+
+struct TableColumnType
+{
+  enum BaseType
+  {
+    TEXT = 0,
+    INTEGER,
+    DOUBLE,
+    BOOLEAN,
+    BLOB,
+    GEOMETRY,
+    DATE,
+    DATETIME
+  };
+
+  BaseType baseType = TEXT;
+  std::string dbType = "";
+
+  std::string name();
+
+  void convertToBaseType();
+
+  void operator =( const std::string _dbType )
+  {
+    dbType = _dbType;
+    convertToBaseType();
+  }
+
+  operator std::string()
+  {
+    return dbType;
+  }
+
+  std::string operator()() const
+  {
+    return dbType;
+  }
+
+  bool operator==( const std::string &other ) const
+  {
+    return ( dbType == other );
+  }
+
+  bool operator!=( const std::string &other ) const
+  {
+    return !( *this == other );
+  }
+
+  bool operator==( const TableColumnType &other ) const
+  {
+    return ( baseType == other.baseType );
+  }
+
+  bool operator!=( const TableColumnType &other ) const
+  {
+    return !( *this == other );
+  }
+};
 
 /** Information about a single column of a database table */
 struct TableColumnInfo
@@ -16,7 +80,7 @@ struct TableColumnInfo
   //! Unique name of the column
   std::string name;
   //! Type of the column as reported by the database
-  std::string type;
+  TableColumnType type;
   //! Whether this column is a part of the table's primary key
   bool isPrimaryKey = false;
 
@@ -39,7 +103,7 @@ struct TableColumnInfo
 
   std::string dump() const
   {
-    std::string output = name + " | " + type + " | ";
+    std::string output = name + " | " + type() + " | ";
     if ( isPrimaryKey )
       output += "pkey ";
     if ( isNotNull )
@@ -59,15 +123,17 @@ struct TableColumnInfo
 
   bool operator==( const TableColumnInfo &other ) const
   {
-    return name == other.name && type == other.type && isPrimaryKey == other.isPrimaryKey &&
+    return name == other.name && type.dbType == other.type.dbType && isPrimaryKey == other.isPrimaryKey &&
            isNotNull == other.isNotNull && isAutoIncrement == other.isAutoIncrement &&
            isGeometry == other.isGeometry && geomType == other.geomType && geomSrsId == other.geomSrsId &&
            geomHasZ == other.geomHasZ && geomHasM == other.geomHasM;
   }
+
   bool operator!=( const TableColumnInfo &other ) const
   {
     return !( *this == other );
   }
+
 };
 
 
@@ -81,8 +147,9 @@ struct CrsDefinition
 
   bool operator==( const CrsDefinition &other ) const
   {
-    return srsId == other.srsId && authName == other.authName &&
-           authCode == other.authCode && wkt == other.wkt;
+    // TODO: We should also compare crs in future, however, the format may vary even for the same object
+    // and that makes it hard to compare just with string compare
+    return srsId == other.srsId && authName == other.authName && authCode == other.authCode;
   }
   bool operator!=( const CrsDefinition &other ) const
   {

@@ -65,7 +65,7 @@ TEST( SqliteDriverTest, test_basic )
   driver->open( Driver::sqliteParametersSingleSource( pathjoin( testdir(), "base.gpkg" ) ) );
 
   std::vector<std::string> tableNames = driver->listTables();
-  EXPECT_EQ( tableNames.size(), 7 );
+  EXPECT_EQ( tableNames.size(), 1 );
   ASSERT_TRUE( std::find( tableNames.begin(), tableNames.end(), "simple" ) != tableNames.end() );
 
   TableSchema tbl = driver->tableSchema( "simple" );

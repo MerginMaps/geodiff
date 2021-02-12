@@ -350,7 +350,7 @@ TEST( PostgresDriverTest, test_create_sqlite_from_postgres )
   driverBase->open( connBase );
   TableSchema tblBaseSimple = driverBase->tableSchema( "simple" );
 
-  tableSchemaPostgresToSqlite( tblBaseSimple );   // make it sqlite driver friendly
+  tableSchemaConvert( "postgres", "sqlite", tblBaseSimple );   // make it sqlite driver friendly
 
   // create the new database
   std::map<std::string, std::string> conn;
@@ -399,7 +399,7 @@ TEST( PostgresDriverTest, test_create_postgres_from_sqlite )
   tblTest1.columns.push_back( test1c3 );
   tblTest1.columns.push_back( test1c4 );
 
-  tableSchemaSqliteToPostgres( tblTest1 );   // make it postgres driver friendly
+  tableSchemaConvert( "sqlite", "postgres", tblTest1 );   // make it postgres driver friendly
 
   // check exported types
   EXPECT_EQ( tblTest1.columns[0].type, "serial" );
@@ -594,6 +594,39 @@ TEST( PostgresDriverTest, test_conversion_with_dates )
   ASSERT_EQ( sch.columns.size(), 5 );
   ASSERT_EQ( sch.columns[3].type, "DATE" );
   ASSERT_EQ( sch.columns[4].type, "DATETIME" );
+
+  PQfinish( c );
+}
+
+TEST( PostgresDriverTest, test_ignore_gpkg_meta_tables )
+{
+  std::string conninfo = pgTestConnInfo();
+
+  execSqlCommands( conninfo, pathjoin( testdir(), "postgres", "base.sql" ) );
+
+  PGconn *c = PQconnectdb( conninfo.c_str() );
+  ASSERT_EQ( PQstatus( c ), CONNECTION_OK );
+
+  std::string tmpTestDir( pathjoin( tmpdir(), "test_ignore_gpkg_meta_tables" ) );
+  makedir( tmpTestDir );
+
+  // Some geopackages in testdata (like base or inserted_1_A) do not contain meta tables coming from former versions on GPKG.
+  // This resulted in table mismatch between sources and thus failing some operations in geodiff API.
+  std::string modifiedGpkg( pathjoin( testdir(), "2_inserts", "inserted_1_A.gpkg" ) );
+  std::string baseGpkg( pathjoin( tmpTestDir, "comparingBase.gpkg" ) );
+  std::string changeset( pathjoin( tmpTestDir, "changeset.diff" ) );
+
+  EXPECT_EQ( GEODIFF_makeCopy( "postgres", conninfo.c_str(), "gd_base", "sqlite", "", baseGpkg.c_str() ), GEODIFF_SUCCESS );
+
+  EXPECT_EQ( GEODIFF_createChangeset( baseGpkg.c_str(), modifiedGpkg.c_str(), changeset.c_str() ), GEODIFF_SUCCESS );
+
+  ASSERT_TRUE( fileExists( changeset ) );
+
+  EXPECT_EQ( GEODIFF_applyChangeset( baseGpkg.c_str(), changeset.c_str() ), GEODIFF_SUCCESS );
+
+//  Replace when new API will be created to compare sources:
+//  EXPECT_EQ( GEODIFF_createChangesetDr( "postgres", conninfo.c_str(), "gd_base", "sqlite", "", modifiedGpkg.c_str(), "/home/tomasmizera/projects/temp/tultra.diff" ),
+//             GEODIFF_SUCCESS );
 
   PQfinish( c );
 }

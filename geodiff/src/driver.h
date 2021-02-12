@@ -128,6 +128,9 @@ class Driver
      * If the check fails, GeoDiffException is thrown.
      */
     virtual void checkCompatibleForRebase( bool useModified = false ) = 0;
+
+    static const std::string SQLITEDRIVERNAME;
+    static const std::string POSTGRESDRIVERNAME;
 };
 
 
