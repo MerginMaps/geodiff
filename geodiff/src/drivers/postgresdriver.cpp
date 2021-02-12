@@ -446,7 +446,7 @@ static Value resultToValue( const PostgresResult &res, int r, size_t i, const Ta
     {
       v.setString( Value::TypeText, valueStr.c_str(), valueStr.size() );
     }
-    else if ( col.type == "timestamp without time zone" )
+    else if ( col.type == "timestamp without time zone" || col.type == "date" )
     {
       v.setString( Value::TypeText, valueStr.c_str(), valueStr.size() );
     }

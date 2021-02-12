@@ -161,7 +161,7 @@ int main( int argc, char *argv[] )
     std::string mode( argv[1] );
     if ( mode == "version" )
     {
-      printf( "%s", GEODIFF_version() );
+      printf( "%s\n", GEODIFF_version() );
       return 0;
     }
     else if ( mode == "createChangeset" || mode == "-c" )
