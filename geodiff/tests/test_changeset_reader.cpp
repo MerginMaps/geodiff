@@ -26,9 +26,6 @@ TEST( ChangesetReaderTest, test_read_insert )
 
   ChangesetEntry entry;
   EXPECT_TRUE( reader.nextEntry( entry ) );
-  entry.table->name = "gpkg_contents";   // this one is not too interesting at this point
-
-  EXPECT_TRUE( reader.nextEntry( entry ) );
   EXPECT_EQ( entry.op, ChangesetEntry::OpInsert );
   EXPECT_EQ( entry.table->name, "simple" );
   EXPECT_EQ( entry.table->primaryKeys.size(), 4 );
@@ -53,9 +50,6 @@ TEST( ChangesetReaderTest, test_read_update )
   EXPECT_TRUE( reader.open( changeset ) );
 
   ChangesetEntry entry;
-  EXPECT_TRUE( reader.nextEntry( entry ) );
-  entry.table->name = "gpkg_contents";   // this one is not too interesting at this point
-
   EXPECT_TRUE( reader.nextEntry( entry ) );
   EXPECT_EQ( entry.op, ChangesetEntry::OpUpdate );
   EXPECT_EQ( entry.table->name, "simple" );
@@ -89,9 +83,6 @@ TEST( ChangesetReaderTest, test_read_delete )
   EXPECT_TRUE( reader.open( changeset ) );
 
   ChangesetEntry entry;
-  EXPECT_TRUE( reader.nextEntry( entry ) );
-  entry.table->name = "gpkg_contents";   // this one is not too interesting at this point
-
   EXPECT_TRUE( reader.nextEntry( entry ) );
   EXPECT_EQ( entry.op, ChangesetEntry::OpDelete );
   EXPECT_EQ( entry.table->name, "simple" );
