@@ -204,7 +204,7 @@ struct TableSchema
   bool compareWithBaseTypes( const TableSchema &other ) const
   {
     return name == other.name &&
-           crs == other.crs &&
+           crs == other.crs && columns.size() == other.columns.size() &&
            std::equal( columns.begin(), columns.end(), other.columns.begin(),
     []( TableColumnInfo me, TableColumnInfo other ) { return me.compareWithBaseTypes( other ); } );
   }
