@@ -70,7 +70,7 @@ class UnitTestsPythonSingleCommit(GeoDiffTests):
              "1_geopackage",
              "base.gpkg",
              "modified_1_geom.gpkg",
-             2,
+             1,
              True)
 
     def test_complex_geopackage(self):
@@ -78,6 +78,6 @@ class UnitTestsPythonSingleCommit(GeoDiffTests):
              "complex",
              "base.gpkg",
              "complex1.gpkg",
-             7,
+             6,
              True,
              expected_json=testdir() + "/complex/complex1.json")

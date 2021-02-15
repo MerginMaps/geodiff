@@ -29,11 +29,11 @@ class UnitTestsPythonConcurrentCommits(GeoDiffTests):
 
         print("create changeset base to A")
         self.geodiff.create_changeset(base, modifiedA, changesetbaseA)
-        check_nchanges(self.geodiff, changesetbaseA,  2)
+        check_nchanges(self.geodiff, changesetbaseA,  1)
 
         print("create changeset A to B")
         self.geodiff.create_rebased_changeset(base, modifiedB, changesetbaseA, changesetAB, conflictAB)
-        check_nchanges(self.geodiff, changesetAB, 2)
+        check_nchanges(self.geodiff, changesetAB, 1)
         if os.path.exists(conflictAB):
             raise TestError("expected no conflicts")
 
@@ -43,7 +43,7 @@ class UnitTestsPythonConcurrentCommits(GeoDiffTests):
 
         print("check that then new data has both features\n")
         self.geodiff.create_changeset(base, patchedAB, changesetBbase)
-        check_nchanges(self.geodiff, changesetBbase, 3)
+        check_nchanges(self.geodiff, changesetBbase, 2)
 
         print("check direct rebase")
         shutil.copyfile(modifiedB, patchedAB2)
@@ -52,4 +52,4 @@ class UnitTestsPythonConcurrentCommits(GeoDiffTests):
             raise TestError("expected no conflicts")
 
         self.geodiff.create_changeset(base, patchedAB2, changesetAB2)
-        check_nchanges(self.geodiff, changesetAB2,  3)
+        check_nchanges(self.geodiff, changesetAB2,  2)
