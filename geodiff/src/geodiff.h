@@ -266,6 +266,22 @@ GEODIFF_EXPORT int GEODIFF_createChangesetEx( const char *driverName, const char
     const char *changeset );
 
 /**
+ * Compares 2 sources from various drivers by creating changeset. Sources are converted to geopackage and then compared via
+ * GEODIFF_createChangesetEx() function.
+ *
+ * See documentation of GEODIFF_makeCopy() for details about supported drivers.
+ */
+GEODIFF_EXPORT int GEODIFF_createChangesetDr(
+    const char *driverSrcName,
+    const char *driverSrcExtraInfo,
+    const char *src,
+    const char *driverDstName,
+    const char *driverDstExtraInfo,
+    const char *dst,
+    const char *changeset );
+
+
+/**
  * This is an extended version of GEODIFF_applyChangeset() which also allows specification
  * of the driver and its extra connection info. The original GEODIFF_applyChangeset() function
  * only supports Sqlite driver.

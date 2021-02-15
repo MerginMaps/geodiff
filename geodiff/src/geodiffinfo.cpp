@@ -28,6 +28,7 @@ void help()
   printf( " [-ae, applyChangesetEx]   = apply changeset with driver, args: driverName driverExtraInfo base changeset\n\n" );
   printf( " [rebaseEx]                = rebase data with driver, args: driverName driverExtraInfo base modified base2their conflict\n\n" );
   printf( " [dumpData]                = dump data, args: driverName driverExtraInfo base changeset\n\n" );
+  printf( " [-cd, createChangesetDr]  = creates changeset across drivers, args: driverSrcName driverSrcExtraInfo src driverDstName driverDstExtraInfo dst changeset\n\n" );
 }
 
 int err( const std::string msg )
@@ -147,6 +148,15 @@ int dumpData( int argc, char *argv[] )
   return ret;
 }
 
+int createChangesetDr( int argc, char *argv[] )
+{
+  if ( argc < 1 + 8 )
+    return err( "invalid number of arguments to createChangesetDr" );
+
+  int ret = GEODIFF_createChangesetDr( argv[2], argv[3], argv[4], argv[5], argv[6], argv[7], argv[8] );
+  return ret;
+}
+
 int main( int argc, char *argv[] )
 {
   GEODIFF_init();
@@ -203,6 +213,10 @@ int main( int argc, char *argv[] )
     else if ( mode == "dumpData" )
     {
       return dumpData( argc, argv );
+    }
+    else if ( mode == "createChangesetDr" || mode == "-cd" )
+    {
+      return createChangesetDr( argc, argv );
     }
     else
     {
