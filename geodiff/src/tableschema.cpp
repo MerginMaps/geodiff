@@ -8,7 +8,6 @@
 
 #include "geodifflogger.hpp"
 
-// ----- TableSchema ----
 
 bool TableSchema::hasPrimaryKey() const
 {
@@ -40,218 +39,106 @@ size_t TableSchema::geometryColumn() const
   return SIZE_MAX;
 }
 
-
-// ---- TableColumnType ----
-
-
-std::string toBaseType( const std::string &type )
+TableColumnType sqliteToBaseColumn( const std::string &columnType, bool isGeometry )
 {
-  std::string baseType( lowercaseString( type ) );
+  TableColumnType type;
+  type.dbType = columnType;
 
-  if ( baseType == "int" || baseType == "integer" || baseType == "smallint" ||
-       baseType == "mediumint" || baseType == "bigint" || baseType == "tinyint" )
+  if ( isGeometry )
   {
-    return "integer";
+    type.baseType = TableColumnType::GEOMETRY;
+    return type;
   }
-  else if ( baseType == "double" || baseType == "real" || baseType == "double precision" || baseType == "float" )
-  {
-    return "double precision";
-  }
-  else if ( baseType == "bool" || baseType == "boolean" )
-  {
-    return "boolean";
-  }
-  else if ( baseType == "text" || baseType.rfind( "text(" ) == 0 || baseType.rfind( "varchar(" ) == 0 )
-  {
-    return "text";
-  }
-  else if ( baseType == "blob" )
-  {
-    return "bytea";
-  }
-  else if ( baseType == "datetime" )
-  {
-    return "timestamp";
-  }
-  else if ( baseType == "date" )
-  {
-    return "date";
-  }
-  // Do we need to check for geometry too?
 
-  return "";
+  std::string dbType( lowercaseString( columnType ) );
+
+  if ( dbType == "int" || dbType == "integer" || dbType == "smallint" ||
+       dbType == "mediumint" || dbType == "bigint" || dbType == "tinyint" )
+  {
+    type.baseType = TableColumnType::INTEGER;
+  }
+  else if ( dbType == "double" || dbType == "real" || dbType == "double precision" || dbType == "float" )
+  {
+    type.baseType = TableColumnType::DOUBLE;
+  }
+  else if ( dbType == "bool" || dbType == "boolean" )
+  {
+    type.baseType = TableColumnType::BOOLEAN;
+  }
+  else if ( dbType == "text" || dbType.rfind( "text(" ) == 0 || dbType.rfind( "varchar(" ) == 0 )
+  {
+    type.baseType = TableColumnType::TEXT;
+  }
+  else if ( dbType == "blob" )
+  {
+    type.baseType = TableColumnType::BLOB;
+  }
+  else if ( dbType == "datetime" )
+  {
+    type.baseType = TableColumnType::DATETIME;
+  }
+  else if ( dbType == "date" )
+  {
+    type.baseType = TableColumnType::DATE;
+  }
+  else
+  {
+    Logger::instance().info( "Converting GeoPackage type " + columnType + " to base type unsuccessful, using text." );
+    type.baseType = TableColumnType::TEXT;
+  }
+
+  return type;
 }
 
-void tableSchemaPostgresToSqlite( TableSchema & )
+TableColumnType postgresToBaseColumn( const std::string &columnType, bool isGeometry )
 {
-//  // SQLite does not really care much about column types
-//  // but it does not like "geometry(X, Y)" type due to parentheses so let's convert
-//  // that to a simple type. We also need to set date related columns to geopackage
-//  // types DATE and DATETIME otherwise QGIS would assume these columns are text and
-//  // set text widget for them (instead of calendar).
+  TableColumnType type;
+  type.dbType = columnType;
 
-//  for ( size_t i = 0; i < tbl.columns.size(); ++i )
-//  {
-//    TableColumnInfo &col = tbl.columns[i];
-//    if ( col.type.dbType.rfind( "geometry(", 0 ) == 0 )
-//    {
-//      col.type = col.geomType;
-//    }
-//    else if ( col.type == "timestamp without time zone" )
-//    {
-//      col.type = "DATETIME";
-//    }
-//    else if ( col.type == "date" )
-//    {
-//      col.type = "DATE";
-//    }
-//  }
-}
-
-
-void tableSchemaSqliteToPostgres( TableSchema & )
-{
-//  for ( size_t i = 0; i < tbl.columns.size(); ++i )
-//  {
-//    TableColumnInfo &col = tbl.columns[i];
-
-//    // SQLite has very easy going approach to data types - it looks like anything is accepted
-//    // as a data type name, and SQLite only does some basic string matching to figure out
-//    // preferred data type for column (see "Column Affinity" in the docs - for example, "INT"
-//    // substring in data type name implies integer affinity, "DOUB" substring implies real number
-//    // affinity. (But columns can contain any data value type anyway.)
-
-//    std::string baseType = toBaseType( col.type );
-
-//    if ( !baseType.empty() )
-//    {
-//      col.type = baseType;
-//    }
-//    else if ( col.isGeometry )
-//    {
-//      std::string geomType = col.geomType;
-//      if ( col.geomHasZ )
-//        geomType += "Z";
-//      if ( col.geomHasM )
-//        geomType += "M";
-//      col.type = "geometry(" + geomType + ", " + std::to_string( col.geomSrsId ) + ")";
-//    }
-//    else
-//    {
-//      Logger::instance().warn( "sqlite to postgres: table '" + tbl.name + "', column '" + col.name +
-//                               "': unknown data type '" + col.type.name() + "' - using 'text' in postgres" );
-//      col.type = "text";
-//    }
-
-//    // When 'serial' data type is used, PostgreSQL creates SEQUENCE object
-//    // named <tablename>_<colname>_seq and will set column's default value
-//    // to nextval('<tablename>_<colname>_seq')
-//    if ( col.type == "integer" && col.isAutoIncrement )
-//      col.type = "serial";
-//  }
-}
-
-void TableColumnType::convertToBaseType()
-{
-  std::string type = lowercaseString( dbType );
-  // TODO: set base type
-}
-
-void sqliteToBase( TableSchema &tbl )
-{
-  for ( size_t i = 0; i < tbl.columns.size(); ++i )
+  if ( isGeometry )
   {
-    TableColumnInfo &col = tbl.columns[i];
-    std::string dbType ( lowercaseString( col.type.dbType ) );
-
-    if ( dbType == "int" || dbType == "integer" || dbType == "smallint" ||
-         dbType == "mediumint" || dbType == "bigint" || dbType == "tinyint" )
-    {
-      col.type.baseType = TableColumnType::INTEGER;
-    }
-    else if ( dbType == "double" || dbType == "real" || dbType == "double precision" || dbType == "float" )
-    {
-      col.type.baseType = TableColumnType::DOUBLE;
-    }
-    else if ( dbType == "bool" || dbType == "boolean" )
-    {
-      col.type.baseType = TableColumnType::BOOLEAN;
-    }
-    else if ( dbType == "text" || dbType.rfind( "text(" ) == 0 || dbType.rfind( "varchar(" ) == 0 )
-    {
-      col.type.baseType = TableColumnType::TEXT;
-    }
-    else if ( dbType == "blob" )
-    {
-      col.type.baseType = TableColumnType::BLOB;
-    }
-    else if ( dbType == "datetime" )
-    {
-      col.type.baseType = TableColumnType::DATETIME;
-    }
-    else if ( dbType == "date" )
-    {
-      col.type.baseType = TableColumnType::DATE;
-    }
-    else if ( col.isGeometry )
-    {
-      col.type.baseType = TableColumnType::GEOMETRY;
-    }
-    else
-    {
-      Logger::instance().warn( "sqlite to base type: table '" + tbl.name + "', column '" + col.name +
-                               "': unknown data type '" + col.type.dbType + "' - using 'text'" );
-      col.type.baseType = TableColumnType::TEXT;
-    }
+    type.baseType = TableColumnType::GEOMETRY;
+    return type;
   }
-}
 
-void postgresToBase( TableSchema &tbl )
-{
-  for ( size_t i = 0; i < tbl.columns.size(); ++i )
+  std::string dbType = lowercaseString( columnType );
+
+  if ( dbType == "integer" )
   {
-    TableColumnInfo &col = tbl.columns[i];
-    std::string dbType = lowercaseString( col.type.dbType );
-
-    if ( dbType == "integer" )
-    {
-      col.type.baseType = TableColumnType::INTEGER;
-    }
-    else if ( dbType == "double precision" || dbType == "real" )
-    {
-      col.type.baseType = TableColumnType::DOUBLE;
-    }
-    else if ( dbType == "boolean" )
-    {
-      col.type.baseType = TableColumnType::BOOLEAN;
-    }
-    else if ( dbType == "text" )
-    {
-      col.type.baseType = TableColumnType::TEXT;
-    }
-    else if ( dbType == "bytea" )
-    {
-      col.type.baseType = TableColumnType::BLOB;
-    }
-    else if ( dbType == "timestamp without time zone" )
-    {
-      col.type.baseType = TableColumnType::DATETIME;
-    }
-    else if ( dbType == "date" )
-    {
-      col.type.baseType = TableColumnType::DATE;
-    }
-    else if ( dbType.rfind( "geometry(", 0 ) == 0 )
-    {
-      col.type.baseType = TableColumnType::GEOMETRY;
-    }
-    else
-    {
-      Logger::instance().warn( "postgres to base type: table '" + tbl.name + "', column '" + col.name +
-                               "': unknown data type '" + col.type.dbType + "' - using 'text'" );
-      col.type.baseType = TableColumnType::TEXT;
-    }
+    type.baseType = TableColumnType::INTEGER;
   }
+  else if ( dbType == "double precision" || dbType == "real" )
+  {
+    type.baseType = TableColumnType::DOUBLE;
+  }
+  else if ( dbType == "boolean" )
+  {
+    type.baseType = TableColumnType::BOOLEAN;
+  }
+  else if ( dbType == "text" || startsWith( dbType, "text(" ) || dbType == "varchar" || startsWith( dbType, "varchar(" ) ||
+            dbType == "char" || dbType == "citetext" )
+  {
+    type.baseType = TableColumnType::TEXT;
+  }
+  else if ( dbType == "bytea" )
+  {
+    type.baseType = TableColumnType::BLOB;
+  }
+  else if ( dbType == "timestamp without time zone" )
+  {
+    type.baseType = TableColumnType::DATETIME;
+  }
+  else if ( dbType == "date" )
+  {
+    type.baseType = TableColumnType::DATE;
+  }
+  else
+  {
+    Logger::instance().warn( "Converting PostgreSQL type " + columnType + " to base type unsuccessful, using text." );
+    type.baseType = TableColumnType::TEXT;
+  }
+
+  return type;
 }
 
 void baseToSqlite( TableSchema &tbl )
@@ -263,7 +150,8 @@ void baseToSqlite( TableSchema &tbl )
   // affinity. (But columns can contain any data value type anyway.)
 
   // TYPES: http://www.geopackage.org/spec/#table_column_data_types
-  static std::map<TableColumnType::BaseType, std::string> mapping = {
+  static std::map<TableColumnType::BaseType, std::string> mapping =
+  {
     { TableColumnType::INTEGER,  "INTEGER"   },
     { TableColumnType::DOUBLE,   "DOUBLE"    },
     { TableColumnType::BOOLEAN,  "BOOLEAN"   },
@@ -280,18 +168,19 @@ void baseToSqlite( TableSchema &tbl )
 
     if ( col.type.baseType == TableColumnType::GEOMETRY )
     {
-      col.type = col.geomType;
+      col.type.dbType = col.geomType;
     }
     else
     {
-      col.type = mapping.at( col.type.baseType );
+      col.type.dbType = mapping.at( col.type.baseType );
     }
   }
 }
 
 void baseToPostgres( TableSchema &tbl )
 {
-  static std::map<TableColumnType::BaseType, std::string> mapping = {
+  static std::map<TableColumnType::BaseType, std::string> mapping =
+  {
     { TableColumnType::INTEGER,  "integer"            },
     { TableColumnType::DOUBLE,   "double precision"   },
     { TableColumnType::BOOLEAN,  "boolean"            },
@@ -313,63 +202,37 @@ void baseToPostgres( TableSchema &tbl )
         geomType += "Z";
       if ( col.geomHasM )
         geomType += "M";
-      col.type = "geometry(" + geomType + ", " + std::to_string( col.geomSrsId ) + ")";
+      col.type.dbType = "geometry(" + geomType + ", " + std::to_string( col.geomSrsId ) + ")";
     }
     else
     {
-      col.type = mapping.at( col.type.baseType );
+      col.type.dbType = mapping.at( col.type.baseType );
     }
 
     // When 'serial' data type is used, PostgreSQL creates SEQUENCE object
     // named <tablename>_<colname>_seq and will set column's default value
     // to nextval('<tablename>_<colname>_seq')
     if ( col.type.baseType == TableColumnType::INTEGER && col.isAutoIncrement )
-      col.type = "serial";
+      col.type.dbType = "serial";
   }
 }
 
-
-void tableSchemaConvert( const std::string &driverSrcName, const std::string &driverDstName, TableSchema &tbl )
+void tableSchemaConvert( const std::string &driverDstName, TableSchema &tbl )
 {
-  if ( driverSrcName == Driver::SQLITEDRIVERNAME )
-    sqliteToBase( tbl );
-  else if ( driverSrcName == Driver::POSTGRESDRIVERNAME )
-    postgresToBase( tbl );
-  else
-    throw GeoDiffException( "Uknown driver name " + driverSrcName );
-
   if ( driverDstName == Driver::SQLITEDRIVERNAME )
     baseToSqlite( tbl );
   else if ( driverDstName == Driver::POSTGRESDRIVERNAME )
     baseToPostgres( tbl );
   else
     throw GeoDiffException( "Uknown driver name " + driverDstName );
-
-//  if ( driverSrcName == driverDstName )
-//    return;
-
-//  if ( driverSrcName == "postgres" && driverDstName == "sqlite" )
-//    tableSchemaPostgresToSqlite( tbl );
-//  else if ( driverSrcName == "sqlite" && driverDstName == "postgres" )
-//    tableSchemaSqliteToPostgres( tbl );
 }
 
-std::string TableColumnType::name()
+TableColumnType columnType( const std::string &columnType, const std::string &driverName, bool isGeometry )
 {
-  static std::map<TableColumnType::BaseType, std::string> mapping {
-    { TableColumnType::TEXT,     "text"     },
-    { TableColumnType::INTEGER,  "integer"  },
-    { TableColumnType::DOUBLE,   "double"   },
-    { TableColumnType::BOOLEAN,  "boolean"  },
-    { TableColumnType::BLOB,     "blob"     },
-    { TableColumnType::GEOMETRY, "geometry" },
-    { TableColumnType::DATE,     "date"     },
-    { TableColumnType::DATETIME, "datetime" },
-  };
-
-  auto it = mapping.find( baseType );
-  if ( it != mapping.end() )
-    return mapping.at( baseType );
-
-  return dbType;
+  if ( driverName == Driver::SQLITEDRIVERNAME )
+    return sqliteToBaseColumn( columnType, isGeometry );
+  else if ( driverName == Driver::POSTGRESDRIVERNAME )
+    return postgresToBaseColumn( columnType, isGeometry );
+  else
+    throw GeoDiffException( "Uknown driver name " + driverName );
 }

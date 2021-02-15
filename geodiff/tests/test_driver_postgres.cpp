@@ -72,14 +72,14 @@ TEST( PostgresDriverTest, test_basic )
   ASSERT_EQ( sch.name, "simple" );
   ASSERT_EQ( sch.columns.size(), 4 );
   ASSERT_EQ( sch.columns[0].name, "fid" );
-  ASSERT_EQ( sch.columns[0].type, "integer" );
+  ASSERT_EQ( sch.columns[0].type.dbType, "integer" );
   ASSERT_EQ( sch.columns[0].isPrimaryKey, true );
   ASSERT_EQ( sch.columns[0].isNotNull, true );
   ASSERT_EQ( sch.columns[0].isAutoIncrement, true );
   ASSERT_EQ( sch.columns[0].isGeometry, false );
 
   ASSERT_EQ( sch.columns[1].name, "geometry" );
-  ASSERT_EQ( sch.columns[1].type, "geometry(Point,4326)" );
+  ASSERT_EQ( sch.columns[1].type.dbType, "geometry(Point,4326)" );
   ASSERT_EQ( sch.columns[1].isPrimaryKey, false );
   ASSERT_EQ( sch.columns[1].isNotNull, false );
   ASSERT_EQ( sch.columns[1].isAutoIncrement, false );
@@ -90,14 +90,14 @@ TEST( PostgresDriverTest, test_basic )
   ASSERT_EQ( sch.columns[1].geomHasM, false );
 
   ASSERT_EQ( sch.columns[2].name, "name" );
-  ASSERT_EQ( sch.columns[2].type, "text" );
+  ASSERT_EQ( sch.columns[2].type.dbType, "text" );
   ASSERT_EQ( sch.columns[2].isPrimaryKey, false );
   ASSERT_EQ( sch.columns[2].isNotNull, false );
   ASSERT_EQ( sch.columns[2].isAutoIncrement, false );
   ASSERT_EQ( sch.columns[2].isGeometry, false );
 
   ASSERT_EQ( sch.columns[3].name, "rating" );
-  ASSERT_EQ( sch.columns[3].type, "integer" );
+  ASSERT_EQ( sch.columns[3].type.dbType, "integer" );
   ASSERT_EQ( sch.columns[3].isPrimaryKey, false );
   ASSERT_EQ( sch.columns[3].isNotNull, false );
   ASSERT_EQ( sch.columns[3].isAutoIncrement, false );
@@ -350,7 +350,7 @@ TEST( PostgresDriverTest, test_create_sqlite_from_postgres )
   driverBase->open( connBase );
   TableSchema tblBaseSimple = driverBase->tableSchema( "simple" );
 
-  tableSchemaConvert( "postgres", "sqlite", tblBaseSimple );   // make it sqlite driver friendly
+  tableSchemaConvert( "sqlite", tblBaseSimple );   // make it sqlite driver friendly
 
   // create the new database
   std::map<std::string, std::string> conn;
@@ -376,21 +376,21 @@ TEST( PostgresDriverTest, test_create_postgres_from_sqlite )
 {
   TableColumnInfo test1c1;
   test1c1.name = "c1";
-  test1c1.type = "mediumint";
+  test1c1.type = columnType( "mediumint", Driver::SQLITEDRIVERNAME );
   test1c1.isPrimaryKey = true;
   test1c1.isAutoIncrement = true;
 
   TableColumnInfo test1c2;
   test1c2.name = "c2";
-  test1c2.type = "bool";
+  test1c2.type = columnType( "bool", Driver::SQLITEDRIVERNAME );
 
   TableColumnInfo test1c3;
   test1c3.name = "c3";
-  test1c3.type = "mediumint";
+  test1c3.type = columnType( "mediumint", Driver::SQLITEDRIVERNAME );
 
   TableColumnInfo test1c4;
   test1c4.name = "c4";
-  test1c4.type = "varchar(255)";
+  test1c4.type = columnType( "varchar(255)", Driver::SQLITEDRIVERNAME );
 
   TableSchema tblTest1;
   tblTest1.name = "test_1";
@@ -399,13 +399,13 @@ TEST( PostgresDriverTest, test_create_postgres_from_sqlite )
   tblTest1.columns.push_back( test1c3 );
   tblTest1.columns.push_back( test1c4 );
 
-  tableSchemaConvert( "sqlite", "postgres", tblTest1 );   // make it postgres driver friendly
+  tableSchemaConvert( "postgres", tblTest1 );   // make it postgres driver friendly
 
   // check exported types
-  EXPECT_EQ( tblTest1.columns[0].type, "serial" );
-  EXPECT_EQ( tblTest1.columns[1].type, "boolean" );
-  EXPECT_EQ( tblTest1.columns[2].type, "integer" );
-  EXPECT_EQ( tblTest1.columns[3].type, "text" );
+  EXPECT_EQ( tblTest1.columns[0].type.dbType, "serial" );
+  EXPECT_EQ( tblTest1.columns[1].type.dbType, "boolean" );
+  EXPECT_EQ( tblTest1.columns[2].type.dbType, "integer" );
+  EXPECT_EQ( tblTest1.columns[3].type.dbType, "text" );
 
   execSqlCommandsFromString( pgTestConnInfo(), "DROP SCHEMA IF EXISTS gd_test_postgres_from_sqlite CASCADE;" );
 
@@ -575,8 +575,8 @@ TEST( PostgresDriverTest, test_conversion_with_dates )
   TableSchema sch = driverPG->tableSchema( "city" );
   ASSERT_EQ( sch.name, "city" );
   ASSERT_EQ( sch.columns.size(), 5 );
-  ASSERT_EQ( sch.columns[3].type, "date" );
-  ASSERT_EQ( sch.columns[4].type, "timestamp without time zone" );
+  ASSERT_EQ( sch.columns[3].type.dbType, "date" );
+  ASSERT_EQ( sch.columns[4].type.dbType, "timestamp without time zone" );
 
   // convert back to sqlite
   makedir( pathjoin( tmpdir(), testName ) );
@@ -592,8 +592,8 @@ TEST( PostgresDriverTest, test_conversion_with_dates )
   sch = driverGPKG->tableSchema( "city" );
   ASSERT_EQ( sch.name, "city" );
   ASSERT_EQ( sch.columns.size(), 5 );
-  ASSERT_EQ( sch.columns[3].type, "DATE" );
-  ASSERT_EQ( sch.columns[4].type, "DATETIME" );
+  ASSERT_EQ( sch.columns[3].type.dbType, "DATE" );
+  ASSERT_EQ( sch.columns[4].type.dbType, "DATETIME" );
 
   PQfinish( c );
 }

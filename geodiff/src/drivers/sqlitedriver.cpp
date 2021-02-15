@@ -234,6 +234,7 @@ TableSchema SqliteDriver::tableSchema( const std::string &tableName, bool useMod
 
   TableSchema tbl;
   tbl.name = tableName;
+  std::map<std::string, std::string> columnTypes;
 
   Sqlite3Stmt statement;
   statement.prepare( mDb, "PRAGMA '%q'.table_info('%q')", dbName.c_str(), tableName.c_str() );
@@ -245,79 +246,83 @@ TableSchema SqliteDriver::tableSchema( const std::string &tableName, bool useMod
 
     TableColumnInfo columnInfo;
     columnInfo.name = ( const char * )zName;
-    columnInfo.type = ( const char * ) sqlite3_column_text( statement.get(), 2 );
     columnInfo.isNotNull = sqlite3_column_int( statement.get(), 3 );
     columnInfo.isPrimaryKey = sqlite3_column_int( statement.get(), 5 );
-
-    if ( columnInfo.isPrimaryKey && lowercaseString( columnInfo.type ) == "integer" )
-    {
-      // sqlite uses auto-increment automatically for INTEGER PRIMARY KEY - https://sqlite.org/autoinc.html
-      columnInfo.isAutoIncrement = true;
-    }
+    columnTypes[columnInfo.name] = ( const char * ) sqlite3_column_text( statement.get(), 2 );
 
     tbl.columns.push_back( columnInfo );
   }
 
   // check if the geometry columns table is present (it may not be if this is a "pure" sqlite file)
-  if ( !tableExists( mDb, "gpkg_geometry_columns", dbName ) )
-    return tbl;
-
-  //
-  // get geometry column details (geometry type, whether it has Z/M values, CRS id)
-  //
-
-  int srsId = -1;
-  Sqlite3Stmt stmtGeomCol;
-  stmtGeomCol.prepare( mDb, "SELECT * FROM \"%w\".gpkg_geometry_columns WHERE table_name = '%q'", dbName.c_str(), tableName.c_str() );
-  if ( SQLITE_ROW == sqlite3_step( stmtGeomCol.get() ) )
+  if ( tableExists( mDb, "gpkg_geometry_columns", dbName ) )
   {
-    const unsigned char *chrColumnName = sqlite3_column_text( stmtGeomCol.get(), 1 );
-    const unsigned char *chrTypeName = sqlite3_column_text( stmtGeomCol.get(), 2 );
-    if ( chrColumnName == nullptr )
-      throw GeoDiffException( "NULL column name in gpkg_geometry_columns: " + tableName );
-    if ( chrTypeName == nullptr )
-      throw GeoDiffException( "NULL type name in gpkg_geometry_columns: " + tableName );
+    //
+    // get geometry column details (geometry type, whether it has Z/M values, CRS id)
+    //
 
-    std::string geomColName = ( const char * ) chrColumnName;
-    std::string geomTypeName = ( const char * ) chrTypeName;
-    srsId = sqlite3_column_int( stmtGeomCol.get(), 3 );
-    bool hasZ = sqlite3_column_int( stmtGeomCol.get(), 4 );
-    bool hasM = sqlite3_column_int( stmtGeomCol.get(), 5 );
+    int srsId = -1;
+    Sqlite3Stmt stmtGeomCol;
+    stmtGeomCol.prepare( mDb, "SELECT * FROM \"%w\".gpkg_geometry_columns WHERE table_name = '%q'", dbName.c_str(), tableName.c_str() );
+    if ( SQLITE_ROW == sqlite3_step( stmtGeomCol.get() ) )
+    {
+      const unsigned char *chrColumnName = sqlite3_column_text( stmtGeomCol.get(), 1 );
+      const unsigned char *chrTypeName = sqlite3_column_text( stmtGeomCol.get(), 2 );
+      if ( chrColumnName == nullptr )
+        throw GeoDiffException( "NULL column name in gpkg_geometry_columns: " + tableName );
+      if ( chrTypeName == nullptr )
+        throw GeoDiffException( "NULL type name in gpkg_geometry_columns: " + tableName );
 
-    size_t i = tbl.columnFromName( geomColName );
-    if ( i == SIZE_MAX )
-      throw GeoDiffException( "Inconsistent entry in gpkg_geometry_columns - geometry column not found: " + geomColName );
+      std::string geomColName = ( const char * ) chrColumnName;
+      std::string geomTypeName = ( const char * ) chrTypeName;
+      srsId = sqlite3_column_int( stmtGeomCol.get(), 3 );
+      bool hasZ = sqlite3_column_int( stmtGeomCol.get(), 4 );
+      bool hasM = sqlite3_column_int( stmtGeomCol.get(), 5 );
 
-    TableColumnInfo &col = tbl.columns[i];
-    col.isGeometry = true;
-    col.geomType = geomTypeName;
-    col.geomSrsId = srsId;
-    col.geomHasZ = hasZ;
-    col.geomHasM = hasM;
+      size_t i = tbl.columnFromName( geomColName );
+      if ( i == SIZE_MAX )
+        throw GeoDiffException( "Inconsistent entry in gpkg_geometry_columns - geometry column not found: " + geomColName );
+
+      TableColumnInfo &col = tbl.columns[i];
+      col.setGeometry( geomTypeName, srsId, hasM, hasZ );
+    }
+
+    //
+    // get CRS information
+    //
+
+    if ( srsId != -1 )
+    {
+      Sqlite3Stmt stmtCrs;
+      stmtCrs.prepare( mDb, "SELECT * FROM \"%w\".gpkg_spatial_ref_sys WHERE srs_id = %d", dbName.c_str(), srsId );
+      if ( SQLITE_ROW != sqlite3_step( stmtCrs.get() ) )
+        throw GeoDiffException( "Unable to find entry in gpkg_spatial_ref_sys for srs_id = " + std::to_string( srsId ) );
+
+      const unsigned char *chrAuthName = sqlite3_column_text( stmtCrs.get(), 2 );
+      const unsigned char *chrWkt = sqlite3_column_text( stmtCrs.get(), 4 );
+      if ( chrAuthName == nullptr )
+        throw GeoDiffException( "NULL auth name in gpkg_spatial_ref_sys: " + tableName );
+      if ( chrWkt == nullptr )
+        throw GeoDiffException( "NULL definition in gpkg_spatial_ref_sys: " + tableName );
+
+      tbl.crs.srsId = srsId;
+      tbl.crs.authName = ( const char * ) chrAuthName;
+      tbl.crs.authCode = sqlite3_column_int( stmtCrs.get(), 3 );
+      tbl.crs.wkt = ( const char * ) chrWkt;
+    }
   }
 
-  //
-  // get CRS information
-  //
-
-  if ( srsId != -1 )
+  // update column types
+  for ( auto const &it : columnTypes )
   {
-    Sqlite3Stmt stmtCrs;
-    stmtCrs.prepare( mDb, "SELECT * FROM \"%w\".gpkg_spatial_ref_sys WHERE srs_id = %d", dbName.c_str(), srsId );
-    if ( SQLITE_ROW != sqlite3_step( stmtCrs.get() ) )
-      throw GeoDiffException( "Unable to find entry in gpkg_spatial_ref_sys for srs_id = " + std::to_string( srsId ) );
+    size_t i = tbl.columnFromName( it.first );
+    TableColumnInfo &col = tbl.columns[i];
+    tbl.columns[i].type = columnType( it.second, Driver::SQLITEDRIVERNAME, col.isGeometry );
 
-    const unsigned char *chrAuthName = sqlite3_column_text( stmtCrs.get(), 2 );
-    const unsigned char *chrWkt = sqlite3_column_text( stmtCrs.get(), 4 );
-    if ( chrAuthName == nullptr )
-      throw GeoDiffException( "NULL auth name in gpkg_spatial_ref_sys: " + tableName );
-    if ( chrWkt == nullptr )
-      throw GeoDiffException( "NULL definition in gpkg_spatial_ref_sys: " + tableName );
-
-    tbl.crs.srsId = srsId;
-    tbl.crs.authName = ( const char * ) chrAuthName;
-    tbl.crs.authCode = sqlite3_column_int( stmtCrs.get(), 3 );
-    tbl.crs.wkt = ( const char * ) chrWkt;
+    if ( col.isPrimaryKey && ( lowercaseString( col.type.dbType ) == "integer" ) )
+    {
+      // sqlite uses auto-increment automatically for INTEGER PRIMARY KEY - https://sqlite.org/autoinc.html
+      col.isAutoIncrement = true;
+    }
   }
 
   return tbl;
@@ -538,7 +543,10 @@ void SqliteDriver::createChangeset( ChangesetWriter &writer )
 
     // test that table schema in the modified is the same
     if ( tbl != tblNew )
-      throw GeoDiffException( "table schemas are not the same for table: " + tableName );
+    {
+      if ( !tbl.compareWithBaseTypes( tblNew ) )
+        throw GeoDiffException( "GeoPackage Table schemas are not the same for table: " + tableName );
+    }
 
     if ( !tbl.hasPrimaryKey() )
       continue;  // ignore tables without primary key - they can't be compared properly
@@ -908,7 +916,7 @@ void SqliteDriver::createTables( const std::vector<TableSchema> &tables )
       if ( !columns.empty() )
         columns += ", ";
 
-      columns += sqlitePrintf( "\"%w\" %s", c.name.c_str(), c.type().c_str() );
+      columns += sqlitePrintf( "\"%w\" %s", c.name.c_str(), c.type.dbType.c_str() );
 
       if ( c.isNotNull )
         columns += " NOT NULL";

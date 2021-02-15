@@ -8,14 +8,11 @@
 
 #include <string>
 #include <vector>
-#include <iostream>
 #include <algorithm>
 
 #include "geodiffutils.hpp"
 
-std::string toBaseType( const std::string &type );
-
-
+/* Information about column type, converted to base type */
 struct TableColumnType
 {
   enum BaseType
@@ -31,27 +28,10 @@ struct TableColumnType
   };
 
   BaseType baseType = TEXT;
-  std::string dbType = "";
+  std::string dbType;
 
-  std::string name();
-
+  //! Unified conversion of GeoPackage and PostgreSQL types to base types
   void convertToBaseType();
-
-  void operator =( const std::string _dbType )
-  {
-    dbType = _dbType;
-    convertToBaseType();
-  }
-
-  operator std::string()
-  {
-    return dbType;
-  }
-
-  std::string operator()() const
-  {
-    return dbType;
-  }
 
   bool operator==( const std::string &other ) const
   {
@@ -65,10 +45,20 @@ struct TableColumnType
 
   bool operator==( const TableColumnType &other ) const
   {
-    return ( baseType == other.baseType );
+    return ( dbType == other.dbType );
   }
 
   bool operator!=( const TableColumnType &other ) const
+  {
+    return !( *this == other );
+  }
+
+  bool operator==( const TableColumnType::BaseType &other ) const
+  {
+    return ( baseType == other );
+  }
+
+  bool operator!=( const TableColumnType::BaseType &other ) const
   {
     return !( *this == other );
   }
@@ -101,9 +91,17 @@ struct TableColumnInfo
   //! Whether the geometry column includes M coordinates
   bool geomHasM = false;
 
+  bool compareWithBaseTypes( TableColumnInfo other ) const
+  {
+    return name == other.name && type == other.type.baseType && isPrimaryKey == other.isPrimaryKey &&
+           isNotNull == other.isNotNull && isAutoIncrement == other.isAutoIncrement &&
+           isGeometry == other.isGeometry && geomType == other.geomType && geomSrsId == other.geomSrsId &&
+           geomHasZ == other.geomHasZ && geomHasM == other.geomHasM;
+  }
+
   std::string dump() const
   {
-    std::string output = name + " | " + type() + " | ";
+    std::string output = name + " | " + type.dbType + " | ";
     if ( isPrimaryKey )
       output += "pkey ";
     if ( isNotNull )
@@ -121,9 +119,19 @@ struct TableColumnInfo
     return output;
   }
 
+  void setGeometry( const std::string &geomTypeName, int srsId, bool hasM, bool hasZ )
+  {
+    type.baseType = TableColumnType::GEOMETRY;
+    isGeometry = true;
+    geomType = geomTypeName;
+    geomSrsId = srsId;
+    geomHasM = hasM;
+    geomHasZ = hasZ;
+  }
+
   bool operator==( const TableColumnInfo &other ) const
   {
-    return name == other.name && type.dbType == other.type.dbType && isPrimaryKey == other.isPrimaryKey &&
+    return name == other.name && type == other.type && isPrimaryKey == other.isPrimaryKey &&
            isNotNull == other.isNotNull && isAutoIncrement == other.isAutoIncrement &&
            isGeometry == other.isGeometry && geomType == other.geomType && geomSrsId == other.geomSrsId &&
            geomHasZ == other.geomHasZ && geomHasM == other.geomHasM;
@@ -193,6 +201,14 @@ struct TableSchema
     return output;
   }
 
+  bool compareWithBaseTypes( const TableSchema &other ) const
+  {
+    return name == other.name &&
+           crs == other.crs &&
+           std::equal( columns.begin(), columns.end(), other.columns.begin(),
+    []( TableColumnInfo me, TableColumnInfo other ) { return me.compareWithBaseTypes( other ); } );
+  }
+
   bool operator==( const TableSchema &other ) const
   {
     return name == other.name && columns == other.columns && crs == other.crs;
@@ -203,14 +219,10 @@ struct TableSchema
   }
 };
 
+//! Converts column name to base type and returns struct with both names
+TableColumnType columnType( const std::string &columnType, const std::string &driverName, bool isGeometry = false );
 
-//! Tries to convert a table schema from PostgreSQL driver to SQLite driver
-void tableSchemaPostgresToSqlite( TableSchema &tbl );
-
-//! Tries to convert a table schema from SQLite driver to PostgreSQL driver
-void tableSchemaSqliteToPostgres( TableSchema &tbl );
-
-//! Tries to convert table schema from one driver to other, raises GeoDiffException if that is not supported
-void tableSchemaConvert( const std::string &driverSrcName, const std::string &driverDstName, TableSchema &tbl );
+//! Converts table schema from base to destination driver, raises GeoDiffException if that is not supported
+void tableSchemaConvert( const std::string &driverDstName, TableSchema &tbl );
 
 #endif // TABLESCHEMA_H
