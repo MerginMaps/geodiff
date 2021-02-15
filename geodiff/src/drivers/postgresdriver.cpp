@@ -276,20 +276,24 @@ TableSchema PostgresDriver::tableSchema( const std::string &tableName, bool useM
   {
     TableColumnInfo col;
     col.name = res.value( i, 0 );
-    col.type = res.value( i, 1 );
     col.isPrimaryKey = ( res.value( i, 2 ) == "t" );
+    std::string type( res.value( i, 1 ) );
 
-    if ( col.type().rfind( "geometry", 0 ) == 0 )
+    if ( startsWith( type, "geometry" ) )
     {
-      col.isGeometry = true;
+      std::string geomTypeName;
+      bool hasM = false;
+      bool hasZ = false;
+
       if ( geomTypes.find( col.name ) != geomTypes.end() )
       {
-        extractGeometryTypeDetails( geomTypes[col.name], col.geomType, col.geomHasZ, col.geomHasM );
-        col.geomSrsId = geomSrids[col.name];
-        srsId = col.geomSrsId;
+        extractGeometryTypeDetails( geomTypes[col.name], geomTypeName, hasZ, hasM );
+        srsId = geomSrids[col.name];
       }
+      col.setGeometry( geomTypeName, srsId, hasM, hasZ );
     }
 
+    col.type = columnType( type, Driver::POSTGRESDRIVERNAME, col.isGeometry );
     col.isNotNull = ( res.value( i, 3 ) == "t" );
     col.isAutoIncrement = ( res.value( i, 4 ) == "t" );
 
@@ -419,9 +423,8 @@ static bool isColumnText( const TableColumnInfo &col )
 
 static bool isColumnGeometry( const TableColumnInfo &col )
 {
-  return col.type().rfind( "geometry", 0 ) == 0; // starts with "geometry" prefix
+  return col.isGeometry;
 }
-
 
 static Value resultToValue( const PostgresResult &res, int r, size_t i, const TableColumnInfo &col )
 {
@@ -478,7 +481,7 @@ static Value resultToValue( const PostgresResult &res, int r, size_t i, const Ta
     else
     {
       // TODO: handling of other types (list, blob, ...)
-      throw GeoDiffException( "unknown value type: " + col.type() );
+      throw GeoDiffException( "unknown value type: " + col.type.dbType );
     }
   }
   return v;
@@ -626,7 +629,10 @@ void PostgresDriver::createChangeset( ChangesetWriter &writer )
 
     // test that table schema in the modified is the same
     if ( tbl != tblNew )
-      throw GeoDiffException( "table schemas are not the same for table: " + tableName );
+    {
+      if ( !tbl.compareWithBaseTypes( tblNew ) )
+        throw GeoDiffException( "PostgreSQL Table schemas are not the same for table: " + tableName );
+    }
 
     if ( !tbl.hasPrimaryKey() )
       continue;  // ignore tables without primary key - they can't be compared properly
@@ -907,7 +913,7 @@ void PostgresDriver::createTables( const std::vector<TableSchema> &tables )
       if ( !columns.empty() )
         columns += ", ";
 
-      std::string type = c.type();
+      std::string type = c.type.dbType;
       if ( c.isAutoIncrement )
         type = "SERIAL";   // there is also "smallserial", "bigserial" ...
       columns += quotedIdentifier( c.name ) + " " + type;
