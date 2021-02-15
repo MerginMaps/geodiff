@@ -182,9 +182,9 @@ TEST( ConcurrentCommitsSqlite3Test, test_2_inserts )
                "inserted_1_A.gpkg",
                "inserted_1_B.gpkg",
                "merged_1_A_1_B.gpkg",
+               1,
+               1,
                2,
-               2,
-               3,
                0
              );
   ASSERT_TRUE( ret );
@@ -204,9 +204,9 @@ TEST( ConcurrentCommitsSqlite3Test, test_2_edits )
                "updated_A.gpkg",
                "updated_B.gpkg",
                "merged_1_A_1_B.gpkg",
-               2,
-               2,
-               2,
+               1,
+               1,
+               1,
                1
              );
   ASSERT_TRUE( ret );
@@ -224,9 +224,9 @@ TEST( ConcurrentCommitsSqlite3Test, test_2_deletes )
                "deleted_A.gpkg",
                "deleted_B.gpkg",
                "merged_A_B.gpkg",
-               2,
                1,
-               2,
+               0,
+               1,
                0
              );
   ASSERT_TRUE( ret );
@@ -244,11 +244,10 @@ TEST( ConcurrentCommitsSqlite3Test, test_delete_update )
                "deleted_A.gpkg",
                "updated_B.gpkg",
                "deleted_A.gpkg",
-               2,
                1,
-               2,
                0,
-               true
+               1,
+               0
              );
   ASSERT_TRUE( ret );
 }
@@ -265,9 +264,9 @@ TEST( ConcurrentCommitsSqlite3Test, test_update_delete )
                "updated_A.gpkg",
                "deleted_B.gpkg",
                "deleted_B.gpkg",
-               2,
-               2,
-               2,
+               1,
+               1,
+               1,
                0
              );
   ASSERT_TRUE( ret );
@@ -285,9 +284,9 @@ TEST( ConcurrentCommitsSqlite3Test, test_update_extent )
                "add_1.gpkg",
                "add_1_outside_extent.gpkg",
                "final_extent.gpkg",
+               1,
+               1,
                2,
-               2,
-               3,
                0
              );
   ASSERT_TRUE( ret );
@@ -304,9 +303,9 @@ TEST( ConcurrentCommitsSqlite3Test, test_update_2_different_tables )
                "add_point.gpkg",
                "add_line.gpkg",
                "final_add_line.gpkg",
+               1,
+               1,
                2,
-               2,
-               4,
                0
              );
   ASSERT_TRUE( ret );
@@ -317,9 +316,9 @@ TEST( ConcurrentCommitsSqlite3Test, test_update_2_different_tables )
           "add_point.gpkg",
           "modify_line.gpkg",
           "final_modify_line.gpkg",
+          1,
           2,
           3,
-          5,
           0
         );
   ASSERT_TRUE( ret );
@@ -330,9 +329,9 @@ TEST( ConcurrentCommitsSqlite3Test, test_update_2_different_tables )
           "add_point.gpkg",
           "remove_line.gpkg",
           "final_delete_line.gpkg",
+          1,
+          1,
           2,
-          2,
-          4,
           0
         );
   ASSERT_TRUE( ret );
@@ -381,7 +380,7 @@ TEST( ConcurrentCommitsSqlite3Test, test_fk_2_updates )
                "fk_2_updates",
                "modified_fk_A.gpkg",
                "modified_fk_B.gpkg",
-               4
+               2
              );
   ASSERT_TRUE( ret );
 
@@ -392,7 +391,7 @@ TEST( ConcurrentCommitsSqlite3Test, test_fk_2_updates )
           "fk_2_updates",
           "modified_fk_A.gpkg",
           "modified_fk_only_new_tree.gpkg",
-          4
+          2
         );
   ASSERT_TRUE( ret );
 
@@ -403,7 +402,7 @@ TEST( ConcurrentCommitsSqlite3Test, test_fk_2_updates )
           "fk_2_updates",
           "modified_fk_only_new_tree.gpkg",
           "modified_fk_A.gpkg",
-          8
+          6
         );
   ASSERT_TRUE( ret );
 }

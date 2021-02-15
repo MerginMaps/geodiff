@@ -45,9 +45,6 @@ TEST( ChangesetUtils, test_invert_insert )
 
   ChangesetEntry entry;
   EXPECT_TRUE( readerInv.nextEntry( entry ) );
-  entry.table->name = "gpkg_contents";   // this one is not too interesting at this point
-
-  EXPECT_TRUE( readerInv.nextEntry( entry ) );
   EXPECT_EQ( entry.op, ChangesetEntry::OpDelete );
   EXPECT_EQ( entry.table->name, "simple" );
   EXPECT_EQ( entry.oldValues.size(), 4 );
@@ -69,9 +66,6 @@ TEST( ChangesetUtils, test_invert_delete )
 
   ChangesetEntry entry;
   EXPECT_TRUE( readerInv.nextEntry( entry ) );
-  entry.table->name = "gpkg_contents";   // this one is not too interesting at this point
-
-  EXPECT_TRUE( readerInv.nextEntry( entry ) );
   EXPECT_EQ( entry.op, ChangesetEntry::OpInsert );
   EXPECT_EQ( entry.table->name, "simple" );
   EXPECT_EQ( entry.newValues.size(), 4 );
@@ -92,9 +86,6 @@ TEST( ChangesetUtils, test_invert_update )
   EXPECT_TRUE( readerInv.open( invChangeset ) );
 
   ChangesetEntry entry;
-  EXPECT_TRUE( readerInv.nextEntry( entry ) );
-  entry.table->name = "gpkg_contents";   // this one is not too interesting at this point
-
   EXPECT_TRUE( readerInv.nextEntry( entry ) );
   EXPECT_EQ( entry.op, ChangesetEntry::OpUpdate );
   EXPECT_EQ( entry.table->name, "simple" );

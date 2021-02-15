@@ -120,7 +120,7 @@ TEST( SingleCommitSqlite3Test, geopackage )
   bool ret = _test( "1_geopackage",
                     "base.gpkg",
                     pathjoin( "1_geopackage", "modified_1_geom.gpkg" ),
-                    2
+                    1
                   );
   ASSERT_TRUE( ret );
 }
@@ -131,7 +131,7 @@ TEST( SingleCommitSqlite3Test, geopackage_complex )
   bool ret = _test( "complex",
                     "base.gpkg",
                     pathjoin( "complex", "complex1.gpkg" ),
-                    7
+                    6
                   );
   ASSERT_TRUE( ret );
 }
@@ -164,7 +164,7 @@ TEST( SingleCommitSqlite3Test, SingleCommitFkTest )
   bool ret = _test( "fk_1_update",
                     "base_fk.gpkg",
                     pathjoin( "fk_1_update", "modified_fk.gpkg" ),
-                    5
+                    3
                   );
   ASSERT_TRUE( ret );
 }
@@ -201,7 +201,7 @@ TEST( SingleCommitSqlite3Test, NonAsciiCharactersTest )
   bool ret = _test( "non_ascii_\xc5\xa1", // add special sign also here, because changeset file is created from it
                     pathjoin( "utf_test_\xc5\xa1\xc4\x8d\xc3\xa9", "test\xc3\xa1\xc3\xa1.gpkg" ), // testaa
                     pathjoin( "utf_test_\xc5\xa1\xc4\x8d\xc3\xa9", "test\xc4\x8d\xc4\x8d.gpkg" ), // testcc
-                    3
+                    2
                   );
   ASSERT_TRUE( ret );
 }
@@ -212,7 +212,7 @@ TEST( SingleCommitSqlite3Test, QuoteCharacterGpkgName )
   bool ret = _test( "quote's test",
                     pathjoin( "dir_with_quote's's", "base.gpkg" ),
                     pathjoin( "dir_with_quote's's", "recreated.gpkg" ),
-                    9
+                    8
                   );
 
   ASSERT_TRUE( ret );
