@@ -106,6 +106,54 @@ int GEODIFF_createChangesetEx( const char *driverName, const char *driverExtraIn
 }
 
 
+int GEODIFF_createChangesetDr( const char *driverSrcName, const char *driverSrcExtraInfo, const char *src,
+                               const char *driverDstName, const char *driverDstExtraInfo, const char *dst,
+                               const char *changeset )
+{
+  if ( !driverSrcName || !driverSrcExtraInfo || !driverDstName || !driverDstExtraInfo || !src || !dst || !changeset )
+  {
+    Logger::instance().error( "NULL arguments to GEODIFF_createChangesetAcrossDrivers" );
+    return GEODIFF_ERROR;
+  }
+
+  if ( strcmp( driverSrcName, driverDstName ) == 0 )
+  {
+    return GEODIFF_createChangesetEx( driverSrcName, driverSrcExtraInfo, src, dst, changeset );
+  }
+
+  // copy both sources to geopackage and create changeset
+  TmpFile tmpSrcGpkg;
+  TmpFile tmpDstGpkg;
+
+  if ( strcmp( driverSrcName, Driver::SQLITEDRIVERNAME.c_str() ) != 0 )
+  {
+    tmpSrcGpkg.setPath( tmpdir() + "_gpkg-" + randomString( 6 ) );
+    if ( GEODIFF_makeCopy( driverSrcName, driverSrcExtraInfo, src, Driver::SQLITEDRIVERNAME.c_str(), "", tmpSrcGpkg.c_path() ) != GEODIFF_SUCCESS )
+    {
+      Logger::instance().error( "Failed to create a copy of base source for driver " + std::string( driverSrcName ) );
+      return GEODIFF_ERROR;
+    }
+  }
+
+  if ( strcmp( driverDstName, Driver::SQLITEDRIVERNAME.c_str() ) != 0 )
+  {
+    tmpDstGpkg.setPath( tmpdir() + "_gpkg-" + randomString( 6 ) );
+    if ( GEODIFF_makeCopy( driverDstName, driverDstExtraInfo, dst, Driver::SQLITEDRIVERNAME.c_str(), "", tmpDstGpkg.c_path() ) != GEODIFF_SUCCESS )
+    {
+      Logger::instance().error( "Failed to create a copy of modified source for driver " + std::string( driverDstName ) );
+      return GEODIFF_ERROR;
+    }
+  }
+
+  return GEODIFF_createChangesetEx(
+           Driver::SQLITEDRIVERNAME.c_str(),
+           "",
+           tmpSrcGpkg.path().empty() ? src : tmpSrcGpkg.c_path(),
+           tmpDstGpkg.path().empty() ? dst : tmpDstGpkg.c_path(),
+           changeset );
+}
+
+
 int GEODIFF_applyChangesetEx( const char *driverName, const char *driverExtraInfo,
                               const char *base, const char *changeset )
 {
@@ -481,7 +529,7 @@ int GEODIFF_rebaseEx( const char *driverName,
 int GEODIFF_makeCopy( const char *driverSrcName, const char *driverSrcExtraInfo, const char *src,
                       const char *driverDstName, const char *driverDstExtraInfo, const char *dst )
 {
-  if ( !driverSrcName || !src || !driverDstName || !dst )
+  if ( !driverSrcName || !driverSrcExtraInfo || !driverDstName || !driverDstExtraInfo || !src || !dst )
   {
     Logger::instance().error( "NULL arguments to GEODIFF_makeCopy" );
     return GEODIFF_ERROR;

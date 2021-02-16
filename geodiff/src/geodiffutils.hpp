@@ -132,12 +132,15 @@ FILE *openFile( const std::string &path, const std::string &mode );
 class TmpFile
 {
   public:
+    TmpFile();
     TmpFile( const std::string &path );
     ~TmpFile();
 
     std::string path() const;
 
     const char *c_path() const;
+
+    void setPath( const std::string &path );
   private:
     std::string mPath;
 };

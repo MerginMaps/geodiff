@@ -223,3 +223,19 @@ class GeoDiffLib:
         if nchanges < 0:
             raise GeoDiffLibError("changes_count")
         return nchanges
+
+    def create_changeset_dr(self, driver_src, driver_src_info, src, driver_dst, driver_dst_info, dst, changeset):
+        func = self.lib.GEODIFF_createChangesetDr
+        func.argtypes = [ctypes.c_char_p, ctypes.c_char_p, ctypes.c_char_p, ctypes.c_char_p, ctypes.c_char_p, ctypes.c_char_p, ctypes.c_char_p]
+        func.restype = ctypes.c_int
+
+        b_string1 = driver_src.encode('utf-8')
+        b_string2 = driver_src_info.encode('utf-8')
+        b_string3 = src.encode('utf-8')
+        b_string4 = driver_dst.encode('utf-8')
+        b_string5 = driver_dst_info.encode('utf-8')
+        b_string6 = dst.encode('utf-8')
+        b_string7 = changeset.encode('utf-8')
+
+        res = func(b_string1, b_string2, b_string3, b_string4, b_string5, b_string6, b_string7)
+        _parse_return_code( res, "CreateChangesetDr" )

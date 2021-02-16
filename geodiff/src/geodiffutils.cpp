@@ -506,6 +506,8 @@ std::string wstringToString( const std::wstring &wStr )
   }
 }
 
+TmpFile::TmpFile() = default;
+
 TmpFile::TmpFile( const std::string &path ):
   mPath( path )
 {
@@ -527,6 +529,12 @@ std::string TmpFile::path() const
 const char *TmpFile::c_path() const
 {
   return mPath.c_str();
+}
+
+void TmpFile::setPath( const std::string &path )
+{
+  if ( mPath != path )
+    mPath = path;
 }
 
 ConflictFeature::ConflictFeature( int pk,

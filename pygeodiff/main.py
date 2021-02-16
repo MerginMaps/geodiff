@@ -174,6 +174,28 @@ class GeoDiff:
         """
         return self.clib.changes_count(changeset)
 
+    def create_changeset_dr(self, driver_src, driver_src_info, src, driver_dst, driver_dst_info, dst, changeset):
+        """
+            Creates changeset file (binary) between src and dest for different drivers.
+            Currently supported drivers:
+             - sqlite
+             - postgres
+
+            See documentation of create_changeset for more information about changeset.
+
+            \param driver_src [input] driver of base src
+            \param driver_src_info [input] connection string, leave empty for sqlite, for postgres pass a string of format:
+            "host=<host> port=<port> user=<user> password=<password> dbname=<database name>"
+            \param src [input] BASE sqlite3/geopackage file for sqlite and schema name for postgres
+            \param driver_dst [input] driver of modified dst
+            \param driver_dst_info [input] connection string for destination driver
+            \param dst [input] MODIFIED sqlite3/geopackage file for sqlite and schema name for postgres
+            \param changeset [output] changeset between SRC -> DST
+
+            raises SqliteDiffError on error
+        """
+        return self.clib.create_changeset_dr(driver_src, driver_src_info, src, driver_dst, driver_dst_info, dst, changeset)
+
     def version(self):
         """
             geodiff version
