@@ -506,9 +506,7 @@ std::string wstringToString( const std::wstring &wStr )
   }
 }
 
-TmpFile::TmpFile()
-{
-}
+TmpFile::TmpFile() = default;
 
 TmpFile::TmpFile( const std::string &path ):
   mPath( path )
