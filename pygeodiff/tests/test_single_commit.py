@@ -45,7 +45,7 @@ def basetest(
   os.remove(changeset2)
   geodiff.invert_changeset(changeset, changeset_inv)
   geodiff.apply_changeset(patched, changeset_inv)
-  geodiff.create_changeset( patched, base, changeset2 )
+  geodiff.create_changeset_dr( "sqlite", "", patched, "sqlite", "", base, changeset2 )
   check_nchanges( geodiff, changeset2, 0 )
 
   #json
