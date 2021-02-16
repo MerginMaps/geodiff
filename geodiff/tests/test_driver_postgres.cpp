@@ -624,10 +624,6 @@ TEST( PostgresDriverTest, test_ignore_gpkg_meta_tables )
 
   EXPECT_EQ( GEODIFF_applyChangeset( baseGpkg.c_str(), changeset.c_str() ), GEODIFF_SUCCESS );
 
-//  Replace when new API will be created to compare sources:
-//  EXPECT_EQ( GEODIFF_createChangesetDr( "postgres", conninfo.c_str(), "gd_base", "sqlite", "", modifiedGpkg.c_str(), "/home/tomasmizera/projects/temp/tultra.diff" ),
-//             GEODIFF_SUCCESS );
-
   PQfinish( c );
 }
 
@@ -641,7 +637,7 @@ TEST( PostgresDriverTest, test_changesetdr_sqlite_to_pg )
   ASSERT_EQ( PQstatus( c ), CONNECTION_OK );
 
   std::string testname = "test_changesetdr_sqlite_to_pg";
-  std::string baseGpkg = pathjoin( testdir(), "changeset-drivers", "base.gpkg" );
+  std::string baseGpkg = pathjoin( testdir(), "base.gpkg" );
 
   makedir( pathjoin( tmpdir(), testname ) );
   std::string changeset = pathjoin( tmpdir(), testname, "changeset.diff" );
@@ -675,7 +671,7 @@ TEST( PostgresDriverTest, test_changesetdr_pg_to_sqlite )
   ASSERT_EQ( PQstatus( c ), CONNECTION_OK );
 
   std::string testname = "test_changesetdr_pg_to_sqlite";
-  std::string modifiedGpkg = pathjoin( testdir(), "changeset-drivers", "modified.gpkg" );
+  std::string modifiedGpkg( pathjoin( testdir(), "2_inserts", "inserted_1_A.gpkg" ) );
 
   makedir( pathjoin( tmpdir(), testname ) );
   std::string changeset = pathjoin( tmpdir(), testname, "changeset.diff" );
