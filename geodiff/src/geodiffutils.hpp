@@ -132,6 +132,7 @@ FILE *openFile( const std::string &path, const std::string &mode );
 class TmpFile
 {
   public:
+    TmpFile();
     TmpFile( const std::string &path );
     ~TmpFile();
 

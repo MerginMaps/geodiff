@@ -110,7 +110,7 @@ int GEODIFF_createChangesetDr( const char *driverSrcName, const char *driverSrcE
                                const char *driverDstName, const char *driverDstExtraInfo, const char *dst,
                                const char *changeset )
 {
-  if ( !driverSrcName || !driverDstName || !src || !dst || !changeset )
+  if ( !driverSrcName || !driverSrcExtraInfo || !driverDstName || !driverDstExtraInfo || !src || !dst || !changeset )
   {
     Logger::instance().error( "NULL arguments to GEODIFF_createChangesetAcrossDrivers" );
     return GEODIFF_ERROR;
@@ -122,8 +122,8 @@ int GEODIFF_createChangesetDr( const char *driverSrcName, const char *driverSrcE
   }
 
   // copy both sources to geopackage and create changeset
-  TmpFile tmpSrcGpkg( "" );
-  TmpFile tmpDstGpkg( "" );
+  TmpFile tmpSrcGpkg;
+  TmpFile tmpDstGpkg;
 
   if ( strcmp( driverSrcName, Driver::SQLITEDRIVERNAME.c_str() ) != 0 )
   {
@@ -529,7 +529,7 @@ int GEODIFF_rebaseEx( const char *driverName,
 int GEODIFF_makeCopy( const char *driverSrcName, const char *driverSrcExtraInfo, const char *src,
                       const char *driverDstName, const char *driverDstExtraInfo, const char *dst )
 {
-  if ( !driverSrcName || !src || !driverDstName || !dst )
+  if ( !driverSrcName || !driverSrcExtraInfo || !driverDstName || !driverDstExtraInfo || !src || !dst )
   {
     Logger::instance().error( "NULL arguments to GEODIFF_makeCopy" );
     return GEODIFF_ERROR;
