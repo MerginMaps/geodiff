@@ -529,6 +529,12 @@ const char *TmpFile::c_path() const
   return mPath.c_str();
 }
 
+void TmpFile::setPath( const std::string &path )
+{
+  if ( mPath != path )
+    mPath = path;
+}
+
 ConflictFeature::ConflictFeature( int pk,
                                   const std::string &tableName )
   : mPk( pk )

@@ -138,6 +138,8 @@ class TmpFile
     std::string path() const;
 
     const char *c_path() const;
+
+    void setPath( const std::string &path );
   private:
     std::string mPath;
 };

@@ -107,8 +107,8 @@ int GEODIFF_createChangesetEx( const char *driverName, const char *driverExtraIn
 
 
 int GEODIFF_createChangesetDr( const char *driverSrcName, const char *driverSrcExtraInfo, const char *src,
-                            const char *driverDstName, const char *driverDstExtraInfo, const char *dst,
-                            const char *changeset )
+                               const char *driverDstName, const char *driverDstExtraInfo, const char *dst,
+                               const char *changeset )
 {
   if ( !driverSrcName || !driverDstName || !src || !dst || !changeset )
   {
@@ -120,36 +120,37 @@ int GEODIFF_createChangesetDr( const char *driverSrcName, const char *driverSrcE
   {
     return GEODIFF_createChangesetEx( driverSrcName, driverSrcExtraInfo, src, dst, changeset );
   }
-  else
+
+  // copy both sources to geopackage and create changeset
+  TmpFile tmpSrcGpkg( "" );
+  TmpFile tmpDstGpkg( "" );
+
+  if ( strcmp( driverSrcName, Driver::SQLITEDRIVERNAME.c_str() ) != 0 )
   {
-    // copy both sources to geopackage and create changeset
-    std::string srcGpkg( src );
-    std::string dstGpkg( dst );
-
-    //TODO: remove temp files
-
-    if ( strcmp( driverSrcName, "sqlite" ) != 0 )
+    tmpSrcGpkg.setPath( tmpdir() + "_gpkg-" + randomString( 6 ) );
+    if ( GEODIFF_makeCopy( driverSrcName, driverSrcExtraInfo, src, Driver::SQLITEDRIVERNAME.c_str(), "", tmpSrcGpkg.c_path() ) != GEODIFF_SUCCESS )
     {
-      srcGpkg = tmpdir() + "_gpkg-" + randomString( 6 );
-      if ( GEODIFF_makeCopy( driverSrcName, driverSrcExtraInfo, src, "sqlite", "", srcGpkg.c_str() ) != GEODIFF_SUCCESS )
-      {
-        Logger::instance().error( "Failed to create a copy of base source for driver " + std::string( driverSrcName ) );
-        return GEODIFF_ERROR;
-      }
+      Logger::instance().error( "Failed to create a copy of base source for driver " + std::string( driverSrcName ) );
+      return GEODIFF_ERROR;
     }
-
-    if ( strcmp( driverDstName, "sqlite" ) != 0 )
-    {
-      dstGpkg = tmpdir() + "_gpkg-" + randomString( 6 );
-      if ( GEODIFF_makeCopy( driverDstName, driverDstExtraInfo, dst, "sqlite", "", dstGpkg.c_str() ) != GEODIFF_SUCCESS )
-      {
-        Logger::instance().error( "Failed to create a copy of modified source for driver " + std::string( driverDstName ) );
-        return GEODIFF_ERROR;
-      }
-    }
-
-    return GEODIFF_createChangesetEx( "sqlite", "", srcGpkg.c_str(), dstGpkg.c_str(), changeset );
   }
+
+  if ( strcmp( driverDstName, Driver::SQLITEDRIVERNAME.c_str() ) != 0 )
+  {
+    tmpDstGpkg.setPath( tmpdir() + "_gpkg-" + randomString( 6 ) );
+    if ( GEODIFF_makeCopy( driverDstName, driverDstExtraInfo, dst, Driver::SQLITEDRIVERNAME.c_str(), "", tmpDstGpkg.c_path() ) != GEODIFF_SUCCESS )
+    {
+      Logger::instance().error( "Failed to create a copy of modified source for driver " + std::string( driverDstName ) );
+      return GEODIFF_ERROR;
+    }
+  }
+
+  return GEODIFF_createChangesetEx(
+           Driver::SQLITEDRIVERNAME.c_str(),
+           "",
+           tmpSrcGpkg.path().empty() ? src : tmpSrcGpkg.c_path(),
+           tmpDstGpkg.path().empty() ? dst : tmpDstGpkg.c_path(),
+           changeset );
 }
 
 

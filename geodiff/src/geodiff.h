@@ -272,13 +272,13 @@ GEODIFF_EXPORT int GEODIFF_createChangesetEx( const char *driverName, const char
  * See documentation of GEODIFF_makeCopy() for details about supported drivers.
  */
 GEODIFF_EXPORT int GEODIFF_createChangesetDr(
-    const char *driverSrcName,
-    const char *driverSrcExtraInfo,
-    const char *src,
-    const char *driverDstName,
-    const char *driverDstExtraInfo,
-    const char *dst,
-    const char *changeset );
+  const char *driverSrcName,
+  const char *driverSrcExtraInfo,
+  const char *src,
+  const char *driverDstName,
+  const char *driverDstExtraInfo,
+  const char *dst,
+  const char *changeset );
 
 
 /**
