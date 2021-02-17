@@ -3,7 +3,7 @@ set -e
 
 eval "$(pyenv init -)"
 
-for VER in "3.7.4" "3.6.8"
+for VER in "3.8.7" "3.7.4" "3.6.8"
 do
     pyenv local $VER
     python --version
