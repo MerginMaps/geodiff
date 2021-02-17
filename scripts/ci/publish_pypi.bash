@@ -39,6 +39,34 @@ else
         cd $PWD
 
     else
-        echo "Skipping deployment, not tagged"
+        echo "Skipping deployment, not tagged - but going to try to build source package (linux only) / wheels (linux and mac)"
+
+        DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
+        PWD=`pwd`
+        cd $DIR/../..
+
+        $DIR/clean.bash
+
+        # try to build source distribution
+        if [ "$TRAVIS_OS_NAME" == "linux" ]; then
+           python3 setup.py sdist
+        fi
+
+        $DIR/clean.bash
+
+        # try to build wheels
+        if [ "$TRAVIS_OS_NAME" == "linux" ]; then
+           PYTHON=python3
+           PLAT=manylinux2010_x86_64
+           DOCKER_IMAGE=quay.io/pypa/manylinux2010_x86_64
+           docker run --rm -e PLAT=$PLAT -v $DIR/../../:/io $DOCKER_IMAGE /io/scripts/ci/linux/build_wheel.bash
+        else
+           # MacOS
+           PYTHON=python3
+           $DIR/osx/build_wheel.bash
+        fi
+
+        cd $PWD
+
     fi
 fi
