@@ -8,7 +8,7 @@ brew install python3
 sudo python3 -m pip install nose2
 
 brew install ninja
-brew install pyenv
+#brew install pyenv
 
 echo "%%% before pyenv install"
 which python3
