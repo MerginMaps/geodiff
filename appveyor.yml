@@ -36,18 +36,12 @@ environment:
       PYTHON_ARCH: "64"
       CMAKE_GENERATOR: "Visual Studio 15 2017 Win64"
 
-    - PYTHON: "C:\\Python39-x64\\python"
-      PYTHON_VERSION: "3.9.1"
-      PYTHON_ARCH: "64"
-      CMAKE_GENERATOR: "Visual Studio 15 2017 Win64"
-
 init:
   - "ECHO %PYTHON% %PYTHON_VERSION% %PYTHON_ARCH% %CMAKE_GENERATOR%"
 
 install:
   - "%PYPY_DOWNLOAD%"
   - "set HOME=%APPVEYOR_BUILD_FOLDER%"
-  - "dir c:\\"
   - "SET PATH=%PYTHON%;%PYTHON%\\Scripts;%PATH%"
   - "set PATH=%PATH%;%APPVEYOR_BUILD_FOLDER%\\%PYPY_VERSION%"
   - "%PYTHON% -m ensurepip"
