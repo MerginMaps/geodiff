@@ -719,6 +719,19 @@ TEST( PostgresDriverTest, test_changesetdr_pg_to_pg )
   PQfinish( c );
 }
 
+TEST( ModifiedSchemeSqlite3Test, test_multipart_geometries )
+{
+  std::string conninfo = pgTestConnInfo();
+
+  PGconn *c = PQconnectdb( conninfo.c_str() );
+  ASSERT_EQ( PQstatus( c ), CONNECTION_OK );
+
+  std::string from = pathjoin( testdir(), "conversions", "db-multi-geometries.gpkg" );
+  ASSERT_EQ( GEODIFF_makeCopy( "sqlite", "", from.c_str(), "postgres", conninfo.c_str(), "db_multipart" ), GEODIFF_SUCCESS );
+
+  PQfinish( c );
+}
+
 int main( int argc, char **argv )
 {
   testing::InitGoogleTest( &argc, argv );
