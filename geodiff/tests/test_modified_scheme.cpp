@@ -85,6 +85,14 @@ TEST( ModifiedSchemeSqlite3Test, rename_attribute )
   ASSERT_EQ( GEODIFF_createChangeset( base.c_str(), modified.c_str(), changeset.c_str() ), GEODIFF_ERROR );
 }
 
+TEST( ModifiedSchemeSqlite3Test, test_multipart_geometries )
+{
+  std::cout << "geopackage with multipart geometries to postgres" << std::endl;
+
+  std::string from = pathjoin( testdir(), "conversions", "db-multi-geometries.gpkg" );
+  ASSERT_EQ( GEODIFF_makeCopy( "sqlite", "", from.c_str(), "postgres", pgTestConnInfo().c_str(), "db_multipart" ), GEODIFF_SUCCESS );
+}
+
 int main( int argc, char **argv )
 {
   testing::InitGoogleTest( &argc, argv );
