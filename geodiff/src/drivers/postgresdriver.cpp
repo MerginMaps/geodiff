@@ -202,7 +202,26 @@ static void extractGeometryTypeDetails( const std::string &geomType, std::string
     { "POLYGONZ",  { "POLYGON", true,  false } },
     { "POLYGONM",  { "POLYGON", false, true  } },
     { "POLYGONZM", { "POLYGON", true,  true  } },
-    // TODO: multi-part types
+
+    { "MULTIPOINT",   { "MULTIPOINT", false, false } },
+    { "MULTIPOINTZ",  { "MULTIPOINT", true,  false } },
+    { "MULTIPOINTM",  { "MULTIPOINT", false, true  } },
+    { "MULTIPOINTZM", { "MULTIPOINT", true,  true  } },
+    { "MULTILINESTRING",   { "MULTILINESTRING", false, false } },
+    { "MULTILINESTRINGZ",  { "MULTILINESTRING", true,  false } },
+    { "MULTILINESTRINGM",  { "MULTILINESTRING", false, true  } },
+    { "MULTILINESTRINGZM", { "MULTILINESTRING", true,  true  } },
+    { "MULTIPOLYGON",   { "MULTIPOLYGON", false, false } },
+    { "MULTIPOLYGONZ",  { "MULTIPOLYGON", true,  false } },
+    { "MULTIPOLYGONM",  { "MULTIPOLYGON", false, true  } },
+    { "MULTIPOLYGONZM", { "MULTIPOLYGON", true,  true  } },
+
+    { "GEOMETRYCOLLECTION",   { "GEOMETRYCOLLECTION", false, false } },
+    { "GEOMETRYCOLLECTIONZ",  { "GEOMETRYCOLLECTION", true,  false } },
+    { "GEOMETRYCOLLECTIONM",  { "GEOMETRYCOLLECTION", false, true  } },
+    { "GEOMETRYCOLLECTIONZM", { "GEOMETRYCOLLECTION", true,  true  } },
+
+    // TODO: curve geometries
   };
 
   auto it = d.find( geomType );
