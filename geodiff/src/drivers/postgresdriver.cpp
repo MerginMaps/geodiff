@@ -186,7 +186,7 @@ struct GeometryTypeDetails
   bool hasM;
 };
 
-static void extractGeometryTypeDetails( const std::string &geomType, std::string &flatGeomType, bool &hasZ, bool &hasM )
+static void extractGeometryTypeDetails( const std::string &geomType, const std::string &coordinateDimension, std::string &flatGeomType, bool &hasZ, bool &hasM )
 {
   std::map<std::string, GeometryTypeDetails> d =
   {
@@ -224,7 +224,22 @@ static void extractGeometryTypeDetails( const std::string &geomType, std::string
     // TODO: curve geometries
   };
 
-  auto it = d.find( geomType );
+  /*
+   *  Special PostGIS coding of xyZ, xyM and xyZM type https://postgis.net/docs/using_postgis_dbmanagement.html#geometry_columns
+   *  coordinateDimension number bears information about third and fourth dimension.
+   */
+  std::string type = geomType;
+
+  if ( coordinateDimension == "4" )
+  {
+    type += "ZM";
+  }
+  else if ( ( coordinateDimension == "3" ) && ( type.back() != 'M' ) )
+  {
+    type += "Z";
+  }
+
+  auto it = d.find( type );
   if ( it != d.end() )
   {
     flatGeomType = it->second.flatType;
@@ -232,7 +247,7 @@ static void extractGeometryTypeDetails( const std::string &geomType, std::string
     hasM = it->second.hasM;
   }
   else
-    throw GeoDiffException( "Unknown geometry type: " + geomType );
+    throw GeoDiffException( "Unknown geometry type: " + type );
 }
 
 
@@ -246,9 +261,9 @@ TableSchema PostgresDriver::tableSchema( const std::string &tableName, bool useM
   std::string schemaName = useModified ? mModifiedSchema : mBaseSchema;
 
   // try to figure out details of the geometry columns (if any)
-  std::string sqlGeomDetails = "SELECT f_geometry_column, type, srid FROM geometry_columns WHERE f_table_schema = " +
+  std::string sqlGeomDetails = "SELECT f_geometry_column, type, srid, coord_dimension FROM geometry_columns WHERE f_table_schema = " +
                                quotedString( schemaName ) + " AND f_table_name = " + quotedString( tableName );
-  std::map<std::string, std::string> geomTypes;
+  std::map<std::string, std::pair<std::string, std::string>> geomTypes;
   std::map<std::string, int> geomSrids;
   PostgresResult resGeomDetails( execSql( mConn, sqlGeomDetails ) );
   for ( int i = 0; i < resGeomDetails.rowCount(); ++i )
@@ -256,8 +271,9 @@ TableSchema PostgresDriver::tableSchema( const std::string &tableName, bool useM
     std::string name = resGeomDetails.value( i, 0 );
     std::string type = resGeomDetails.value( i, 1 );
     std::string srid = resGeomDetails.value( i, 2 );
+    std::string dimension = resGeomDetails.value( i, 3 );
     int sridInt = srid.empty() ? -1 : atoi( srid.c_str() );
-    geomTypes[name] = type;
+    geomTypes[name] = { type, dimension };
     geomSrids[name] = sridInt;
   }
 
@@ -306,7 +322,7 @@ TableSchema PostgresDriver::tableSchema( const std::string &tableName, bool useM
 
       if ( geomTypes.find( col.name ) != geomTypes.end() )
       {
-        extractGeometryTypeDetails( geomTypes[col.name], geomTypeName, hasZ, hasM );
+        extractGeometryTypeDetails( geomTypes[col.name].first, geomTypes[col.name].second, geomTypeName, hasZ, hasM );
         srsId = geomSrids[col.name];
       }
       col.setGeometry( geomTypeName, srsId, hasM, hasZ );
