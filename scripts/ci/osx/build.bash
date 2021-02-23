@@ -19,4 +19,6 @@ ctest -VV
 
 echo "OSX Python tests"
 cd ../../
-GEODIFFLIB=`pwd`/geodiff/build_osx/libgeodiff.dylib nose2
+pyenv local 3.8.7
+python --version
+GEODIFFLIB=`pwd`/geodiff/build_osx/libgeodiff.dylib python -m nose2
