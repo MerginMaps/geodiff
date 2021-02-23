@@ -21,4 +21,4 @@ before_script:
 script:
 - ./scripts/ci/"$TRAVIS_OS_NAME"/build.bash
 after_script:
-- ./scripts/ci/publish_pypi.bash
+- ./scripts/ci/"$TRAVIS_OS_NAME"/publish_pypi.bash
