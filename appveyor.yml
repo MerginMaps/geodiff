@@ -42,13 +42,13 @@ environment:
     - PYTHON: "C:\\Python39-x64\\python"
       PYTHON_VERSION: "3.9.0"
       PYTHON_ARCH: "64"
-      CMAKE_GENERATOR: "Visual Studio 16 2019 Win64"
+      CMAKE_GENERATOR: "Visual Studio 16 2019"
       appveyor_build_worker_image: Visual Studio 2019
 
 matrix:
   exclude:
     - image: Visual Studio 2017
-      CMAKE_GENERATOR: "Visual Studio 16 2019 Win64"
+      CMAKE_GENERATOR: "Visual Studio 16 2019"
     - image: Visual Studio 2019
       CMAKE_GENERATOR: "Visual Studio 15 2017 Win64"
 
