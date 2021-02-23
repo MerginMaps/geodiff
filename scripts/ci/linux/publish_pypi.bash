@@ -24,7 +24,7 @@ $DIR/../clean.bash
 # build wheels
 PLAT=manylinux2010_x86_64
 DOCKER_IMAGE=quay.io/pypa/manylinux2010_x86_64
-docker run --rm -e PLAT=$PLAT -v $DIR/../../:/io $DOCKER_IMAGE /io/scripts/ci/linux/build_wheel.bash
+docker run --rm -e PLAT=$PLAT -v $DIR/../../../:/io $DOCKER_IMAGE /io/scripts/ci/linux/build_wheel.bash
 
 if [ -n "$TRAVIS_TAG" ]; then
   python3 -m twine upload  dist/* --username "__token__" --password "$PYPI_TOKEN"  --skip-existing

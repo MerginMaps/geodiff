@@ -14,7 +14,7 @@ $DIR/../clean.bash
 echo "Skipping dist of source for osx"
 
 # build wheels
-$DIR/osx/build_wheel.bash
+$DIR/build_wheel.bash
 if [ -n "$TRAVIS_TAG" ]; then
   pyenv local 3.8.7
   python --version
