@@ -519,9 +519,10 @@ TEST( PostgresDriverTest, test_capital_letters )
   std::string baseGpkg( pathjoin( testdir(), "capital-letters", "db-capital-base.gpkg" ) );
   std::string modifiedGpkg( pathjoin( testdir(), "capital-letters", "db-capital-modified.gpkg" ) );
 
-  // try capital letters when in schema name
+  // try capital letters when in schema and table names
   EXPECT_EQ( GEODIFF_makeCopy( "sqlite", "", baseGpkg.c_str(), "postgres", conninfo.c_str(), "GD_base" ), GEODIFF_SUCCESS );
   EXPECT_EQ( GEODIFF_makeCopy( "sqlite", "", modifiedGpkg.c_str(), "postgres", conninfo.c_str(), "GD_modified" ), GEODIFF_SUCCESS );
+  EXPECT_EQ( GEODIFF_makeCopy( "postgres", conninfo.c_str(), "GD_base", "postgres", conninfo.c_str(), "GD_base_copy" ), GEODIFF_SUCCESS );
 
   EXPECT_EQ( GEODIFF_createChangesetEx( "postgres", conninfo.c_str(), "GD_base", "GD_modified", changeset.c_str() ), GEODIFF_SUCCESS );
 
@@ -728,6 +729,34 @@ TEST( ModifiedSchemeSqlite3Test, test_multipart_geometries )
 
   std::string from = pathjoin( testdir(), "conversions", "db-multi-geometries.gpkg" );
   ASSERT_EQ( GEODIFF_makeCopy( "sqlite", "", from.c_str(), "postgres", conninfo.c_str(), "db_multipart" ), GEODIFF_SUCCESS );
+
+  PQfinish( c );
+}
+
+TEST( ModifiedSchemeSqlite3Test, test_3d_geometries )
+{
+  std::string conninfo = pgTestConnInfo();
+
+  PGconn *c = PQconnectdb( conninfo.c_str() );
+  ASSERT_EQ( PQstatus( c ), CONNECTION_OK );
+
+  std::string gpkgBase = pathjoin( testdir(), "3d", "db-3d-base.gpkg" );
+  std::string gpkgModified = pathjoin( testdir(), "3d", "db-3d-modified.gpkg" );
+
+  std::string pgBase( "gd_3d_base" );
+  std::string pgAux( "gd_3d_aux" );
+
+  ASSERT_EQ( GEODIFF_makeCopy( "sqlite", "", gpkgBase.c_str(), "postgres", conninfo.c_str(), pgAux.c_str() ), GEODIFF_SUCCESS );
+  ASSERT_EQ( GEODIFF_makeCopy( "postgres", conninfo.c_str(), pgAux.c_str(), "postgres", conninfo.c_str(), pgBase.c_str() ), GEODIFF_SUCCESS );
+
+  makedir( pathjoin( tmpdir(), "test_3d_geometries" ) );
+  std::string changeset( pathjoin( tmpdir(), "test_3d_geometries", "changeset.diff" ) );
+
+  ASSERT_EQ( GEODIFF_createChangesetDr( "postgres", conninfo.c_str(), pgBase.c_str(), "sqlite", "", gpkgModified.c_str(), changeset.c_str() ), GEODIFF_SUCCESS );
+
+  ChangesetReader reader;
+  reader.open( changeset );
+  EXPECT_TRUE( !reader.isEmpty() );
 
   PQfinish( c );
 }
