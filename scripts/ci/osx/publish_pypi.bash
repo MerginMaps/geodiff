@@ -5,7 +5,7 @@ set -e
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 PWD=`pwd`
 
-echo -n "building pygeodiff dist"
+echo "building pygeodiff dist"
 cd $DIR/../../..
 
 $DIR/../clean.bash

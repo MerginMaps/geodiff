@@ -12,7 +12,6 @@ sudo python3 $DIR/../get-pip.py
 sudo python3 -m pip install nose2
 
 # deploy on pypi
-if [ -n "$TRAVIS_TAG" ]; then
-    docker pull quay.io/pypa/manylinux2010_x86_64
-    sudo python3 -m pip install setuptools twine scikit-build wheel
-fi
+sudo python3 -m pip install setuptools twine scikit-build wheel
+docker pull quay.io/pypa/manylinux2010_x86_64
+
