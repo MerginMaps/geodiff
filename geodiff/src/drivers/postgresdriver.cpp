@@ -989,7 +989,7 @@ void PostgresDriver::dumpData( ChangesetWriter &writer, bool useModified )
       continue;  // ignore tables without primary key - they can't be compared properly
 
     std::string sql = "SELECT " + allColumnNames( tbl ) + " FROM " +
-                      quotedIdentifier( useModified ? mModifiedSchema : mBaseSchema ) + "." + tableName;
+                      quotedIdentifier( useModified ? mModifiedSchema : mBaseSchema ) + "." + quotedIdentifier( tableName );
 
     PostgresResult res( execSql( mConn, sql ) );
     int rows = res.rowCount();
