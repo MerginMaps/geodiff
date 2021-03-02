@@ -501,18 +501,18 @@ static Value resultToValue( const PostgresResult &res, int r, size_t i, const Ta
         throw GeoDiffException( "Unexpected prefix in geometry value" );
 
       // 1. convert from hex representation to proper binary stream
-      std::string binString = hex2bin( valueStr.substr( 2 ) );
-      // 2. convert WKB binary (or GeoPackage geom. encoding)
-      std::string outBinString( 8 + binString.size(), 0 );
-      memcpy( &outBinString[0], "GP\x00\x01", 4 );
-      // write SRID in little endian
-      outBinString[4] = 0xff & ( col.geomSrsId >> 0 );
-      outBinString[5] = 0xff & ( col.geomSrsId >> 8 );
-      outBinString[6] = 0xff & ( col.geomSrsId >> 16 );
-      outBinString[7] = 0xff & ( col.geomSrsId >> 24 );
+      std::string binString = hex2bin( valueStr.substr( 2 ) ); // chop \x prefix
 
-      memcpy( &outBinString[8], binString.data(), binString.size() );
-      v.setString( Value::TypeBlob, outBinString.data(), outBinString.size() );
+      // 2. create binary header
+      std::string binHead = createGpkgHeader( binString, col.geomSrsId );
+
+      // 3. copy header and body
+      std::string gpb( binHead.size() + binString.size(), 0 );
+
+      memcpy( &gpb[0], binHead.data(), binHead.size() );
+      memcpy( &gpb[binHead.size()], binString.data(), binString.size() );
+
+      v.setString( Value::TypeBlob, gpb.data(), gpb.size() );
     }
     else
     {

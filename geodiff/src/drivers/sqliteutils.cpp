@@ -6,11 +6,18 @@
 #include "sqliteutils.h"
 
 #include "geodiffutils.hpp"
+#include "geodifflogger.hpp"
 
 #include <gpkg.h>
 
 #include <algorithm>
+#include <memory.h>
 
+extern "C" {
+#include "binstream.h"
+#include "wkb.h"
+#include "gpkg_geom.h"
+}
 
 Sqlite3Db::Sqlite3Db() = default;
 Sqlite3Db::~Sqlite3Db()
@@ -525,4 +532,53 @@ int parseGpkgbHeaderSize( const std::string &gpkgWkb )
   }
 
   return GPKG_NO_ENVELOPE_HEADER_SIZE + envelope_size;
+}
+
+std::string createGpkgHeader( std::string &wkb, int srsid )
+{
+  // initialize instream with wkb
+  binstream_t inStream;
+  uint8_t *dataPtr = reinterpret_cast<uint8_t *>( &wkb[0] );
+  size_t len = wkb.size();
+
+  if ( binstream_init( &inStream, dataPtr, len ) != SQLITE_OK )
+    throw GeoDiffException( "Could initialize binary stream for GeoPackage header" );
+
+  // fill envelope
+  geom_envelope_t envelope;
+  errorstream_t err;
+  if ( wkb_fill_envelope( &inStream, WKB_ISO, &envelope, &err ) != SQLITE_OK )
+  {
+    Logger::instance().error( error_message( &err ) );
+    throw GeoDiffException( "Could not fill envelope for GeoPackage header" );
+  }
+
+  // initialize outstream for header
+  binstream_t outStream;
+  if ( binstream_init_growable( &outStream, sizeof( GPKG_NO_ENVELOPE_HEADER_SIZE ) ) != SQLITE_OK )
+    throw GeoDiffException( "Could initialize growing binary stream for GeoPackage header" );
+
+  geom_blob_header_t gpbHeader;
+  gpbHeader.empty = 0;
+  gpbHeader.version = 0;
+  gpbHeader.srid = srsid;
+  gpbHeader.envelope = envelope;
+
+  // write header to outstream
+  if ( gpb_write_header( &outStream, &gpbHeader, &err ) != SQLITE_OK )
+  {
+    Logger::instance().error( error_message( &err ) );
+    throw GeoDiffException( "Could not create GeoPackage header" );
+  }
+
+  /*
+   *  From documentation we know that outStream->position is now (after filling header struct) an index
+   *  of the first byte after header ~ WKB Data start. Position can thus be used as a header size.
+   */
+  const void *headerDataPtr = reinterpret_cast<void *>( outStream.data );
+
+  std::string header( outStream.position, 0 );
+  memcpy( &header[0], headerDataPtr, outStream.position );
+
+  return header;
 }
