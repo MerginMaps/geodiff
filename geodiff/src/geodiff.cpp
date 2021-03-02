@@ -326,9 +326,9 @@ int GEODIFF_changesCount( const char *changeset )
 
 static int listChangesJSON( const char *changeset, const char *jsonfile, bool onlySummary )
 {
-  if ( !jsonfile || !changeset )
+  if ( !changeset )
   {
-    Logger::instance().error( "NULL arguments to listChangesJSON" );
+    Logger::instance().error( "Not provided changeset file to listChangeset" );
     return GEODIFF_ERROR;
   }
 
@@ -352,7 +352,17 @@ static int listChangesJSON( const char *changeset, const char *jsonfile, bool on
     Logger::instance().error( exc );
     return GEODIFF_ERROR;
   }
-  flushString( jsonfile, res );
+
+  if ( !jsonfile )
+  {
+    // print to terminal
+    std::cout << res << std::endl;
+  }
+  else
+  {
+    flushString( jsonfile, res );
+  }
+
   return GEODIFF_SUCCESS;
 }
 
