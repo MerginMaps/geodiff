@@ -548,6 +548,20 @@ TEST( PostgresDriverTest, test_gpkg_with_envelope )
 
   EXPECT_EQ( GEODIFF_makeCopy( "sqlite", "", envelopeGpkg.c_str(), "postgres", conninfo.c_str(), "gd_envelope_test" ), GEODIFF_SUCCESS );
 
+  std::string testName( "test_gpkg_with_envelope" );
+  makedir( pathjoin( tmpdir(), testName ) );
+
+  std::string changeset( pathjoin( tmpdir(), testName, "changeset.diff" ) );
+  std::string tmpEnvelopeGpkg( pathjoin( tmpdir(), testName, "db-envelope-tmp.gpkg" ) );
+
+  EXPECT_EQ( GEODIFF_makeCopy( "postgres", conninfo.c_str(), "gd_envelope_test", "sqlite", "", tmpEnvelopeGpkg.c_str() ), GEODIFF_SUCCESS );
+
+  EXPECT_EQ( GEODIFF_createChangeset( envelopeGpkg.c_str(), tmpEnvelopeGpkg.c_str(), changeset.c_str() ), GEODIFF_SUCCESS );
+
+  ChangesetReader r;
+  r.open( changeset );
+  EXPECT_TRUE( r.isEmpty() );
+
   PQfinish( c );
 }
 
@@ -740,8 +754,8 @@ TEST( ModifiedSchemeSqlite3Test, test_3d_geometries )
   PGconn *c = PQconnectdb( conninfo.c_str() );
   ASSERT_EQ( PQstatus( c ), CONNECTION_OK );
 
-  std::string gpkgBase = pathjoin( testdir(), "3d", "db-3d-base.gpkg" );
-  std::string gpkgModified = pathjoin( testdir(), "3d", "db-3d-modified.gpkg" );
+  std::string gpkgBase = pathjoin( testdir(), "3d", "db3d-base.gpkg" );
+  std::string gpkgModified = pathjoin( testdir(), "3d", "db3d-modified.gpkg" );
 
   std::string pgBase( "gd_3d_base" );
   std::string pgAux( "gd_3d_aux" );
