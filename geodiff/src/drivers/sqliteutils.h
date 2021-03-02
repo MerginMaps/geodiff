@@ -111,6 +111,10 @@ std::vector<std::string> sqliteColumnNames(
   const std::string &tableName
 );
 
+// Returns size of GeoPackage binary header including envelope
 int parseGpkgbHeaderSize( const std::string &gpkgWkb );
+
+// Creates GeoPackage binary header and fills it with data from WKB
+std::string createGpkgHeader( std::string &wkb, int srsid );
 
 #endif // SQLITEUTILS_H
