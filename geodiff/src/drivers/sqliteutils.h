@@ -13,6 +13,9 @@
 
 #include "sqlite3.h"
 
+#define GPKG_NO_ENVELOPE_HEADER_SIZE 8
+#define GPKG_FLAG_BYTE_POS 3
+#define GPKG_ENVELOPE_SIZE_MASK 14
 
 class Buffer;
 
@@ -108,5 +111,6 @@ std::vector<std::string> sqliteColumnNames(
   const std::string &tableName
 );
 
+int parseGpkgbHeaderSize( const std::string &gpkgWkb );
 
 #endif // SQLITEUTILS_H

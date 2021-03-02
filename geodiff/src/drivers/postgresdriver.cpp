@@ -12,6 +12,7 @@
 #include "changesetutils.h"
 #include "changesetwriter.h"
 #include "postgresutils.h"
+#include "sqliteutils.h"
 
 #include <algorithm>
 #include <iostream>
@@ -549,10 +550,10 @@ static std::string valueToSql( const Value &v, const TableColumnInfo &col )
     {
       // handling of geometries - they are encoded with GPKG header
       std::string gpkgWkb = v.getString();
-      int header_size = parseGpkgbHeaderSize( gpkgWkb );
-      std::string wkb( gpkgWkb.size() - header_size, 0 );
+      int headerSize = parseGpkgbHeaderSize( gpkgWkb );
+      std::string wkb( gpkgWkb.size() - headerSize, 0 );
 
-      memcpy( &wkb[0], &gpkgWkb[header_size], gpkgWkb.size() - header_size );
+      memcpy( &wkb[0], &gpkgWkb[headerSize], gpkgWkb.size() - headerSize );
       return "ST_GeomFromWKB('\\x" + bin2hex( wkb ) + "', " + std::to_string( col.geomSrsId ) + ")";
     }
     return quotedString( v.getString() );

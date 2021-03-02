@@ -9,10 +9,6 @@
 #include <assert.h>
 #include <string>
 
-#define GPKG_NO_ENVELOPE_HEADER_SIZE 8
-#define GPKG_FLAG_BYTE_POS 3
-#define GPKG_ENVELOPE_SIZE_MASK 14
-
 extern "C"
 {
 #include <libpq-fe.h>
@@ -73,8 +69,6 @@ class PostgresResult
 };
 
 PGresult *execSql( PGconn *c, const std::string &sql );
-
-int parseGpkgbHeaderSize( const std::string &gpkgWkb );
 
 std::string quotedIdentifier( const std::string &ident );
 std::string quotedString( const std::string &value );
