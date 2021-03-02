@@ -6,6 +6,8 @@
 #ifndef SQLITEUTILS_H
 #define SQLITEUTILS_H
 
+#include "tableschema.h"
+
 #include <map>
 #include <memory>
 #include <string>
@@ -115,6 +117,6 @@ std::vector<std::string> sqliteColumnNames(
 int parseGpkgbHeaderSize( const std::string &gpkgWkb );
 
 // Creates GeoPackage binary header and fills it with data from WKB
-std::string createGpkgHeader( std::string &wkb, int srsid );
+std::string createGpkgHeader( std::string &wkb, const TableColumnInfo &col );
 
 #endif // SQLITEUTILS_H

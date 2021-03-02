@@ -534,7 +534,7 @@ int parseGpkgbHeaderSize( const std::string &gpkgWkb )
   return GPKG_NO_ENVELOPE_HEADER_SIZE + envelope_size;
 }
 
-std::string createGpkgHeader( std::string &wkb, int srsid )
+std::string createGpkgHeader( std::string &wkb, const TableColumnInfo &col )
 {
   // initialize instream with wkb
   binstream_t inStream;
@@ -561,8 +561,20 @@ std::string createGpkgHeader( std::string &wkb, int srsid )
   geom_blob_header_t gpbHeader;
   gpbHeader.empty = 0;
   gpbHeader.version = 0;
-  gpbHeader.srid = srsid;
+  gpbHeader.srid = col.geomSrsId;
   gpbHeader.envelope = envelope;
+
+  // change GeoPackage envelope sizes to imitate GDAL:
+  //  a) ignore M coordinates
+  //  b) do not write envelope if geometry is simple point
+  gpbHeader.envelope.has_env_m = 0;
+
+  if ( col.geomType == "POINT" )
+  {
+    gpbHeader.envelope.has_env_x = 0;
+    gpbHeader.envelope.has_env_y = 0;
+    gpbHeader.envelope.has_env_z = 0;
+  }
 
   // write header to outstream
   if ( gpb_write_header( &outStream, &gpbHeader, &err ) != SQLITE_OK )

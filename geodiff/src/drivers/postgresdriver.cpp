@@ -504,7 +504,7 @@ static Value resultToValue( const PostgresResult &res, int r, size_t i, const Ta
       std::string binString = hex2bin( valueStr.substr( 2 ) ); // chop \x prefix
 
       // 2. create binary header
-      std::string binHead = createGpkgHeader( binString, col.geomSrsId );
+      std::string binHead = createGpkgHeader( binString, col );
 
       // 3. copy header and body
       std::string gpb( binHead.size() + binString.size(), 0 );
