@@ -592,5 +592,8 @@ std::string createGpkgHeader( std::string &wkb, const TableColumnInfo &col )
   std::string header( outStream.position, 0 );
   memcpy( &header[0], headerDataPtr, outStream.position );
 
+  binstream_destroy( &inStream, 1 );
+  binstream_destroy( &outStream, 1 );
+
   return header;
 }
