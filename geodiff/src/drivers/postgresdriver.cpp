@@ -437,7 +437,11 @@ static std::string sqlFindModified( const std::string &schemaNameBase, const std
   std::string sql = "SELECT " + allColumnNames( tbl, "a" ) + ", " + allColumnNames( tbl, "b" ) + " FROM " +
                     quotedIdentifier( schemaNameModified ) + "." + quotedIdentifier( tableName ) + " a, " +
                     quotedIdentifier( schemaNameBase ) + "." + quotedIdentifier( tableName ) + " b" +
-                    " WHERE " + exprPk + " AND (" + exprOther + ")";
+                    " WHERE " + exprPk;
+
+  if ( !exprOther.empty() )
+    sql += " AND (" + exprOther + ")";
+
   return sql;
 }
 
