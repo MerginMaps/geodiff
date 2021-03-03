@@ -52,7 +52,7 @@ struct Value
     {
       if ( mType != other.mType )
         return false;
-      if ( mType == TypeUndefined || mType == TypeNull )
+      if ( mType == TypeUndefined )
         return true;
       if ( mType == TypeInt )
         return getInt() == other.getInt();
@@ -60,6 +60,13 @@ struct Value
         return getDouble() == other.getDouble();
       if ( mType == TypeText || mType == TypeBlob )
         return getString() == other.getString();
+      if ( mType == TypeNull )
+      {
+        if ( other.mType == TypeNull )
+          return true;
+        return false;
+      }
+
       assert( false );
     }
 
