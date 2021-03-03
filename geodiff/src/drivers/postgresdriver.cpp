@@ -430,6 +430,10 @@ static std::string sqlFindModified( const std::string &schemaNameBase, const std
 
       std::string colBase = "b." + quotedIdentifier( c.name );
       std::string colModified = "a." + quotedIdentifier( c.name );
+
+      // pg IS DISTINCT FROM operator handles comparison between null and not null values. When comparing values with basic `=` operator,
+      // comparison 7 = NULL returns null (no rows), not false as one would expect. IS DISTINCT FROM handles this and returns false in such situations.
+      // When comparing non-null values with IS DISTINCT FROM operator, it works just as `=` does with non-null values.
       exprOther += "(" + colBase + " IS DISTINCT FROM " + colModified + ")";
     }
   }

@@ -734,7 +734,7 @@ TEST( PostgresDriverTest, test_changesetdr_pg_to_pg )
   PQfinish( c );
 }
 
-TEST( ModifiedSchemeSqlite3Test, test_multipart_geometries )
+TEST( PostgresDriverTest, test_multipart_geometries )
 {
   std::string conninfo = pgTestConnInfo();
 
@@ -747,7 +747,7 @@ TEST( ModifiedSchemeSqlite3Test, test_multipart_geometries )
   PQfinish( c );
 }
 
-TEST( ModifiedSchemeSqlite3Test, test_3d_geometries )
+TEST( PostgresDriverTest, test_3d_geometries )
 {
   std::string conninfo = pgTestConnInfo();
 
@@ -771,6 +771,34 @@ TEST( ModifiedSchemeSqlite3Test, test_3d_geometries )
   ChangesetReader reader;
   reader.open( changeset );
   EXPECT_TRUE( !reader.isEmpty() );
+
+  PQfinish( c );
+}
+
+TEST( PostgresDriverTest, test_edge_cases )
+{
+  std::string conninfo = pgTestConnInfo();
+
+  PGconn *c = PQconnectdb( conninfo.c_str() );
+  ASSERT_EQ( PQstatus( c ), CONNECTION_OK );
+
+  std::string gpkgBase = pathjoin( testdir(), "edge-cases", "db-edge-cases.gpkg" );
+  std::string gpkgMod = pathjoin( testdir(), "edge-cases", "db-edge-cases-mod.gpkg" );
+
+  std::string pgBase( "gd_edge_base" );
+  std::string pgMod( "gd_edge_mod" );
+
+  makedir( pathjoin( tmpdir(), "test_edge_cases" ) );
+  std::string gpkgChangeset( pathjoin( tmpdir(), "test_edge_cases", "gpkgChangeset.diff" ) );
+  std::string pgChangeset( pathjoin( tmpdir(), "test_edge_cases", "pgChangeset.diff" ) );
+
+  ASSERT_EQ( GEODIFF_makeCopy( "sqlite", "", gpkgBase.c_str(), "postgres", conninfo.c_str(), pgBase.c_str() ), GEODIFF_SUCCESS );
+  ASSERT_EQ( GEODIFF_makeCopy( "sqlite", "", gpkgMod.c_str(), "postgres", conninfo.c_str(), pgMod.c_str() ), GEODIFF_SUCCESS );
+
+  ASSERT_EQ( GEODIFF_createChangesetEx( "sqlite", "", gpkgBase.c_str(), gpkgMod.c_str(), gpkgChangeset.c_str() ), GEODIFF_SUCCESS );
+  ASSERT_EQ( GEODIFF_createChangesetEx( "postgres", conninfo.c_str(), pgBase.c_str(), pgMod.c_str(), pgChangeset.c_str() ), GEODIFF_SUCCESS );
+
+  EXPECT_TRUE( fileContentEquals( gpkgChangeset, pgChangeset ) );
 
   PQfinish( c );
 }
