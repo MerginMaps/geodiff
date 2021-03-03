@@ -52,7 +52,7 @@ struct Value
     {
       if ( mType != other.mType )
         return false;
-      if ( mType == TypeUndefined || mType == TypeUndefined )
+      if ( mType == TypeUndefined || mType == TypeNull )
         return true;
       if ( mType == TypeInt )
         return getInt() == other.getInt();
