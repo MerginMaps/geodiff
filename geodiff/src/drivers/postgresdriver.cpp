@@ -430,7 +430,7 @@ static std::string sqlFindModified( const std::string &schemaNameBase, const std
 
       std::string colBase = "b." + quotedIdentifier( c.name );
       std::string colModified = "a." + quotedIdentifier( c.name );
-      exprOther += "NOT ((" + colBase + " IS NULL AND " + colModified + " IS NULL) OR (" + colBase + " = " + colModified + "))";
+      exprOther += "(" + colBase + " IS DISTINCT FROM " + colModified + ")";
     }
   }
 

@@ -396,12 +396,12 @@ static std::string sqlFindModified( const std::string &tableName, const TableSch
   if ( exprOther.empty() )
   {
     sql = sqlitePrintf( "SELECT * FROM \"%w\".\"%w\", \"%w\".\"%w\" WHERE %s",
-                                  "main", tableName.c_str(), "aux", tableName.c_str(), exprPk.c_str() );
+                        "main", tableName.c_str(), "aux", tableName.c_str(), exprPk.c_str() );
   }
   else
   {
     sql = sqlitePrintf( "SELECT * FROM \"%w\".\"%w\", \"%w\".\"%w\" WHERE %s AND (%s)",
-                                  "main", tableName.c_str(), "aux", tableName.c_str(), exprPk.c_str(), exprOther.c_str() );
+                        "main", tableName.c_str(), "aux", tableName.c_str(), exprPk.c_str(), exprOther.c_str() );
   }
 
   return sql;
