@@ -196,6 +196,12 @@ class GeoDiff:
         """
         return self.clib.create_changeset_dr(driver_src, driver_src_info, src, driver_dst, driver_dst_info, dst, changeset)
 
+    def read_changeset(self, changeset):
+        """
+        Opens a changeset file and returns reader object or raises GeoDiffLibError on error.
+        """
+        return self.clib.read_changeset(changeset)
+
     def version(self):
         """
             geodiff version

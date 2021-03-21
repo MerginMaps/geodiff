@@ -653,3 +653,120 @@ int GEODIFF_dumpData( const char *driverName, const char *driverExtraInfo, const
 
   return GEODIFF_SUCCESS;
 }
+
+
+GEODIFF_ChangesetReaderH GEODIFF_readChangeset( const char *changeset )
+{
+  ChangesetReader *reader = new ChangesetReader;
+  if ( !reader->open( changeset ) )
+  {
+    delete reader;
+    return nullptr;
+  }
+  return reader;
+}
+
+GEODIFF_ChangesetEntryH GEODIFF_CR_nextEntry( GEODIFF_ChangesetReaderH readerHandle, bool *ok )
+{
+  *ok = true;
+  ChangesetReader *reader = static_cast<ChangesetReader *>( readerHandle );
+  std::unique_ptr<ChangesetEntry> entry( new ChangesetEntry );
+  try
+  {
+    if ( !reader->nextEntry( *entry ) )
+    {
+      // we have reached the end of file
+      return nullptr;
+    }
+  }
+  catch ( GeoDiffException exc )
+  {
+    Logger::instance().error( exc );
+    *ok = false;
+    return nullptr;
+  }
+  return entry.release();
+}
+
+void GEODIFF_CR_destroy( GEODIFF_ChangesetReaderH readerHandle )
+{
+  delete static_cast<ChangesetReader *>( readerHandle );
+}
+
+int GEODIFF_CE_operation( GEODIFF_ChangesetEntryH entryHandle )
+{
+  return static_cast<ChangesetEntry *>( entryHandle )->op;
+}
+
+GEODIFF_ChangesetTableH GEODIFF_CE_table( GEODIFF_ChangesetEntryH entryHandle )
+{
+  ChangesetTable *table = static_cast<ChangesetEntry *>( entryHandle )->table;
+  return table;
+}
+
+int GEODIFF_CE_countValues( GEODIFF_ChangesetEntryH entryHandle )
+{
+  ChangesetEntry *entry = static_cast<ChangesetEntry *>( entryHandle );
+  return entry->op == ChangesetEntry::OpDelete ? entry->oldValues.size() : entry->newValues.size();
+}
+
+GEODIFF_ValueH GEODIFF_CE_oldValue( GEODIFF_ChangesetEntryH entryHandle, int i )
+{
+  return new Value( static_cast<ChangesetEntry *>( entryHandle )->oldValues[i] );
+}
+
+GEODIFF_ValueH GEODIFF_CE_newValue( GEODIFF_ChangesetEntryH entryHandle, int i )
+{
+  return new Value( static_cast<ChangesetEntry *>( entryHandle )->newValues[i] );
+}
+
+void GEODIFF_CE_destroy( GEODIFF_ChangesetEntryH entryHandle )
+{
+  delete static_cast<ChangesetEntry *>( entryHandle );
+}
+
+int GEODIFF_V_type( GEODIFF_ValueH valueHandle )
+{
+  return static_cast<Value *>( valueHandle )->type();
+}
+
+int64_t GEODIFF_V_getInt( GEODIFF_ValueH valueHandle )
+{
+  return static_cast<Value *>( valueHandle )->getInt();
+}
+
+double GEODIFF_V_getDouble( GEODIFF_ValueH valueHandle )
+{
+  return static_cast<Value *>( valueHandle )->getDouble();
+}
+
+void GEODIFF_V_destroy( GEODIFF_ValueH valueHandle )
+{
+  delete static_cast<Value *>( valueHandle );
+}
+
+int GEODIFF_V_getDataSize( GEODIFF_ValueH valueHandle )
+{
+  return static_cast<Value *>( valueHandle )->getString().size();
+}
+
+void GEODIFF_V_getData( GEODIFF_ValueH valueHandle, char *data )
+{
+  const std::string &str = static_cast<Value *>( valueHandle )->getString();
+  memcpy( data, str.data(), str.size() );
+}
+
+const char *GEODIFF_CT_name( GEODIFF_ChangesetTableH tableHandle )
+{
+  return static_cast<ChangesetTable *>( tableHandle )->name.data();
+}
+
+int GEODIFF_CT_columnCount( GEODIFF_ChangesetTableH tableHandle )
+{
+  return static_cast<ChangesetTable *>( tableHandle )->columnCount();
+}
+
+bool GEODIFF_CT_columnIsPkey( GEODIFF_ChangesetTableH tableHandle, int i )
+{
+  return static_cast<ChangesetTable *>( tableHandle )->primaryKeys.at( i );
+}
