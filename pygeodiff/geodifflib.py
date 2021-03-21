@@ -355,6 +355,8 @@ class ChangesetReader(object):
         else:
             raise StopIteration
 
+    next = __next__  # python 2.x compatibility (requires next())
+
 
 class ChangesetEntry(object):
     """ Wrapper around GEODIFF_CE_* functions from C API """
