@@ -12,5 +12,8 @@ from .geodifflib import (
     GeoDiffLibError,
     GeoDiffLibConflictError,
     GeoDiffLibUnsupportedChangeError,
-    GeoDiffLibVersionError
+    GeoDiffLibVersionError,
+    ChangesetEntry,
+    ChangesetReader,
+    UndefinedValue,
 )

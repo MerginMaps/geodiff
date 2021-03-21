@@ -60,6 +60,10 @@ bool ChangesetReader::nextEntry( ChangesetEntry &entry )
       entry.table = &mCurrentTable;
       return true;  // we're done!
     }
+    else
+    {
+      throwReaderError( "Unknown entry type " + std::to_string( type ) );
+    }
   }
   return false;
 }
