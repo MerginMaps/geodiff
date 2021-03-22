@@ -657,6 +657,12 @@ int GEODIFF_dumpData( const char *driverName, const char *driverExtraInfo, const
 
 GEODIFF_ChangesetReaderH GEODIFF_readChangeset( const char *changeset )
 {
+  if ( !changeset )
+  {
+    Logger::instance().error( "NULL changeset argument to GEODIFF_readChangeset" );
+    return nullptr;
+  }
+
   ChangesetReader *reader = new ChangesetReader;
   if ( !reader->open( changeset ) )
   {
