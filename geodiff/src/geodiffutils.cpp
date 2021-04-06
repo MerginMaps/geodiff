@@ -210,6 +210,16 @@ int Buffer::size() const
 // ////////////////////////////////////////////////////////////////////////
 
 
+std::string to_string_with_max_precision( double a_value )
+{
+  std::ostringstream out;
+  out.precision( std::numeric_limits<double>::digits10 + 1 );
+  out << std::fixed << a_value;
+  return out.str();
+}
+
+//
+
 std::string pOpToStr( int pOp )
 {
   switch ( pOp )

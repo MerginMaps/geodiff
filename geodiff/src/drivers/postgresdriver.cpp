@@ -550,7 +550,7 @@ static std::string valueToSql( const Value &v, const TableColumnInfo &col )
   }
   else if ( v.type() == Value::TypeDouble )
   {
-    return std::to_string( v.getDouble() );
+    return to_string_with_max_precision( v.getDouble() );
   }
   else if ( v.type() == Value::TypeText || v.type() == Value::TypeBlob )
   {

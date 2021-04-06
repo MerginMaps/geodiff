@@ -95,7 +95,7 @@ std::string valueToJSON( const Value &value )
     case Value::TypeInt:
       return std::to_string( value.getInt() );
     case Value::TypeDouble:
-      return std::to_string( value.getDouble() );
+      return to_string_with_max_precision( value.getDouble() );
     case Value::TypeText:
       return escapeJSONString( value.getString() );
     case Value::TypeBlob:
