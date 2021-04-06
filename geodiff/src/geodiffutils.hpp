@@ -71,6 +71,9 @@ class Buffer
 };
 
 
+//! Ordinary std::to_string only has 6 digits of precision by default when converting doubles.
+//! In some cases we need max. precision to make sure we do not loose data
+std::string to_string_with_max_precision( double a_value );
 
 std::string pOpToStr( int pOp );
 std::string conflict2Str( int c );
