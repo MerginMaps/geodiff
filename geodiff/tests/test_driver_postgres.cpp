@@ -775,6 +775,31 @@ TEST( PostgresDriverTest, test_3d_geometries )
   PQfinish( c );
 }
 
+TEST( PostgresDriverTest, test_floating_point_values )
+{
+  // Copy GPKG with a table that contains some double numbers with many decimal places to Postgres
+  // and back and check whether the copy still has correct values (not truncated when copying).
+
+  std::string conninfo = pgTestConnInfo();
+
+  PGconn *c = PQconnectdb( conninfo.c_str() );
+  ASSERT_EQ( PQstatus( c ), CONNECTION_OK );
+
+  std::string gpkgBase = pathjoin( testdir(), "floating_point_values", "db-floating.gpkg" );
+  std::string pgBase( "gd_floating_point_values" );
+
+  makedir( pathjoin( tmpdir(), "test_floating_point_values" ) );
+  std::string gpkgCopy( pathjoin( tmpdir(), "test_floating_point_values", "db-floating-copy.gpkg" ) );
+  std::string diff( pathjoin( tmpdir(), "test_floating_point_values", "db-floating.diff" ) );
+
+  ASSERT_EQ( GEODIFF_makeCopy( "sqlite", "", gpkgBase.c_str(), "postgres", conninfo.c_str(), pgBase.c_str() ), GEODIFF_SUCCESS );
+  ASSERT_EQ( GEODIFF_makeCopy( "postgres", conninfo.c_str(), pgBase.c_str(), "sqlite", "", gpkgCopy.c_str() ), GEODIFF_SUCCESS );
+
+  ASSERT_EQ( GEODIFF_createChangesetEx( "sqlite", "", gpkgBase.c_str(), gpkgCopy.c_str(), diff.c_str() ), GEODIFF_SUCCESS );
+
+  ASSERT_TRUE( isFileEmpty( diff ) );
+}
+
 TEST( PostgresDriverTest, test_edge_cases )
 {
   std::string conninfo = pgTestConnInfo();
