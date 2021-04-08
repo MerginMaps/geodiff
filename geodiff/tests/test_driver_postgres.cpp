@@ -798,6 +798,8 @@ TEST( PostgresDriverTest, test_floating_point_values )
   ASSERT_EQ( GEODIFF_createChangesetEx( "sqlite", "", gpkgBase.c_str(), gpkgCopy.c_str(), diff.c_str() ), GEODIFF_SUCCESS );
 
   ASSERT_TRUE( isFileEmpty( diff ) );
+
+  PQfinish( c );
 }
 
 TEST( PostgresDriverTest, test_edge_cases )
