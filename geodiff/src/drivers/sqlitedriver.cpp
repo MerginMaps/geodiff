@@ -498,13 +498,6 @@ static void handleUpdated( const std::string &tableName, const TableSchema &tbl,
   statement.prepare( db, "%s", sqlModified.c_str() );
   while ( SQLITE_ROW == sqlite3_step( statement.get() ) )
   {
-    if ( first )
-    {
-      ChangesetTable chTable = schemaToChangesetTable( tableName, tbl );
-      writer.beginTable( chTable );
-      first = false;
-    }
-
     /*
     ** Within the old.* record associated with an UPDATE change, all fields
     ** associated with table columns that are not PRIMARY KEY columns and are
@@ -519,6 +512,7 @@ static void handleUpdated( const std::string &tableName, const TableSchema &tbl,
     ChangesetEntry e;
     e.op = ChangesetEntry::OpUpdate;
 
+    bool hasUpdates = false;
     size_t numColumns = tbl.columns.size();
     for ( size_t i = 0; i < numColumns; ++i )
     {
@@ -526,11 +520,43 @@ static void handleUpdated( const std::string &tableName, const TableSchema &tbl,
       Sqlite3Value v2( sqlite3_column_value( statement.get(), static_cast<int>( i ) ) );
       bool pkey = tbl.columns[i].isPrimaryKey;
       bool updated = !valuesEqual( v1.value(), v2.value() );
+      if ( updated )
+      {
+        // Let's do a secondary check for some column types to avoid false positives, for example
+        // multiple different string representations could be used for a single datetime value,
+        // see "Time Values" section in https://sqlite.org/lang_datefunc.html
+        if ( tbl.columns[i].type == TableColumnType::DATETIME )
+        {
+          Sqlite3Stmt stmtDatetime;
+          stmtDatetime.prepare( db, "SELECT datetime(?) != datetime(?)" );
+          sqlite3_bind_value( stmtDatetime.get(), 1, v1.value() );
+          sqlite3_bind_value( stmtDatetime.get(), 2, v2.value() );
+          if ( SQLITE_ROW == sqlite3_step( stmtDatetime.get() ) )
+          {
+            updated = sqlite3_column_int( stmtDatetime.get(), 0 );
+          }
+        }
+
+        if ( updated )
+        {
+          hasUpdates = true;
+        }
+      }
       e.oldValues.push_back( ( pkey || updated ) ? changesetValue( v1.value() ) : Value() );
       e.newValues.push_back( updated ? changesetValue( v2.value() ) : Value() );
     }
 
-    writer.writeEntry( e );
+    if ( hasUpdates )
+    {
+      if ( first )
+      {
+        ChangesetTable chTable = schemaToChangesetTable( tableName, tbl );
+        writer.beginTable( chTable );
+        first = false;
+      }
+
+      writer.writeEntry( e );
+    }
   }
 }
 
