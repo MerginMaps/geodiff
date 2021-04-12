@@ -272,6 +272,14 @@ TEST( SqliteDriverTest, test_create_from_gpkg )
   //EXPECT_EQ( tblBaseSimple.crs.wkt, tblNewSimple.crs.wkt );  // WKTs differ in whitespaces
 }
 
+TEST( SqliteDriverTest, create_changeset_datetime )
+{
+  testCreateChangeset( "test_create_changeset_datetime",
+                       pathjoin( testdir(), "datetime", "datetime1.gpkg" ),
+                       pathjoin( testdir(), "datetime", "datetime2.gpkg" ),
+                       pathjoin( testdir(), "datetime", "datetime1-2.diff" )
+                     );
+}
 
 int main( int argc, char **argv )
 {

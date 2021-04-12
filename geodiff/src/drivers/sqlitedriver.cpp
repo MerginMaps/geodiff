@@ -408,37 +408,6 @@ static std::string sqlFindModified( const std::string &tableName, const TableSch
 }
 
 
-static bool valuesEqual( sqlite3_value *v1, sqlite3_value *v2 )
-{
-  int type1 = sqlite3_value_type( v1 );
-  int type2 = sqlite3_value_type( v2 );
-  if ( type1 != type2 )
-    return false;
-
-  if ( type1 == SQLITE_NULL )
-    return true;
-  else if ( type1 == SQLITE_INTEGER )
-    return sqlite3_value_int64( v1 ) == sqlite3_value_int64( v2 );
-  else if ( type1 == SQLITE_FLOAT )
-    return sqlite3_value_double( v1 ) == sqlite3_value_double( v2 );
-  else if ( type1 == SQLITE_TEXT )
-  {
-    return strcmp( ( const char * ) sqlite3_value_text( v1 ), ( const char * ) sqlite3_value_text( v2 ) ) == 0;
-  }
-  else if ( type1 == SQLITE_BLOB )
-  {
-    int len1 = sqlite3_value_bytes( v1 );
-    int len2 = sqlite3_value_bytes( v2 );
-    if ( len1 != len2 )
-      return false;
-    return memcmp( sqlite3_value_blob( v1 ), sqlite3_value_blob( v2 ), len1 ) == 0;
-  }
-  else
-  {
-    throw GeoDiffException( "Unexpected value type" );
-  }
-}
-
 static Value changesetValue( sqlite3_value *v )
 {
   Value x;
@@ -498,13 +467,6 @@ static void handleUpdated( const std::string &tableName, const TableSchema &tbl,
   statement.prepare( db, "%s", sqlModified.c_str() );
   while ( SQLITE_ROW == sqlite3_step( statement.get() ) )
   {
-    if ( first )
-    {
-      ChangesetTable chTable = schemaToChangesetTable( tableName, tbl );
-      writer.beginTable( chTable );
-      first = false;
-    }
-
     /*
     ** Within the old.* record associated with an UPDATE change, all fields
     ** associated with table columns that are not PRIMARY KEY columns and are
@@ -519,18 +481,51 @@ static void handleUpdated( const std::string &tableName, const TableSchema &tbl,
     ChangesetEntry e;
     e.op = ChangesetEntry::OpUpdate;
 
+    bool hasUpdates = false;
     size_t numColumns = tbl.columns.size();
     for ( size_t i = 0; i < numColumns; ++i )
     {
       Sqlite3Value v1( sqlite3_column_value( statement.get(), static_cast<int>( i + numColumns ) ) );
       Sqlite3Value v2( sqlite3_column_value( statement.get(), static_cast<int>( i ) ) );
       bool pkey = tbl.columns[i].isPrimaryKey;
-      bool updated = !valuesEqual( v1.value(), v2.value() );
+      bool updated = ( v1 != v2 );
+      if ( updated )
+      {
+        // Let's do a secondary check for some column types to avoid false positives, for example
+        // multiple different string representations could be used for a single datetime value,
+        // see "Time Values" section in https://sqlite.org/lang_datefunc.html
+        if ( tbl.columns[i].type == TableColumnType::DATETIME )
+        {
+          Sqlite3Stmt stmtDatetime;
+          stmtDatetime.prepare( db, "SELECT datetime(?) != datetime(?)" );
+          sqlite3_bind_value( stmtDatetime.get(), 1, v1.value() );
+          sqlite3_bind_value( stmtDatetime.get(), 2, v2.value() );
+          if ( SQLITE_ROW == sqlite3_step( stmtDatetime.get() ) )
+          {
+            updated = sqlite3_column_int( stmtDatetime.get(), 0 );
+          }
+        }
+
+        if ( updated )
+        {
+          hasUpdates = true;
+        }
+      }
       e.oldValues.push_back( ( pkey || updated ) ? changesetValue( v1.value() ) : Value() );
       e.newValues.push_back( updated ? changesetValue( v2.value() ) : Value() );
     }
 
-    writer.writeEntry( e );
+    if ( hasUpdates )
+    {
+      if ( first )
+      {
+        ChangesetTable chTable = schemaToChangesetTable( tableName, tbl );
+        writer.beginTable( chTable );
+        first = false;
+      }
+
+      writer.writeEntry( e );
+    }
   }
 }
 

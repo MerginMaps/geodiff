@@ -199,6 +199,40 @@ std::string Sqlite3Value::toString( sqlite3_value *ppValue )
   return val;
 }
 
+bool Sqlite3Value::operator==( const Sqlite3Value &other ) const
+{
+  sqlite3_value *v1 = mVal;
+  sqlite3_value *v2 = other.mVal;
+
+  int type1 = sqlite3_value_type( v1 );
+  int type2 = sqlite3_value_type( v2 );
+  if ( type1 != type2 )
+    return false;
+
+  if ( type1 == SQLITE_NULL )
+    return true;
+  else if ( type1 == SQLITE_INTEGER )
+    return sqlite3_value_int64( v1 ) == sqlite3_value_int64( v2 );
+  else if ( type1 == SQLITE_FLOAT )
+    return sqlite3_value_double( v1 ) == sqlite3_value_double( v2 );
+  else if ( type1 == SQLITE_TEXT )
+  {
+    return strcmp( ( const char * ) sqlite3_value_text( v1 ), ( const char * ) sqlite3_value_text( v2 ) ) == 0;
+  }
+  else if ( type1 == SQLITE_BLOB )
+  {
+    int len1 = sqlite3_value_bytes( v1 );
+    int len2 = sqlite3_value_bytes( v2 );
+    if ( len1 != len2 )
+      return false;
+    return memcmp( sqlite3_value_blob( v1 ), sqlite3_value_blob( v2 ), len1 ) == 0;
+  }
+  else
+  {
+    throw GeoDiffException( "Unexpected value type" );
+  }
+}
+
 
 ///
 

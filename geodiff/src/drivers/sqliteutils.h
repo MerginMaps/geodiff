@@ -83,6 +83,12 @@ class Sqlite3Value
 
     static std::string toString( sqlite3_value *val );
 
+    bool operator==( const Sqlite3Value &other ) const;
+    bool operator!=( const Sqlite3Value &other ) const
+    {
+      return !( *this == other );
+    }
+
   private:
     sqlite3_value *mVal = nullptr;
 };
