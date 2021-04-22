@@ -587,13 +587,15 @@ std::string createGpkgHeader( std::string &wkb, const TableColumnInfo &col )
     throw GeoDiffException( "Could not fill envelope for GeoPackage header" );
   }
 
+  bool geomIsEmpty = geom_envelope_finalize( &envelope );
+
   // initialize outstream for header
   binstream_t outStream;
   if ( binstream_init_growable( &outStream, sizeof( GPKG_NO_ENVELOPE_HEADER_SIZE ) ) != SQLITE_OK )
     throw GeoDiffException( "Could initialize growing binary stream for GeoPackage header" );
 
   geom_blob_header_t gpbHeader;
-  gpbHeader.empty = 0;
+  gpbHeader.empty = geomIsEmpty;
   gpbHeader.version = 0;
   gpbHeader.srid = col.geomSrsId;
   gpbHeader.envelope = envelope;
