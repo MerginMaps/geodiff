@@ -452,7 +452,7 @@ static std::string sqlFindModified( const std::string &schemaNameBase, const std
 
 static bool isColumnInt( const TableColumnInfo &col )
 {
-  return col.type == "integer";
+  return col.type == "integer" || col.type == "smallint" || col.type == "bigint";
 }
 
 static bool isColumnDouble( const TableColumnInfo &col )
@@ -462,7 +462,8 @@ static bool isColumnDouble( const TableColumnInfo &col )
 
 static bool isColumnText( const TableColumnInfo &col )
 {
-  return col.type == "char" || col.type == "varchar" || col.type == "text" || col.type == "citext";
+  return col.type == "char" || col.type == "varchar" || col.type == "character varying" ||
+         col.type == "text" || col.type == "citext";
 }
 
 static bool isColumnGeometry( const TableColumnInfo &col )
