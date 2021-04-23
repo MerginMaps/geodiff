@@ -802,6 +802,34 @@ TEST( PostgresDriverTest, test_floating_point_values )
   PQfinish( c );
 }
 
+TEST( PostgresDriverTest, test_empty_geom )
+{
+  // Copy GPKG with a table that contains some empty geometries
+  // and back and check whether the copy still has correct values
+  // (GPKG geometry encoding keeps "empty" flag in its header, so this tests if we set it correctly from WKB)
+
+  std::string conninfo = pgTestConnInfo();
+
+  PGconn *c = PQconnectdb( conninfo.c_str() );
+  ASSERT_EQ( PQstatus( c ), CONNECTION_OK );
+
+  std::string gpkgBase = pathjoin( testdir(), "empty_geom", "db-empty.gpkg" );
+  std::string pgBase( "gd_empty_geom" );
+
+  makedir( pathjoin( tmpdir(), "test_empty_geom" ) );
+  std::string gpkgCopy( pathjoin( tmpdir(), "test_empty_geom", "db-empty.gpkg" ) );
+  std::string diff( pathjoin( tmpdir(), "test_empty_geom", "db-empty.diff" ) );
+
+  ASSERT_EQ( GEODIFF_makeCopy( "sqlite", "", gpkgBase.c_str(), "postgres", conninfo.c_str(), pgBase.c_str() ), GEODIFF_SUCCESS );
+  ASSERT_EQ( GEODIFF_makeCopy( "postgres", conninfo.c_str(), pgBase.c_str(), "sqlite", "", gpkgCopy.c_str() ), GEODIFF_SUCCESS );
+
+  ASSERT_EQ( GEODIFF_createChangesetEx( "sqlite", "", gpkgBase.c_str(), gpkgCopy.c_str(), diff.c_str() ), GEODIFF_SUCCESS );
+
+  ASSERT_TRUE( isFileEmpty( diff ) );
+
+  PQfinish( c );
+}
+
 TEST( PostgresDriverTest, test_edge_cases )
 {
   std::string conninfo = pgTestConnInfo();
