@@ -213,7 +213,9 @@ int Buffer::size() const
 std::string to_string_with_max_precision( double a_value )
 {
   std::ostringstream out;
-  out.precision( std::numeric_limits<double>::digits10 + 1 );
+  // The limits digits10 ( = 15 for double) and max_digits10 ( = 17 for double) are a bit confusing.
+  // originally had numeric_limits::digits10 + 1 here, but that was not enough for some numbers.
+  out.precision( std::numeric_limits<double>::max_digits10 );
   out << std::fixed << a_value;
   return out.str();
 }
