@@ -106,6 +106,8 @@ TEST( ChangesetReaderTest, test_read_delete )
   EXPECT_FALSE( isFileEmpty( json ) );
   EXPECT_TRUE( fileContains( json, "geodiff" ) );
 
+  printFileToStdout( "CUCO.JSON :-)", json );
+
   FILE *ff = openFile( json, "r" );
   EXPECT_TRUE( ff != nullptr );
   std::cerr << "CUCO.JSON output:" << std::endl;

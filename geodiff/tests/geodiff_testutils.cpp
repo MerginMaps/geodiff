@@ -129,10 +129,15 @@ static long file_size( std::ifstream &is )
 
 bool fileContentEquals( const std::string &file1, const std::string &file2 )
 {
+#ifdef WIN32
+  std::ifstream f1( stringToWString( file1 ), std::ios::binary );
+  std::ifstream f2( stringToWString( file2 ), std::ios::binary );
+#else
   std::ifstream f1( file1, std::ios::binary );
+  std::ifstream f2( file2, std::ios::binary );
+#endif
   if ( !f1.is_open() )
     return false;
-  std::ifstream f2( file2, std::ios::binary );
   if ( !f2.is_open() )
     return false;
 
@@ -160,7 +165,11 @@ void makedir( const std::string &dir )
 void printFileToStdout( const std::string &caption, const std::string &filepath )
 {
   std::cout << std::endl << caption << " (" << filepath << ")" << std::endl;
+#ifdef WIN32
+  std::ifstream f( stringToWString( filepath ) );
+#else
   std::ifstream f( filepath );
+#endif
   if ( f.is_open() )
     std::cout << f.rdbuf();
 }
@@ -178,7 +187,11 @@ void printJSON( const std::string &changeset, const std::string &json, const std
 
 int fileContains( const std::string &filepath, const std::string key )
 {
+#ifdef WIN32
+  std::ifstream f( stringToWString( filepath ) );
+#else
   std::ifstream f( filepath );
+#endif
   if ( f.is_open() )
   {
     std::ostringstream datastream;
