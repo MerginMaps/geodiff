@@ -98,6 +98,11 @@ TEST( ChangesetReaderTest, test_read_delete )
 
   EXPECT_FALSE( reader.nextEntry( entry ) );
   EXPECT_FALSE( reader.nextEntry( entry ) );
+
+  // test whether unicode characters are working
+  std::string json = pathjoin( testdir(), "2_updates", "čúčo.json" );
+  EXPECT_EQ( GEODIFF_listChanges( changeset.c_str(), json.c_str() ), GEODIFF_SUCCESS );
+  EXPECT_TRUE( fileExists( json ) );
 }
 
 
