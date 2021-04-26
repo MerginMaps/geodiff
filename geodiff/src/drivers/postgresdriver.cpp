@@ -469,8 +469,10 @@ static bool isColumnDouble( const TableColumnInfo &col )
 
 static bool isColumnText( const TableColumnInfo &col )
 {
-  return col.type == "char" || col.type == "varchar" || col.type == "character varying" ||
-         col.type == "text" || col.type == "citext";
+  return col.type == "text" || startsWith( col.type.dbType, "text(" ) ||
+         col.type == "varchar" || startsWith( col.type.dbType, "varchar(" ) ||
+         col.type == "character varying" || startsWith( col.type.dbType, "character varying(" ) ||
+         col.type == "char" || col.type == "citext";
 }
 
 static bool isColumnGeometry( const TableColumnInfo &col )
