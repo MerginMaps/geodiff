@@ -198,12 +198,21 @@ int fileContains( const std::string &filepath, const std::string key )
 bool fileExists( const std::string &filepath )
 {
   struct stat buffer;
+#ifdef WIN32
+  std::wstring wFilepath = stringToWString( filepath );
+  return ( wstat( wFilepath.c_str(), &buffer ) == 0 );
+#else
   return ( stat( filepath.c_str(), &buffer ) == 0 );
+#endif
 }
 
 bool isFileEmpty( const std::string &filepath )
 {
+#ifdef WIN32
+  std::ifstream f( stringToWString( filepath ) );
+#else
   std::ifstream f( filepath );
+#endif
   if ( !f.is_open() )
     return false;
   return file_size( f ) == 0;
