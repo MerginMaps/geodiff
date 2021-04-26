@@ -197,11 +197,15 @@ int fileContains( const std::string &filepath, const std::string key )
 
 bool fileExists( const std::string &filepath )
 {
-  struct stat buffer;
 #ifdef WIN32
-  std::wstring wFilepath = stringToWString( filepath );
-  return ( wstat( wFilepath.c_str(), &buffer ) == 0 );
+  std::wstring wPath = stringToWString( filepath );
+
+  if ( wPath.empty() )
+    return false;
+
+  return PathFileExists( wPath.c_str() );
 #else
+  struct stat buffer;
   return ( stat( filepath.c_str(), &buffer ) == 0 );
 #endif
 }

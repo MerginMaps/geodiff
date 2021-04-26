@@ -34,9 +34,8 @@
 #else
 #include <unistd.h>
 #include <errno.h>
-#endif
-#include <sys/types.h>
 #include <sys/stat.h>
+#endif
 
 GeoDiffException::GeoDiffException( const std::string &msg )
   : std::exception()
