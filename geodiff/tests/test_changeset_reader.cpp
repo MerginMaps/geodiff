@@ -74,7 +74,7 @@ TEST( ChangesetReaderTest, test_read_update )
 
   EXPECT_FALSE( reader.nextEntry( entry ) );
 }
-#include "geodiffutils.hpp"
+
 TEST( ChangesetReaderTest, test_read_delete )
 {
   std::string changeset = pathjoin( testdir(), "2_deletes", "base-deleted_A.diff" );
@@ -98,24 +98,6 @@ TEST( ChangesetReaderTest, test_read_delete )
 
   EXPECT_FALSE( reader.nextEntry( entry ) );
   EXPECT_FALSE( reader.nextEntry( entry ) );
-
-  // test whether unicode characters are working
-  std::string json = pathjoin( testdir(), "2_updates", "čúčo.json" );
-  EXPECT_EQ( GEODIFF_listChanges( changeset.c_str(), json.c_str() ), GEODIFF_SUCCESS );
-  EXPECT_TRUE( fileExists( json ) );
-  EXPECT_FALSE( isFileEmpty( json ) );
-  EXPECT_TRUE( fileContains( json, "geodiff" ) );
-
-  printFileToStdout( "CUCO.JSON :-)", json );
-
-  FILE *ff = openFile( json, "r" );
-  EXPECT_TRUE( ff != nullptr );
-  std::cerr << "CUCO.JSON output:" << std::endl;
-  char data[100];
-  fread( data, 99, 1, ff );
-  data[99] = 0;
-  std::cerr << data << std::endl;
-  fclose( ff );
 }
 
 

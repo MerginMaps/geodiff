@@ -72,6 +72,7 @@ SET(TESTS
     test_changeset_reader.cpp
     test_changeset_utils.cpp
     test_driver_sqlite.cpp
+    test_utils.cpp
 )
 
 FOREACH(TESTSRC ${TESTS})
