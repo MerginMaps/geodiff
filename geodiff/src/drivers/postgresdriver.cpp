@@ -101,6 +101,13 @@ void PostgresDriver::openPrivate( const DriverParametersMap &conn )
   }
 
   mConn = c;
+
+  // Make sure we are using enough digits for floating point numbers to make sure that we are
+  // not loosing any digits when querying data.
+  // https://www.postgresql.org/docs/12/runtime-config-client.html#GUC-EXTRA-FLOAT-DIGITS
+  PostgresResult res( execSql( mConn, "SET extra_float_digits = 2;" ) );
+  if ( res.status() != PGRES_COMMAND_OK )
+    throw GeoDiffException( "Failed to set extra_float_digits" );
 }
 
 void PostgresDriver::close()
