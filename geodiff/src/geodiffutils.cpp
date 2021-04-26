@@ -215,8 +215,10 @@ std::string to_string_with_max_precision( double a_value )
   std::ostringstream out;
   // The limits digits10 ( = 15 for double) and max_digits10 ( = 17 for double) are a bit confusing.
   // originally had numeric_limits::digits10 + 1 here, but that was not enough for some numbers.
+  // Also, we used std::fixed to avoid scientific notation, but that's loosing precision for small
+  // numbers like 0.000123... where we waste a couple of digits for leading zeros.
   out.precision( std::numeric_limits<double>::max_digits10 );
-  out << std::fixed << a_value;
+  out << a_value;
   return out.str();
 }
 
