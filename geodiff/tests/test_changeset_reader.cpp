@@ -105,6 +105,7 @@ TEST( ChangesetReaderTest, test_read_delete )
   EXPECT_TRUE( fileExists( json ) );
 
   FILE * ff = openFile( json, "r" );
+  EXPECT_TRUE( ff != nullptr );
   std::cerr << "CUCO.JSON output:" << std::endl;
   char data[100];
   fread( data, 99, 1, ff );

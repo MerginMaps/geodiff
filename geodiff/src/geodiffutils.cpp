@@ -453,7 +453,12 @@ void get_primary_key( const ChangesetEntry &entry, int &fid, int &nColumn )
 
 void flushString( const std::string &filename, const std::string &str )
 {
+#ifdef WIN32
+  std::wstring wFilename = stringToWString( filename );
+  std::ofstream out( wFilename );
+#else
   std::ofstream out( filename );
+#endif
   out << str;
   out.close();
 }
