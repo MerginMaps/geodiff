@@ -802,6 +802,26 @@ TEST( PostgresDriverTest, test_floating_point_values )
   PQfinish( c );
 }
 
+TEST( PostgresDriverTest, test_floating_point_values_2 )
+{
+  // Check that when we copy floats from PG and insert them back, there's not a single digit lost
+
+  std::string conninfo = pgTestConnInfo();
+
+  execSqlCommandsFromString( conninfo, "DROP SCHEMA IF EXISTS gd_floats_copy CASCADE;" );
+
+  execSqlCommands( conninfo, pathjoin( testdir(), "postgres", "floats.sql" ) );
+
+  ASSERT_EQ( GEODIFF_makeCopy( "postgres", conninfo.c_str(), "gd_floats", "postgres", conninfo.c_str(), "gd_floats_copy" ), GEODIFF_SUCCESS );
+
+  makedir( pathjoin( tmpdir(), "test_floating_point_values_2" ) );
+  std::string diff( pathjoin( tmpdir(), "test_floating_point_values_2", "orig-copy.diff" ) );
+
+  ASSERT_EQ( GEODIFF_createChangesetEx( "postgres", conninfo.c_str(), "gd_floats", "gd_floats_copy", diff.c_str() ), GEODIFF_SUCCESS );
+
+  ASSERT_TRUE( isFileEmpty( diff ) );
+}
+
 TEST( PostgresDriverTest, test_empty_geom )
 {
   // Copy GPKG with a table that contains some empty geometries
