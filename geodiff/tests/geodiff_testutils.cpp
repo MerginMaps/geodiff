@@ -20,6 +20,7 @@
 #ifdef WIN32
 #include <windows.h>
 #include <tchar.h>
+#include <Shlwapi.h>
 #else
 #include <unistd.h>
 #include <errno.h>
