@@ -198,7 +198,11 @@ void makedir( const std::string &dir )
 void printFileToStdout( const std::string &caption, const std::string &filepath )
 {
   std::cout << std::endl << caption << " (" << filepath << ")" << std::endl;
+#ifdef WIN32
+  std::ifstream f( stringToWString( filepath ) );
+#else
   std::ifstream f( filepath );
+#endif
   if ( f.is_open() )
     std::cout << f.rdbuf();
 }
@@ -216,7 +220,11 @@ void printJSON( const std::string &changeset, const std::string &json, const std
 
 int fileContains( const std::string &filepath, const std::string key )
 {
+#ifdef WIN32
+  std::ifstream f( stringToWString( filepath ) );
+#else
   std::ifstream f( filepath );
+#endif
   if ( f.is_open() )
   {
     std::ostringstream datastream;
