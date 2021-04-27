@@ -7,8 +7,6 @@
 #include "geodiff_testutils.hpp"
 #include "geodiff.h"
 
-#include "geodiffutils.hpp"
-
 TEST( UtilsTest, test_unicode )
 {
   std::string diffSource = pathjoin( testdir(), "utf_test_ščé", "changes.diff" );
