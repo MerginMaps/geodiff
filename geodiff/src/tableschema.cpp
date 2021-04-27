@@ -115,7 +115,8 @@ TableColumnType postgresToBaseColumn( const std::string &columnType, bool isGeom
   {
     type.baseType = TableColumnType::BOOLEAN;
   }
-  else if ( dbType == "text" || startsWith( dbType, "text(" ) || dbType == "varchar" || startsWith( dbType, "varchar(" ) ||
+  else if ( dbType == "text" || startsWith( dbType, "text(" ) ||
+            dbType == "varchar" || startsWith( dbType, "varchar(" ) ||
             dbType == "character varying" || startsWith( dbType, "character varying(" ) ||
             dbType == "char" || dbType == "citetext" )
   {

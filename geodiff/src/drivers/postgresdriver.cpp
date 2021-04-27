@@ -101,6 +101,13 @@ void PostgresDriver::openPrivate( const DriverParametersMap &conn )
   }
 
   mConn = c;
+
+  // Make sure we are using enough digits for floating point numbers to make sure that we are
+  // not loosing any digits when querying data.
+  // https://www.postgresql.org/docs/12/runtime-config-client.html#GUC-EXTRA-FLOAT-DIGITS
+  PostgresResult res( execSql( mConn, "SET extra_float_digits = 2;" ) );
+  if ( res.status() != PGRES_COMMAND_OK )
+    throw GeoDiffException( "Failed to set extra_float_digits" );
 }
 
 void PostgresDriver::close()
@@ -462,8 +469,10 @@ static bool isColumnDouble( const TableColumnInfo &col )
 
 static bool isColumnText( const TableColumnInfo &col )
 {
-  return col.type == "char" || col.type == "varchar" || col.type == "character varying" ||
-         col.type == "text" || col.type == "citext";
+  return col.type == "text" || startsWith( col.type.dbType, "text(" ) ||
+         col.type == "varchar" || startsWith( col.type.dbType, "varchar(" ) ||
+         col.type == "character varying" || startsWith( col.type.dbType, "character varying(" ) ||
+         col.type == "char" || col.type == "citext";
 }
 
 static bool isColumnGeometry( const TableColumnInfo &col )
