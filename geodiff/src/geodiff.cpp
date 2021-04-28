@@ -62,9 +62,15 @@ int GEODIFF_createChangeset( const char *base, const char *modified, const char 
     return GEODIFF_ERROR;
   }
 
-  if ( !fileexists( base ) || !fileexists( modified ) )
+  if ( !fileexists( base ) )
   {
-    Logger::instance().error( "Missing input files in GEODIFF_createChangeset" );
+    Logger::instance().error( std::string( "Missing 'base' file in GEODIFF_createChangeset: " ) + base );
+    return GEODIFF_ERROR;
+  }
+
+  if ( !fileexists( modified ) )
+  {
+    Logger::instance().error( std::string( "Missing 'modified' file in GEODIFF_createChangeset: " ) + modified );
     return GEODIFF_ERROR;
   }
 
@@ -157,9 +163,15 @@ int GEODIFF_applyChangeset( const char *base, const char *changeset )
     return GEODIFF_ERROR;
   }
 
-  if ( !fileexists( base ) || !fileexists( changeset ) )
+  if ( !fileexists( base ) )
   {
-    Logger::instance().error( "Missing input files in GEODIFF_applyChangeset" );
+    Logger::instance().error( std::string( "Missing 'base' file in GEODIFF_applyChangeset: " ) + base );
+    return GEODIFF_ERROR;
+  }
+
+  if ( !fileexists( changeset ) )
+  {
+    Logger::instance().error( std::string( "Missing 'changeset' file in GEODIFF_applyChangeset: " ) + changeset );
     return GEODIFF_ERROR;
   }
 
@@ -404,7 +416,7 @@ int GEODIFF_invertChangeset( const char *changeset, const char *changeset_inv )
 
   if ( !fileexists( changeset ) )
   {
-    Logger::instance().error( "Missing input files in GEODIFF_invertChangeset" );
+    Logger::instance().error( std::string( "Missing input file in GEODIFF_invertChangeset: " ) + changeset );
     return GEODIFF_ERROR;
   }
 
@@ -455,9 +467,21 @@ int GEODIFF_rebase( const char *base,
     return GEODIFF_ERROR;
   }
 
-  if ( !fileexists( base ) || !fileexists( modified_their ) || !fileexists( modified ) )
+  if ( !fileexists( base ) )
   {
-    Logger::instance().error( "Missing input files in GEODIFF_rebase" );
+    Logger::instance().error( std::string( "Missing 'base' file in GEODIFF_rebase: " ) + base );
+    return GEODIFF_ERROR;
+  }
+
+  if ( !fileexists( modified_their ) )
+  {
+    Logger::instance().error( std::string( "Missing 'modified_their' file in GEODIFF_rebase: " ) + modified_their );
+    return GEODIFF_ERROR;
+  }
+
+  if ( !fileexists( modified ) )
+  {
+    Logger::instance().error( std::string( "Missing 'modified' file in GEODIFF_rebase: " ) + modified );
     return GEODIFF_ERROR;
   }
 
