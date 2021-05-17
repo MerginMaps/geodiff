@@ -281,6 +281,53 @@ TEST( SqliteDriverTest, create_changeset_datetime )
                      );
 }
 
+TEST( SqliteDriverTest, make_copy_sqlite )
+{
+  // invalid inputs
+  EXPECT_EQ( GEODIFF_makeCopySqlite( "xxx", nullptr ), GEODIFF_ERROR );
+  EXPECT_EQ( GEODIFF_makeCopySqlite( nullptr, "yyy" ), GEODIFF_ERROR );
+  EXPECT_EQ( GEODIFF_makeCopySqlite( "xxx", "yyy" ), GEODIFF_ERROR );
+
+  std::string base = pathjoin( testdir(), "base.gpkg" );
+
+  std::string testname = "test_make_copy_sqlite";
+  makedir( pathjoin( tmpdir(), testname ) );
+  std::string testdb = pathjoin( tmpdir(), testname, "output.gpkg" );
+  std::string changeset = pathjoin( tmpdir(), testname, "output.diff" );
+
+  // test with valid inputs and check whether the output has the same content as the original database
+  ASSERT_EQ( GEODIFF_makeCopySqlite( base.data(), testdb.data() ), GEODIFF_SUCCESS );
+  EXPECT_EQ( GEODIFF_createChangeset( base.data(), testdb.data(), changeset.data() ), GEODIFF_SUCCESS );
+  EXPECT_FALSE( GEODIFF_hasChanges( changeset.data() ) );
+
+  // test overwrite: we will do backup into a different database that already exists
+  // and verify that it got update to the content of the source database
+  std::string testdb2 = pathjoin( tmpdir(), testname, "output2.gpkg" );
+  std::string changeset2 = pathjoin( tmpdir(), testname, "output2.diff" );
+  filecopy( testdb2.data(), pathjoin( testdir(), "1_geopackage", "modified_1_geom.gpkg" ) );
+
+  EXPECT_EQ( GEODIFF_createChangeset( base.data(), testdb2.data(), changeset2.data() ), GEODIFF_SUCCESS );
+  EXPECT_TRUE( GEODIFF_hasChanges( changeset2.data() ) );
+
+  ASSERT_EQ( GEODIFF_makeCopySqlite( base.data(), testdb2.data() ), GEODIFF_SUCCESS );
+
+  EXPECT_EQ( GEODIFF_createChangeset( base.data(), testdb2.data(), changeset2.data() ), GEODIFF_SUCCESS );
+  EXPECT_FALSE( GEODIFF_hasChanges( changeset2.data() ) );
+
+  // test overwrite of a file that is not SQLite database
+  std::string testdb3 = pathjoin( tmpdir(), testname, "output3.gpkg" );
+  std::string changeset3 = pathjoin( tmpdir(), testname, "output3.diff" );
+  {
+    std::ofstream f( testdb3 );
+    f << "hello world";
+  }
+  EXPECT_EQ( GEODIFF_createChangeset( base.data(), testdb3.data(), changeset3.data() ), GEODIFF_ERROR );
+
+  ASSERT_EQ( GEODIFF_makeCopySqlite( base.data(), testdb3.data() ), GEODIFF_SUCCESS );
+  EXPECT_EQ( GEODIFF_createChangeset( base.data(), testdb3.data(), changeset3.data() ), GEODIFF_SUCCESS );
+  EXPECT_FALSE( GEODIFF_hasChanges( changeset3.data() ) );
+}
+
 int main( int argc, char **argv )
 {
   testing::InitGoogleTest( &argc, argv );

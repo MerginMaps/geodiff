@@ -653,6 +653,79 @@ int GEODIFF_makeCopy( const char *driverSrcName, const char *driverSrcExtraInfo,
   return GEODIFF_SUCCESS;
 }
 
+int GEODIFF_makeCopySqlite( const char *src, const char *dst )
+{
+  if ( !src || !dst )
+  {
+    Logger::instance().error( "NULL arguments to GEODIFF_makeCopySqlite" );
+    return GEODIFF_ERROR;
+  }
+
+  if ( !fileexists( src ) )
+  {
+    Logger::instance().error( "MakeCopySqlite: Source database does not exist: " + std::string( src ) );
+    return GEODIFF_ERROR;
+  }
+
+  sqlite3 *pFrom;
+  int rc1 = sqlite3_open_v2( src, &pFrom, SQLITE_OPEN_READONLY, nullptr );
+  if ( rc1 != SQLITE_OK )
+  {
+    Logger::instance().error( "MakeCopySqlite: Unable to open source database: " + std::string( src ) );
+    return GEODIFF_ERROR;
+  }
+
+  // If the destination file already exists, let's replace it. This is for convenience: if the file exists
+  // and it is SQLite database, the backup API would overwrite it, but if the file would not be a valid
+  // SQLite database, it would fail to open. With this check+remove we make sure that any existing file
+  // gets overwritten, regardless of its original content (making the API easier to use for the caller).
+  if ( fileexists( dst ) )
+  {
+    fileremove( dst );
+  }
+
+  sqlite3 *pTo;
+  int rc2 = sqlite3_open_v2( dst, &pTo, SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE, nullptr );
+  if ( rc2 != SQLITE_OK )
+  {
+    Logger::instance().error( "MakeCopySqlite: Unable to open destination database: " + std::string( dst ) );
+    return GEODIFF_ERROR;
+  }
+
+  // Set up the backup procedure to copy from the "main" database of
+  // connection pFrom to the main database of connection pTo.
+  // If something goes wrong, pBackup will be set to NULL and an error
+  // code and message left in connection pTo.
+
+  // If the backup object is successfully created, call backup_step()
+  // to copy data from pFrom to pTo. Then call backup_finish()
+  // to release resources associated with the pBackup object.  If an
+  // error occurred, then an error code and message will be left in
+  // connection pTo. If no error occurred, then the error code belonging
+  // to pTo is set to SQLITE_OK.
+
+  sqlite3_backup *pBackup = sqlite3_backup_init( pTo, "main", pFrom, "main" );
+  if ( pBackup )
+  {
+    sqlite3_backup_step( pBackup, -1 );
+    sqlite3_backup_finish( pBackup );
+  }
+
+  std::string errorMsg;
+  if ( sqlite3_errcode( pTo ) )
+    errorMsg = sqlite3_errmsg( pTo );
+
+  sqlite3_close( pTo );
+
+  if ( !errorMsg.empty() )
+  {
+    Logger::instance().error( "MakeCopySqlite: backup failed: " + errorMsg );
+    return GEODIFF_ERROR;
+  }
+
+  return GEODIFF_SUCCESS;
+}
+
 
 int GEODIFF_dumpData( const char *driverName, const char *driverExtraInfo, const char *src, const char *changeset )
 {
