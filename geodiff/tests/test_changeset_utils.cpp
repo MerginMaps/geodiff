@@ -11,7 +11,6 @@
 #include "changesetreader.h"
 #include "changesetwriter.h"
 
-#include <sqlite3.h>   // for concatChangesetsSqlite3session() implementation for cross-check
 #include "geodiffutils.hpp"
 
 
@@ -154,46 +153,6 @@ TEST( ChangesetUtils, test_hex_conversion )
 }
 
 
-bool concatChangesetsSqlite3session( const std::string &A, const std::string &B, const std::string &out )
-{
-  Buffer bufA;
-  bufA.read( A );
-
-  Buffer bufB;
-  bufB.read( B );
-
-  if ( bufA.isEmpty() && bufB.isEmpty() )
-  {
-    return true;
-  }
-
-  sqlite3_changegroup *pGrp;
-  int rc = sqlite3changegroup_new( &pGrp );
-  if ( rc == SQLITE_OK ) rc = sqlite3changegroup_add( pGrp, bufA.size(), bufA.v_buf() );
-  if ( rc == SQLITE_OK ) rc = sqlite3changegroup_add( pGrp, bufB.size(), bufB.v_buf() );
-  if ( rc == SQLITE_OK )
-  {
-    int pnOut = 0;
-    void *ppOut = nullptr;
-    rc = sqlite3changegroup_output( pGrp, &pnOut, &ppOut );
-    if ( rc )
-    {
-      sqlite3changegroup_delete( pGrp );
-      return true;
-    }
-
-    Buffer bufO;
-    bufO.read( pnOut, ppOut );
-    bufO.write( out );
-  }
-
-  if ( pGrp )
-    sqlite3changegroup_delete( pGrp );
-
-  return false;
-}
-
-
 void testConcat( std::string testName,
                  const std::unordered_map<std::string, ChangesetTable> &tables,
                  const std::unordered_map<std::string, std::vector<ChangesetEntry> > &entries1,
@@ -215,11 +174,6 @@ void testConcat( std::string testName,
 
   // check result
   EXPECT_TRUE( compareDiffsByContent( output, expected ) );
-
-  // cross-check with the original sqlite3session implementation
-  std::string output_sqlite3session = pathjoin( tmpdir(), "test_concat", testName + "-result-session.diff" );
-  concatChangesetsSqlite3session( input1, input2, output_sqlite3session );
-  EXPECT_TRUE( compareDiffsByContent( output, output_sqlite3session ) );
 }
 
 
