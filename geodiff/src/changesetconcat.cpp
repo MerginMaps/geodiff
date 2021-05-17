@@ -222,7 +222,9 @@ void concatChangesets( std::vector<std::string> filenames, std::string outputCha
         if ( entriesIt == t.entries.end() )
         {
           // row with this pkey is not in our list yet
-          t.entries.insert( new ChangesetEntry( entry ) );
+          ChangesetEntry *e = new ChangesetEntry( entry );
+          e->table = t.table.get();
+          t.entries.insert( e );
         }
         else
         {
@@ -235,10 +237,12 @@ void concatChangesets( std::vector<std::string> filenames, std::string outputCha
               break;   // nothing else to do - the original entry got updated in place
             case EntryRemoved:
               t.entries.erase( entriesIt );
+              delete entry0;
               break;
             case Unsupported:
               // we are discarding the new entry (there's no sensible way to integrate it)
               Logger::instance().warn( "concatChangesets: unsupported sequence of entries for a single row - discarding newer entry" );
+              delete entry0;
               break;
           }
         }
