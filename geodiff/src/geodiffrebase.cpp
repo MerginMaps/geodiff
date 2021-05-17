@@ -27,7 +27,6 @@
 #include <fstream>
 #include <sstream>
 
-#include "sqlite3.h"  // for concatChangesets
 
 /**
  * structure that keeps track of information needed for rebase extracted
@@ -617,47 +616,3 @@ int rebase( const std::string &changeset_BASE_THEIRS,
 
   return GEODIFF_SUCCESS;
 }
-
-bool concatChangesets( const std::string &A, const std::string &B, const std::string &C, const std::string &out )
-{
-  Buffer bufA;
-  bufA.read( A );
-
-  Buffer bufB;
-  bufB.read( B );
-
-  Buffer bufC;
-  bufC.read( C );
-
-  if ( bufA.isEmpty() && bufB.isEmpty() && bufC.isEmpty() )
-  {
-    return true;
-  }
-
-  sqlite3_changegroup *pGrp;
-  int rc = sqlite3changegroup_new( &pGrp );
-  if ( rc == SQLITE_OK ) rc = sqlite3changegroup_add( pGrp, bufA.size(), bufA.v_buf() );
-  if ( rc == SQLITE_OK ) rc = sqlite3changegroup_add( pGrp, bufB.size(), bufB.v_buf() );
-  if ( rc == SQLITE_OK ) rc = sqlite3changegroup_add( pGrp, bufC.size(), bufC.v_buf() );
-  if ( rc == SQLITE_OK )
-  {
-    int pnOut = 0;
-    void *ppOut = nullptr;
-    rc = sqlite3changegroup_output( pGrp, &pnOut, &ppOut );
-    if ( rc )
-    {
-      sqlite3changegroup_delete( pGrp );
-      return true;
-    }
-
-    Buffer bufO;
-    bufO.read( pnOut, ppOut );
-    bufO.write( out );
-  }
-
-  if ( pGrp )
-    sqlite3changegroup_delete( pGrp );
-
-  return false;
-}
-

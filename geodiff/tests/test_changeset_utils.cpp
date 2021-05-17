@@ -11,6 +11,10 @@
 #include "changesetreader.h"
 #include "changesetwriter.h"
 
+#include <sqlite3.h>   // for concatChangesetsSqlite3session() implementation for cross-check
+#include "geodiffutils.hpp"
+
+
 static void doInvert( const std::string &changeset, const std::string &invChangeset )
 {
   ChangesetReader reader;
@@ -147,6 +151,277 @@ TEST( ChangesetUtils, test_hex_conversion )
   EXPECT_EQ( bin2hex( "A\xff" ), "41FF" );
   EXPECT_EQ( hex2bin( "41FF" ), "A\xff" );
   EXPECT_EQ( hex2bin( "41ff" ), "A\xff" );
+}
+
+
+bool concatChangesetsSqlite3session( const std::string &A, const std::string &B, const std::string &out )
+{
+  Buffer bufA;
+  bufA.read( A );
+
+  Buffer bufB;
+  bufB.read( B );
+
+  if ( bufA.isEmpty() && bufB.isEmpty() )
+  {
+    return true;
+  }
+
+  sqlite3_changegroup *pGrp;
+  int rc = sqlite3changegroup_new( &pGrp );
+  if ( rc == SQLITE_OK ) rc = sqlite3changegroup_add( pGrp, bufA.size(), bufA.v_buf() );
+  if ( rc == SQLITE_OK ) rc = sqlite3changegroup_add( pGrp, bufB.size(), bufB.v_buf() );
+  if ( rc == SQLITE_OK )
+  {
+    int pnOut = 0;
+    void *ppOut = nullptr;
+    rc = sqlite3changegroup_output( pGrp, &pnOut, &ppOut );
+    if ( rc )
+    {
+      sqlite3changegroup_delete( pGrp );
+      return true;
+    }
+
+    Buffer bufO;
+    bufO.read( pnOut, ppOut );
+    bufO.write( out );
+  }
+
+  if ( pGrp )
+    sqlite3changegroup_delete( pGrp );
+
+  return false;
+}
+
+
+void testConcat( std::string testName,
+                 const std::unordered_map<std::string, ChangesetTable> &tables,
+                 const std::unordered_map<std::string, std::vector<ChangesetEntry> > &entries1,
+                 const std::unordered_map<std::string, std::vector<ChangesetEntry> > &entries2,
+                 const std::unordered_map<std::string, std::vector<ChangesetEntry> > &entriesExpected )
+{
+  std::string input1 = pathjoin( tmpdir(), "test_concat", testName + "-1.diff" );
+  std::string input2 = pathjoin( tmpdir(), "test_concat", testName + "-2.diff" );
+  std::string expected = pathjoin( tmpdir(), "test_concat", testName + "-expected.diff" );
+  std::string output = pathjoin( tmpdir(), "test_concat", testName + "-result.diff" );
+
+  writeChangeset( input1, tables, entries1 );
+  writeChangeset( input2, tables, entries2 );
+  writeChangeset( expected, tables, entriesExpected );
+
+  const char *inputs[] = { input1.data(), input2.data() };
+  int res = GEODIFF_concatChanges( 2, inputs, output.data() );
+  EXPECT_EQ( res, GEODIFF_SUCCESS );
+
+  // check result
+  EXPECT_TRUE( compareDiffsByContent( output, expected ) );
+
+  // cross-check with the original sqlite3session implementation
+  std::string output_sqlite3session = pathjoin( tmpdir(), "test_concat", testName + "-result-session.diff" );
+  concatChangesetsSqlite3session( input1, input2, output_sqlite3session );
+  EXPECT_TRUE( compareDiffsByContent( output, output_sqlite3session ) );
+}
+
+
+void testConcatOneTable( std::string testName,
+                         const ChangesetTable &table,
+                         std::vector<ChangesetEntry> entries1,
+                         std::vector<ChangesetEntry> entries2,
+                         std::vector<ChangesetEntry> entriesExpected )
+{
+  testConcat( testName,
+  { std::make_pair( table.name, table ) },
+  { std::make_pair( table.name, entries1 ) },
+  { std::make_pair( table.name, entries2 ) },
+  { std::make_pair( table.name, entriesExpected ) } );
+}
+
+
+TEST( ChangesetUtils, test_concat_changesets_simple_table )
+{
+  // basic table with one pkey column
+  ChangesetTable tableFoo;
+  tableFoo.name = "foo";
+  tableFoo.primaryKeys.push_back( true ); // fid (pkey)
+  tableFoo.primaryKeys.push_back( false ); // name
+  tableFoo.primaryKeys.push_back( false ); // rating
+
+  ChangesetEntry fooInsert123 = ChangesetEntry::make(
+  &tableFoo, ChangesetEntry::OpInsert, {},
+  { Value::makeInt( 123 ), Value::makeText( "hello" ), Value::makeInt( 5 ) } );
+
+  ChangesetEntry fooDelete123 = ChangesetEntry::make(
+                                  &tableFoo, ChangesetEntry::OpDelete,
+  { Value::makeInt( 123 ), Value::makeText( "hello" ), Value::makeInt( 5 ) }, {} );
+
+  ChangesetEntry fooUpdate123 = ChangesetEntry::make(
+                                  &tableFoo, ChangesetEntry::OpUpdate,
+  { Value::makeInt( 123 ), Value::makeText( "hello" ), Value::makeInt( 5 ) },
+  { Value(), Value::makeText( "world" ), Value::makeInt( 4 ) } );
+
+  ChangesetEntry fooDelete123_2 = ChangesetEntry::make(
+                                    &tableFoo, ChangesetEntry::OpDelete,
+  { Value::makeInt( 123 ), Value::makeText( "world" ), Value::makeInt( 4 ) }, {} );
+
+  ChangesetEntry fooUpdate123_2 = ChangesetEntry::make(
+                                    &tableFoo, ChangesetEntry::OpUpdate,
+  { Value::makeInt( 123 ), Value(), Value::makeInt( 4 ) },
+  { Value(), Value(), Value::makeInt( 1 ) } );
+
+  ChangesetEntry fooUpdate123_inverse = ChangesetEntry::make(
+                                          &tableFoo, ChangesetEntry::OpUpdate,
+  { Value::makeInt( 123 ), Value::makeText( "world" ), Value::makeInt( 4 ) },
+  { Value(), Value::makeText( "hello" ), Value::makeInt( 5 ) } );
+
+  ChangesetEntry fooUpdate123_pkey = ChangesetEntry::make(
+                                       &tableFoo, ChangesetEntry::OpUpdate,
+  { Value::makeInt( 123 ), Value(), Value() },
+  { Value::makeInt( 124 ), Value(), Value() } );
+
+  ChangesetEntry fooUpdate456 = ChangesetEntry::make(
+                                  &tableFoo, ChangesetEntry::OpUpdate,
+  { Value::makeInt( 456 ), Value(), Value::makeInt( 1 ) },
+  { Value(), Value(), Value::makeInt( 2 ) } );
+
+  makedir( pathjoin( tmpdir(), "test_concat" ) );
+
+  testConcatOneTable( "foo-insert-update", tableFoo, { fooInsert123 }, { fooUpdate123 },
+  {
+    ChangesetEntry::make( &tableFoo, ChangesetEntry::OpInsert, {},
+    { Value::makeInt( 123 ), Value::makeText( "world" ), Value::makeInt( 4 ) }
+                        )
+  } );
+
+  testConcatOneTable( "foo-insert-delete", tableFoo, { fooInsert123 }, { fooDelete123 }, {} );
+
+  testConcatOneTable( "foo-update-update", tableFoo, { fooUpdate123 }, { fooUpdate123_2 },
+  {
+    ChangesetEntry::make( &tableFoo, ChangesetEntry::OpUpdate,
+    { Value::makeInt( 123 ), Value::makeText( "hello" ), Value::makeInt( 5 ) },
+    { Value(), Value::makeText( "world" ), Value::makeInt( 1 ) }
+                        )
+  } );
+
+  testConcatOneTable( "foo-update-inv-update", tableFoo, { fooUpdate123 }, { fooUpdate123_inverse }, { } );
+
+  testConcatOneTable( "foo-update-delete", tableFoo, { fooUpdate123 }, { fooDelete123_2 },
+  {
+    ChangesetEntry::make( &tableFoo, ChangesetEntry::OpDelete,
+    { Value::makeInt( 123 ), Value::makeText( "hello" ), Value::makeInt( 5 ) },
+    {}
+                        )
+  } );
+
+  testConcatOneTable( "foo-delete-insert", tableFoo, { fooDelete123_2 }, { fooInsert123 },
+  {
+    ChangesetEntry::make( &tableFoo, ChangesetEntry::OpUpdate,
+    { Value::makeInt( 123 ), Value::makeText( "world" ), Value::makeInt( 4 ) },
+    { Value(), Value::makeText( "hello" ), Value::makeInt( 5 ) }
+                        )
+  } );
+
+  testConcatOneTable( "foo-delete-inv-insert", tableFoo, { fooDelete123 }, { fooInsert123 }, { } );
+
+  testConcatOneTable( "foo-unrelated-insert-update", tableFoo, { fooInsert123 }, { fooUpdate456 },
+  { fooInsert123, fooUpdate456 } );
+
+  // TODO: merging of updates when there was change of pkey seems not to work correctly with
+  // neither our sqlite3session nor our implementation. (is this valid at all?)
+//  testConcatOneTable( "update-pkey-update", tableFoo, { fooUpdate123 }, { fooUpdate123_pkey }, {
+//                      ChangesetEntry::make( &tableFoo, ChangesetEntry::OpUpdate,
+//                           { Value::makeInt( 123 ), Value::makeText( "hello" ), Value::makeInt( 5 ) },
+//                           { Value::makeInt( 124 ), Value::makeText( "world" ), Value::makeInt( 4 ) }
+//                   ) } );
+
+}
+
+TEST( ChangesetUtils, test_concat_changesets_no_pkey_table )
+{
+  // a table with no pkey
+  ChangesetTable tableNoPkey;
+  tableNoPkey.name = "table_no_pkey";
+  tableNoPkey.primaryKeys.push_back( false );
+  tableNoPkey.primaryKeys.push_back( false );
+
+  ChangesetEntry noPkeyInsert1 = ChangesetEntry::make(
+  &tableNoPkey, ChangesetEntry::OpInsert, {},
+  { Value::makeInt( 1 ), Value::makeText( "hey" ) } );
+
+  ChangesetEntry noPkeyUpdate2 = ChangesetEntry::make(
+                                   &tableNoPkey, ChangesetEntry::OpUpdate,
+  { Value::makeInt( 2 ), Value::makeText( "huh" ) },
+  { Value(), Value::makeText( "ho!" ) } );
+
+  // TODO: neither sqlite3session nor our implementation work correctly. (is this valid at all?)
+  //testConcatOneTable( "no-pkey", tableNoPkey, { noPkeyInsert1 }, { noPkeyUpdate2 }, { noPkeyInsert1, noPkeyUpdate2 } );
+}
+
+
+TEST( ChangesetUtils, test_concat_changesets_multiple_tables )
+{
+  ChangesetTable tableFoo;
+  tableFoo.name = "foo";
+  tableFoo.primaryKeys.push_back( true ); // fid (pkey)
+  tableFoo.primaryKeys.push_back( false ); // name
+  tableFoo.primaryKeys.push_back( false ); // rating
+
+  ChangesetTable tableBar;
+  tableBar.name = "bar";
+  tableBar.primaryKeys.push_back( true ); // fid (pkey)
+  tableBar.primaryKeys.push_back( false ); // name
+
+  ChangesetEntry fooInsert123 = ChangesetEntry::make(
+  &tableFoo, ChangesetEntry::OpInsert, {},
+  { Value::makeInt( 123 ), Value::makeText( "hello" ), Value::makeInt( 5 ) } );
+
+  ChangesetEntry barInsert123 = ChangesetEntry::make(
+  &tableBar, ChangesetEntry::OpInsert, {},
+  { Value::makeInt( 123 ), Value::makeText( "ha!" ) } );
+
+  ChangesetEntry barUpdate123 = ChangesetEntry::make(
+                                  &tableFoo, ChangesetEntry::OpUpdate,
+  { Value::makeInt( 123 ), Value::makeText( "ha!" ) },
+  { Value(), Value::makeText( ":-)" ) } );
+
+  testConcat( "multi-related-insert-update",
+  { std::make_pair( "foo", tableFoo ), std::make_pair( "bar", tableBar ) },
+  // changeset 1
+  {
+    std::make_pair( "foo", std::vector<ChangesetEntry>( { fooInsert123 } ) ),
+    std::make_pair( "bar", std::vector<ChangesetEntry>( { barInsert123 } ) )
+  },
+  // changeset 2
+  { std::make_pair( "bar", std::vector<ChangesetEntry>( { barUpdate123 } ) ) },
+  // expected result
+  {
+    std::make_pair( "foo", std::vector<ChangesetEntry>( {
+      ChangesetEntry::make( &tableFoo, ChangesetEntry::OpInsert, {},
+      { Value::makeInt( 123 ), Value::makeText( "hello" ), Value::makeInt( 5 ) }
+                          ) } ) ),
+    std::make_pair( "bar", std::vector<ChangesetEntry>( {
+      ChangesetEntry::make( &tableBar, ChangesetEntry::OpInsert, {},
+      { Value::makeInt( 123 ), Value::makeText( ":-)" ) }
+                          ) } ) )
+  } );
+
+  testConcat( "multi-unrelated-insert-update",
+  { std::make_pair( "foo", tableFoo ), std::make_pair( "bar", tableBar ) },
+  // changeset 1
+  { std::make_pair( "foo", std::vector<ChangesetEntry>( { fooInsert123 } ) ) },
+  // changeset 2
+  { std::make_pair( "bar", std::vector<ChangesetEntry>( { barUpdate123 } ) ) },
+  // expected result
+  {
+    std::make_pair( "foo", std::vector<ChangesetEntry>( {
+      ChangesetEntry::make( &tableFoo, ChangesetEntry::OpInsert, {},
+      { Value::makeInt( 123 ), Value::makeText( "hello" ), Value::makeInt( 5 ) }
+                          ) } ) ),
+    std::make_pair( "bar", std::vector<ChangesetEntry>( {
+      ChangesetEntry::make( &tableBar, ChangesetEntry::OpUpdate,
+      { Value::makeInt( 123 ), Value::makeText( "ha!" ) },
+      { Value(), Value::makeText( ":-)" ) }
+                          ) } ) )
+  } );
 }
 
 int main( int argc, char **argv )

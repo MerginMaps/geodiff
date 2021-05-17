@@ -53,8 +53,12 @@ bool ChangesetReader::nextEntry( ChangesetEntry &entry )
       int indirect = readByte();
       if ( type != ChangesetEntry::OpInsert )
         readRowValues( entry.oldValues );
+      else
+        entry.oldValues.erase( entry.oldValues.begin(), entry.oldValues.end() );
       if ( type != ChangesetEntry::OpDelete )
         readRowValues( entry.newValues );
+      else
+        entry.newValues.erase( entry.newValues.begin(), entry.newValues.end() );
 
       entry.op = static_cast<ChangesetEntry::OperationType>( type );
       entry.table = &mCurrentTable;

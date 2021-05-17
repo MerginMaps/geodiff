@@ -418,6 +418,45 @@ int GEODIFF_invertChangeset( const char *changeset, const char *changeset_inv )
 }
 
 
+int GEODIFF_concatChanges( int inputChangesetsCount, const char **inputChangesets, const char *outputChangeset )
+{
+  if ( inputChangesetsCount < 2 )
+  {
+    Logger::instance().error( "Need at least two input changesets in GEODIFF_concatChanges" );
+    return GEODIFF_ERROR;
+  }
+
+  if ( !inputChangesets || !outputChangeset )
+  {
+    Logger::instance().error( "NULL arguments to GEODIFF_concatChanges" );
+    return GEODIFF_ERROR;
+  }
+
+  std::vector<std::string> inputFiles;
+  for ( int i = 0; i < inputChangesetsCount; ++i )
+  {
+    std::string filename = inputChangesets[i];
+    if ( !fileexists( filename ) )
+    {
+      Logger::instance().error( "Input files in GEODIFF_concatChanges does not exist: " + filename );
+      return GEODIFF_ERROR;
+    }
+    inputFiles.push_back( filename );
+  }
+
+  try
+  {
+    concatChangesets( inputFiles, outputChangeset );
+  }
+  catch ( GeoDiffException exc )
+  {
+    Logger::instance().error( exc );
+    return GEODIFF_ERROR;
+  }
+
+  return GEODIFF_SUCCESS;
+}
+
 
 int GEODIFF_rebase( const char *base,
                     const char *modified_their,
@@ -512,12 +551,11 @@ int GEODIFF_rebaseEx( const char *driverName,
 
     // 3B) concat to single changeset
     TmpFile modified2final( root + "_modified2final.bin" );
-    bool error = concatChangesets( modified2base.path(), base2their, theirs2final.path(), modified2final.path() );
-    if ( error )
-    {
-      Logger::instance().error( "Unable to perform concatChangesets" );
-      return GEODIFF_ERROR;
-    }
+    std::vector<std::string> concatInput;
+    concatInput.push_back( modified2base.path() );
+    concatInput.push_back( base2their );
+    concatInput.push_back( theirs2final.path() );
+    concatChangesets( concatInput, modified2final.path() );  // throws GeoDiffException exception on error
 
     // 3C) apply at once
     if ( GEODIFF_applyChangesetEx( driverName, driverExtraInfo, modified, modified2final.c_path() ) != GEODIFF_SUCCESS )

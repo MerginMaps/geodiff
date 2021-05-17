@@ -127,6 +127,11 @@ struct Value
       mType = TypeNull;
     }
 
+    static Value makeInt( int64_t n ) { Value v; v.setInt( n ); return v; }
+    static Value makeDouble( double n ) { Value v; v.setDouble( n ); return v; }
+    static Value makeText( std::string s ) { Value v; v.setString( TypeText, s.data(), s.size() ); return v; }
+    static Value makeNull() { Value v; v.setNull(); return v; }
+
   protected:
     void reset()
     {
@@ -147,6 +152,34 @@ struct Value
     } mVal;
 
 };
+
+
+//! std::hash<Value> implementation
+namespace std
+{
+  template<> struct hash<Value>
+  {
+    std::size_t operator()( const Value &v ) const
+    {
+      switch ( v.type() )
+      {
+        case Value::TypeUndefined:
+          return 0xcccccccc;
+        case Value::TypeInt:
+          return std::hash<int64_t> {}( v.getInt() );
+        case Value::TypeDouble:
+          return std::hash<double> {}( v.getDouble() );
+        case Value::TypeText:
+        case Value::TypeBlob:
+          return std::hash<std::string> {}( v.getString() );
+        case Value::TypeNull:
+          return 0xdddddddd;
+      }
+      assert( false );
+      return 0;
+    }
+  };
+}
 
 
 /**
@@ -200,6 +233,17 @@ struct ChangesetEntry
    * and it does not need to be set (writer has an explicit beginTable() call to set table).
    */
   ChangesetTable *table = nullptr;
+
+  //! a quick way for tests to create a changeset entry
+  static ChangesetEntry make( ChangesetTable *t, OperationType o, std::vector<Value> oldV, std::vector<Value> newV )
+  {
+    ChangesetEntry e;
+    e.op = o;
+    e.oldValues = oldV;
+    e.newValues = newV;
+    e.table = t;
+    return e;
+  }
 };
 
 #endif // CHANGESET_H
