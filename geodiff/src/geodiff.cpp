@@ -679,14 +679,6 @@ int GEODIFF_makeCopySqlite( const char *src, const char *dst )
     return GEODIFF_ERROR;
   }
 
-  sqlite3 *pFrom;
-  int rc1 = sqlite3_open_v2( src, &pFrom, SQLITE_OPEN_READONLY, nullptr );
-  if ( rc1 != SQLITE_OK )
-  {
-    Logger::instance().error( "MakeCopySqlite: Unable to open source database: " + std::string( src ) );
-    return GEODIFF_ERROR;
-  }
-
   // If the destination file already exists, let's replace it. This is for convenience: if the file exists
   // and it is SQLite database, the backup API would overwrite it, but if the file would not be a valid
   // SQLite database, it would fail to open. With this check+remove we make sure that any existing file
@@ -696,10 +688,19 @@ int GEODIFF_makeCopySqlite( const char *src, const char *dst )
     fileremove( dst );
   }
 
+  sqlite3 *pFrom;
+  int rc1 = sqlite3_open_v2( src, &pFrom, SQLITE_OPEN_READONLY, nullptr );
+  if ( rc1 != SQLITE_OK )
+  {
+    Logger::instance().error( "MakeCopySqlite: Unable to open source database: " + std::string( src ) );
+    return GEODIFF_ERROR;
+  }
+
   sqlite3 *pTo;
   int rc2 = sqlite3_open_v2( dst, &pTo, SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE, nullptr );
   if ( rc2 != SQLITE_OK )
   {
+    sqlite3_close( pFrom );
     Logger::instance().error( "MakeCopySqlite: Unable to open destination database: " + std::string( dst ) );
     return GEODIFF_ERROR;
   }
@@ -727,6 +728,7 @@ int GEODIFF_makeCopySqlite( const char *src, const char *dst )
   if ( sqlite3_errcode( pTo ) )
     errorMsg = sqlite3_errmsg( pTo );
 
+  sqlite3_close( pFrom );
   sqlite3_close( pTo );
 
   if ( !errorMsg.empty() )
