@@ -192,12 +192,12 @@ static MergeEntriesResult mergeEntriesForRow( ChangesetEntry *e1, ChangesetEntry
 
 //! Concatenation of multiple changesets, based on the implementation from sqlite3session
 //! (functions sqlite3changegroup_add() and sqlite3changegroup_output())
-void concatChangesets( std::vector<std::string> filenames, std::string outputChangeset )
+void concatChangesets( const std::vector<std::string> &filenames, const std::string &outputChangeset )
 {
   // hashtable: table name -> ( fid -> changeset entry )
   std::unordered_map<std::string, TableChanges> result;
 
-  for ( std::string inputFilename : filenames )
+  for ( const std::string &inputFilename : filenames )
   {
     ChangesetReader reader;
     if ( !reader.open( inputFilename ) )
