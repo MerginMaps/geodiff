@@ -235,6 +235,21 @@ GEODIFF_EXPORT int GEODIFF_listChangesSummary(
   const char *jsonfile
 );
 
+/**
+ * Combine multiple changeset files into a single changeset file. When the output changeset
+ * is applied to a database, the result should be the same as if the input changesets were applied
+ * one by one. The order of input files is important. At least two input files need to be
+ * provided.
+ *
+ * Incompatible changes (which would cause conflicts when applied) will be discarded.
+ *
+ * \returns GEODIFF_SUCCESS on success
+ */
+GEODIFF_EXPORT int GEODIFF_concatChanges(
+  int inputChangesetsCount,
+  const char **inputChangesets,
+  const char *outputChangeset
+);
 
 /**
  * Makes a copy of the source dataset (a collection of tables) to the specified destination.

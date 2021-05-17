@@ -17,8 +17,5 @@ int rebase(
   std::vector<ConflictFeature> &conflicts// out
 );
 
-// true on error
-bool concatChangesets( const std::string &A, const std::string &B, const std::string &C, const std::string &out );
-
 
 #endif // GEODIFFREBASE_H

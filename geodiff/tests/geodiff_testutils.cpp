@@ -17,6 +17,9 @@
 #include <locale>
 #include <codecvt>
 
+#include "changesetreader.h"
+#include "changesetwriter.h"
+
 #ifdef WIN32
 #include <windows.h>
 #include <tchar.h>
@@ -245,6 +248,96 @@ bool containsConflict( const std::string &conflictFile, const std::string key )
 int countConflicts( const std::string &conflictFile )
 {
   return fileContains( conflictFile, "fid" );
+}
+
+
+void writeChangeset( std::string filename, const std::unordered_map<std::string, ChangesetTable> &tables,
+                     const std::unordered_map<std::string, std::vector<ChangesetEntry> > &entries )
+{
+  ChangesetWriter w;
+  assert( w.open( filename ) );
+  for ( auto it = entries.begin(); it != entries.end(); ++it )
+  {
+    std::string tableName = it->first;
+    if ( !it->second.size() )
+      continue;
+    w.beginTable( tables.find( tableName )->second );
+    for ( const ChangesetEntry &entry : it->second )
+    {
+      w.writeEntry( entry );
+    }
+  }
+}
+
+
+void writeSingleTableChangeset( std::string filename, const ChangesetTable &table, std::vector<ChangesetEntry> entries )
+{
+  writeChangeset( filename, { std::make_pair( table.name, table ) }, { std::make_pair( table.name, entries ) } );
+}
+
+
+static bool testAllEntriesInOtherVector( const std::vector<ChangesetEntry> &tableEntriesA, const std::vector<ChangesetEntry> &tableEntriesB )
+{
+  for ( size_t i = 0; i < tableEntriesA.size(); ++i )
+  {
+    const ChangesetEntry &entryI = tableEntriesA[i];
+    bool found = false;
+    for ( size_t j = 0; j < tableEntriesB.size(); ++j )
+    {
+      const ChangesetEntry &entryJ = tableEntriesB[j];
+      if ( entryI.op == entryJ.op && entryI.oldValues == entryJ.oldValues && entryI.newValues == entryJ.newValues )
+      {
+        found = true;
+        break;
+      }
+    }
+    if ( !found )
+      return false;
+  }
+  return true;
+}
+
+//! a single changeset can be stored in different ways (e.g. different order of entries)
+//! so this function tests whether they are the same
+bool compareDiffsByContent( std::string diffA, std::string diffB )
+{
+  ChangesetReader readerA, readerB;
+  if ( !readerA.open( diffA ) )
+    return false;
+  if ( !readerB.open( diffB ) )
+    return false;
+
+  std::unordered_map<std::string, std::vector<bool> > tablesA, tablesB;
+  std::unordered_map<std::string, std::vector<ChangesetEntry> > entriesA, entriesB;
+  ChangesetEntry entryA, entryB;
+  while ( readerA.nextEntry( entryA ) )
+  {
+    if ( tablesA.find( entryA.table->name ) == tablesA.end() )
+      tablesA[entryA.table->name] = entryA.table->primaryKeys;
+    entriesA[entryA.table->name].push_back( entryA );
+  }
+
+  while ( readerB.nextEntry( entryB ) )
+  {
+    if ( tablesB.find( entryB.table->name ) == tablesB.end() )
+      tablesB[entryB.table->name] = entryB.table->primaryKeys;
+    entriesB[entryB.table->name].push_back( entryB );
+  }
+
+  if ( tablesA != tablesB )
+    return false;
+
+  for ( auto tableIt = tablesA.begin(); tableIt != tablesA.end(); ++tableIt )
+  {
+    std::string tableName = tableIt->first;
+    if ( entriesA[tableName].size() != entriesB[tableName].size() )
+      return false;
+    if ( !testAllEntriesInOtherVector( entriesA[tableName], entriesB[tableName] ) )
+      return false;
+    if ( !testAllEntriesInOtherVector( entriesB[tableName], entriesA[tableName] ) )
+      return false;
+  }
+  return true;
 }
 
 #ifdef HAVE_POSTGRES

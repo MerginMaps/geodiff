@@ -22,6 +22,8 @@ ChangesetTable schemaToChangesetTable( const std::string &tableName, const Table
 
 void invertChangeset( ChangesetReader &reader, ChangesetWriter &writer );
 
+void concatChangesets( std::vector<std::string> filenames, std::string outputChangeset );
+
 std::string changesetEntryToJSON( const ChangesetEntry &entry );
 
 std::string changesetToJSON( ChangesetReader &reader );

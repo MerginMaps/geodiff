@@ -8,6 +8,7 @@
 
 #include <string>
 #include <vector>
+#include <unordered_map>
 
 #include "geodiff.h"
 #include "geodiff_config.hpp"
@@ -52,6 +53,20 @@ bool fileExists( const std::string &filepath );
 
 //! Tests whether a file is empty (has zero size). \note returns false when file does not exist
 bool isFileEmpty( const std::string &filepath );
+
+struct ChangesetTable;
+struct ChangesetEntry;
+
+//! Helper function to write a diff file for a couple of tables
+void writeChangeset( std::string filename, const std::unordered_map<std::string, ChangesetTable> &tables,
+                     const std::unordered_map<std::string, std::vector<ChangesetEntry> > &entries );
+
+//! Writes a diff file with a couple of entries for a single table
+void writeSingleTableChangeset( std::string filename, const ChangesetTable &table, std::vector<ChangesetEntry> entries );
+
+//! A single changeset can be stored in different ways (e.g. different order of entries)
+//! so this function tests whether they are actually the same
+bool compareDiffsByContent( std::string diffA, std::string diffB );
 
 #ifdef HAVE_POSTGRES
 /**
