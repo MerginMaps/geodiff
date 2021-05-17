@@ -272,6 +272,15 @@ GEODIFF_EXPORT int GEODIFF_makeCopy( const char *driverSrcName, const char *driv
                                      const char *driverDstName, const char *driverDstExtraInfo, const char *dst );
 
 /**
+ * Makes a copy of a SQLite database. If the destination database file exists, it will be overwritten.
+ *
+ * This is the preferred way of copying SQLite/GeoPackage files compared to just using raw copying
+ * of files on the file system: it will take into account other readers/writers and WAL file,
+ * so we should never end up with a corrupt copy.
+ */
+GEODIFF_EXPORT int GEODIFF_makeCopySqlite( const char *src, const char *dst );
+
+/**
  * This is an extended version of GEODIFF_createChangeset() which also allows specification
  * of the driver and its extra connection info. The original GEODIFF_createChangeset() function
  * only supports Sqlite driver.
