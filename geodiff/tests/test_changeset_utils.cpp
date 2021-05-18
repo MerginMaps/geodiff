@@ -378,6 +378,21 @@ TEST( ChangesetUtils, test_concat_changesets_multiple_tables )
   } );
 }
 
+TEST( ChangesetUtils, test_schema )
+{
+  makedir( pathjoin( tmpdir(), "test_schema" ) );
+  std::string base = pathjoin( testdir(), "base.gpkg" );
+  std::string schema = pathjoin( tmpdir(), "test_schema", "schema.json" );
+
+  // invalid inputs
+  EXPECT_EQ( GEODIFF_schema( "qqq", nullptr, base.data(), schema.data() ), GEODIFF_ERROR );
+  EXPECT_EQ( GEODIFF_schema( "sqlite", nullptr, "--bad filename--", schema.data() ), GEODIFF_ERROR );
+
+  // valid input
+  EXPECT_EQ( GEODIFF_schema( "sqlite", nullptr, base.data(), schema.data() ), GEODIFF_SUCCESS );
+  EXPECT_TRUE( fileContentEquals( pathjoin( testdir(), "schema", "base-schema.json" ), schema ) );
+}
+
 int main( int argc, char **argv )
 {
   testing::InitGoogleTest( &argc, argv );

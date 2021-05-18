@@ -342,6 +342,11 @@ GEODIFF_EXPORT int GEODIFF_rebaseEx(
 GEODIFF_EXPORT int GEODIFF_dumpData( const char *driverName, const char *driverExtraInfo,
                                      const char *src, const char *changeset );
 
+/**
+ * Writes a JSON file containing database schema of tables as understood by geodiff.
+ */
+GEODIFF_EXPORT int GEODIFF_schema( const char *driverName, const char *driverExtraInfo, const char *src, const char *json );
+
 
 typedef void *GEODIFF_ChangesetReaderH;
 typedef void *GEODIFF_ChangesetEntryH;

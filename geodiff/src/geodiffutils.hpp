@@ -7,6 +7,7 @@
 #define GEODIFFUTILS_H
 
 #include <string>
+#include <sstream>
 #include <memory>
 #include <exception>
 #include <vector>
@@ -97,6 +98,28 @@ std::string replace( const std::string &str, const std::string &substr, const st
 
 //! writes std::string to file
 void flushString( const std::string &filename, const std::string &str );
+
+//! Joins a container of strings together using a separator
+//! from https://codereview.stackexchange.com/questions/142902/simple-string-joiner-in-modern-c
+template<typename InputIt> std::string join( InputIt begin, InputIt end, const std::string &separator )
+{
+  std::ostringstream ss;
+  if ( begin != end )
+    ss << *begin++;
+
+  while ( begin != end )
+  {
+    ss << separator;
+    ss << *begin++;
+  }
+  return ss.str();
+}
+
+//! Quotes strings for use in JSON
+inline std::string jsonQuoted( const std::string &str )
+{
+  return replace( str, "\"", "\\\"" );
+}
 
 // SOME SQL
 

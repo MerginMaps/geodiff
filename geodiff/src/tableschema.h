@@ -30,6 +30,9 @@ struct TableColumnType
   BaseType baseType = TEXT;
   std::string dbType;
 
+  //! Returns string representation of the base type enum value
+  static std::string baseTypeToString( BaseType t );
+
   //! Unified conversion of GeoPackage and PostgreSQL types to base types
   void convertToBaseType();
 

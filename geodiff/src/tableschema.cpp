@@ -238,3 +238,19 @@ TableColumnType columnType( const std::string &columnType, const std::string &dr
   else
     throw GeoDiffException( "Uknown driver name " + driverName );
 }
+
+std::string TableColumnType::baseTypeToString( TableColumnType::BaseType t )
+{
+  switch ( t )
+  {
+    case TEXT:     return "text";
+    case INTEGER:  return "integer";
+    case DOUBLE:   return "double";
+    case BOOLEAN:  return "boolean";
+    case BLOB:     return "blob";
+    case GEOMETRY: return "geometry";
+    case DATE:     return "date";
+    case DATETIME: return "datetime";
+  }
+  return "?";
+}
