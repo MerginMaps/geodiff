@@ -11,6 +11,7 @@
 #include "changesetreader.h"
 #include "changesetwriter.h"
 #include "driver.h"
+#include "sqliteutils.h"
 
 
 static void testCreateChangeset( const std::string &testname, const std::string &fileBase, const std::string &fileModified, const std::string &fileExpected )
@@ -327,6 +328,51 @@ TEST( SqliteDriverTest, make_copy_sqlite )
   EXPECT_EQ( GEODIFF_createChangeset( base.data(), testdb3.data(), changeset3.data() ), GEODIFF_SUCCESS );
   EXPECT_FALSE( GEODIFF_hasChanges( changeset3.data() ) );
 }
+
+
+TEST( SqliteDriverTest, make_copy_sqlite_concurrent )
+{
+  // This will test a database in WAL mode which gets modified, but the changes are not yet flushed back,
+  // contrasting "unsafe" copy (simply copying DB file) and "safe" copy using geodiff API
+
+  std::string testname = "test_make_copy_sqlite_concurrent";
+  std::string testdb = pathjoin( tmpdir(), testname, "base.gpkg" );
+  std::string testdbUnsafeCopy = pathjoin( tmpdir(), testname, "copy-unsafe.gpkg" );
+  std::string testdbSafeCopy = pathjoin( tmpdir(), testname, "copy-safe.gpkg" );
+
+  makedir( pathjoin( tmpdir(), testname ) );
+  filecopy( testdb, pathjoin( testdir(), "base.gpkg" ) );
+
+  // Make sure DB is in WAL mode. Remove one row - initially there were 3 rows, now there are 2 rows
+  Sqlite3Db db;
+  db.open( testdb );
+  ASSERT_EQ( sqlite3_exec( db.get(), "PRAGMA journal_mode=wal;", nullptr, nullptr, nullptr ), SQLITE_OK );
+  ASSERT_EQ( sqlite3_exec( db.get(), "DELETE FROM simple WHERE fid=1;", nullptr, nullptr, nullptr ), SQLITE_OK );
+  ASSERT_TRUE( fileexists( pathjoin( tmpdir(), testname, "base.gpkg-wal" ) ) );
+
+  // unsafe copy using regular file copying (changes in WAL but not flushed back should get lost)
+  filecopy( testdbUnsafeCopy, testdb );
+
+  // safe copy using SQLite backup API
+  ASSERT_EQ( GEODIFF_makeCopySqlite( testdb.data(), testdbSafeCopy.data() ), GEODIFF_SUCCESS );
+
+  // unsafe copy still thinks there are 3 rows -> change was lost
+  std::shared_ptr<Sqlite3Db> dbUnsafe( new Sqlite3Db );
+  dbUnsafe->open( testdbUnsafeCopy );
+  Sqlite3Stmt stmtUnsafe;
+  stmtUnsafe.prepare( dbUnsafe, "%s", "SELECT count(*) FROM simple" );
+  ASSERT_EQ( sqlite3_step( stmtUnsafe.get() ), SQLITE_ROW );
+  ASSERT_EQ( sqlite3_column_int( stmtUnsafe.get(), 0 ), 3 );
+
+  // safe copy thinks there are 2 rows -> change got preserved - good!
+  std::shared_ptr<Sqlite3Db> dbSafe( new Sqlite3Db );
+  dbSafe->open( testdbSafeCopy );
+  Sqlite3Stmt stmtSafe;
+  stmtSafe.prepare( dbSafe, "%s", "SELECT count(*) FROM simple" );
+  ASSERT_EQ( sqlite3_step( stmtSafe.get() ), SQLITE_ROW );
+  ASSERT_EQ( sqlite3_column_int( stmtSafe.get(), 0 ), 2 );
+}
+
 
 int main( int argc, char **argv )
 {

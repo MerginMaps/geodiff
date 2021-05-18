@@ -13,6 +13,8 @@
 #include "changesetutils.h"
 #include "changesetwriter.h"
 
+#include "sqliteutils.h"
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdarg.h>
@@ -688,19 +690,23 @@ int GEODIFF_makeCopySqlite( const char *src, const char *dst )
     fileremove( dst );
   }
 
-  sqlite3 *pFrom;
-  int rc1 = sqlite3_open_v2( src, &pFrom, SQLITE_OPEN_READONLY, nullptr );
-  if ( rc1 != SQLITE_OK )
+  Sqlite3Db dbFrom, dbTo;
+  try
+  {
+    dbFrom.openReadOnly( src );
+  }
+  catch ( GeoDiffException e )
   {
     Logger::instance().error( "MakeCopySqlite: Unable to open source database: " + std::string( src ) );
     return GEODIFF_ERROR;
   }
 
-  sqlite3 *pTo;
-  int rc2 = sqlite3_open_v2( dst, &pTo, SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE, nullptr );
-  if ( rc2 != SQLITE_OK )
+  try
   {
-    sqlite3_close( pFrom );
+    dbTo.create( dst );
+  }
+  catch ( GeoDiffException e )
+  {
     Logger::instance().error( "MakeCopySqlite: Unable to open destination database: " + std::string( dst ) );
     return GEODIFF_ERROR;
   }
@@ -717,7 +723,7 @@ int GEODIFF_makeCopySqlite( const char *src, const char *dst )
   // connection pTo. If no error occurred, then the error code belonging
   // to pTo is set to SQLITE_OK.
 
-  sqlite3_backup *pBackup = sqlite3_backup_init( pTo, "main", pFrom, "main" );
+  sqlite3_backup *pBackup = sqlite3_backup_init( dbTo.get(), "main", dbFrom.get(), "main" );
   if ( pBackup )
   {
     sqlite3_backup_step( pBackup, -1 );
@@ -725,11 +731,8 @@ int GEODIFF_makeCopySqlite( const char *src, const char *dst )
   }
 
   std::string errorMsg;
-  if ( sqlite3_errcode( pTo ) )
-    errorMsg = sqlite3_errmsg( pTo );
-
-  sqlite3_close( pFrom );
-  sqlite3_close( pTo );
+  if ( sqlite3_errcode( dbTo.get() ) )
+    errorMsg = sqlite3_errmsg( dbTo.get() );
 
   if ( !errorMsg.empty() )
   {
