@@ -35,6 +35,16 @@ void Sqlite3Db::open( const std::string &filename )
   }
 }
 
+void Sqlite3Db::openReadOnly( const std::string &filename )
+{
+  close();
+  int rc = sqlite3_open_v2( filename.c_str(), &mDb, SQLITE_OPEN_READONLY, nullptr );
+  if ( rc )
+  {
+    throw GeoDiffException( "Unable to open " + filename + " as sqlite3 database" );
+  }
+}
+
 void Sqlite3Db::create( const std::string &filename )
 {
   close();
