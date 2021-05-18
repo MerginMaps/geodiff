@@ -16,6 +16,10 @@ SET(BUILD_TOOLS TRUE CACHE BOOL "Build tool executables?")
 SET(BUILD_STATIC FALSE CACHE BOOL "Build static libraries?")
 SET(WITH_POSTGRESQL FALSE CACHE BOOL "Whether to build with PostgreSQL driver")
 
+IF(WITH_INTERNAL_SQLITE3)
+  MESSAGE(FATAL_ERROR "The WITH_INTERNAL_SQLITE3 option has been removed: geodiff now always uses external SQLite3 library")
+ENDIF()
+
 IF(SKBUILD)
   MESSAGE(STATUS "The geodiff is built using scikit-build for pygeodiff Python package")
   FIND_PACKAGE(PythonExtensions REQUIRED)
