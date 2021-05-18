@@ -224,61 +224,6 @@ std::string to_string_with_max_precision( double a_value )
 
 //
 
-std::string pOpToStr( int pOp )
-{
-  switch ( pOp )
-  {
-    case SQLITE_CREATE_INDEX: return "SQLITE_CREATE_INDEX";
-    case SQLITE_CREATE_TABLE: return "SQLITE_CREATE_TABLE";
-    case SQLITE_CREATE_TEMP_INDEX: return "SQLITE_CREATE_TEMP_INDEX";
-    case SQLITE_CREATE_TEMP_TABLE: return "SQLITE_CREATE_TEMP_TABLE";
-    case SQLITE_CREATE_TEMP_TRIGGER: return "SQLITE_CREATE_TEMP_TRIGGER";
-    case SQLITE_CREATE_TEMP_VIEW: return "SQLITE_CREATE_TEMP_VIEW";
-    case SQLITE_CREATE_TRIGGER: return "SQLITE_CREATE_TRIGGER";
-    case SQLITE_CREATE_VIEW: return "SQLITE_CREATE_VIEW";
-    case SQLITE_DELETE: return "SQLITE_DELETE";
-    case SQLITE_DROP_INDEX: return "SQLITE_DROP_INDEX";
-    case SQLITE_DROP_TABLE: return "SQLITE_DROP_TABLE";
-    case SQLITE_DROP_TEMP_INDEX : return "SQLITE_DROP_TEMP_INDEX";
-    case SQLITE_DROP_TEMP_TABLE: return "SQLITE_DROP_TEMP_TABLE";
-    case SQLITE_DROP_TEMP_TRIGGER: return "SQLITE_DROP_TEMP_TRIGGER";
-    case SQLITE_DROP_TEMP_VIEW: return "SQLITE_DROP_TEMP_VIEW";
-    case SQLITE_DROP_TRIGGER: return "SQLITE_DROP_TRIGGER";
-    case SQLITE_DROP_VIEW: return "SQLITE_DROP_VIEW";
-    case SQLITE_INSERT: return "SQLITE_INSERT";
-    case SQLITE_PRAGMA: return "SQLITE_PRAGMA";
-    case SQLITE_READ: return "SQLITE_READ";
-    case SQLITE_SELECT: return "SQLITE_SELECT";
-    case SQLITE_TRANSACTION: return "SQLITE_TRANSACTION";
-    case SQLITE_UPDATE: return "SQLITE_UPDATE";
-    case SQLITE_ATTACH: return "SQLITE_ATTACH";
-    case SQLITE_DETACH: return "SQLITE_DETACH";
-    case SQLITE_ALTER_TABLE: return "SQLITE_ALTER_TABLE";
-    case SQLITE_REINDEX: return "SQLITE_REINDEX";
-    case SQLITE_ANALYZE: return "SQLITE_ANALYZE";
-    case SQLITE_CREATE_VTABLE: return "SQLITE_CREATE_VTABLE";
-    case SQLITE_DROP_VTABLE: return "SQLITE_DROP_VTABLE";
-    case SQLITE_FUNCTION: return "SQLITE_FUNCTION";
-    case SQLITE_SAVEPOINT: return "SQLITE_SAVEPOINT";
-    case SQLITE_COPY: return "SQLITE_COPY";
-    case SQLITE_RECURSIVE: return "SQLITE_RECURSIVE";
-  }
-  return std::to_string( pOp );
-}
-
-std::string conflict2Str( int c )
-{
-  switch ( c )
-  {
-    case SQLITE_CHANGESET_DATA: return "SQLITE_CHANGESET_DATA";
-    case SQLITE_CHANGESET_NOTFOUND: return "SQLITE_CHANGESET_NOTFOUND";
-    case SQLITE_CHANGESET_CONFLICT: return "SQLITE_CHANGESET_CONFLICT";
-    case SQLITE_CHANGESET_CONSTRAINT: return "SQLITE_CHANGESET_CONSTRAINT";
-    case SQLITE_CHANGESET_FOREIGN_KEY: return "SQLITE_CHANGESET_FOREIGN_KEY";
-  }
-  return std::to_string( c );
-}
-
 FILE *openFile( const std::string &path, const std::string &mode )
 {
 #ifdef WIN32
