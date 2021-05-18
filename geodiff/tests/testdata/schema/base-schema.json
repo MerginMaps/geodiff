@@ -1,0 +1,42 @@
+{
+   "geodiff_schema": [
+      {
+         "table": "simple",
+         "columns": [
+         {
+            "name": "fid",
+            "type": "integer",
+            "type_db": "INTEGER",
+            "primary_key": true,
+            "not_null": true,
+            "auto_increment": true
+         },
+         {
+            "name": "geometry",
+            "type": "geometry",
+            "type_db": "POINT",
+            "geometry": {
+               "type": "POINT",
+               "srs_id": "4326"
+            }
+         },
+         {
+            "name": "name",
+            "type": "text",
+            "type_db": "TEXT"
+         },
+         {
+            "name": "rating",
+            "type": "integer",
+            "type_db": "MEDIUMINT"
+         }
+         ],
+         "crs": {
+            "srs_id": 4326,
+            "auth_name": "EPSG",
+            "auth_code": 4326,
+            "wkt": "GEOGCS[\"WGS 84\",DATUM[\"WGS_1984\",SPHEROID[\"WGS 84\",6378137,298.257223563,AUTHORITY[\"EPSG\",\"7030\"]],AUTHORITY[\"EPSG\",\"6326\"]],PRIMEM[\"Greenwich\",0,AUTHORITY[\"EPSG\",\"8901\"]],UNIT[\"degree\",0.0174532925199433,AUTHORITY[\"EPSG\",\"9122\"]],AUTHORITY[\"EPSG\",\"4326\"]]"
+         }
+      }
+   ]
+}
