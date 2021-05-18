@@ -3,7 +3,7 @@ sudo: required
 matrix:
   include:
   - os: linux
-    dist: xenial
+    dist: bionic
   - os: osx
     osx_image: xcode11
   - os: windows
