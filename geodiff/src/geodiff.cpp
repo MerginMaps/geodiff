@@ -785,6 +785,12 @@ int GEODIFF_dumpData( const char *driverName, const char *driverExtraInfo, const
 
 int GEODIFF_schema( const char *driverName, const char *driverExtraInfo, const char *src, const char *json )
 {
+  if ( !driverName || !src || !json )
+  {
+    Logger::instance().error( "NULL arguments to GEODIFF_schema" );
+    return GEODIFF_ERROR;
+  }
+
   std::unique_ptr<Driver> driver( Driver::createDriver( std::string( driverName ) ) );
   if ( !driver )
   {
@@ -805,7 +811,7 @@ int GEODIFF_schema( const char *driverName, const char *driverExtraInfo, const c
     std::vector<std::string> tablesData;
     for ( const std::string &tableName : driver->listTables() )
     {
-      TableSchema tbl = driver->tableSchema( tableName );
+      const TableSchema tbl = driver->tableSchema( tableName );
 
       std::vector<std::string> columnsJson;
       for ( const TableColumnInfo &column : tbl.columns )
