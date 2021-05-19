@@ -44,6 +44,8 @@ INCLUDE_DIRECTORIES(
   ${CMAKE_CURRENT_BINARY_DIR}
   ${CMAKE_BINARY_DIR}/src
   ${CMAKE_SOURCE_DIR}/src
+  ${SQLite3_INCLUDE_DIRS}   # external sqlite
+  ${sqlite3_dir}            # internal sqlite
 )
 
 ADD_LIBRARY(geodifftestutils OBJECT geodiff_testutils.hpp geodiff_testutils.cpp)
