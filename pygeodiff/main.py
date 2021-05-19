@@ -174,6 +174,64 @@ class GeoDiff:
         """
         return self.clib.changes_count(changeset)
 
+    def concat_changes(self, list_changesets, output_changeset):
+        """
+            Combine multiple changeset files into a single changeset file. When the output changeset
+            is applied to a database, the result should be the same as if the input changesets were applied
+            one by one. The order of input files is important. At least two input files need to be
+            provided.
+
+            Incompatible changes (which would cause conflicts when applied) will be discarded.
+
+            raises SqliteDiffError on error
+        """
+        return self.clib.concat_changes(list_changesets, output_changeset)
+
+    def make_copy(self, driver_src, driver_src_info, src, driver_dst, driver_dst_info, dst):
+        """
+            Makes a copy of the source dataset (a collection of tables) to the specified destination.
+
+            This will open the source dataset, get list of tables, their structure, dump data
+            to a temporary changeset file. Then it will create the destination dataset, create tables
+            and insert data from changeset file.
+
+            Supported drivers:
+
+            - "sqlite" - does not need extra connection info (may be null). A dataset is a single Sqlite3
+            database (a GeoPackage) - a path to a local file is expected.
+
+            - "postgres" - only available if compiled with postgres support. Needs extra connection info
+            argument which is passed to libpq's PQconnectdb(), see PostgreSQL docs for syntax.
+            A datasource identifies a PostgreSQL schema name (namespace) within the current database.
+
+            raises SqliteDiffError on error
+        """
+        return self.clib.make_copy(driver_src, driver_src_info, src, driver_dst, driver_dst_info, dst)
+
+    def make_copy_sqlite(self, src, dst):
+        """
+            Makes a copy of a SQLite database. If the destination database file exists, it will be overwritten.
+
+            This is the preferred way of copying SQLite/GeoPackage files compared to just using raw copying
+            of files on the file system: it will take into account other readers/writers and WAL file,
+            so we should never end up with a corrupt copy.
+
+            raises SqliteDiffError on error
+        """
+        return self.clib.make_copy_sqlite(src, dst)
+
+    def create_changeset_ex(self, driver, driver_info, base, modified, changeset):
+        """
+            This is an extended version of create_changeset() which also allows specification
+            of the driver and its extra connection info. The original create_changeset() function
+            only supports Sqlite driver.
+
+            See documentation of make_copy() for details about supported drivers.
+
+            raises SqliteDiffError on error
+        """
+        return self.clib.create_changeset_ex(driver, driver_info, base, modified, changeset)
+
     def create_changeset_dr(self, driver_src, driver_src_info, src, driver_dst, driver_dst_info, dst, changeset):
         """
             Creates changeset file (binary) between src and dest for different drivers.
@@ -195,6 +253,52 @@ class GeoDiff:
             raises SqliteDiffError on error
         """
         return self.clib.create_changeset_dr(driver_src, driver_src_info, src, driver_dst, driver_dst_info, dst, changeset)
+
+    def apply_changeset_ex(self, driver, driver_info, base, changeset):
+        """
+            This is an extended version of apply_changeset() which also allows specification
+            of the driver and its extra connection info. The original apply_changeset() function
+            only supports Sqlite driver.
+
+            See documentation of make_copy() for details about supported drivers.
+
+            raises SqliteDiffError on error
+        """
+        return self.clib.apply_changeset_ex(driver, driver_info, base, changeset)
+
+    def create_rebased_changeset_ex(self, driver, driver_info, base, base2modified, base2their, rebased, conflict_file):
+        """
+            This function takes an existing changeset "base2modified" and rebases it on top of changes in
+            "base2their" and writes output to a new changeset "rebased"
+
+            raises SqliteDiffError on error
+        """
+        return self.clib.create_rebased_changeset_ex(driver, driver_info, base, base2modified, base2their, rebased, conflict_file)
+
+    def rebase_ex(self, driver, driver_info, base, modified, base2their, conflict_file):
+        """
+            This function takes care of updating "modified" dataset by taking any changes between "base"
+            and "modified" datasets and rebasing them on top of base2their changeset.
+
+            raises SqliteDiffError on error
+        """
+        return self.clib.rebase_ex(driver, driver_info, base, modified, base2their, conflict_file)
+
+    def dump_data(self, driver, driver_info, src, changeset):
+        """
+            Dumps all data from the data source as INSERT statements to a new changeset file.
+
+            raises SqliteDiffError on error
+        """
+        return self.clib.dump_data(driver, driver_info, src, changeset)
+
+    def schema(self, driver, driver_info, src, json):
+        """
+            Writes a JSON file containing database schema of tables as understood by geodiff.
+
+            raises SqliteDiffError on error
+        """
+        return self.clib.schema(driver, driver_info, src, json)
 
     def read_changeset(self, changeset):
         """

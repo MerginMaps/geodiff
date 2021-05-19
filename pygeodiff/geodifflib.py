@@ -299,6 +299,43 @@ class GeoDiffLib:
             raise GeoDiffLibError("changes_count")
         return nchanges
 
+    def concat_changes(self, list_changesets, output_changeset):
+        # make array of char* with utf-8 encoding from python list of strings
+        arr = (ctypes.c_char_p * len(list_changesets))()
+        for i in range(len(list_changesets)):
+            arr[i] = list_changesets[i].encode('utf-8')
+
+        res = self.lib.GEODIFF_concatChanges(
+            ctypes.c_int(len(list_changesets)),
+            arr,
+            ctypes.c_char_p(output_changeset.encode('utf-8')))
+        _parse_return_code(res, "concat_changes")
+
+    def make_copy(self, driver_src, driver_src_info, src, driver_dst, driver_dst_info, dst):
+        res = self.lib.GEODIFF_makeCopy(
+            ctypes.c_char_p(driver_src.encode('utf-8')),
+            ctypes.c_char_p(driver_src_info.encode('utf-8')),
+            ctypes.c_char_p(src.encode('utf-8')),
+            ctypes.c_char_p(driver_dst.encode('utf-8')),
+            ctypes.c_char_p(driver_dst_info.encode('utf-8')),
+            ctypes.c_char_p(dst.encode('utf-8')))
+        _parse_return_code(res, "make_copy")
+
+    def make_copy_sqlite(self, src, dst):
+        res = self.lib.GEODIFF_makeCopySqlite(
+            ctypes.c_char_p(src.encode('utf-8')),
+            ctypes.c_char_p(dst.encode('utf-8')))
+        _parse_return_code(res, "make_copy_sqlite")
+
+    def create_changeset_ex(self, driver, driver_info, base, modified, changeset):
+        res = self.lib.GEODIFF_createChangesetEx(
+            ctypes.c_char_p(driver.encode('utf-8')),
+            ctypes.c_char_p(driver_info.encode('utf-8')),
+            ctypes.c_char_p(base.encode('utf-8')),
+            ctypes.c_char_p(modified.encode('utf-8')),
+            ctypes.c_char_p(changeset.encode('utf-8')))
+        _parse_return_code(res, "create_changeset_ex")
+
     def create_changeset_dr(self, driver_src, driver_src_info, src, driver_dst, driver_dst_info, dst, changeset):
         func = self.lib.GEODIFF_createChangesetDr
         func.argtypes = [ctypes.c_char_p, ctypes.c_char_p, ctypes.c_char_p, ctypes.c_char_p, ctypes.c_char_p, ctypes.c_char_p, ctypes.c_char_p]
@@ -314,6 +351,51 @@ class GeoDiffLib:
 
         res = func(b_string1, b_string2, b_string3, b_string4, b_string5, b_string6, b_string7)
         _parse_return_code( res, "CreateChangesetDr" )
+
+    def apply_changeset_ex(self, driver, driver_info, base, changeset):
+        res = self.lib.GEODIFF_applyChangesetEx(
+            ctypes.c_char_p(driver.encode('utf-8')),
+            ctypes.c_char_p(driver_info.encode('utf-8')),
+            ctypes.c_char_p(base.encode('utf-8')),
+            ctypes.c_char_p(changeset.encode('utf-8')))
+        _parse_return_code(res, "apply_changeset_ex")
+
+    def create_rebased_changeset_ex(self, driver, driver_info, base, base2modified, base2their, rebased, conflict_file):
+        res = self.lib.GEODIFF_createRebasedChangesetEx(
+            ctypes.c_char_p(driver.encode('utf-8')),
+            ctypes.c_char_p(driver_info.encode('utf-8')),
+            ctypes.c_char_p(base.encode('utf-8')),
+            ctypes.c_char_p(base2modified.encode('utf-8')),
+            ctypes.c_char_p(base2their.encode('utf-8')),
+            ctypes.c_char_p(rebased.encode('utf-8')),
+            ctypes.c_char_p(conflict_file.encode('utf-8')))
+        _parse_return_code(res, "create_rebased_changeset_ex")
+
+    def rebase_ex(self, driver, driver_info, base, modified, base2their, conflict_file):
+        res = self.lib.GEODIFF_rebaseEx(
+            ctypes.c_char_p(driver.encode('utf-8')),
+            ctypes.c_char_p(driver_info.encode('utf-8')),
+            ctypes.c_char_p(base.encode('utf-8')),
+            ctypes.c_char_p(modified.encode('utf-8')),
+            ctypes.c_char_p(base2their.encode('utf-8')),
+            ctypes.c_char_p(conflict_file.encode('utf-8')))
+        _parse_return_code(res, "rebase_ex")
+
+    def dump_data(self, driver, driver_info, src, changeset):
+        res = self.lib.GEODIFF_dumpData(
+            ctypes.c_char_p(driver.encode('utf-8')),
+            ctypes.c_char_p(driver_info.encode('utf-8')),
+            ctypes.c_char_p(src.encode('utf-8')),
+            ctypes.c_char_p(changeset.encode('utf-8')))
+        _parse_return_code(res, "dump_data")
+
+    def schema(self, driver, driver_info, src, json):
+        res = self.lib.GEODIFF_schema(
+            ctypes.c_char_p(driver.encode('utf-8')),
+            ctypes.c_char_p(driver_info.encode('utf-8')),
+            ctypes.c_char_p(src.encode('utf-8')),
+            ctypes.c_char_p(json.encode('utf-8')))
+        _parse_return_code(res, "schema")
 
     def read_changeset(self, changeset):
 
