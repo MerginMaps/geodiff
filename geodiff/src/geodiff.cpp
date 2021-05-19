@@ -386,7 +386,7 @@ int GEODIFF_invertChangeset( const char *changeset, const char *changeset_inv )
 
   if ( !fileexists( changeset ) )
   {
-    Logger::instance().error( "Missing input files in GEODIFF_invertChangeset" );
+    Logger::instance().error( "Missing input files in GEODIFF_invertChangeset: " + std::string( changeset ) );
     return GEODIFF_ERROR;
   }
 
@@ -438,7 +438,7 @@ int GEODIFF_concatChanges( int inputChangesetsCount, const char **inputChangeset
     std::string filename = inputChangesets[i];
     if ( !fileexists( filename ) )
     {
-      Logger::instance().error( "Input files in GEODIFF_concatChanges does not exist: " + filename );
+      Logger::instance().error( "Input file in GEODIFF_concatChanges does not exist: " + filename );
       return GEODIFF_ERROR;
     }
     inputFiles.push_back( filename );
@@ -469,9 +469,21 @@ int GEODIFF_rebase( const char *base,
     return GEODIFF_ERROR;
   }
 
-  if ( !fileexists( base ) || !fileexists( modified_their ) || !fileexists( modified ) )
+  if ( !fileexists( base ) )
   {
-    Logger::instance().error( "Missing input files in GEODIFF_rebase" );
+    Logger::instance().error( std::string( "Missing 'base' file in GEODIFF_rebase: " ) + base );
+    return GEODIFF_ERROR;
+  }
+
+  if ( !fileexists( modified_their ) )
+  {
+    Logger::instance().error( std::string( "Missing 'modified_their' file in GEODIFF_rebase: " ) + modified_their );
+    return GEODIFF_ERROR;
+  }
+
+  if ( !fileexists( modified ) )
+  {
+    Logger::instance().error( std::string( "Missing 'modified' file in GEODIFF_rebase: " ) + modified );
     return GEODIFF_ERROR;
   }
 
