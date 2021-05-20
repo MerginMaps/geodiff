@@ -7,7 +7,7 @@ DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 sudo apt-get -qq update
 
 # testing of pygeodiff
-sudo apt-get install -y python3
+sudo apt-get install -y python3 libsqlite3-dev cmake cmake-data
 sudo python3 $DIR/../get-pip.py
 sudo python3 -m pip install nose2
 

@@ -14,8 +14,11 @@ SET(ENABLE_TESTS TRUE CACHE BOOL "Build tests?")
 SET(ENABLE_COVERAGE FALSE CACHE BOOL "Enable GCOV code coverage?")
 SET(BUILD_TOOLS TRUE CACHE BOOL "Build tool executables?")
 SET(BUILD_STATIC FALSE CACHE BOOL "Build static libraries?")
-SET(WITH_INTERNAL_SQLITE3 TRUE CACHE BOOL "Use internal copy of SQLITE3")
 SET(WITH_POSTGRESQL FALSE CACHE BOOL "Whether to build with PostgreSQL driver")
+
+IF(WITH_INTERNAL_SQLITE3)
+  MESSAGE(FATAL_ERROR "The WITH_INTERNAL_SQLITE3 option has been removed: geodiff now always uses external SQLite3 library")
+ENDIF()
 
 IF(SKBUILD)
   MESSAGE(STATUS "The geodiff is built using scikit-build for pygeodiff Python package")
@@ -42,38 +45,13 @@ IF(ENABLE_COVERAGE)
   SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} --coverage")
 ENDIF(ENABLE_COVERAGE)
 
-IF(WITH_INTERNAL_SQLITE3)
-  # Get SQLITE3 dependency
-  # We want to build it from source
-  # Since on some platforms/distributions
-  # Sqlite3 is not compiled with sessions module
-  IF(EXISTS "${CMAKE_BINARY_DIR}/sqlite3.tar.gz")
-    MESSAGE("sqlite3 already downloaded")
-  ELSE()
-    # the cannonical download URL is https://www.sqlite.org/2019/sqlite-autoconf-3300100.tar.gz
-    # but for an unknown reason Travis CI on macOS at some point stopped being able to download
-    # anything from sqlite.org, with any connections timing out without getting any response.
-    # A copy hosted on Lutra Dropbox seems to work...
-    FILE(DOWNLOAD "https://www.dropbox.com/s/8x1ese8mx0sif3c/sqlite-autoconf-3300100.tar.gz?dl=1" ${CMAKE_BINARY_DIR}/sqlite3.tar.gz )
-    FILE(MAKE_DIRECTORY "${CMAKE_BINARY_DIR}/external")
-    EXECUTE_PROCESS(COMMAND ${CMAKE_COMMAND} -E tar xfz ${CMAKE_BINARY_DIR}/sqlite3.tar.gz
-      WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/external
-      RESULT_VARIABLE rv)
-  ENDIF()
-
-  SET(sqlite3_dir ${CMAKE_BINARY_DIR}/external/sqlite-autoconf-3300100)
-  SET(sqlite_src
-    ${sqlite3_dir}/sqlite3.c
-    ${sqlite3_dir}/sqlite3.h
-  )
-
-  SET(geodiff_src ${geodiff_src} ${sqlite_src})
-ELSE(WITH_INTERNAL_SQLITE3)
-  IF(NOT "${CMAKE_VERSION}" VERSION_LESS "3.12")
-    CMAKE_POLICY(SET CMP0074 NEW)
-  ENDIF(NOT "${CMAKE_VERSION}" VERSION_LESS "3.12")
-  FIND_PACKAGE(SQLite3 REQUIRED)
-ENDIF(WITH_INTERNAL_SQLITE3)
+IF(NOT "${CMAKE_VERSION}" VERSION_LESS "3.12")
+  CMAKE_POLICY(SET CMP0074 NEW)
+ENDIF(NOT "${CMAKE_VERSION}" VERSION_LESS "3.12")
+FIND_PACKAGE(SQLite3 REQUIRED)
+MESSAGE(STATUS "SQLite3 version: ${SQLite3_VERSION}")
+MESSAGE(STATUS "SQLite3 include dirs: ${SQLite3_INCLUDE_DIRS}")
+MESSAGE(STATUS "SQLite3 library: ${SQLite3_LIBRARIES}")
 
 IF (WITH_POSTGRESQL)
   FIND_PACKAGE(Postgres REQUIRED)
@@ -137,6 +115,7 @@ INCLUDE_DIRECTORIES(
   ${CMAKE_CURRENT_SOURCE_DIR}/src/3rdparty
   ${CMAKE_CURRENT_SOURCE_DIR}/src/drivers
   ${CMAKE_CURRENT_BINARY_DIR}
+  ${SQLite3_INCLUDE_DIRS}
 )
 
 # create geodiff_config.h
@@ -211,24 +190,10 @@ IF (BUILD_TOOLS)
 ENDIF (BUILD_TOOLS)
 
 ADD_DEFINITIONS( -DSQLITE_CORE )
-IF(WITH_INTERNAL_SQLITE3)
-  SET (INTERNAL_SQLITE3_DEFINITIONS
-        -DSQLITE_ENABLE_RTREE -DSQLITE_ENABLE_SESSION -DSQLITE_ENABLE_PREUPDATE_HOOK
-        -DSQLITE_ENABLE_COLUMN_METADATA=1 -DSQLITE_MAX_VARIABLE_NUMBER=250000 -DSQLITE_ENABLE_FTS3=1
-        -DSQLITE_ENABLE_FTS3_PARENTHESIS=1 -DSQLITE_ENABLE_JSON1=1)
-  TARGET_COMPILE_DEFINITIONS(${GEODIFF_NAME} PUBLIC ${INTERNAL_SQLITE3_DEFINITIONS})
-  TARGET_INCLUDE_DIRECTORIES(${GEODIFF_NAME} PRIVATE ${sqlite3_dir})
-  IF ( BUILD_STATIC )
-    TARGET_COMPILE_DEFINITIONS(${GEODIFF_NAME}_a PUBLIC ${INTERNAL_SQLITE3_DEFINITIONS})
-    TARGET_INCLUDE_DIRECTORIES(${GEODIFF_NAME}_a PRIVATE ${sqlite3_dir})
-  ENDIF ()
-ELSE(WITH_INTERNAL_SQLITE3)
-  ADD_DEFINITIONS( -DSQLITE_ENABLE_SESSION )
-  TARGET_LINK_LIBRARIES(${GEODIFF_NAME} PUBLIC ${SQLite3_LIBRARIES})
-  IF (BUILD_TOOLS)
-      TARGET_LINK_LIBRARIES(geodiffinfo PUBLIC ${SQLite3_LIBRARIES} )
-  ENDIF (BUILD_TOOLS)
-ENDIF(WITH_INTERNAL_SQLITE3)
+TARGET_LINK_LIBRARIES(${GEODIFF_NAME} PUBLIC ${SQLite3_LIBRARIES})
+IF (BUILD_TOOLS)
+  TARGET_LINK_LIBRARIES(geodiffinfo PUBLIC ${SQLite3_LIBRARIES} )
+ENDIF (BUILD_TOOLS)
 
 TARGET_INCLUDE_DIRECTORIES(${GEODIFF_NAME} PRIVATE ${libgpkg_dir}/gpkg)
 IF ( BUILD_STATIC )

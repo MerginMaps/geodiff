@@ -4,6 +4,7 @@ ls -la /usr/local/opt
 ls -la /usr/local/Cellar
 
 brew update
+brew install sqlite3
 brew install ninja
 brew install pyenv
 for VER in "3.8.7" "3.7.4" "3.6.8"
