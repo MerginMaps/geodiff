@@ -107,9 +107,7 @@ class GeoDiffTests(unittest.TestCase):
         # load lib
         lib = os.environ.get("GEODIFFLIB", None)
         if lib is None:
-            raise TestError("missing GEODIFFLIB env variable")
-        if not os.path.exists(lib):
-            raise TestError("lib {} is missing ".format(lib))
+            print("missing GEODIFFLIB env variable, trying to use the geodiff from wheel")
         self.geodiff = pygeodiff.GeoDiff(lib)
         self.geodiff.set_logger_callback(logger)
         self.geodiff.set_maximum_logger_level(pygeodiff.GeoDiff.LevelDebug)

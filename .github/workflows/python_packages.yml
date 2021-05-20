@@ -1,0 +1,129 @@
+name: Build and upload to PyPI
+
+on: [push]
+jobs:
+  build_linux_wheels:
+    name: Build wheels on ubuntu-latest
+    runs-on: ubuntu-latest
+    env:
+      CIBW_SKIP: pp* cp27-* cp35-* *-i686
+      CIBW_MANYLINUX_X86_64_IMAGE: manylinux_2_24
+      CIBW_MANYLINUX_I686_IMAGE: manylinux_2_24
+      CIBW_BEFORE_ALL_LINUX: apt-get update -y;apt-get install libsqlite3-dev
+      CIBW_BEFORE_BUILD: pip install setuptools scikit-build wheel cmake
+      CIBW_TEST_COMMAND: python -c "import pygeodiff; pygeodiff.GeoDiff().version()"
+
+    steps:
+      - uses: actions/checkout@v2
+
+      - uses: actions/setup-python@v2
+        name: Install Python
+        with:
+          python-version: '3.8'
+
+      - name: Build wheels
+        uses: joerick/cibuildwheel@v1.11.0
+
+      - uses: actions/upload-artifact@v2
+        with:
+          path: ./wheelhouse/*.whl
+
+  build_windows_wheels:
+    name: Build wheels on windows-latest
+    runs-on: windows-latest
+    env:
+      CMAKE_GENERATOR: "Visual Studio 16 2019"
+      SQLite3_ROOT: "C:/vcpkg/installed/x64-windows"
+      CIBW_SKIP: cp27-* cp35-* *-win32
+      CIBW_TEST_COMMAND: python -c "import pygeodiff; pygeodiff.GeoDiff().version()"
+      CIBW_REPAIR_WHEEL_COMMAND_WINDOWS: "delvewheel repair --add-path C:/vcpkg/installed/x64-windows --no-mangle-all -v -w {dest_dir} {wheel}"
+
+    steps:
+      - uses: actions/checkout@v2
+
+      - uses: actions/setup-python@v2
+        name: Install Python
+        with:
+          python-version: '3.8'
+
+      - name: Install Deps
+        run: |
+          C:/vcpkg/vcpkg install sqlite3 --triplet x64-windows
+          pip install setuptools scikit-build wheel cmake delvewheel
+
+      - name: Build wheels
+        uses: joerick/cibuildwheel@v1.11.0
+
+      - uses: actions/upload-artifact@v2
+        with:
+          path: ./wheelhouse/*.whl
+
+  build_macos_wheels:
+    name: Build wheels on macos-latest
+    runs-on: macos-latest
+    env:
+        SQLite3_ROOT: /usr/local/opt/sqlite
+        CIBW_SKIP: cp27-* cp35-*
+        CIBW_TEST_COMMAND: python -c "import pygeodiff; pygeodiff.GeoDiff().version()"
+
+    steps:
+      - uses: actions/checkout@v2
+
+      - uses: actions/setup-python@v2
+        name: Install Python
+        with:
+          python-version: '3.8'
+
+      - name: Install Deps
+        run: |
+          brew install sqlite3
+          pip install setuptools scikit-build wheel cmake nose2
+
+      - name: Build wheels
+        uses: joerick/cibuildwheel@v1.11.0
+
+      - uses: actions/upload-artifact@v2
+        with:
+          path: ./wheelhouse/*.whl
+
+  build_sdist:
+    name: Build source distribution
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+
+      - uses: actions/setup-python@v2
+        name: Install Python
+        with:
+          python-version: '3.8'
+
+      - name: Install deps
+        run: |
+          pip install --upgrade pip
+          pip install setuptools twine scikit-build wheel cmake
+        
+      - name: Build sdist
+        run: python setup.py sdist
+
+      - uses: actions/upload-artifact@v2
+        with:
+          path: dist/*.tar.gz
+
+  upload_pypi:
+    needs: [build_windows_wheels, build_linux_wheels, build_macos_wheels, build_sdist]
+    runs-on: ubuntu-latest
+    # upload to PyPI on every tag starting with 'v'
+    # if: github.event_name == 'push' && startsWith(github.event.ref, 'refs/tags/v')
+    # alternatively, to publish when a GitHub Release is created, use the following rule:
+    if: github.event_name == 'release' && github.event.action == 'published'
+    steps:
+      - uses: actions/download-artifact@v2
+        with:
+          name: artifact
+          path: dist
+
+      - uses: pypa/gh-action-pypi-publish@master
+        with:
+          user: __token__
+          password: ${{ secrets.PYPI_TOKEN }}
+          # To test: repository_url: https://test.pypi.org/legacy/

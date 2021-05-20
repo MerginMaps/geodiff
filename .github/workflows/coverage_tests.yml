@@ -1,4 +1,4 @@
-name: Coverage Tests
+name: Coverage CPP/Python Tests
 on: [push]
 jobs:
   coverage_tests:
@@ -15,6 +15,9 @@ jobs:
           sudo apt-get install -y lcov
           sudo apt-get install libpq-dev
           sudo apt-get install postgresql-12 postgresql-contrib-12 postgresql-12-postgis-3 postgresql-common postgis
+          sudo apt-get install -y python3 libsqlite3-dev cmake cmake-data
+          sudo python3 scripts/ci/get-pip.py
+          sudo python3 -m pip install nose2
 
       - name: start PG database
         run: |
@@ -47,6 +50,10 @@ jobs:
         run: |
           cd build_coverage_lnx
           ctest -VV
+
+      - name: Run python tests
+        run: |
+          GEODIFFLIB=`pwd`/build_coverage_lnx/libgeodiff.so nose2
 
       - name: Prepare coverage report
         run: |

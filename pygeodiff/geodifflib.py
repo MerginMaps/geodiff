@@ -142,11 +142,7 @@ class GeoDiffLib:
         # assume that the package is installed through PIP
         if platform.system() == 'Windows':
             prefix = ""
-            arch = platform.architecture()[0]  # 64bit or 32bit
-            if "32" in arch:
-                suffix = "-win32.dll"
-            else:
-                suffix = ".dll"
+            suffix = ".dll"
         elif platform.system() == 'Darwin':
             prefix = "lib"
             suffix = ".dylib"
