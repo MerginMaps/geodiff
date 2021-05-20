@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 '''
-    :copyright: (c) 2019 Peter Petrik
+    :copyright: (c) 2021 Peter Petrik
     :license: MIT, see LICENSE for more details.
 '''
 

@@ -15,7 +15,8 @@ from setuptools import find_packages
 #from setuptools import setup
 from skbuild import setup
 
-VERSION = '0.8.2'
+# use scripts/update_version.py to update the version here and in other places at once
+VERSION = '1.0.0'
 
 setup(
     name="pygeodiff",
