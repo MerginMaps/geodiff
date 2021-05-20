@@ -28,9 +28,10 @@
 #include <string>
 #include <vector>
 
+// use scripts/update_version.py to update the version here and in other places at once
 const char *GEODIFF_version()
 {
-  return "0.8.2";
+  return "1.0.0";
 }
 
 void _errorLogCallback( void *pArg, int iErrCode, const char *zMsg )
