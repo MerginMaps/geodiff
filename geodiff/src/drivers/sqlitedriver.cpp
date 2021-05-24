@@ -105,7 +105,7 @@ void SqliteDriver::open( const DriverParametersMap &conn )
 
     if ( !fileexists( modified ) )
     {
-      throw GeoDiffException( "Missing 'modified' file when opening sqlite driver: " + base );
+      throw GeoDiffException( "Missing 'modified' file when opening sqlite driver: " + modified );
     }
 
     mDb->open( modified );
