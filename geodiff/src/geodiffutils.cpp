@@ -609,3 +609,8 @@ std::string randomString( size_t length )
   std::generate_n( str.begin(), length, randchar );
   return str;
 }
+
+std::string randomTmpFilename()
+{
+  return tmpdir() + "geodiff_" + randomString( 6 );
+}

@@ -141,6 +141,9 @@ std::string tmpdir();
 //! Returns string given number of random alpha-numeric characters
 std::string randomString( size_t length );
 
+//! Returns a randomly generated filename in the temporary directory (e.g. "/tmp/geodiff_th3ix1")
+std::string randomTmpFilename();
+
 //! converts std::string to std::wstring
 std::wstring stringToWString( const std::string &str );
 

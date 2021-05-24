@@ -88,5 +88,5 @@ IF (POSTGRES_FOUND)
 ENDIF()
 
 
-# geodiffcmd utility test
-ADD_TEST(NAME geodiffinfo_test COMMAND $<TARGET_FILE:geodiffinfo> version )
+# geodiff CLI utility test
+ADD_TEST(NAME geodiff_cli_test COMMAND $<TARGET_FILE:geodiff-cli> version )
