@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 
 from skbuild import setup
+import os
 
 # use scripts/update_version.py to update the version here and in other places at once
 VERSION = '1.0.0'
@@ -12,6 +13,10 @@ cmake_args = [
     '-DBUILD_TOOLS:BOOL=OFF',
     '-DPYGEODIFFVERSION='+str(VERSION)
 ]
+
+if os.getenv('GEODIFF_NAME_SUFFIX', False):
+    cmake_args.append('-DGEODIFF_NAME_SUFFIX='+os.getenv('GEODIFF_NAME_SUFFIX'))
+
 
 setup(
     name="pygeodiff",

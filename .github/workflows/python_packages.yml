@@ -58,6 +58,37 @@ jobs:
         with:
           path: ./wheelhouse/*.whl
 
+  build_windows_32_wheels:
+    name: Build 32bit wheels on windows-latest
+    runs-on: windows-latest
+    env:
+      CMAKE_GENERATOR: "Visual Studio 16 2019"
+      GEODIFF_NAME_SUFFIX: "-win32"
+      SQLite3_ROOT: "C:/vcpkg/installed/x86-windows"
+      CIBW_SKIP: cp27-* cp35-* *-win_amd64
+      CIBW_TEST_COMMAND: python -c "import pygeodiff; pygeodiff.GeoDiff().version()"
+      CIBW_REPAIR_WHEEL_COMMAND_WINDOWS: "delvewheel repair --add-path C:/vcpkg/installed/x86-windows --no-mangle-all -v -w {dest_dir} {wheel}"
+
+    steps:
+      - uses: actions/checkout@v2
+
+      - uses: actions/setup-python@v2
+        name: Install Python
+        with:
+          python-version: '3.8'
+
+      - name: Install Deps
+        run: |
+          C:/vcpkg/vcpkg install sqlite3 --triplet x86-windows
+          pip install setuptools scikit-build wheel cmake delvewheel
+
+      - name: Build wheels
+        uses: joerick/cibuildwheel@v1.11.0
+
+      - uses: actions/upload-artifact@v2
+        with:
+          path: ./wheelhouse/*.whl
+
   build_macos_wheels:
     name: Build wheels on macos-latest
     runs-on: macos-latest
