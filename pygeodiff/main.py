@@ -1,11 +1,11 @@
 # -*- coding: utf-8 -*-
-'''
+"""
     pygeodiff.main
     --------------
     Main entry of the library
     :copyright: (c) 2019 Peter Petrik
     :license: MIT, see LICENSE for more details.
-'''
+"""
 
 from .geodifflib import GeoDiffLib
 

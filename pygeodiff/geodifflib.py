@@ -1,11 +1,11 @@
 # -*- coding: utf-8 -*-
-'''
+"""
     pygeodiff.geodifflib
     --------------------
     This module provides wrapper of geodiff C library
     :copyright: (c) 2019 Peter Petrik
     :license: MIT, see LICENSE for more details.
-'''
+"""
 
 import ctypes
 import os
