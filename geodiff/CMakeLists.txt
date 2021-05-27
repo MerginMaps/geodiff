@@ -226,6 +226,8 @@ ENDIF(ENABLE_TESTS)
 # install
 IF(SKBUILD)
     IF(WIN32)
+        # looks like delvewheel does not support dll extension at the moment
+        SET_TARGET_PROPERTIES(${GEODIFF_NAME} PROPERTIES SUFFIX pyd)
         INSTALL(TARGETS ${GEODIFF_NAME} RUNTIME DESTINATION pygeodiff)
     ELSE(WIN32)
         INSTALL(TARGETS ${GEODIFF_NAME} LIBRARY DESTINATION pygeodiff)
