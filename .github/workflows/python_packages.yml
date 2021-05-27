@@ -35,8 +35,8 @@ jobs:
       CMAKE_GENERATOR: "Visual Studio 16 2019"
       SQLite3_ROOT: "C:/vcpkg/installed/x64-windows"
       CIBW_SKIP: cp27-* cp35-* *-win32
-      CIBW_TEST_COMMAND: echo "hi"  # python -c "import pygeodiff; pygeodiff.GeoDiff().version()"
-      # CIBW_REPAIR_WHEEL_COMMAND_WINDOWS: "delvewheel repair --add-path C:/vcpkg/installed/x64-windows --no-mangle-all -v -w {dest_dir} {wheel}"
+      CIBW_TEST_COMMAND: python -c "import pygeodiff; pygeodiff.GeoDiff().version()"
+      CIBW_REPAIR_WHEEL_COMMAND_WINDOWS: "delvewheel repair --add-path C:/vcpkg/installed/x64-windows --no-mangle-all -v -w {dest_dir} {wheel}"
 
     steps:
       - uses: actions/checkout@v2
