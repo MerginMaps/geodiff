@@ -6,15 +6,29 @@
 [![Build PyPI wheels](https://github.com/lutraconsulting/geodiff/actions/workflows/python_packages.yml/badge.svg)](https://github.com/lutraconsulting/geodiff/actions/workflows/python_packages.yml)
 
 # geodiff
-Library for handling diffs for geospatial data 
 
-Use case 1: user has a GeoPackage with some data, then creates a copy and modifies it. Using this library it is possible to create a "difference" (delta) file that contains only changes between the original and the modified GeoPackage. The library can also take the original file and the generated diff file and produce the modified file.
+Library for handling diffs for geospatial data. Works with GeoPackage files and PostGIS databases (as well as with non-spatial SQLite and PostgreSQL databases).
 
-Use case 2: two users start with the same copy of GeoPackage file which they modify independently. This may create conflicts when trying to merge edits of the two users back into one file. The library takes care of resolving any potential conflicts so that the changes can be applied cleanly.
+Geodiff library is used by [Mergin](https://public.cloudmergin.com/) - a platform for easy sharing of spatial data.
 
-Use case 3: user has a PostgreSQL database with some GIS data, and wants to sync it with the GeoPackage file to be used for field survey. Both GeoPackage and PostgreSQL could be modified, and the library can create "difference" (delta) file, apply them to both sources and keep them in sync.
+## Use cases for geodiff
 
-The library is used by [Mergin](https://public.cloudmergin.com/) - a platform for easy sharing of spatial data.
+
+### Compare two datasets to get changesets (diffs) & apply changesets
+
+The first use case for geodiff library is to take two datasets with the same structure of tables and compare them - the comparison will create a "diff" file containing entries that were inserted/updated/deleted between the two datasets. A diff file can be applied to an existing dataset (e.g. a GeoPackage) and the dataset will be updated accordingly by applying the differences one by one. If you are familiar with `diff` and `patch` tools from UNIX world, this is meant to be an equivalent for spatial data.
+
+![Compare datasets to create a diff file](docs/img/geodiff-diff.png)
+
+### Merge changes from multiple sources
+
+The next use case is to merge changes from different copies of the same dataset that have been modified independently. Generally such changes cannot be applied cleanly. For example, if multiple users changed the same row of a table, or added a new row with the same ID. The library has functionality to "rebase" a diff file on top of another diff file, resolving any conflicts, so that all the changes can be applied cleanly. There still may be conflicts that can't be resolved fully automatically (e.g. if the same value is modified in different copies), these are written to a separate conflict file that can be addressed later (such changes are typically rare).
+
+![Rebase changes in order to merge data from multiple sources](docs/img/geodiff-rebase.png)
+
+### Synchronize data across databases
+
+It is possible to apply diffs across different databases supported by geodiff drivers (nowadays supporting SQLite/GeoPackage and PostgreSQL/PostGIS). That means one can seamlessly find out difference between tables of two schemas in a PostGIS database, and apply the changes to a GeoPackage (or vice versa). Thanks to that, it is possible to keep data in sync even if the backends are completely different.
 
 ## How to use geodiff
 
@@ -28,11 +42,8 @@ The library nowadays comes with support for two drivers:
 - SQLite / GeoPackage - always available
 - PostgreSQL / PostGIS - optional, needs to be compiled
 
-## Changesets
 
-Changes between datasets are read from and written to a [binary changeset format](docs/changeset-format.md).
-
-# Using command line interface
+## Using command line interface
 
 To get changes between two GeoPackage files and write them to `a-to-b.diff` (a binary diff file):
 ```bash
@@ -57,7 +68,7 @@ geodiff apply data-a.gpkg b-to-a.diff
 
 The `geodiff` tool supports other various commands, use `geodiff help` for the full list.
 
-# Using Python module
+## Using Python module
 
 Install the module from pip:
 ```bash
@@ -86,11 +97,15 @@ geodiff.list_changes('a-to-b.diff', 'a-to-b.json')
 
 If there are any problems, calls will raise `pygeodiff.GeoDiffLibError` exception. 
 
-# Using the library with C API
+## Using the library with C API
 
 See [geodiff.h header file](https://github.com/lutraconsulting/geodiff/blob/master/geodiff/src/geodiff.h) for the list of API calls and their documentation.
 
 Output messages can be adjusted by GEODIFF_LOGGER_LEVEL environment variable.
+
+## Changesets
+
+Changes between datasets are read from and written to a [binary changeset format](docs/changeset-format.md).
 
 # Building geodiff
 
@@ -113,9 +128,9 @@ cmake .. -DWITH_POSTGRESQL=TRUE
 make
 ```
 
-# Development of geodiff 
+## Development of geodiff 
 
-## Running tests
+### Running tests
 
 C++ tests: run `make test` or `ctest` to run all tests. Alternatively run just a single test, e.g. `./tests/geodiff_changeset_reader_test`
 
@@ -124,13 +139,13 @@ Python tests: you need to setup GEODIFFLIB with path to .so/.dylib from build st
 GEODIFFLIB=`pwd`/../build/libgeodiff.dylib nose2
 ```
 
-## Releasing new version 
+### Releasing new version 
 
 - run `python3 ./scripts/update_version.py --version x.y.z`
 - push to GitHub
 - tag the master & create github release - Python wheels will be automatically published to PyPI!
 
-# Dependencies & Licensing
+## Dependencies & Licensing
 
 Library uses its own copy of
  - [base64](geodiff/src/3rdparty/base64utils.cpp)
