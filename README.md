@@ -3,6 +3,7 @@
 [![Code Style](https://github.com/lutraconsulting/geodiff/workflows/Code%20Layout/badge.svg)](https://github.com/lutraconsulting/geodiff/actions?query=workflow%3A%22Code+Layout%22)
 [![Coverage Status](https://img.shields.io/coveralls/lutraconsulting/geodiff.svg)](https://coveralls.io/github/lutraconsulting/geodiff?branch=master)
 [![PyPI version](https://badge.fury.io/py/pygeodiff.svg)](https://badge.fury.io/py/pygeodiff)
+[![Build PyPI wheels](https://github.com/lutraconsulting/geodiff/actions/workflows/python_packages.yml/badge.svg)](https://github.com/lutraconsulting/geodiff/actions/workflows/python_packages.yml)
 
 # geodiff
 Library for handling diffs for geospatial data 
