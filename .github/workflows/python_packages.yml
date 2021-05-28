@@ -63,7 +63,7 @@ jobs:
     runs-on: windows-latest
     env:
       CMAKE_GENERATOR: "Visual Studio 16 2019"
-      GEODIFF_WIN32: 1
+      GEODIFF_WIN32BIT: 1
       SQLite3_ROOT: "C:/vcpkg/installed/x86-windows"
       CIBW_SKIP: cp27-* cp35-* *-win_amd64
       CIBW_TEST_COMMAND: python -c "import pygeodiff; pygeodiff.GeoDiff().version()"
