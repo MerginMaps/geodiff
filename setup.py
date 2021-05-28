@@ -14,8 +14,9 @@ cmake_args = [
     '-DPYGEODIFFVERSION='+str(VERSION)
 ]
 
-if os.getenv('GEODIFF_NAME_SUFFIX', False):
-    cmake_args.append('-DGEODIFF_NAME_SUFFIX='+os.getenv('GEODIFF_NAME_SUFFIX'))
+if os.getenv('GEODIFF_WIN32', False):
+    cmake_args.append('-DGEODIFF_NAME_SUFFIX=-win32')
+    cmake_args.append('-Ax86')
 
 
 setup(
