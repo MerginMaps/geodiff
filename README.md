@@ -15,62 +15,123 @@ Use case 3: user has a PostgreSQL database with some GIS data, and wants to sync
 
 The library is used by [Mergin](https://public.cloudmergin.com/) - a platform for easy sharing of spatial data.
 
-## Environment
+## How to use geodiff
 
-Output messages could be adjusted by GEODIFF_LOGGER_LEVEL environment variable. 
-See [header](https://github.com/lutraconsulting/geodiff/blob/master/geodiff/src/geodiff.h) for details
+There are multiple ways how geodiff can be used:
 
-## Install 
+- `geodiff` command line interface (CLI) tool
+- `pygeodiff` Python module
+- `geodiff` library using C API
 
-`pip3 install pygeodiff`
-
-if you got error `ModuleNotFoundError: No module named 'skbuild'` try to update pip with command
-`python -m pip install --upgrade pip`
-
-## Publishing 
-
-### PyPi
-
-run `python3 ./scripts/update_version.py --version x.y.z`
-and push to GitHub
-
-tag the master on github and it will be automatically published!
+The library nowadays comes with support for two drivers:
+- SQLite / GeoPackage - always available
+- PostgreSQL / PostGIS - optional, needs to be compiled
 
 ## Changesets
 
 Changes between datasets are read from and written to a [binary changeset format](docs/changeset-format.md).
 
-## Development
-- Install postgresql client and sqlite3 library, e.g. for Linux
+# Using command line interface
+
+To get changes between two GeoPackage files and write them to `a-to-b.diff` (a binary diff file):
+```bash
+geodiff diff data-a.gpkg data-b.gpkg a-to-b.diff
 ```
-    sudo apt-get install libsqlite3-dev libpq-dev
+
+To print changes between two GeoPackage files to the standard output:
+```bash
+geodiff diff --json data-a.gpkg data-b.gpkg
+```
+
+To apply changes from `a-to-b.diff` to `data-a.gpkg`:
+```bash
+geodiff apply data-a.gpkg a-to-b.diff
+```
+
+To invert a diff file `a-to-b.diff` and revert `data-a.gpkg` to the original content:
+```base
+geodiff invert a-to-b.diff b-to-a.diff
+geodiff apply data-a.gpkg b-to-a.diff
+```
+
+The `geodiff` tool supports other various commands, use `geodiff help` for the full list.
+
+# Using Python module
+
+Install the module from pip:
+```bash
+pip3 install pygeodiff
+```
+
+If you get error `ModuleNotFoundError: No module named 'skbuild'` try to update pip with command
+`python -m pip install --upgrade pip`
+
+Sample usage of the Python module:
+
+```python
+import pygeodiff
+
+geodiff = pygeodiff.GeoDiff()
+
+# create a diff between two GeoPackage files
+geodiff.create_changeset('data-a.gpkg', 'data-b.gpkg', 'a-to-b.diff')
+
+# apply changes from a-to-b.diff to the GeoPackage file data-a.gpkg
+geodiff.apply_changeset('data-a.gpkg, 'a-to-b.diff')
+
+# export changes from the binary diff format to JSON
+geodiff.list_changes('a-to-b.diff', 'a-to-b.json')
+```
+
+If there are any problems, calls will raise `pygeodiff.GeoDiffLibError` exception. 
+
+# Using the library with C API
+
+See [geodiff.h header file](https://github.com/lutraconsulting/geodiff/blob/master/geodiff/src/geodiff.h) for the list of API calls and their documentation.
+
+Output messages can be adjusted by GEODIFF_LOGGER_LEVEL environment variable.
+
+# Building geodiff
+
+Install postgresql client and sqlite3 library, e.g. for Linux
+```bash
+sudo apt-get install libsqlite3-dev libpq-dev
 ```
 or MacOS (using SQLite from [QGIS deps](https://qgis.org/downloads/macos/deps/)) by defining SQLite variables in 
 a cmake configuration as following:
-```
-    SQLite3_INCLUDE_DIR=/opt/QGIS/qgis-deps-${QGIS_DEPS_VERSION}/stage/include 
-    SQLite3_LIBRARY=/opt/QGIS/qgis-deps-${QGIS_DEPS_VERSION}/stage/lib/libsqlite3.dylib 
+```bash
+SQLite3_INCLUDE_DIR=/opt/QGIS/qgis-deps-${QGIS_DEPS_VERSION}/stage/include 
+SQLite3_LIBRARY=/opt/QGIS/qgis-deps-${QGIS_DEPS_VERSION}/stage/lib/libsqlite3.dylib 
 ```
 
-- Compile geodiff shared library
+Compile geodiff:
+```bash
+mkdir build
+cd build
+cmake .. -DWITH_POSTGRESQL=TRUE
+make
 ```
-  mkdir build
-  cd build
-  cmake ../geodiff -DWITH_POSTGRESQL=TRUE -DWITH_INTERNAL_SQLITE3=FALSE
-  make
-```
-Run tests and check it is ok `./test_geodiff`
 
+# Development of geodiff 
 
-- run pygeodiff tests for python module, you need to setup GEODIFFLIB with path to .so/.dylib from step1
+## Running tests
+
+C++ tests: run `make test` or `ctest` to run all tests. Alternatively run just a single test, e.g. `./tests/geodiff_changeset_reader_test`
+
+Python tests: you need to setup GEODIFFLIB with path to .so/.dylib from build step
+```bash
+GEODIFFLIB=`pwd`/../build/libgeodiff.dylib nose2
 ```
-  GEODIFFLIB=`pwd`/../build/libgeodiff.dylib nose2
-```
+
+## Releasing new version 
+
+- run `python3 ./scripts/update_version.py --version x.y.z`
+- push to GitHub
+- tag the master & create github release - Python wheels will be automatically published to PyPI!
 
 # Dependencies & Licensing
 
 Library uses its own copy of
  - [base64](geodiff/src/3rdparty/base64utils.cpp)
  - [endian](geodiff/src/3rdparty/portableendian.h)
- - [sqlite3](https://sqlite.org/index.html) (Public Domain)
  - [libgpkg](https://github.com/luciad/libgpkg) (Apache-2)
