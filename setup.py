@@ -1,22 +1,22 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-# For a fully annotated version of this file and what it does, see
-# https://github.com/pypa/sampleproject/blob/master/setup.py
-
-# To upload this file to PyPI you must build it then upload it:
-# python setup.py sdist bdist_wheel  # build in 'dist' folder
-# python-m twine upload dist/*  # 'twine' must be installed: 'pip install twine'
-
-import io
-import re
-import os
-from setuptools import find_packages
-#from setuptools import setup
 from skbuild import setup
+import platform
 
 # use scripts/update_version.py to update the version here and in other places at once
 VERSION = '1.0.0'
+
+cmake_args = [
+    '-DENABLE_TESTS:BOOL=OFF',
+    '-DENABLE_COVERAGE:BOOL=OFF',
+    '-DBUILD_TOOLS:BOOL=OFF',
+    '-DPYGEODIFFVERSION='+str(VERSION)
+]
+
+arch = platform.architecture()[0]  # 64bit or 32bit
+if ('Windows' in platform.system()) and ("32" in arch):
+    cmake_args.append('-AWin32')
 
 setup(
     name="pygeodiff",
@@ -27,12 +27,12 @@ setup(
     long_description="Python wrapper around GeoDiff library",
     url="https://github.com/lutraconsulting/geodiff",
     packages=["pygeodiff"],
-    include_package_data=True,
+    include_package_data=False,
     keywords=["diff", "gis", "geo", "geopackage", "merge"],
     scripts=[],
     entry_points={"console_scripts": ["pygeodiff=pygeodiff.main:main"]},
     zip_safe=False,
-    cmake_args=['-DENABLE_TESTS:BOOL=OFF', '-DENABLE_COVERAGE:BOOL=OFF', '-DBUILD_TOOLS:BOOL=OFF', '-DPYGEODIFFVERSION='+str(VERSION)],
+    cmake_args=cmake_args,
     cmake_source_dir="geodiff",
     cmake_with_sdist=False,
     test_suite="tests.test_project",

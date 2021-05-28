@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
-'''
+"""
     :copyright: (c) 2021 Martin Dobias
     :license: MIT, see LICENSE for more details.
-'''
+"""
 
 from .testutils import GeoDiffTests, testdir
 from pygeodiff import ChangesetEntry, ChangesetReader, GeoDiffLibError, UndefinedValue
