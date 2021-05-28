@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 from skbuild import setup
-import os
+import platform
 
 # use scripts/update_version.py to update the version here and in other places at once
 VERSION = '1.0.0'
@@ -13,6 +13,10 @@ cmake_args = [
     '-DBUILD_TOOLS:BOOL=OFF',
     '-DPYGEODIFFVERSION='+str(VERSION)
 ]
+
+arch = platform.architecture()[0]  # 64bit or 32bit
+if ('Windows' in platform.system()) and ("32" in arch):
+    cmake_args.append('-AWin32')
 
 setup(
     name="pygeodiff",
