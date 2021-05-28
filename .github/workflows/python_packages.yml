@@ -36,7 +36,7 @@ jobs:
       SQLite3_ROOT: "C:/vcpkg/installed/x64-windows"
       CIBW_SKIP: cp27-* cp35-* *-win32
       CIBW_TEST_COMMAND: python -c "import pygeodiff; pygeodiff.GeoDiff().version()"
-      CIBW_REPAIR_WHEEL_COMMAND_WINDOWS: "delvewheel repair --add-path C:/vcpkg/installed/x64-windows/lib --no-mangle-all -v -w {dest_dir} {wheel}"
+      CIBW_REPAIR_WHEEL_COMMAND_WINDOWS: "delvewheel repair --add-path C:/vcpkg/installed/x64-windows/bin --no-mangle-all -v -w {dest_dir} {wheel}"
 
     steps:
       - uses: actions/checkout@v2
@@ -50,6 +50,7 @@ jobs:
         run: |
           C:/vcpkg/vcpkg install sqlite3 --triplet x64-windows
           pip install setuptools scikit-build wheel cmake delvewheel
+          dir "C:/vcpkg/installed/x64-windows/bin"
 
       - name: Build wheels
         uses: joerick/cibuildwheel@v1.11.0
@@ -67,7 +68,7 @@ jobs:
       SQLite3_ROOT: "C:/vcpkg/installed/x86-windows"
       CIBW_SKIP: cp27-* cp35-* *-win_amd64
       CIBW_TEST_COMMAND: python -c "import pygeodiff; pygeodiff.GeoDiff().version()"
-      CIBW_REPAIR_WHEEL_COMMAND_WINDOWS: "delvewheel repair --add-path C:/vcpkg/installed/x86-windows/lib --no-mangle-all -v -w {dest_dir} {wheel}"
+      CIBW_REPAIR_WHEEL_COMMAND_WINDOWS: "delvewheel repair --add-path C:/vcpkg/installed/x86-windows/bin --no-mangle-all -v -w {dest_dir} {wheel}"
 
     steps:
       - uses: actions/checkout@v2
@@ -82,8 +83,7 @@ jobs:
         run: |
           C:/vcpkg/vcpkg install sqlite3 --triplet x86-windows
           pip install setuptools scikit-build wheel cmake delvewheel
-          dir "C:/vcpkg/installed/x86-windows"
-          dir "C:/vcpkg/installed/x86-windows/lib"
+          dir "C:/vcpkg/installed/x86-windows/bin"
 
       - name: Build wheels
         uses: joerick/cibuildwheel@v1.11.0
