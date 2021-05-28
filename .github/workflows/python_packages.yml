@@ -82,6 +82,8 @@ jobs:
         run: |
           C:/vcpkg/vcpkg install sqlite3 --triplet x86-windows
           pip install setuptools scikit-build wheel cmake delvewheel
+          dir "C:/vcpkg/installed/x86-windows"
+          dir "C:/vcpkg/installed/x86-windows/lib"
 
       - name: Build wheels
         uses: joerick/cibuildwheel@v1.11.0
