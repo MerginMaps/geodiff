@@ -5,4 +5,7 @@ include geodiff/CMakeLists.txt
 include geodiff/src/*.cpp
 include geodiff/src/*.hpp
 include geodiff/src/*.h
+include geodiff/src/3rdparty/*
+include geodiff/src/drivers/*
+include geodiff/cmake_templates/*
 include pygeodiff/*.py
