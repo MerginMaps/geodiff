@@ -25,6 +25,7 @@
 #include <gpkg.h>
 #include <locale>
 #include <codecvt>
+#include <limits>
 
 #ifdef _WIN32
 #define UNICODE
