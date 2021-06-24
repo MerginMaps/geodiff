@@ -694,7 +694,7 @@ int GEODIFF_makeCopySqlite( const char *src, const char *dst )
   Sqlite3Db dbFrom, dbTo;
   try
   {
-    dbFrom.openReadOnly( src );
+    dbFrom.open( src );
   }
   catch ( GeoDiffException e )
   {
