@@ -28,7 +28,6 @@ class Sqlite3Db
     Sqlite3Db();
     ~Sqlite3Db();
     void open( const std::string &filename );
-    void openReadOnly( const std::string &filename );
     //! Creates DB file (overwrites if one exists already)
     void create( const std::string &filename );
     void exec( const Buffer &buf );
