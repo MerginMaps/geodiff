@@ -9,7 +9,7 @@ jobs:
       CIBW_SKIP: pp* cp27-* cp35-* *-i686
       CIBW_MANYLINUX_X86_64_IMAGE: manylinux_2_24
       CIBW_MANYLINUX_I686_IMAGE: manylinux_2_24
-      CIBW_BEFORE_ALL_LINUX: apt-get update -y;apt-get install libsqlite3-dev
+      CIBW_BEFORE_ALL_LINUX: apt-get update -y && apt-get install libsqlite3-dev
       CIBW_BEFORE_BUILD: pip install setuptools scikit-build wheel cmake
       CIBW_TEST_COMMAND: python -c "import pygeodiff; pygeodiff.GeoDiff().version()"
 
@@ -22,7 +22,7 @@ jobs:
           python-version: '3.8'
 
       - name: Build wheels
-        uses: joerick/cibuildwheel@v1.11.0
+        uses: pypa/cibuildwheel@v1.12.0
 
       - uses: actions/upload-artifact@v2
         with:
@@ -48,7 +48,7 @@ jobs:
           python-version: '3.8'
 
       - name: Build wheels
-        uses: joerick/cibuildwheel@v1.11.0
+        uses: pypa/cibuildwheel@v1.12.0
 
       - uses: actions/upload-artifact@v2
         with:
@@ -79,7 +79,7 @@ jobs:
           dir "C:/vcpkg/installed/x64-windows/bin"
 
       - name: Build wheels
-        uses: joerick/cibuildwheel@v1.11.0
+        uses: pypa/cibuildwheel@v1.12.0
 
       - uses: actions/upload-artifact@v2
         with:
@@ -112,7 +112,7 @@ jobs:
           dir "C:/vcpkg/installed/x86-windows/bin"
 
       - name: Build wheels
-        uses: joerick/cibuildwheel@v1.11.0
+        uses: pypa/cibuildwheel@v1.12.0
 
       - uses: actions/upload-artifact@v2
         with:
@@ -140,7 +140,7 @@ jobs:
           pip install setuptools scikit-build wheel cmake nose2
 
       - name: Build wheels
-        uses: joerick/cibuildwheel@v1.11.0
+        uses: pypa/cibuildwheel@v1.12.0
 
       - uses: actions/upload-artifact@v2
         with:
