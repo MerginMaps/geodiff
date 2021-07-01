@@ -5,7 +5,7 @@ from skbuild import setup
 import platform
 
 # use scripts/update_version.py to update the version here and in other places at once
-VERSION = '1.0.0'
+VERSION = '1.0.1'
 
 cmake_args = [
     '-DENABLE_TESTS:BOOL=OFF',
