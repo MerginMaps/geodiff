@@ -80,7 +80,7 @@ std::string to_string_with_max_precision( double a_value );
 void filecopy( const std::string &to, const std::string &from );
 
 //! remove a file if exists
-void fileremove( const std::string &path );
+bool fileremove( const std::string &path );
 
 //! whether file exists
 bool fileexists( const std::string &path );

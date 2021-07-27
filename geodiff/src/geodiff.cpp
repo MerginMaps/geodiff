@@ -688,7 +688,11 @@ int GEODIFF_makeCopySqlite( const char *src, const char *dst )
   // gets overwritten, regardless of its original content (making the API easier to use for the caller).
   if ( fileexists( dst ) )
   {
-    fileremove( dst );
+    Logger::instance().warn( "MakeCopySqlite: Removing existing destination database: " + std::string( dst ) );
+    if ( !fileremove( dst ) )
+    {
+      Logger::instance().warn( "MakeCopySqlite: Failed to remove existing destination database: " + std::string( dst ) );
+    }
   }
 
   Sqlite3Db dbFrom, dbTo;
@@ -698,7 +702,7 @@ int GEODIFF_makeCopySqlite( const char *src, const char *dst )
   }
   catch ( GeoDiffException e )
   {
-    Logger::instance().error( "MakeCopySqlite: Unable to open source database: " + std::string( src ) );
+    Logger::instance().error( "MakeCopySqlite: Unable to open source database: " + std::string( src ) + "\n" + e.what() );
     return GEODIFF_ERROR;
   }
 
@@ -708,7 +712,7 @@ int GEODIFF_makeCopySqlite( const char *src, const char *dst )
   }
   catch ( GeoDiffException e )
   {
-    Logger::instance().error( "MakeCopySqlite: Unable to open destination database: " + std::string( dst ) );
+    Logger::instance().error( "MakeCopySqlite: Unable to open destination database: " + std::string( dst ) + "\n" + e.what() );
     return GEODIFF_ERROR;
   }
 

@@ -252,16 +252,18 @@ void filecopy( const std::string &to, const std::string &from )
 #endif
 }
 
-void fileremove( const std::string &path )
+bool fileremove( const std::string &path )
 {
   if ( fileexists( path ) )
   {
 #ifdef WIN32
-    _wremove( stringToWString( path ).c_str() );
+    int res = _wremove( stringToWString( path ).c_str() );
 #else
-    remove( path.c_str() );
+    int res = remove( path.c_str() );
 #endif
+    return res == 0;
   }
+  return true;  // nothing to delete, no problem...
 }
 
 bool fileexists( const std::string &path )
