@@ -688,10 +688,13 @@ int GEODIFF_makeCopySqlite( const char *src, const char *dst )
   // gets overwritten, regardless of its original content (making the API easier to use for the caller).
   if ( fileexists( dst ) )
   {
-    Logger::instance().warn( "MakeCopySqlite: Removing existing destination database: " + std::string( dst ) );
-    if ( !fileremove( dst ) )
+    if ( fileremove( dst ) )
     {
-      Logger::instance().warn( "MakeCopySqlite: Failed to remove existing destination database: " + std::string( dst ) );
+      Logger::instance().warn( "MakeCopySqlite: Removed existing destination database: " + std::string( dst ) );
+    }
+    else
+    {
+      Logger::instance().error( "MakeCopySqlite: Failed to remove existing destination database: " + std::string( dst ) );
     }
   }
 
