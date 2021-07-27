@@ -808,7 +808,6 @@ void PostgresDriver::applyChangeset( ChangesetReader &reader )
   {
     std::string tableName = entry.table->name;
 
-    // TODO: in the future sqlite driver should not add any changes to meta tables
     if ( startsWith( tableName, "gpkg_" ) )
       continue;   // skip any changes to GPKG meta tables
 
@@ -957,7 +956,6 @@ void PostgresDriver::createTables( const std::vector<TableSchema> &tables )
 {
   for ( const TableSchema &tbl : tables )
   {
-    // TODO: in the future sqlite driver should not add any changes to meta tables
     if ( startsWith( tbl.name, "gpkg_" ) )
       continue;   // skip any changes to GPKG meta tables
 

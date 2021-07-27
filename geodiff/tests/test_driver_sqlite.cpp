@@ -282,6 +282,37 @@ TEST( SqliteDriverTest, create_changeset_datetime )
                      );
 }
 
+TEST( SqliteDriverTest, apply_with_gpkg_contents )
+{
+  // In geodiff >= 1.0 we ignore gpkg_* metadata tables. However older geodiff
+  // releases may still include changes in these tables when creating changesets
+  // so we need to make sure we ignore them when applying changesets.
+
+  // Test diff contains a change in gpkg_contents where the "old" value of last
+  // modified column does not match the value in base.gpkg, yet it should not fail
+  // if the gpkg_contents changes are ignored from the diff.
+
+  std::string testname = "apply_with_gpkg_contents";
+  std::string fileBase = pathjoin( testdir(), "base.gpkg" );
+  std::string fileChangeset = pathjoin( testdir(), "apply_with_gpkg_contents", "base-gpkg-contents-conflict.diff" );
+
+  makedir( pathjoin( tmpdir(), testname ) );
+  std::string testdb = pathjoin( tmpdir(), testname, "output.gpkg" );
+  filecopy( testdb, fileBase );
+
+  std::unique_ptr<Driver> driver( Driver::createDriver( "sqlite" ) );
+  driver->open( Driver::sqliteParametersSingleSource( testdb ) );
+
+  {
+    ChangesetReader reader;
+    bool res = reader.open( fileChangeset );
+    ASSERT_TRUE( res );
+    EXPECT_NO_THROW( driver->applyChangeset( reader ) );
+  }
+
+  ASSERT_TRUE( equals( testdb, pathjoin( testdir(), "1_geopackage", "modified_1_geom.gpkg" ) ) );
+}
+
 TEST( SqliteDriverTest, make_copy_sqlite )
 {
   // invalid inputs
