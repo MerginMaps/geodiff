@@ -713,9 +713,13 @@ void SqliteDriver::applyChangeset( ChangesetReader &reader )
   ChangesetEntry entry;
   while ( reader.nextEntry( entry ) )
   {
-    if ( entry.table->name != lastTableName )
+    std::string tableName = entry.table->name;
+
+    if ( startsWith( tableName, "gpkg_" ) )
+      continue;   // skip any changes to GPKG meta tables
+
+    if ( tableName != lastTableName )
     {
-      std::string tableName = entry.table->name;
       lastTableName = tableName;
       tbl = tableSchema( tableName );
 
