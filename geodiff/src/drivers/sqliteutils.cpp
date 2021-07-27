@@ -31,9 +31,7 @@ void Sqlite3Db::open( const std::string &filename )
   int rc = sqlite3_open_v2( filename.c_str(), &mDb, SQLITE_OPEN_READWRITE, nullptr );
   if ( rc )
   {
-    std::string errMsg;
-    if ( mDb )
-      errMsg = sqlite3_errmsg( mDb );
+    std::string errMsg = mDb ? sqlite3_errmsg( mDb ) : "unknown error";
     throw GeoDiffException( "Unable to open " + filename + " as sqlite3 database (" + errMsg + ")" );
   }
 }
@@ -50,9 +48,7 @@ void Sqlite3Db::create( const std::string &filename )
   int rc = sqlite3_open_v2( filename.c_str(), &mDb, SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE, nullptr );
   if ( rc )
   {
-    std::string errMsg;
-    if ( mDb )
-      errMsg = sqlite3_errmsg( mDb );
+    std::string errMsg = mDb ? sqlite3_errmsg( mDb ) : "unknown error";
     throw GeoDiffException( "Unable to create " + filename + " as sqlite3 database (" + errMsg + ")" );
   }
 }
