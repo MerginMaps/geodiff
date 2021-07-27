@@ -2,7 +2,7 @@ __title__ = 'PyGeoDiff'
 __description__ = 'Diff tool for geo-spatial data'
 __url__ = 'https://github.com/lutraconsulting/geodiff'
 # use scripts/update_version.py to update the version here and in other places at once
-__version__ = '1.0.1'
+__version__ = '1.0.2'
 __author__ = 'Peter Petrik'
 __author_email__ = 'zilolv@gmail.com'
 __maintainer__ = 'Peter Petrik'
