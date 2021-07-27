@@ -704,7 +704,7 @@ void SqliteDriver::applyChangeset( ChangesetReader &reader )
   Sqlite3Stmt statament;
   for ( std::string name : triggerNames )
   {
-    statament.prepare( mDb, "drop trigger %s", name.c_str() );
+    statament.prepare( mDb, "drop trigger '%q'", name.c_str() );
     sqlite3_step( statament.get() );
     statament.close();
   }
