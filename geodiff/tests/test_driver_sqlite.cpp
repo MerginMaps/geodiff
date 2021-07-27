@@ -205,6 +205,17 @@ TEST( SqliteDriverTest, apply_changeset_delete )
                     );
 }
 
+TEST( SqliteDriverTest, apply_changeset_trigger_with_spaces )
+{
+  // the testing database is just like base.gpkg, but it has an extra dummy trigger:
+  // CREATE TRIGGER "trigger with space" AFTER DELETE ON simple BEGIN DELETE FROM simple; END;
+  testApplyChangeset( "test_apply_changeset_trigger_with_spaces",
+                      pathjoin( testdir(), "quoting", "trigger-with-space.gpkg" ),
+                      pathjoin( testdir(), "1_geopackage", "base-modified_1_geom.diff" ),
+                      pathjoin( testdir(), "1_geopackage", "modified_1_geom.gpkg" )
+                    );
+}
+
 TEST( SqliteDriverTest, apply_changeset_conflict )
 {
   // the diff file contains one regular delete and one wrong delete
