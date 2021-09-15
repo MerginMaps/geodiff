@@ -212,6 +212,27 @@ TEST( ConcurrentCommitsSqlite3Test, test_2_edits )
   ASSERT_TRUE( ret );
 }
 
+TEST( ConcurrentCommitsSqlite3Test, test_2_edits_2 )
+{
+  std::cout << "geopackage 2 concurent UPDATES (base) -> (A) and (base) -> (B)" << std::endl;
+  std::cout << "both (A) and (B) are (base) edit feature 2, but each edit different" << std::endl;
+  std::cout << "attribute: (A) updates 'name' while (B) updates 'rating'" << std::endl;
+  std::cout << "expected result: feature 2 has both 'name' from (A) and 'rating' from (B) and no conflicts" << std::endl;
+
+  bool ret = _test(
+               "base.gpkg",
+               "2_updates_2",
+               "updated_A.gpkg",
+               "updated_B.gpkg",
+               "merged_A_B.gpkg",
+               1,
+               1,
+               1,
+               0
+             );
+  ASSERT_TRUE( ret );
+}
+
 TEST( ConcurrentCommitsSqlite3Test, test_2_deletes )
 {
   std::cout << "geopackage concurent DELETE (base) -> (A) and DELETE (base) -> (B)" << std::endl;
