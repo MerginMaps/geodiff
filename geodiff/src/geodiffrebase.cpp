@@ -465,12 +465,13 @@ bool _handle_update( const ChangesetEntry &entry, const RebaseMapping &mapping,
 
   for ( size_t i = 0; i < numColumns; i++ )
   {
-    // if the value was patched in the previous commit, use that one as base
     Value patchedVal = patchedVals[i];
-    if ( patchedVal.type() != Value::TypeUndefined )
+    if ( patchedVal.type() != Value::TypeUndefined && entry.newValues[i].type() != Value::TypeUndefined )
     {
+      // we have edit conflict here: both "old" changeset and the "new" changeset modify the same
+      // column of the same row. Rebased changeset will get the "old" value updated to the new (patched)
+      // value of the older changeset
       outEntry.oldValues[i] = patchedVal;
-      // conflict for this value
       _addConflictItem( conflictFeature, i, entry.oldValues[i], patchedVal, entry.newValues[i] );
     }
     else
