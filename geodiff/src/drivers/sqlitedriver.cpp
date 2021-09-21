@@ -448,6 +448,20 @@ static void handleInserted( const std::string &tableName, const TableSchema &tbl
     size_t numColumns = tbl.columns.size();
     for ( size_t i = 0; i < numColumns; ++i )
     {
+      // Let's do a secondary check for some column types to avoid false positives, for example
+      // multiple different string representations could be used for a single datetime value,
+      // see "Time Values" section in https://sqlite.org/lang_datefunc.html
+      if ( tbl.columns[i].type == TableColumnType::DATETIME )
+        {
+          Sqlite3Stmt stmtDatetime;
+          stmtDatetime.prepare( db, "SELECT datetime(?) != datetime(?)" );
+          sqlite3_bind_value( stmtDatetime.get(), 1, v1.value() );
+          sqlite3_bind_value( stmtDatetime.get(), 2, v2.value() );
+          if ( SQLITE_ROW == sqlite3_step( stmtDatetime.get() ) )
+          {
+            updated = sqlite3_column_int( stmtDatetime.get(), 0 );
+          }
+        }
       Sqlite3Value v( sqlite3_column_value( statementI.get(), static_cast<int>( i ) ) );
       if ( reverse )
         e.oldValues.push_back( changesetValue( v.value() ) );
