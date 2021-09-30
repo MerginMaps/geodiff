@@ -11,6 +11,8 @@ Library for handling diffs for geospatial data. Works with GeoPackage files and 
 
 Geodiff library is used by [Mergin](https://public.cloudmergin.com/) - a platform for easy sharing of spatial data.
 
+<div><img align="left" width="45" height="45" src="https://raw.githubusercontent.com/MerginMaps/docs/main/src/.vuepress/public/slack.svg"><a href="https://merginmaps.com/community/join">Join our community chat</a><br/>and ask questions!</div>
+
 ## Use cases for geodiff
 
 
