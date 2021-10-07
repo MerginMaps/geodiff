@@ -1,7 +1,7 @@
 name: Build Options Tests
 on: [push]
 jobs:
-  memcheck_tests:
+  build_test:
     if: github.repository == 'lutraconsulting/geodiff'
     runs-on: ubuntu-latest
     steps:
@@ -10,8 +10,8 @@ jobs:
 
       - name: install deps
         run: |
-          sudo apt-get --purge remove postgresql-13
           sudo apt-get update
+          sudo apt-get --purge remove postgresql-13
           sudo apt-get install libpq-dev
           sudo apt-get install libc6-dbg gdb
           sudo apt-get install postgresql-12 postgresql-contrib-12 postgresql-12-postgis-3 postgresql-common postgis
