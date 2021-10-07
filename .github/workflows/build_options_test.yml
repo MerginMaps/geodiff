@@ -1,4 +1,4 @@
-name: Build Options Tests
+name: Build Tests
 on: [push]
 jobs:
   build_test:
@@ -11,7 +11,6 @@ jobs:
       - name: install deps
         run: |
           sudo apt-get update
-          sudo apt-get --purge remove postgresql-13
           sudo apt-get install libpq-dev
           sudo apt-get install libc6-dbg gdb
           sudo apt-get install postgresql-12 postgresql-contrib-12 postgresql-12-postgis-3 postgresql-common postgis

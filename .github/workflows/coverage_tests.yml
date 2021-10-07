@@ -10,7 +10,6 @@ jobs:
 
       - name: install deps
         run: |
-          sudo apt-get --purge remove postgresql-13
           sudo apt-get update
           sudo apt-get install -y lcov
           sudo apt-get install libpq-dev
