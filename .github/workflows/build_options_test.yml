@@ -1,0 +1,70 @@
+name: Build Tests
+on: [push]
+jobs:
+  build_test:
+    if: github.repository == 'lutraconsulting/geodiff'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Geodiff
+        uses: actions/checkout@v2
+
+      - name: install deps
+        run: |
+          sudo apt-get --purge remove postgresql-14
+          sudo apt-get update
+          sudo apt-get install libpq-dev
+          sudo apt-get install libc6-dbg gdb
+          sudo apt-get install postgresql-12 postgresql-contrib-12 postgresql-12-postgis-3 postgresql-common postgis
+
+      - name: build geodiff static only
+        run: |
+          mkdir -p build_static_only
+          cd build_static_only
+          cmake \
+              -DCMAKE_BUILD_TYPE=Release \
+              -DENABLE_TESTS=OFF \
+              -DWITH_POSTGRESQL=FALSE \
+              -DBUILD_STATIC=TRUE \
+              -DBUILD_SHARED=FALSE \
+              ../geodiff
+          make -j`nproc`
+
+      - name: build geodiff shared only
+        run: |
+          mkdir -p build_shared_only
+          cd build_shared_only
+          cmake \
+              -DCMAKE_BUILD_TYPE=Release \
+              -DENABLE_TESTS=OFF \
+              -DWITH_POSTGRESQL=FALSE \
+              -DBUILD_STATIC=FALSE \
+              -DBUILD_SHARED=TRUE \
+              ../geodiff
+          make -j`nproc`
+
+      - name: build geodiff shared pg
+        run: |
+          mkdir -p build_shared_pg
+          cd build_shared_pg
+          cmake \
+              -DCMAKE_BUILD_TYPE=Release \
+              -DENABLE_TESTS=OFF \
+              -DWITH_POSTGRESQL=TRUE \
+              -DBUILD_STATIC=TRUE \
+              -DBUILD_SHARED=FALSE \
+              ../geodiff
+          make -j`nproc`
+
+      - name: build geodiff tools
+        run: |
+          mkdir -p build_shared_pg
+          cd build_shared_pg
+          cmake \
+              -DCMAKE_BUILD_TYPE=Release \
+              -DENABLE_TESTS=OFF \
+              -DWITH_POSTGRESQL=FALSE \
+              -DBUILD_STATIC=FALSE \
+              -DBUILD_SHARED=FALSE \
+              -DBUILD_TOOLS=TRUE \
+              ../geodiff
+          make -j`nproc`
