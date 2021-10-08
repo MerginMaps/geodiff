@@ -629,6 +629,12 @@ static std::string sqlForUpdate( const std::string &tableName, const TableSchema
       sql += " AND ";
     if ( tbl.columns[i].isPrimaryKey )
       sql += sqlitePrintf( " \"%w\" = ?%d ", tbl.columns[i].name.c_str(), i * 3 + 1 );
+    else if ( tbl.columns[i].type.baseType == TableColumnType::DATETIME )
+    {
+      // compare date/time values using datetime() because they may have
+      // multiple equivalent string representations (see #143)
+      sql += sqlitePrintf( " ( ?%d = 0 OR datetime(\"%w\") IS datetime(?%d) ) ", i * 3 + 2, tbl.columns[i].name.c_str(), i * 3 + 1 );
+    }
     else
       sql += sqlitePrintf( " ( ?%d = 0 OR \"%w\" IS ?%d ) ", i * 3 + 2, tbl.columns[i].name.c_str(), i * 3 + 1 );
   }
@@ -652,6 +658,12 @@ static std::string sqlForDelete( const std::string &tableName, const TableSchema
       sql += " AND ";
     if ( tbl.columns[i].isPrimaryKey )
       sql += sqlitePrintf( "\"%w\" = ?", tbl.columns[i].name.c_str() );
+    else if ( tbl.columns[i].type.baseType == TableColumnType::DATETIME )
+    {
+      // compare date/time values using datetime() because they may have
+      // multiple equivalent string representations (see #143)
+      sql += sqlitePrintf( "datetime(\"%w\") IS datetime(?)", tbl.columns[i].name.c_str() );
+    }
     else
       sql += sqlitePrintf( "\"%w\" IS ?", tbl.columns[i].name.c_str() );
   }
