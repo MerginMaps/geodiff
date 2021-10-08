@@ -293,6 +293,33 @@ TEST( SqliteDriverTest, create_changeset_datetime )
                      );
 }
 
+
+TEST( SqliteDriverTest, apply_changeset_datetime )
+{
+  // check that the datetime handling is robust - a single datetime may have
+  // multiple representations, e.g. '2021-03-16T00:00:00' and '2021-03-16T00:00:00Z'
+  // represent the same datetime, so things should work fine even if database
+  // contains '2021-03-16T00:00:00' but changeset refers to '2021-03-16T00:00:00Z'
+
+  // datetime1-3a.diff refers to date/time value in deleted row as '2021-04-01T15:00:00Z'
+  // while datetime1.gpkg has the value stored as '2021-04-01 15:00:00'
+  testApplyChangeset( "test_apply_changeset_datetime_delete",
+                      pathjoin( testdir(), "datetime", "datetime1.gpkg" ),
+                      pathjoin( testdir(), "datetime", "datetime1-3a.diff" ),
+                      pathjoin( testdir(), "datetime", "datetime3.gpkg" )
+                    );
+
+  // datetime1a.gpkg has the same content as datetime1, but date/time values
+  // are represented as '2021-04-01T15:00:00Z' instead of '2021-04-01 15:00:00'
+  // (which is used in datetime1.gpkg and in datetime1-2.diff)
+  testApplyChangeset( "test_apply_changeset_datetime_update",
+                      pathjoin( testdir(), "datetime", "datetime1a.gpkg" ),
+                      pathjoin( testdir(), "datetime", "datetime1-2.diff" ),
+                      pathjoin( testdir(), "datetime", "datetime2.gpkg" )
+                    );
+}
+
+
 TEST( SqliteDriverTest, apply_with_gpkg_contents )
 {
   // In geodiff >= 1.0 we ignore gpkg_* metadata tables. However older geodiff
