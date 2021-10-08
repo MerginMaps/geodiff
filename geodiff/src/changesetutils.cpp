@@ -107,6 +107,8 @@ std::string valueToJSON( const Value &value )
     }
     case Value::TypeNull:
       return "null";
+    default:
+      return "\"(unknown)\"";  // should never happen
   }
 }
 
@@ -336,6 +338,7 @@ inline char num2hex( int n )
     return '0' + n;
   else if ( n >= 10 && n < 16 )
     return 'A' + n - 10;
+  return '?';  // should never happen
 }
 
 std::string hex2bin( const std::string &str )
