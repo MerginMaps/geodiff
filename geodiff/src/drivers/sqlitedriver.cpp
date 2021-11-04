@@ -497,7 +497,7 @@ static void handleUpdated( const std::string &tableName, const TableSchema &tbl,
         if ( tbl.columns[i].type == TableColumnType::DATETIME )
         {
           Sqlite3Stmt stmtDatetime;
-          stmtDatetime.prepare( db, "SELECT datetime(?) != datetime(?)" );
+          stmtDatetime.prepare( db, "SELECT datetime(?1) IS NOT datetime(?2)" );
           sqlite3_bind_value( stmtDatetime.get(), 1, v1.value() );
           sqlite3_bind_value( stmtDatetime.get(), 2, v2.value() );
           if ( SQLITE_ROW == sqlite3_step( stmtDatetime.get() ) )
