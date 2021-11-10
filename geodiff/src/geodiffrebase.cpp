@@ -463,31 +463,46 @@ bool _handle_update( const ChangesetEntry &entry, const RebaseMapping &mapping,
 
   ConflictFeature conflictFeature( pk, entry.table->name );
 
+  bool entryHasChanges = false;
   for ( size_t i = 0; i < numColumns; i++ )
   {
     Value patchedVal = patchedVals[i];
     if ( patchedVal.type() != Value::TypeUndefined && entry.newValues[i].type() != Value::TypeUndefined )
     {
-      // we have edit conflict here: both "old" changeset and the "new" changeset modify the same
-      // column of the same row. Rebased changeset will get the "old" value updated to the new (patched)
-      // value of the older changeset
-      outEntry.oldValues[i] = patchedVal;
-      _addConflictItem( conflictFeature, i, entry.oldValues[i], patchedVal, entry.newValues[i] );
+      if ( patchedVal == entry.newValues[i] )
+      {
+        // both "old" and "new" changeset modify the column's value to the same value - that
+        // means that in our rebased changeset there's no further change and there's no conflict
+        outEntry.oldValues[i].setUndefined();
+        outEntry.newValues[i].setUndefined();
+      }
+      else
+      {
+        // we have edit conflict here: both "old" changeset and the "new" changeset modify the same
+        // column of the same row. Rebased changeset will get the "old" value updated to the new (patched)
+        // value of the older changeset
+        outEntry.oldValues[i] = patchedVal;
+        outEntry.newValues[i] = entry.newValues[i];
+        entryHasChanges = true;
+        _addConflictItem( conflictFeature, i, entry.oldValues[i], patchedVal, entry.newValues[i] );
+      }
     }
     else
     {
-      // otherwise the value is same for both patched and this, so use base value
+      // the "new" changeset stays as is without modifications
       outEntry.oldValues[i] = entry.oldValues[i];
+      outEntry.newValues[i] = entry.newValues[i];
+      // if a column is pkey, it would have "new" value undefined in the entry and that's not an actual change
+      if ( entry.newValues[i].type() != Value::TypeUndefined )
+        entryHasChanges = true;
     }
   }
-
-  outEntry.newValues = entry.newValues;
 
   if ( conflictFeature.isValid() )
   {
     conflicts.push_back( conflictFeature );
   }
-  return true;
+  return entryHasChanges;
 }
 
 int _prepare_new_changeset( ChangesetReader &reader, const std::string &changesetNew,
@@ -546,16 +561,18 @@ int _prepare_new_changeset( ChangesetReader &reader, const std::string &changese
 
   for ( auto it : tableDefinitions )
   {
-    writer.beginTable( it.second );
-
     auto chit = tableChanges.find( it.first );
-    if ( chit != tableChanges.end() )
+    if ( chit == tableChanges.end() )
+      continue;
+
+    const std::vector<ChangesetEntry> &changes = chit->second;
+    if ( changes.empty() )
+      continue;
+
+    writer.beginTable( it.second );
+    for ( const ChangesetEntry &entry : changes )
     {
-      const std::vector<ChangesetEntry> &changes = chit->second;
-      for ( const ChangesetEntry &entry : changes )
-      {
-        writer.writeEntry( entry );
-      }
+      writer.writeEntry( entry );
     }
   }
 

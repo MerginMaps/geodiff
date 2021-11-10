@@ -129,6 +129,55 @@ bool _test(
   return equals( patchedAB_2, expected_patchedAB, ignore_timestamp_change );
 }
 
+bool _test_createRebasedChangesetEx(
+  const std::string &testName,
+  const std::string &testBaseDb,
+  const std::string &diffOur,
+  const std::string &diffTheir,
+  const std::string &expectedDiffOurRebased,
+  const std::string &expectedConflictFile
+)
+{
+  makedir( pathjoin( tmpdir(), testName ) );
+
+  std::string diffOurRebased = pathjoin( tmpdir(), testName, "rebased.diff" );
+  std::string conflictFile = pathjoin( tmpdir(), testName, "conflicts.json" );
+  int res = GEODIFF_createRebasedChangesetEx( "sqlite", "", testBaseDb.c_str(), diffOur.c_str(), diffTheir.c_str(), diffOurRebased.c_str(), conflictFile.c_str() );
+  if ( res != GEODIFF_SUCCESS )
+  {
+    std::cerr << "err GEODIFF_createRebasedChangesetEx" << std::endl;
+    return false;
+  }
+
+  // check rebased diff equality
+  if ( !compareDiffsByContent( diffOurRebased, expectedDiffOurRebased ) )
+  {
+    std::cerr << "err rebased diff is not equal to the expected diff" << std::endl;
+    return false;
+  }
+
+  // check conflict equality
+  if ( !expectedConflictFile.empty() )
+  {
+    if ( !fileContentEquals( conflictFile, expectedConflictFile ) )
+    {
+      std::cerr << "err conflict file is not equal to the expected conflict file" << std::endl;
+      return false;
+    }
+  }
+  else
+  {
+    // it is expected that no conflict file would be created...
+    if ( fileExists( conflictFile ) )
+    {
+      std::cerr << "err conflict file should not be created, but it got created" << std::endl;
+      return false;
+    }
+  }
+
+  return true;
+}
+
 bool _test_expect_not_implemented(
   const std::string &baseX,
   const std::string &testname,
@@ -447,6 +496,77 @@ TEST( ConcurrentCommitsSqlite3Test, test_conflict )
 
   // use modifiedC as base --> conflict
   ASSERT_TRUE( GEODIFF_applyChangeset( baseB.c_str(), changesetbaseA.c_str() ) != GEODIFF_SUCCESS );
+}
+
+TEST( ConcurrentCommitsSqlite3Test, test_rebase_conflict )
+{
+  // Check various scenarios where a single row of a table is updated by different users
+  // and verify that rebased diffs and conflict files are produced correctly.
+  // All tests are done on a single row of table "simple" at fid=2
+
+  // CASE 1: change of one column, each diff different column:
+  // input:
+  // - A: column "name": "feature2" -> "feature222"
+  // - B: column "rating": 2 -> 222
+  // output:
+  // - A rebased on top of B: column "name": "feature2" -> "feature222"
+  // - no conflict file
+
+  bool res1 = _test_createRebasedChangesetEx( "test_rebase_conflict_case1",
+              pathjoin( testdir(), "base.gpkg" ),
+              pathjoin( testdir(), "rebase_conflict", "case1a.diff" ),
+              pathjoin( testdir(), "rebase_conflict", "case1b.diff" ),
+              pathjoin( testdir(), "rebase_conflict", "case1a-rebased.diff" ),
+              std::string() );  // no conflict file
+  ASSERT_TRUE( res1 );
+
+  // CASE 2: change of two columns, both to the same value
+  // input:
+  // - A: column "name": "feature2" -> "feature222" and column "rating": 2 -> 222
+  // - B: column "name": "feature2" -> "feature222" and column "rating": 2 -> 222
+  // output:
+  // - A rebased on top of B: empty changeset
+  // - no conflict file
+
+  bool res2 = _test_createRebasedChangesetEx( "test_rebase_conflict_case2",
+              pathjoin( testdir(), "base.gpkg" ),
+              pathjoin( testdir(), "rebase_conflict", "case2a.diff" ),
+              pathjoin( testdir(), "rebase_conflict", "case2b.diff" ),
+              pathjoin( testdir(), "rebase_conflict", "case2a-rebased.diff" ),
+              std::string() );  // no conflict file
+  ASSERT_TRUE( res2 );
+
+  // CASE 3: change of two columns, both to different values
+  // input:
+  // - A: column "name": "feature2" -> "feature2A" and column "rating": 2 -> 20
+  // - B: column "name": "feature2" -> "feature2B" and column "rating": 2 -> 21
+  // output:
+  // - A rebased on top of B: column "name": "feature2B" -> "feature2A" and column "rating": 21 -> 20
+  // - conflict file with an entry for both "name" and "rating" columns
+
+  bool res3 = _test_createRebasedChangesetEx( "test_rebase_conflict_case3",
+              pathjoin( testdir(), "base.gpkg" ),
+              pathjoin( testdir(), "rebase_conflict", "case3a.diff" ),
+              pathjoin( testdir(), "rebase_conflict", "case3b.diff" ),
+              pathjoin( testdir(), "rebase_conflict", "case3a-rebased.diff" ),
+              pathjoin( testdir(), "rebase_conflict", "case3a-rebased.conflicts" ) );
+  ASSERT_TRUE( res3 );
+
+  // CASE 4: change of two columns, one to the same value, one to other value
+  // input:
+  // - A: column "name": "feature2" -> "feature2A" and column "rating": 2 -> 222
+  // - B: column "name": "feature2" -> "feature2B" and column "rating": 2 -> 222
+  // output:
+  // - A rebased on top of B: column "name": "feature2B" -> "feature2A"
+  // - conflict file with an entry for column "name"
+
+  bool res4 = _test_createRebasedChangesetEx( "test_rebase_conflict_case4",
+              pathjoin( testdir(), "base.gpkg" ),
+              pathjoin( testdir(), "rebase_conflict", "case4a.diff" ),
+              pathjoin( testdir(), "rebase_conflict", "case4b.diff" ),
+              pathjoin( testdir(), "rebase_conflict", "case4a-rebased.diff" ),
+              pathjoin( testdir(), "rebase_conflict", "case4a-rebased.conflicts" ) );
+  ASSERT_TRUE( res4 );
 }
 
 int main( int argc, char **argv )
