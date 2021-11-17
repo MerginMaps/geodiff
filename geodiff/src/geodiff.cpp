@@ -31,7 +31,7 @@
 // use scripts/update_version.py to update the version here and in other places at once
 const char *GEODIFF_version()
 {
-  return "1.0.4";
+  return "1.0.5";
 }
 
 void _errorLogCallback( void *pArg, int iErrCode, const char *zMsg )
