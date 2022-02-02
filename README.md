@@ -100,6 +100,13 @@ geodiff.list_changes('a-to-b.diff', 'a-to-b.json')
 
 If there are any problems, calls will raise `pygeodiff.GeoDiffLibError` exception. 
 
+If you have Mergin plugin for QGIS installed, you can also use pygeodiff from QGIS' Python Console by starting with 
+
+```
+import Mergin.mergin.deps.pygeodiff as pygeodiff
+```
+
+
 ## Using the library with C API
 
 See [geodiff.h header file](https://github.com/lutraconsulting/geodiff/blob/master/geodiff/src/geodiff.h) for the list of API calls and their documentation.
