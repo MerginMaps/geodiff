@@ -58,7 +58,7 @@ jobs:
     name: Build wheels for manylinux2014
     runs-on: ubuntu-latest
     env:
-      CIBW_BUILD: *musllinux*
+      CIBW_BUILD: "*musllinux*"
       CIBW_BEFORE_ALL_LINUX: apk add sqlite-dev
       CIBW_BEFORE_BUILD: pip install setuptools scikit-build wheel cmake
       CIBW_TEST_COMMAND: python -c "import pygeodiff; pygeodiff.GeoDiff().version()"
