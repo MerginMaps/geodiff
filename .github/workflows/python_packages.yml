@@ -6,7 +6,7 @@ jobs:
     name: Build wheels for manylinux_2_24
     runs-on: ubuntu-latest
     env:
-      CIBW_SKIP: pp* cp27-* cp35-* *-i686
+      CIBW_SKIP: pp* cp27-* cp35-* cp36-* *-i686
       CIBW_MANYLINUX_X86_64_IMAGE: manylinux_2_24
       CIBW_MANYLINUX_I686_IMAGE: manylinux_2_24
       CIBW_BEFORE_ALL_LINUX: apt-get update -y && apt-get install libsqlite3-dev
@@ -32,7 +32,7 @@ jobs:
     name: Build wheels for manylinux2014
     runs-on: ubuntu-latest
     env:
-      CIBW_SKIP: pp* cp27-* cp35-* *-i686
+      CIBW_SKIP: pp* cp27-* cp35-* cp36-* *-i686
       CIBW_MANYLINUX_X86_64_IMAGE: manylinux2014
       CIBW_MANYLINUX_I686_IMAGE: manylinux2014
       CIBW_BEFORE_ALL_LINUX: yum install -y sqlite-devel
@@ -56,11 +56,11 @@ jobs:
 
   build_windows_wheels:
     name: Build wheels on windows-latest
-    runs-on: windows-latest
+    runs-on: windows-2019
     env:
       CMAKE_GENERATOR: "Visual Studio 16 2019"
       SQLite3_ROOT: "C:/vcpkg/installed/x64-windows"
-      CIBW_SKIP: cp27-* cp35-* *-win32
+      CIBW_SKIP: cp27-* cp35-* cp36-* *-win32
       CIBW_TEST_COMMAND: python -c "import pygeodiff; pygeodiff.GeoDiff().version()"
       CIBW_REPAIR_WHEEL_COMMAND_WINDOWS: "delvewheel repair --add-path C:/vcpkg/installed/x64-windows/bin --no-mangle-all -v -w {dest_dir} {wheel}"
 
@@ -87,12 +87,12 @@ jobs:
 
   build_windows_32_wheels:
     name: Build 32bit wheels on windows-latest
-    runs-on: windows-latest
+    runs-on: windows-2019
     env:
       CMAKE_GENERATOR: "Visual Studio 16 2019"
       CMAKE_GENERATOR_PLATFORM: "Win32"
       SQLite3_ROOT: "C:/vcpkg/installed/x86-windows"
-      CIBW_SKIP: cp27-* cp35-* pp* *-win_amd64
+      CIBW_SKIP: cp27-* cp35-* cp36-* pp* *-win_amd64
       CIBW_TEST_COMMAND: python -c "import pygeodiff; pygeodiff.GeoDiff().version()"
       CIBW_REPAIR_WHEEL_COMMAND_WINDOWS: "delvewheel repair --add-path C:/vcpkg/installed/x86-windows/bin --no-mangle-all -v -w {dest_dir} {wheel}"
 
@@ -123,7 +123,7 @@ jobs:
     runs-on: macos-latest
     env:
         SQLite3_ROOT: /usr/local/opt/sqlite
-        CIBW_SKIP: cp27-* cp35-*
+        CIBW_SKIP: cp27-* cp35-* cp36-*
         CIBW_TEST_COMMAND: python -c "import pygeodiff; pygeodiff.GeoDiff().version()"
 
     steps:

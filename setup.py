@@ -36,7 +36,7 @@ setup(
     cmake_source_dir="geodiff",
     cmake_with_sdist=False,
     test_suite="tests.test_project",
-    python_requires=">=3.6",
+    python_requires=">=3.7",
     license="License :: OSI Approved :: MIT License",
     classifiers=[
         "Programming Language :: Python :: 3",
