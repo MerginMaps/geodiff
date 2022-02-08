@@ -55,7 +55,7 @@ jobs:
           path: ./wheelhouse/*.whl
 
   build_linux_wheels_musllinux_x86_64:
-    name: Build wheels for manylinux2014
+    name: Build wheels for musllinux_x86_64 (alpine)
     runs-on: ubuntu-latest
     env:
       CIBW_BUILD: "*musllinux*"
