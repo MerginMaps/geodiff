@@ -5,7 +5,7 @@ from skbuild import setup
 import platform
 
 # use scripts/update_version.py to update the version here and in other places at once
-VERSION = '1.0.5'
+VERSION = '1.0.6'
 
 cmake_args = [
     '-DENABLE_TESTS:BOOL=OFF',
@@ -36,7 +36,7 @@ setup(
     cmake_source_dir="geodiff",
     cmake_with_sdist=False,
     test_suite="tests.test_project",
-    python_requires=">=3.6",
+    python_requires=">=3.7",
     license="License :: OSI Approved :: MIT License",
     classifiers=[
         "Programming Language :: Python :: 3",
