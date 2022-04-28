@@ -22,7 +22,7 @@ struct ChangesetEntry;
 class GeoDiffException: public std::exception
 {
   public:
-    GeoDiffException( const std::string &msg );
+    explicit GeoDiffException( const std::string &msg );
     virtual const char *what() const throw();
   private:
     std::string mMsg;
@@ -135,6 +135,9 @@ void get_primary_key( const ChangesetEntry &entry, int &fid, int &nColumn );
 //! Returns value of an environment variable - or returns default value if it is not set
 std::string getEnvVar( std::string const &key, const std::string &defaultVal );
 
+//! Returns integer value of an environment variable - or returns default value if it is not set
+int getEnvVarInt( std::string const &key, int defaultVal );
+
 //! Returns temporary directory (including trailing slash)
 std::string tmpdir();
 
@@ -148,7 +151,7 @@ std::string randomTmpFilename();
 std::wstring stringToWString( const std::string &str );
 
 //! converts std::wstring to std::string
-std::string wstringToString( const std::wstring &str );
+std::string wstringToString( const std::wstring &wStr );
 
 //! opens file with specific function for windows
 FILE *openFile( const std::string &path, const std::string &mode );
@@ -159,7 +162,7 @@ class TmpFile
 {
   public:
     TmpFile();
-    TmpFile( const std::string &path );
+    explicit TmpFile( const std::string &path );
     ~TmpFile();
 
     std::string path() const;

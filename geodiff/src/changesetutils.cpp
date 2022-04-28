@@ -102,7 +102,7 @@ std::string valueToJSON( const Value &value )
     {
       // this used to either show "blob N bytes" or would be converted to WKT
       // but this is better - it preserves content of any type + can be decoded back
-      std::string base64 = base64_encode( ( const unsigned char * ) value.getString().data(), value.getString().size() );
+      std::string base64 = base64_encode( ( const unsigned char * ) value.getString().data(), ( unsigned int ) value.getString().size() );
       return escapeJSONString( base64 );
     }
     case Value::TypeNull:
@@ -329,15 +329,16 @@ inline int hex2num( unsigned char i )
   if ( i >= 'a' && i <= 'f' )
     return 10 + i - 'a';
   assert( false );
+  return 0; // should never happen
 }
 
 inline char num2hex( int n )
 {
   assert( n >= 0 && n < 16 );
   if ( n >= 0 && n < 10 )
-    return '0' + n;
+    return char( '0' + n );
   else if ( n >= 10 && n < 16 )
-    return 'A' + n - 10;
+    return char( 'A' + n - 10 );
   return '?';  // should never happen
 }
 
@@ -348,7 +349,7 @@ std::string hex2bin( const std::string &str )
   for ( size_t i = 0; i < str.size(); i += 2 )
   {
     int n1 = hex2num( str[i] ), n2 = hex2num( str[i + 1] );
-    output[i / 2] = n1 * 16 + n2;
+    output[i / 2] = char( n1 * 16 + n2 );
   }
   return output;
 }

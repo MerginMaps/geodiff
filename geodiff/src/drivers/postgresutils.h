@@ -18,7 +18,7 @@ extern "C"
 class PostgresResult
 {
   public:
-    PostgresResult( PGresult *result ) : mResult( result ) {}
+    explicit PostgresResult( PGresult *result ) : mResult( result ) {}
     ~PostgresResult()
     {
       if ( mResult )

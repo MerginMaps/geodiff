@@ -131,7 +131,7 @@ void Buffer::read( const std::string &filename )
   rewind( fp );
 
   /* Slurp file into buffer */
-  if ( mAlloc != fread( mZ, 1, mAlloc, fp ) )
+  if ( mAlloc != ( int ) fread( mZ, 1, mAlloc, fp ) )
   {
     fclose( fp );
     throw GeoDiffException( "Unable to read " + filename + " to internal buffer" );
@@ -229,7 +229,11 @@ FILE *openFile( const std::string &path, const std::string &mode )
 {
 #ifdef WIN32
   // convert string path to wstring
-  return _wfopen( stringToWString( path ).c_str(), stringToWString( mode ).c_str() );
+  FILE *fh;
+  errno_t err = _wfopen_s( &fh, stringToWString( path ).c_str(), stringToWString( mode ).c_str() );
+  if ( err )
+    return nullptr;
+  return fh;
 #else
   return fopen( path.c_str(), mode.c_str() );
 #endif
@@ -343,25 +347,27 @@ void get_primary_key( const ChangesetEntry &entry, int &fid, int &nColumn )
   const std::vector<bool> &tablePkeys = entry.table->primaryKeys;
 
   // lets assume for now it has only one PK and it is int...
-  int pk_column_number = -1;
+  bool found_primary_key = false;
+  size_t pk_column_number = 0;
   for ( size_t i = 0; i < tablePkeys.size(); ++i )
   {
     if ( tablePkeys[i] )
     {
-      if ( pk_column_number >= 0 )
+      if ( found_primary_key )
       {
         // ups primary key composite!
         throw GeoDiffException( "internal error in _get_primary_key: support composite primary keys not implemented" );
       }
       pk_column_number = i;
+      found_primary_key = true;
     }
   }
-  if ( pk_column_number == -1 )
+  if ( !found_primary_key )
   {
     throw GeoDiffException( "internal error in _get_primary_key: unable to find internal key" );
   }
 
-  nColumn = pk_column_number;
+  nColumn = ( int ) pk_column_number;
 
   // now get the value
   Value pkeyValue;
@@ -378,8 +384,8 @@ void get_primary_key( const ChangesetEntry &entry, int &fid, int &nColumn )
 
   if ( pkeyValue.type() == Value::TypeInt )
   {
-    int val = pkeyValue.getInt();
-    fid = val;
+    int64_t val = pkeyValue.getInt();
+    fid = ( int ) val;
     return;
   }
   else if ( pkeyValue.type() == Value::TypeText )
@@ -387,8 +393,8 @@ void get_primary_key( const ChangesetEntry &entry, int &fid, int &nColumn )
     std::string str = pkeyValue.getString();
     const char *strData = str.data();
     int hash = 0;
-    int len = str.size();
-    for ( int i = 0; i < len; i++ )
+    size_t len = str.size();
+    for ( size_t i = 0; i < len; i++ )
     {
       hash = 33 * hash + ( unsigned char )strData[i];
     }
@@ -415,8 +421,32 @@ void flushString( const std::string &filename, const std::string &str )
 
 std::string getEnvVar( std::string const &key, const std::string &defaultVal )
 {
+  std::string ret = defaultVal;
+
+#ifdef WIN32
+  char *val = nullptr;
+  size_t sz = 0;
+  if ( _dupenv_s( &val, &sz, key.c_str() ) == 0 && val != nullptr )
+  {
+    ret = std::string( val );
+    free( val );
+  }
+#else
   char *val = getenv( key.c_str() );
-  return val == nullptr ? defaultVal : std::string( val );
+  if ( val )
+    ret = std::string( val );
+#endif
+
+  return ret;
+}
+
+int getEnvVarInt( std::string const &key, int defaultVal )
+{
+  std::string envVal = getEnvVar( key, "" );
+  if ( envVal.empty() )
+    return defaultVal;
+  else
+    return atoi( envVal.c_str() );
 }
 
 std::string tmpdir()
@@ -500,8 +530,7 @@ const char *TmpFile::c_path() const
 
 void TmpFile::setPath( const std::string &path )
 {
-  if ( mPath != path )
-    mPath = path;
+  mPath = path;
 }
 
 ConflictFeature::ConflictFeature( int pk,
@@ -572,7 +601,7 @@ int indexOf( const std::vector<std::string> &arr, const std::string &val )
   if ( result == arr.end() )
     return -1;
   else
-    return std::distance( arr.begin(), result );
+    return ( int ) std::distance( arr.begin(), result );
 }
 
 std::string concatNames( const std::vector<std::string> &names )
@@ -590,8 +619,11 @@ std::string concatNames( const std::vector<std::string> &names )
 std::string lowercaseString( const std::string &str )
 {
   std::string ret = str;
-  std::transform( ret.begin(), ret.end(), ret.begin(),
-  []( unsigned char c ) { return std::tolower( c ); } );
+#ifdef WIN32
+  std::transform( ret.begin(), ret.end(), ret.begin(), []( unsigned char i ) { return ( unsigned char ) std::tolower( i ); } );
+#else
+  std::transform( ret.begin(), ret.end(), ret.begin(), []( unsigned char i ) { return std::tolower( i ); } );
+#endif
   return ret;
 }
 

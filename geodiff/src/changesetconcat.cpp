@@ -76,8 +76,8 @@ static Value mergeValue( const Value &vOne, const Value &vTwo )
 //! changeset entry can be discarded.
 static bool mergeUpdate(
   const ChangesetTable &t,
-  const std::vector<Value> valuesOld1, const std::vector<Value> valuesOld2,
-  const std::vector<Value> valuesNew1, const std::vector<Value> valuesNew2,
+  const std::vector<Value> &valuesOld1, const std::vector<Value> &valuesOld2,
+  const std::vector<Value> &valuesNew1, const std::vector<Value> &valuesNew2,
   std::vector<Value> &outputOld, std::vector<Value> &outputNew )
 {
   bool bRequired = false;

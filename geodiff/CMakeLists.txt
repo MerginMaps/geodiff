@@ -5,6 +5,8 @@ CMAKE_MINIMUM_REQUIRED(VERSION 3.10)
 PROJECT(geodiffproject)
 SET(CMAKE_CXX_VISIBILITY_PRESET hidden)
 SET(CMAKE_VISIBILITY_INLINES_HIDDEN 1)
+
+# if changed, change also run_cppcheck.sh
 SET(CMAKE_CXX_STANDARD 11)
 
 # set path to additional CMake modules
@@ -16,6 +18,7 @@ SET(BUILD_TOOLS TRUE CACHE BOOL "Build tool executables?")
 SET(BUILD_STATIC FALSE CACHE BOOL "Build static libraries?")
 SET(BUILD_SHARED TRUE CACHE BOOL "Build shared libraries?")
 SET(WITH_POSTGRESQL FALSE CACHE BOOL "Whether to build with PostgreSQL driver")
+SET(PEDANTIC TRUE CACHE BOOL "Determines if we should compile in pedantic mode.")
 
 IF(WITH_INTERNAL_SQLITE3)
   MESSAGE(FATAL_ERROR "The WITH_INTERNAL_SQLITE3 option has been removed: geodiff now always uses external SQLite3 library")
@@ -92,7 +95,6 @@ SET(libgpkg_src
   ${libgpkg_dir}/gpkg/wkt.c
   ${libgpkg_dir}/gpkg/atomic_ops.h
 )
-SET(geodiff_src ${geodiff_src} ${libgpkg_src})
 
 IF (NOT WIN32)
   SET_SOURCE_FILES_PROPERTIES(${libgpkg_src} PROPERTIES COMPILE_FLAGS "-Wno-deprecated-declarations")
@@ -148,14 +150,16 @@ SET(geodiff_src
   src/tableschema.cpp
   src/tableschema.h
 
-  src/3rdparty/base64utils.cpp
-  src/3rdparty/base64utils.h
-  src/3rdparty/portableendian.h
-
   src/drivers/sqlitedriver.cpp
   src/drivers/sqlitedriver.h
   src/drivers/sqliteutils.cpp
   src/drivers/sqliteutils.h
+)
+
+SET(external_3rd_party_src
+  src/3rdparty/base64utils.cpp
+  src/3rdparty/base64utils.h
+  src/3rdparty/portableendian.h
 )
 
 IF (POSTGRES_FOUND)
@@ -174,7 +178,7 @@ IF (ENABLE_TESTS OR BUILD_TOOLS)
 ENDIF ()
 
 IF ( BUILD_STATIC )
-  ADD_LIBRARY(${GEODIFF_NAME}_a STATIC ${geodiff_src} )
+  ADD_LIBRARY(${GEODIFF_NAME}_a STATIC ${geodiff_src} ${libgpkg_src} ${external_3rd_party_src} )
   SET_TARGET_PROPERTIES(${GEODIFF_NAME}_a PROPERTIES OUTPUT_NAME ${GEODIFF_NAME})
   TARGET_COMPILE_DEFINITIONS(${GEODIFF_NAME}_a PUBLIC -DGEODIFF_STATIC)
   TARGET_INCLUDE_DIRECTORIES(${GEODIFF_NAME}_a PRIVATE ${libgpkg_dir}/gpkg)
@@ -189,7 +193,7 @@ IF ( BUILD_STATIC )
 ENDIF ()
 
 IF ( BUILD_SHARED )
-    ADD_LIBRARY(${GEODIFF_NAME} SHARED ${geodiff_src} )
+    ADD_LIBRARY(${GEODIFF_NAME} SHARED ${geodiff_src} ${libgpkg_src} ${external_3rd_party_src} )
     IF (SKBUILD AND WIN32)
         # looks like delvewheel does not support dll extension at the moment
         SET_TARGET_PROPERTIES(${GEODIFF_NAME} PROPERTIES SUFFIX .pyd)
@@ -215,7 +219,9 @@ ENDIF ()
 
 # command line tool
 IF (BUILD_TOOLS)
-    ADD_EXECUTABLE(geodiff-cli src/geodiff-cli.cpp)
+    SET(geodiff_cli_src src/geodiff-cli.cpp)
+    
+    ADD_EXECUTABLE(geodiff-cli ${geodiff_cli_src})
     TARGET_LINK_LIBRARIES(geodiff-cli PUBLIC ${GEODIFF_NAME}_a )
     SET_TARGET_PROPERTIES(geodiff-cli PROPERTIES OUTPUT_NAME geodiff)
     TARGET_LINK_LIBRARIES(geodiff-cli PUBLIC ${SQLite3_LIBRARIES} )
@@ -233,6 +239,18 @@ IF (ENABLE_TESTS)
     ENABLE_TESTING()
     ADD_SUBDIRECTORY(tests)
 ENDIF(ENABLE_TESTS)
+
+#############################################################
+# Setup pedantic warnings
+IF (PEDANTIC)
+  IF (MSVC)
+    # warning level 4 and all warnings as errors. 
+    set_source_files_properties(${geodiff_src} ${geodiff_cli_src} PROPERTIES COMPILE_OPTIONS "/W4;/WX")
+  ELSE(MSVC)
+    # lots of warnings and all warnings as errors
+    set_source_files_properties(${geodiff_src} ${geodiff_cli_src} PROPERTIES COMPILE_OPTIONS "-Wall;-Wextra;-pedantic;-Werror")
+  ENDIF(MSVC)
+ENDIF(PEDANTIC)
 
 # install
 IF(SKBUILD)

@@ -382,12 +382,12 @@ GEODIFF_EXPORT GEODIFF_ChangesetReaderH GEODIFF_readChangeset( const char *chang
  * If an exception has occurred (e.g. bad file content), the passed "ok" variable will be set
  * to false. Normally it will be set to true (even we have reached the end of the file).
  */
-GEODIFF_EXPORT GEODIFF_ChangesetEntryH GEODIFF_CR_nextEntry( GEODIFF_ChangesetReaderH reader, bool *ok );
+GEODIFF_EXPORT GEODIFF_ChangesetEntryH GEODIFF_CR_nextEntry( GEODIFF_ChangesetReaderH readerHandle, bool *ok );
 
 /**
  * Deletes an existing changeset reader object and frees any resources related to it.
  */
-GEODIFF_EXPORT void GEODIFF_CR_destroy( GEODIFF_ChangesetReaderH reader );
+GEODIFF_EXPORT void GEODIFF_CR_destroy( GEODIFF_ChangesetReaderH readerHandle );
 
 //
 // ChangesetEntry-related functions
@@ -396,38 +396,38 @@ GEODIFF_EXPORT void GEODIFF_CR_destroy( GEODIFF_ChangesetReaderH reader );
 /**
  * Reads entry's operation type - whether it is an insert, update or delete.
  */
-GEODIFF_EXPORT int GEODIFF_CE_operation( GEODIFF_ChangesetEntryH entry );
+GEODIFF_EXPORT int GEODIFF_CE_operation( GEODIFF_ChangesetEntryH entryHandle );
 
 /**
  * Returns table-related information object of the entry. The returned object is owned
  * by geodiff and does not need to be deleted by the caller. It is only valid while
  * the changeset entry is not deleted.
  */
-GEODIFF_EXPORT GEODIFF_ChangesetTableH GEODIFF_CE_table( GEODIFF_ChangesetEntryH entry );
+GEODIFF_EXPORT GEODIFF_ChangesetTableH GEODIFF_CE_table( GEODIFF_ChangesetEntryH entryHandle );
 
 /**
  * Returns number of items in the list of old/new values.
  */
-GEODIFF_EXPORT int GEODIFF_CE_countValues( GEODIFF_ChangesetEntryH entry );
+GEODIFF_EXPORT int GEODIFF_CE_countValues( GEODIFF_ChangesetEntryH entryHandle );
 
 /**
  * Returns old value of an entry (only valid for UPDATE and DELETE).
  * The ownership of the value object is passed to the caller - GEODIFF_V_destroy()
  * should be called when the value object is not needed anymore.
  */
-GEODIFF_EXPORT GEODIFF_ValueH GEODIFF_CE_oldValue( GEODIFF_ChangesetEntryH entry, int i );
+GEODIFF_EXPORT GEODIFF_ValueH GEODIFF_CE_oldValue( GEODIFF_ChangesetEntryH entryHandle, int i );
 
 /**
  * Returns new value of an entry (only valid for UPDATE and INSERT).
  * The ownership of the value object is passed to the caller - GEODIFF_V_destroy()
  * should be called when the value object is not needed anymore.
  */
-GEODIFF_EXPORT GEODIFF_ValueH GEODIFF_CE_newValue( GEODIFF_ChangesetEntryH entry, int i );
+GEODIFF_EXPORT GEODIFF_ValueH GEODIFF_CE_newValue( GEODIFF_ChangesetEntryH entryHandle, int i );
 
 /**
  * Deletes an existing changeset entry object and frees any resources related to it.
  */
-GEODIFF_EXPORT void GEODIFF_CE_destroy( GEODIFF_ChangesetEntryH entry );
+GEODIFF_EXPORT void GEODIFF_CE_destroy( GEODIFF_ChangesetEntryH entryHandle );
 
 //
 // ChangesetTable-related functions
@@ -437,17 +437,17 @@ GEODIFF_EXPORT void GEODIFF_CE_destroy( GEODIFF_ChangesetEntryH entry );
  * Returns name of the table. Ownership of the returned pointer is NOT passed to the caller
  * and should not be modified or freed.
  */
-GEODIFF_EXPORT const char *GEODIFF_CT_name( GEODIFF_ChangesetTableH table );
+GEODIFF_EXPORT const char *GEODIFF_CT_name( GEODIFF_ChangesetTableH tableHandle );
 
 /**
  * Returns number of columns in the table.
  */
-GEODIFF_EXPORT int GEODIFF_CT_columnCount( GEODIFF_ChangesetTableH table );
+GEODIFF_EXPORT int GEODIFF_CT_columnCount( GEODIFF_ChangesetTableH tableHandle );
 
 /**
  * Returns whether column at the given index is a part of the table's primary key.
  */
-GEODIFF_EXPORT bool GEODIFF_CT_columnIsPkey( GEODIFF_ChangesetTableH table, int i );
+GEODIFF_EXPORT bool GEODIFF_CT_columnIsPkey( GEODIFF_ChangesetTableH tableHandle, int i );
 
 
 //
@@ -457,32 +457,32 @@ GEODIFF_EXPORT bool GEODIFF_CT_columnIsPkey( GEODIFF_ChangesetTableH table, int 
 /**
  * Returns type of the value stored in the object
  */
-GEODIFF_EXPORT int GEODIFF_V_type( GEODIFF_ValueH value );
+GEODIFF_EXPORT int GEODIFF_V_type( GEODIFF_ValueH valueHandle );
 
 /**
  * Returns integer value (if type is not TypeInt, the result is undefined)
  */
-GEODIFF_EXPORT int64_t GEODIFF_V_getInt( GEODIFF_ValueH value );
+GEODIFF_EXPORT int64_t GEODIFF_V_getInt( GEODIFF_ValueH valueHandle );
 
 /**
  * Returns double value (if type is not TypeDouble, the result is undefined)
  */
-GEODIFF_EXPORT double GEODIFF_V_getDouble( GEODIFF_ValueH value );
+GEODIFF_EXPORT double GEODIFF_V_getDouble( GEODIFF_ValueH valueHandle );
 
 /**
  * Returns number of bytes of text/blob value (if type is not TypeText or TypeBlob, the result is undefined)
  */
-GEODIFF_EXPORT int GEODIFF_V_getDataSize( GEODIFF_ValueH value );
+GEODIFF_EXPORT int GEODIFF_V_getDataSize( GEODIFF_ValueH valueHandle );
 
 /**
  * Copies data of the text/blob value to given buffer (if type is not TypeText or TypeBlob, the result is undefined)
  */
-GEODIFF_EXPORT void GEODIFF_V_getData( GEODIFF_ValueH value, char *data );
+GEODIFF_EXPORT void GEODIFF_V_getData( GEODIFF_ValueH valueHandle, char *data );
 
 /**
  * Deletes an existing value object and frees any resources related to it.
  */
-GEODIFF_EXPORT void GEODIFF_V_destroy( GEODIFF_ValueH value );
+GEODIFF_EXPORT void GEODIFF_V_destroy( GEODIFF_ValueH valueHandle );
 
 
 #ifdef __cplusplus

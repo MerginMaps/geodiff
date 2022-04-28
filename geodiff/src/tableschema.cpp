@@ -8,22 +8,18 @@
 
 #include "geodifflogger.hpp"
 
+#include <algorithm>
 
 bool TableSchema::hasPrimaryKey() const
 {
-  for ( const TableColumnInfo &c : columns )
-  {
-    if ( c.isPrimaryKey )
-      return true;
-  }
-  return false;
+  return std::any_of( columns.cbegin(), columns.cend(), []( const TableColumnInfo & c ) { return c.isPrimaryKey; } );
 }
 
-size_t TableSchema::columnFromName( const std::string &name )
+size_t TableSchema::columnFromName( const std::string &columnName ) const
 {
   for ( size_t i = 0; i < columns.size(); ++i )
   {
-    if ( name == columns[i].name )
+    if ( columnName == columns[i].name )
       return i;
   }
   return SIZE_MAX;

@@ -33,7 +33,7 @@ void ChangesetWriter::beginTable( const ChangesetTable &table )
   mCurrentTable = table;
 
   writeByte( 'T' );
-  writeVarint( table.columnCount() );
+  writeVarint( ( int ) table.columnCount() );
   for ( size_t i = 0; i < table.columnCount(); ++i )
     writeByte( table.primaryKeys[i] );
   writeNullTerminatedString( table.name );
@@ -43,7 +43,7 @@ void ChangesetWriter::writeEntry( const ChangesetEntry &entry )
 {
   if ( entry.op != ChangesetEntry::OpInsert && entry.op != ChangesetEntry::OpUpdate && entry.op != ChangesetEntry::OpDelete )
     throw GeoDiffException( "wrong op for changeset entry" );
-  writeByte( entry.op );
+  writeByte( ( char ) entry.op );
   writeByte( 0 );  // "indirect" always false
 
   if ( entry.op != ChangesetEntry::OpInsert )
@@ -77,7 +77,7 @@ void ChangesetWriter::writeRowValues( const std::vector<Value> &values )
   for ( size_t i = 0; i < mCurrentTable.columnCount(); ++i )
   {
     Value::Type type = values[i].type();
-    writeByte( type );
+    writeByte( ( char ) type );
     if ( type == Value::TypeInt ) // 0x01
     {
       // 64-bit int (big endian)
@@ -99,7 +99,7 @@ void ChangesetWriter::writeRowValues( const std::vector<Value> &values )
     else if ( type == Value::TypeText || type == Value::TypeBlob ) // 0x03 or 0x04
     {
       const std::string &str = values[i].getString();
-      writeVarint( str.size() );
+      writeVarint( ( int ) str.size() );
       mFile.write( str.c_str(), str.size() );
     }
     else if ( type == Value::TypeNull ) // 0x05

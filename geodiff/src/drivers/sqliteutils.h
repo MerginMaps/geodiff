@@ -68,7 +68,7 @@ class Sqlite3Value
      * Creates copy of the value
      * and takes the ownership of the new instance
      */
-    Sqlite3Value( const sqlite3_value *val );
+    explicit Sqlite3Value( const sqlite3_value *ppValue );
     Sqlite3Value();
     ~Sqlite3Value();
 
@@ -81,7 +81,7 @@ class Sqlite3Value
     //! Returns raw pointer to sqlite3 value
     sqlite3_value *value() const;
 
-    static std::string toString( sqlite3_value *val );
+    static std::string toString( sqlite3_value *ppValue );
 
     bool operator==( const Sqlite3Value &other ) const;
     bool operator!=( const Sqlite3Value &other ) const

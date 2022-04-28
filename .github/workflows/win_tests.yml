@@ -1,0 +1,50 @@
+name: Windows Tests
+on: [push]
+jobs:
+  build_win_test:
+    if: github.repository == 'lutraconsulting/geodiff'
+    runs-on: windows-latest
+    steps:
+      - name: Checkout Geodiff
+        uses: actions/checkout@v2
+
+      - name: install deps
+        run: |
+          C:/vcpkg/vcpkg install sqlite3 --triplet x64-windows
+          C:/vcpkg/vcpkg integrate install
+          dir "C:/vcpkg/installed/x64-windows/bin"
+      
+      - name: set compiler environment
+        shell: cmd
+        run: |
+            CALL "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\Common7\Tools\VsDevCmd.bat" -arch=x86
+    
+      - name: build geodiff
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'continue'
+          function exec
+          {
+              param ( [ScriptBlock] $ScriptBlock )
+              & $ScriptBlock 2>&1 | ForEach-Object -Process { "$_" }
+              if ($LastExitCode -ne 0) { exit $LastExitCode }
+          }
+          cd $env:GITHUB_WORKSPACE
+          mkdir build
+          cd build
+          exec { cmake -G "Visual Studio 17 2022" -DCMAKE_TOOLCHAIN_FILE=C:/vcpkg/scripts/buildsystems/vcpkg.cmake -DCMAKE_BUILD_TYPE=Rel  -DENABLE_TESTS=OFF  -DWITH_POSTGRESQL=FALSE ../geodiff  }
+          exec { cmake --build . }
+
+      - name: Run tests
+        shell: pwsh
+        run: |
+            $ErrorActionPreference = 'continue'
+            function exec
+            {
+                param ( [ScriptBlock] $ScriptBlock )
+                & $ScriptBlock 2>&1 | ForEach-Object -Process { "$_" }
+                if ($LastExitCode -ne 0) { exit $LastExitCode }
+            }
+            $env:PATH="C:\vcpkg\installed\x64-windows\bin;$env:GITHUB_WORKSPACE\build\tool\Debug\;$env:GITHUB_WORKSPACE\build\geodiff\Debug;$env:PATH"
+            cd $env:GITHUB_WORKSPACE\build
+            exec { ctest -VV }
