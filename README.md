@@ -4,7 +4,8 @@
 [![Coverage Status](https://img.shields.io/coveralls/lutraconsulting/geodiff.svg)](https://coveralls.io/github/lutraconsulting/geodiff?branch=master)
 [![PyPI version](https://badge.fury.io/py/pygeodiff.svg)](https://badge.fury.io/py/pygeodiff)
 [![Build PyPI wheels](https://github.com/lutraconsulting/geodiff/actions/workflows/python_packages.yml/badge.svg)](https://github.com/lutraconsulting/geodiff/actions/workflows/python_packages.yml)
-[![Build Tests](https://github.com/lutraconsulting/geodiff/actions/workflows/build_options_test.yml/badge.svg)](https://github.com/lutraconsulting/geodiff/actions/workflows/build_options_test.yml)
+[![Various Build Options](https://github.com/lutraconsulting/geodiff/actions/workflows/build_options_test.yml/badge.svg)](https://github.com/lutraconsulting/geodiff/actions/workflows/build_options_test.yml)
+[![Windows Tests](https://github.com/lutraconsulting/geodiff/actions/workflows/win_tests.yml/badge.svg)](https://github.com/lutraconsulting/geodiff/actions/workflows/win_tests.yml)
 
 # geodiff
 
