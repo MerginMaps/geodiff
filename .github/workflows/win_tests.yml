@@ -47,4 +47,4 @@ jobs:
             }
             $env:PATH="C:\vcpkg\installed\x64-windows\bin;$env:GITHUB_WORKSPACE\build\tool\Debug\;$env:GITHUB_WORKSPACE\build\geodiff\Debug;$env:PATH"
             cd $env:GITHUB_WORKSPACE\build
-            exec { ctest -VV }
+            exec { ctest -VV -C Rel }
