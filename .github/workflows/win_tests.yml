@@ -32,7 +32,7 @@ jobs:
           cd $env:GITHUB_WORKSPACE
           mkdir build
           cd build
-          exec { cmake -G "Visual Studio 17 2022" -DCMAKE_TOOLCHAIN_FILE=C:/vcpkg/scripts/buildsystems/vcpkg.cmake -DCMAKE_BUILD_TYPE=Rel  -DENABLE_TESTS=OFF  -DWITH_POSTGRESQL=FALSE ../geodiff  }
+          exec { cmake -G "Visual Studio 17 2022" -DCMAKE_TOOLCHAIN_FILE=C:/vcpkg/scripts/buildsystems/vcpkg.cmake -DCMAKE_BUILD_TYPE=Rel  -DENABLE_TESTS=ON  -DWITH_POSTGRESQL=FALSE ../geodiff  }
           exec { cmake --build . }
 
       - name: Run tests
@@ -46,5 +46,5 @@ jobs:
                 if ($LastExitCode -ne 0) { exit $LastExitCode }
             }
             $env:PATH="C:\vcpkg\installed\x64-windows\bin;$env:GITHUB_WORKSPACE\build\tool\Debug\;$env:GITHUB_WORKSPACE\build\geodiff\Debug;$env:PATH"
-            cd $env:GITHUB_WORKSPACE\build\geodiff
+            cd $env:GITHUB_WORKSPACE\build
             exec { ctest -VV }
