@@ -10,7 +10,7 @@ jobs:
 
       - name: install deps
         run: |
-          C:/vcpkg/vcpkg install sqlite3 --triplet x64-windows
+          C:/vcpkg/vcpkg install sqlite3[rtree,fts3,json1] --triplet x64-windows
           C:/vcpkg/vcpkg integrate install
           dir "C:/vcpkg/installed/x64-windows/bin"
       
