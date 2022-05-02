@@ -60,7 +60,7 @@ void ChangesetWriter::writeByte( char c )
 void ChangesetWriter::writeVarint( int n )
 {
   unsigned char output[9];  // 1-9 bytes
-  int numBytes = putVarint32( output, n );
+  int numBytes = writeVarint32( output, n );
   mFile.write( ( char * )output, numBytes );
 }
 

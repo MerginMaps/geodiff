@@ -142,6 +142,7 @@ SET(geodiff_src
   src/changesetreader.h
   src/changesetutils.cpp
   src/changesetutils.h
+  src/changesetvarint.cpp
   src/changesetvarint.h
   src/changesetwriter.cpp
   src/changesetwriter.h
