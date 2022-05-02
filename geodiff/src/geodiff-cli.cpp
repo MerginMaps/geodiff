@@ -684,22 +684,7 @@ static int handleCmdVersion( const std::vector<std::string> &args )
 
 static GEODIFF_LoggerLevel getGeodiffLoggerLevel( )
 {
-  int ret = ( int ) LevelWarning;
-#ifdef WIN32
-  char *val = nullptr;
-  size_t sz = 0;
-  if ( _dupenv_s( &val, &sz, "GEODIFF_LOGGER_LEVEL" ) == 0 && val != nullptr )
-  {
-    ret = atoi( val );
-    free( val );
-  }
-#else
-  char *val = getenv( "GEODIFF_LOGGER_LEVEL" );
-  if ( val )
-    ret = atoi( val );
-#endif
-
-  return ( GEODIFF_LoggerLevel ) ret;
+  return ( GEODIFF_LoggerLevel ) getEnvVarInt( "GEODIFF_LOGGER_LEVEL", ( int ) LevelWarning );
 }
 
 static int handleCmdHelp( const std::vector<std::string> &args )
