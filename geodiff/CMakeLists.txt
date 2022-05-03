@@ -142,8 +142,6 @@ SET(geodiff_src
   src/changesetreader.h
   src/changesetutils.cpp
   src/changesetutils.h
-  src/changesetgetvarint.h
-  src/changesetputvarint.h
   src/changesetwriter.cpp
   src/changesetwriter.h
   src/driver.cpp
@@ -161,6 +159,8 @@ SET(external_3rd_party_src
   src/3rdparty/base64utils.cpp
   src/3rdparty/base64utils.h
   src/3rdparty/portableendian.h
+  src/3rdparty/changesetgetvarint.h
+  src/3rdparty/changesetputvarint.h
 )
 
 IF (POSTGRES_FOUND)
