@@ -6,7 +6,7 @@
 #include "changesetwriter.h"
 
 #include "geodiffutils.hpp"
-#include "changesetvarint.h"
+#include "changesetputvarint.h"
 #include "portableendian.h"
 
 #include <assert.h>
@@ -60,7 +60,7 @@ void ChangesetWriter::writeByte( char c )
 void ChangesetWriter::writeVarint( int n )
 {
   unsigned char output[9];  // 1-9 bytes
-  int numBytes = writeVarint32( output, n );
+  int numBytes = putVarint32( output, n );
   mFile.write( ( char * )output, numBytes );
 }
 

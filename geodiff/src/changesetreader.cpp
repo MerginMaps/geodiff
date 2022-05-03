@@ -6,7 +6,7 @@
 #include "changesetreader.h"
 
 #include "geodiffutils.hpp"
-#include "changesetvarint.h"
+#include "changesetgetvarint.h"
 #include "portableendian.h"
 
 #include <assert.h>
@@ -96,7 +96,7 @@ int ChangesetReader::readVarint()
 {
   u32 value;
   const unsigned char *ptr = ( const unsigned char * )mBuffer->c_buf() + mOffset;
-  int nBytes = readVarint32( ptr, &value );
+  int nBytes = getVarint32( ptr, value );
   mOffset += nBytes;
   return value;
 }
