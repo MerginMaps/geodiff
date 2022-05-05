@@ -29,7 +29,7 @@
 class PostgresTransaction
 {
   public:
-    PostgresTransaction( PGconn *conn )
+    explicit PostgresTransaction( PGconn *conn )
       : mConn( conn )
     {
       PostgresResult res( execSql( mConn, "BEGIN" ) );
@@ -189,8 +189,11 @@ std::vector<std::string> PostgresDriver::listTables( bool useModified )
 
 struct GeometryTypeDetails
 {
+  // cppcheck-suppress unusedStructMember
   const char *flatType;
+  // cppcheck-suppress unusedStructMember
   bool hasZ;
+  // cppcheck-suppress unusedStructMember
   bool hasM;
 };
 

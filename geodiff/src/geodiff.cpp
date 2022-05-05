@@ -34,7 +34,7 @@ const char *GEODIFF_version()
   return "1.0.6";
 }
 
-void _errorLogCallback( void *pArg, int iErrCode, const char *zMsg )
+void _errorLogCallback( void * /* pArg */, int iErrCode, const char *zMsg )
 {
   std::string msg = "SQLITE3: (" + std::to_string( iErrCode ) + ")" + zMsg;
   Logger::instance().error( msg );
@@ -99,7 +99,7 @@ int GEODIFF_createChangesetEx( const char *driverName, const char *driverExtraIn
       throw GeoDiffException( "Unable to open changeset file for writing: " + std::string( changeset ) );
     driver->createChangeset( writer );
   }
-  catch ( GeoDiffException exc )
+  catch ( const  GeoDiffException &exc )
   {
     Logger::instance().error( exc );
     return GEODIFF_ERROR;
@@ -188,7 +188,7 @@ int GEODIFF_applyChangesetEx( const char *driverName, const char *driverExtraInf
 
     driver->applyChangeset( reader );
   }
-  catch ( GeoDiffException exc )
+  catch ( const  GeoDiffException &exc )
   {
     Logger::instance().error( exc );
     return GEODIFF_ERROR;
@@ -233,7 +233,7 @@ int GEODIFF_createRebasedChangeset( const char *base,
 
     return GEODIFF_createRebasedChangesetEx( "sqlite", "", base, changeset_BASE_MODIFIED.c_path(), changeset_their, changeset, conflictfile );
   }
-  catch ( GeoDiffException exc )
+  catch ( const  GeoDiffException &exc )
   {
     Logger::instance().error( exc );
     return GEODIFF_ERROR;
@@ -241,7 +241,7 @@ int GEODIFF_createRebasedChangeset( const char *base,
 }
 
 int GEODIFF_createRebasedChangesetEx( const char *driverName,
-                                      const char *driverExtraInfo,
+                                      const char * /* driverExtraInfo */,
                                       const char *base,
                                       const char *base2modified,
                                       const char *base2their,
@@ -278,7 +278,7 @@ int GEODIFF_createRebasedChangesetEx( const char *driverName,
     }
     return rc;
   }
-  catch ( GeoDiffException exc )
+  catch ( const  GeoDiffException &exc )
   {
     Logger::instance().error( exc );
     return GEODIFF_ERROR;
@@ -350,7 +350,7 @@ static int listChangesJSON( const char *changeset, const char *jsonfile, bool on
     else
       res = changesetToJSON( reader );
   }
-  catch ( GeoDiffException exc )
+  catch ( const  GeoDiffException &exc )
   {
     Logger::instance().error( exc );
     return GEODIFF_ERROR;
@@ -411,7 +411,7 @@ int GEODIFF_invertChangeset( const char *changeset, const char *changeset_inv )
   {
     invertChangeset( reader, writer );
   }
-  catch ( GeoDiffException exc )
+  catch ( const  GeoDiffException &exc )
   {
     Logger::instance().error( exc );
     return GEODIFF_ERROR;
@@ -451,7 +451,7 @@ int GEODIFF_concatChanges( int inputChangesetsCount, const char **inputChangeset
   {
     concatChangesets( inputFiles, outputChangeset );
   }
-  catch ( GeoDiffException exc )
+  catch ( const  GeoDiffException &exc )
   {
     Logger::instance().error( exc );
     return GEODIFF_ERROR;
@@ -510,7 +510,7 @@ int GEODIFF_rebaseEx( const char *driverName,
                       const char *base2their,
                       const char *conflictfile )
 {
-  if ( !base || !modified || !modified || !conflictfile )
+  if ( !base || !modified || !base2their || !conflictfile )
   {
     Logger::instance().error( "NULL arguments to GEODIFF_rebase" );
     return GEODIFF_ERROR;
@@ -581,7 +581,7 @@ int GEODIFF_rebaseEx( const char *driverName,
 
     return GEODIFF_SUCCESS;
   }
-  catch ( GeoDiffException exc )
+  catch ( const  GeoDiffException &exc )
   {
     Logger::instance().error( exc );
     return GEODIFF_ERROR;
@@ -619,8 +619,7 @@ int GEODIFF_makeCopy( const char *driverSrcName, const char *driverSrcExtraInfo,
     // open source
     std::map<std::string, std::string> connSrc;
     connSrc["base"] = std::string( src );
-    if ( driverSrcExtraInfo )
-      connSrc["conninfo"] = std::string( driverSrcExtraInfo );
+    connSrc["conninfo"] = std::string( driverSrcExtraInfo );
     driverSrc->open( connSrc );
 
     // get source tables
@@ -643,8 +642,7 @@ int GEODIFF_makeCopy( const char *driverSrcName, const char *driverSrcExtraInfo,
     // create destination
     std::map<std::string, std::string> connDst;
     connDst["base"] = dst;
-    if ( driverDstExtraInfo )
-      connDst["conninfo"] = std::string( driverDstExtraInfo );
+    connDst["conninfo"] = std::string( driverDstExtraInfo );
     driverDst->create( connDst, true );
 
     // create tables in destination
@@ -657,7 +655,7 @@ int GEODIFF_makeCopy( const char *driverSrcName, const char *driverSrcExtraInfo,
       driverDst->applyChangeset( reader );
     }
   }
-  catch ( GeoDiffException exc )
+  catch ( const  GeoDiffException &exc )
   {
     Logger::instance().error( exc );
     return GEODIFF_ERROR;
@@ -703,7 +701,7 @@ int GEODIFF_makeCopySqlite( const char *src, const char *dst )
   {
     dbFrom.open( src );
   }
-  catch ( GeoDiffException e )
+  catch ( const  GeoDiffException &e )
   {
     Logger::instance().error( "MakeCopySqlite: Unable to open source database: " + std::string( src ) + "\n" + e.what() );
     return GEODIFF_ERROR;
@@ -713,7 +711,7 @@ int GEODIFF_makeCopySqlite( const char *src, const char *dst )
   {
     dbTo.create( dst );
   }
-  catch ( GeoDiffException e )
+  catch ( const  GeoDiffException &e )
   {
     Logger::instance().error( "MakeCopySqlite: Unable to open destination database: " + std::string( dst ) + "\n" + e.what() );
     return GEODIFF_ERROR;
@@ -781,7 +779,7 @@ int GEODIFF_dumpData( const char *driverName, const char *driverExtraInfo, const
     writer.open( changeset );
     driver->dumpData( writer );
   }
-  catch ( GeoDiffException exc )
+  catch ( const  GeoDiffException &exc )
   {
     Logger::instance().error( exc );
     return GEODIFF_ERROR;
@@ -892,7 +890,7 @@ int GEODIFF_schema( const char *driverName, const char *driverExtraInfo, const c
     // write file content
     flushString( json, res );
   }
-  catch ( GeoDiffException exc )
+  catch ( const  GeoDiffException &exc )
   {
     Logger::instance().error( exc );
     return GEODIFF_ERROR;
@@ -932,7 +930,7 @@ GEODIFF_ChangesetEntryH GEODIFF_CR_nextEntry( GEODIFF_ChangesetReaderH readerHan
       return nullptr;
     }
   }
-  catch ( GeoDiffException exc )
+  catch ( const  GeoDiffException &exc )
   {
     Logger::instance().error( exc );
     *ok = false;
@@ -960,7 +958,8 @@ GEODIFF_ChangesetTableH GEODIFF_CE_table( GEODIFF_ChangesetEntryH entryHandle )
 int GEODIFF_CE_countValues( GEODIFF_ChangesetEntryH entryHandle )
 {
   ChangesetEntry *entry = static_cast<ChangesetEntry *>( entryHandle );
-  return entry->op == ChangesetEntry::OpDelete ? entry->oldValues.size() : entry->newValues.size();
+  size_t ret = entry->op == ChangesetEntry::OpDelete ? entry->oldValues.size() : entry->newValues.size();
+  return ( int ) ret;
 }
 
 GEODIFF_ValueH GEODIFF_CE_oldValue( GEODIFF_ChangesetEntryH entryHandle, int i )
@@ -1000,7 +999,8 @@ void GEODIFF_V_destroy( GEODIFF_ValueH valueHandle )
 
 int GEODIFF_V_getDataSize( GEODIFF_ValueH valueHandle )
 {
-  return static_cast<Value *>( valueHandle )->getString().size();
+  size_t ret = static_cast<Value *>( valueHandle )->getString().size();
+  return ( int ) ret;
 }
 
 void GEODIFF_V_getData( GEODIFF_ValueH valueHandle, char *data )
@@ -1016,7 +1016,8 @@ const char *GEODIFF_CT_name( GEODIFF_ChangesetTableH tableHandle )
 
 int GEODIFF_CT_columnCount( GEODIFF_ChangesetTableH tableHandle )
 {
-  return static_cast<ChangesetTable *>( tableHandle )->columnCount();
+  size_t ret = static_cast<ChangesetTable *>( tableHandle )->columnCount();
+  return ( int ) ret;
 }
 
 bool GEODIFF_CT_columnIsPkey( GEODIFF_ChangesetTableH tableHandle, int i )

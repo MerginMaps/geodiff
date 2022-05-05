@@ -46,7 +46,7 @@ class ChangesetReader
     void readRowValues( std::vector<Value> &values );
     void readTableRecord();
 
-    void throwReaderError( const std::string &message );
+    void throwReaderError( const std::string &message ) const;
 
     int mOffset = 0;  // where are we in the buffer
 

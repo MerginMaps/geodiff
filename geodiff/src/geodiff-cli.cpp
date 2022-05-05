@@ -42,7 +42,7 @@ static bool parseRequiredArgument( std::string &value, const std::vector<std::st
   }
 }
 
-static bool checkNoExtraArguments( const std::vector<std::string> &args, size_t &i, const std::string &cmdName )
+static bool checkNoExtraArguments( const std::vector<std::string> &args, size_t i, const std::string &cmdName )
 {
   if ( i < args.size() )
   {
@@ -390,7 +390,7 @@ static int handleCmdConcat( const std::vector<std::string> &args )
     changesets.push_back( args[i].data() );
   }
 
-  int ret = GEODIFF_concatChanges( changesets.size(), changesets.data(), chOutput.data() );
+  int ret = GEODIFF_concatChanges( ( int ) changesets.size(), changesets.data(), chOutput.data() );
   if ( ret != GEODIFF_SUCCESS )
   {
     std::cout << "Error: concat changesets failed!" << std::endl;
@@ -682,6 +682,10 @@ static int handleCmdVersion( const std::vector<std::string> &args )
   return 0;
 }
 
+static GEODIFF_LoggerLevel getGeodiffLoggerLevel( )
+{
+  return ( GEODIFF_LoggerLevel ) getEnvVarInt( "GEODIFF_LOGGER_LEVEL", ( int ) LevelWarning );
+}
 
 static int handleCmdHelp( const std::vector<std::string> &args )
 {
@@ -851,10 +855,7 @@ int main( int argc, char *argv[] )
 {
   GEODIFF_init();
 
-  if ( !getenv( "GEODIFF_LOGGER_LEVEL" ) )
-  {
-    GEODIFF_setMaximumLoggerLevel( LevelWarning );
-  }
+  GEODIFF_setMaximumLoggerLevel( getGeodiffLoggerLevel() );
 
   std::vector<std::string> args;
   for ( int i = 1; i < argc; ++i )

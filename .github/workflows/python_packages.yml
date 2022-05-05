@@ -98,7 +98,8 @@ jobs:
 
       - name: Install Deps
         run: |
-          C:/vcpkg/vcpkg install sqlite3 --triplet x64-windows
+          C:/vcpkg/vcpkg install sqlite3[rtree,fts3,json1] --triplet x64-windows
+          C:/vcpkg/vcpkg integrate install
           pip install setuptools scikit-build wheel cmake delvewheel
           dir "C:/vcpkg/installed/x64-windows/bin"
 
@@ -131,7 +132,8 @@ jobs:
 
       - name: Install Deps
         run: |
-          C:/vcpkg/vcpkg install sqlite3 --triplet x86-windows
+          C:/vcpkg/vcpkg install sqlite3[rtree,fts3,json1] --triplet x86-windows
+          C:/vcpkg/vcpkg integrate install
           pip install setuptools scikit-build wheel cmake delvewheel
           dir "C:/vcpkg/installed/x86-windows/bin"
 

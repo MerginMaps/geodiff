@@ -158,11 +158,11 @@ std::string Sqlite3Stmt::expandedSql() const
 
 Sqlite3Value::Sqlite3Value() = default;
 
-Sqlite3Value::Sqlite3Value( const sqlite3_value *val )
+Sqlite3Value::Sqlite3Value( const sqlite3_value *ppValue )
 {
-  if ( val )
+  if ( ppValue )
   {
-    mVal = sqlite3_value_dup( val );
+    mVal = sqlite3_value_dup( ppValue );
   }
 }
 
@@ -436,12 +436,11 @@ std::vector<std::string> sqliteColumnNames(
 )
 {
   std::vector<std::string> az;           /* List of column names to be returned */
-  int naz = 0;             /* Number of entries in az[] */
+  size_t naz = 0;             /* Number of entries in az[] */
   Sqlite3Stmt pStmt;     /* SQL statement being run */
   std::string zPkIdxName;    /* Name of the PRIMARY KEY index */
   int truePk = 0;          /* PRAGMA table_info indentifies the PK to use */
   int nPK = 0;             /* Number of PRIMARY KEY columns */
-  int i, j;                /* Loop counters */
 
   /* Figure out what the true primary key is for the table.
   **   *  For WITHOUT ROWID tables, the true primary key is the same as
@@ -515,8 +514,9 @@ std::vector<std::string> sqliteColumnNames(
   ** same name.  */
   if ( az[0].empty() )
   {
+    size_t j;
     std::vector<std::string> azRowid = { "rowid", "_rowid_", "oid" };
-    for ( i = 0; i < azRowid.size(); i++ )
+    for ( size_t i = 0; i < azRowid.size(); i++ )
     {
       for ( j = 1; j < naz; j++ )
       {
@@ -593,7 +593,7 @@ std::string createGpkgHeader( std::string &wkb, const TableColumnInfo &col )
 
   // initialize outstream for header
   binstream_t outStream;
-  if ( binstream_init_growable( &outStream, sizeof( GPKG_NO_ENVELOPE_HEADER_SIZE ) ) != SQLITE_OK )
+  if ( binstream_init_growable( &outStream, GPKG_NO_ENVELOPE_HEADER_SIZE ) != SQLITE_OK )
     throw GeoDiffException( "Could initialize growing binary stream for GeoPackage header" );
 
   geom_blob_header_t gpbHeader;

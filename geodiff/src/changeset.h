@@ -38,12 +38,15 @@ struct Value
 
     Value &operator=( const Value &other )
     {
-      reset();
-      mType = other.mType;
-      mVal = other.mVal;
-      if ( mType == TypeText || mType == TypeBlob )
+      if ( &other != this )
       {
-        mVal.str = new std::string( *mVal.str ); // make a deep copy
+        reset();
+        mType = other.mType;
+        mVal = other.mVal;
+        if ( mType == TypeText || mType == TypeBlob )
+        {
+          mVal.str = new std::string( *mVal.str ); // make a deep copy
+        }
       }
       return *this;
     }
@@ -62,6 +65,7 @@ struct Value
         return getString() == other.getString();
 
       assert( false );
+      return false;
     }
 
     bool operator!=( const Value &other ) const
@@ -110,7 +114,7 @@ struct Value
       mType = TypeDouble;
       mVal.num_f = n;
     }
-    void setString( Type t, const char *ptr, int size )
+    void setString( Type t, const char *ptr, size_t size )
     {
       reset();
       assert( t == TypeText || t == TypeBlob );
@@ -129,7 +133,7 @@ struct Value
 
     static Value makeInt( int64_t n ) { Value v; v.setInt( n ); return v; }
     static Value makeDouble( double n ) { Value v; v.setDouble( n ); return v; }
-    static Value makeText( std::string s ) { Value v; v.setString( TypeText, s.data(), s.size() ); return v; }
+    static Value makeText( const std::string &s ) { Value v; v.setString( TypeText, s.data(), s.size() ); return v; }
     static Value makeNull() { Value v; v.setNull(); return v; }
 
   protected:
@@ -149,7 +153,7 @@ struct Value
       int64_t num_i;
       double num_f;
       std::string *str;
-    } mVal;
+    } mVal = {0};
 
 };
 
@@ -235,7 +239,7 @@ struct ChangesetEntry
   ChangesetTable *table = nullptr;
 
   //! a quick way for tests to create a changeset entry
-  static ChangesetEntry make( ChangesetTable *t, OperationType o, std::vector<Value> oldV, std::vector<Value> newV )
+  static ChangesetEntry make( ChangesetTable *t, OperationType o, const std::vector<Value> &oldV, const std::vector<Value> &newV )
   {
     ChangesetEntry e;
     e.op = o;

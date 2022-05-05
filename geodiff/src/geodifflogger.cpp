@@ -8,16 +8,6 @@
 #include "geodiffutils.hpp"
 #include <iostream>
 
-int _envInt( const char *key )
-{
-  char *val = getenv( key );
-  if ( val )
-  {
-    return atoi( val );
-  }
-  return 0;
-}
-
 void StdoutLogger( GEODIFF_LoggerLevel level, const char *msg )
 {
   switch ( level )
@@ -38,7 +28,7 @@ void StdoutLogger( GEODIFF_LoggerLevel level, const char *msg )
 Logger::Logger()
 {
   // Sort out which
-  int envLevel = _envInt( "GEODIFF_LOGGER_LEVEL" );
+  int envLevel = getEnvVarInt( "GEODIFF_LOGGER_LEVEL", 0 );
   if ( envLevel >= 0 && envLevel <= GEODIFF_LoggerLevel::LevelDebug )
   {
     setMaxLogLevel( static_cast<GEODIFF_LoggerLevel>( envLevel ) );

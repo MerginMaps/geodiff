@@ -191,7 +191,7 @@ struct TableSchema
   bool hasPrimaryKey() const;
 
   //! Returns column index for the given column name (returns SIZE_MAX if column not is not found)
-  size_t columnFromName( const std::string &name );
+  size_t columnFromName( const std::string &columnName ) const;
 
   //! Returns index of the first encountered geometry column (returns SIZE_MAX if no geometry column is found)
   size_t geometryColumn() const;
@@ -200,7 +200,10 @@ struct TableSchema
   {
     std::string output = "TABLE " + name + "\n";
     for ( const TableColumnInfo &col : columns )
+    {
+      // cppcheck-suppress useStlAlgorithm
       output += "  " + col.dump() + "\n";
+    }
     return output;
   }
 
@@ -209,7 +212,7 @@ struct TableSchema
     return name == other.name &&
            crs == other.crs && columns.size() == other.columns.size() &&
            std::equal( columns.begin(), columns.end(), other.columns.begin(),
-    []( TableColumnInfo me, TableColumnInfo other ) { return me.compareWithBaseTypes( other ); } );
+    []( const TableColumnInfo & me, const TableColumnInfo & other ) { return me.compareWithBaseTypes( other ); } );
   }
 
   bool operator==( const TableSchema &other ) const

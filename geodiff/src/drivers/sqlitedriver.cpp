@@ -24,7 +24,7 @@ static void logApplyConflict( const std::string &type, const ChangesetEntry &ent
 class Sqlite3DbMutexLocker
 {
   public:
-    Sqlite3DbMutexLocker( std::shared_ptr<Sqlite3Db> db )
+    explicit Sqlite3DbMutexLocker( std::shared_ptr<Sqlite3Db> db )
       : mDb( db )
     {
       sqlite3_mutex_enter( sqlite3_db_mutex( mDb.get()->get() ) );
@@ -48,7 +48,7 @@ class Sqlite3DbMutexLocker
 class Sqlite3SavepointTransaction
 {
   public:
-    Sqlite3SavepointTransaction( std::shared_ptr<Sqlite3Db> db )
+    explicit Sqlite3SavepointTransaction( std::shared_ptr<Sqlite3Db> db )
       : mDb( db )
     {
       if ( sqlite3_exec( mDb.get()->get(), "SAVEPOINT changeset_apply", 0, 0, 0 ) != SQLITE_OK )
@@ -682,7 +682,7 @@ static void bindValue( sqlite3_stmt *stmt, int index, const Value &v )
   else if ( v.type() == Value::TypeText )
     rc = sqlite3_bind_text( stmt, index, v.getString().c_str(), -1, SQLITE_TRANSIENT );
   else if ( v.type() == Value::TypeBlob )
-    rc = sqlite3_bind_blob( stmt, index, v.getString().c_str(), v.getString().size(), SQLITE_TRANSIENT );
+    rc = sqlite3_bind_blob( stmt, index, v.getString().c_str(), ( int ) v.getString().size(), SQLITE_TRANSIENT );
   else
     throw GeoDiffException( "unexpected bind type" );
 
@@ -914,9 +914,9 @@ void SqliteDriver::createTables( const std::vector<TableSchema> &tables )
 {
   // currently we always create geopackage meta tables. Maybe in the future we can skip
   // that if there is a reason, and have that optional if none of the tables are spatial.
-  Sqlite3Stmt stmt;
-  stmt.prepare( mDb, "SELECT InitSpatialMetadata('main');" );
-  int res = sqlite3_step( stmt.get() );
+  Sqlite3Stmt stmt1;
+  stmt1.prepare( mDb, "SELECT InitSpatialMetadata('main');" );
+  int res = sqlite3_step( stmt1.get() );
   if ( res != SQLITE_ROW )
     throw GeoDiffException( "Failure initializing spatial metadata" );
 

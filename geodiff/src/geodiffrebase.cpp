@@ -27,6 +27,19 @@
 #include <fstream>
 #include <sstream>
 
+static void dump_set( const std::set<int> &data, std::ostringstream &ret )
+{
+  if ( data.empty() )
+    ret << "--none --";
+  else
+  {
+    for ( auto it : data )
+    {
+      ret << it << ",";
+    }
+  }
+  ret << std::endl;
+}
 
 /**
  * structure that keeps track of information needed for rebase extracted
@@ -37,20 +50,6 @@ struct TableRebaseInfo
   std::set<int> inserted;           //!< pkeys that were inserted
   std::set<int> deleted;            //!< pkeys that were deleted
   std::map<int, std::vector<Value> > updated;  //!< new column values for each recorded row (identified by pkey)
-
-  void dump_set( const std::set<int> &data, std::ostringstream &ret )
-  {
-    if ( data.empty() )
-      ret << "--none --";
-    else
-    {
-      for ( auto it : data )
-      {
-        ret << it << ",";
-      }
-    }
-    ret << std::endl;
-  }
 
   void dump( std::ostringstream &ret )
   {
@@ -484,7 +483,7 @@ bool _handle_update( const ChangesetEntry &entry, const RebaseMapping &mapping,
         outEntry.oldValues[i] = patchedVal;
         outEntry.newValues[i] = entry.newValues[i];
         entryHasChanges = true;
-        _addConflictItem( conflictFeature, i, entry.oldValues[i], patchedVal, entry.newValues[i] );
+        _addConflictItem( conflictFeature, ( int ) i, entry.oldValues[i], patchedVal, entry.newValues[i] );
       }
     }
     else
@@ -515,10 +514,8 @@ int _prepare_new_changeset( ChangesetReader &reader, const std::string &changese
   while ( reader.nextEntry( entry ) )
   {
     std::string tableName = entry.table->name;
-    if ( tableDefinitions.find( tableName ) == tableDefinitions.end() )
-    {
-      tableDefinitions[tableName] = *entry.table;
-    }
+    // Inserts table into the definitions, if it doesn't already contain it
+    tableDefinitions.insert( {tableName, *entry.table} );
 
     auto tablesIt = dbInfo.tables.find( tableName );
     if ( tablesIt == dbInfo.tables.end() )
@@ -570,9 +567,9 @@ int _prepare_new_changeset( ChangesetReader &reader, const std::string &changese
       continue;
 
     writer.beginTable( it.second );
-    for ( const ChangesetEntry &entry : changes )
+    for ( const ChangesetEntry &writeEntry : changes )
     {
-      writer.writeEntry( entry );
+      writer.writeEntry( writeEntry );
     }
   }
 

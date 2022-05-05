@@ -6,7 +6,7 @@
 #include "changesetreader.h"
 
 #include "geodiffutils.hpp"
-#include "changesetvarint.h"
+#include "changesetgetvarint.h"
 #include "portableendian.h"
 
 #include <assert.h>
@@ -27,7 +27,7 @@ bool ChangesetReader::open( const std::string &filename )
     mBuffer.reset( new Buffer );
     mBuffer->read( filename );
   }
-  catch ( GeoDiffException )
+  catch ( const GeoDiffException & )
   {
     return false;
   }
@@ -50,7 +50,7 @@ bool ChangesetReader::nextEntry( ChangesetEntry &entry )
     }
     else if ( type == ChangesetEntry::OpInsert || type == ChangesetEntry::OpUpdate || type == ChangesetEntry::OpDelete )
     {
-      int indirect = readByte();
+      readByte();
       if ( type != ChangesetEntry::OpInsert )
         readRowValues( entry.oldValues );
       else
@@ -196,7 +196,7 @@ void ChangesetReader::readTableRecord()
 }
 
 
-void ChangesetReader::throwReaderError( const std::string &message )
+void ChangesetReader::throwReaderError( const std::string &message ) const
 {
   std::ostringstream stringStream;
   stringStream << "Reader error at offset " << mOffset << ":\n" << message;
