@@ -150,9 +150,9 @@ TEST( PostgresDriverApi, test_driver_postgres_api )
   char driverName[256];
   EXPECT_EQ( GEODIFF_driverNameFromIndex( 1, driverName ), GEODIFF_SUCCESS );
 
-  EXPECT_EQ( std::string( driverName ), "postgresql" );
+  EXPECT_EQ( std::string( driverName ), "postgres" );
 
-  EXPECT_TRUE( GEODIFF_driverIsRegistered( "postgresql" ) );
+  EXPECT_TRUE( GEODIFF_driverIsRegistered( "postgres" ) );
 }
 
 TEST( PostgresDriverTest, test_create_changeset )
