@@ -142,6 +142,19 @@ void testCreateChangeset( const std::string &testname, const std::string &connin
   EXPECT_TRUE( fileContentEquals( output, pathjoin( testdir(), "postgres", expectedChangeset ) ) );
 }
 
+TEST( PostgresDriverApi, test_driver_postgres_api )
+{
+  int ndrivers = 2;
+  EXPECT_EQ( GEODIFF_driverCount(), ndrivers );
+
+  char driverName[256];
+  EXPECT_EQ( GEODIFF_driverNameFromIndex( 1, driverName ), GEODIFF_SUCCESS );
+
+  EXPECT_EQ( std::string( driverName ), "postgresql" );
+
+  EXPECT_TRUE( GEODIFF_driverIsRegistered( "postgresql" ) );
+}
+
 TEST( PostgresDriverTest, test_create_changeset )
 {
   std::string conninfo = pgTestConnInfo();

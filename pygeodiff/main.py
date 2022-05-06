@@ -48,6 +48,20 @@ class GeoDiff:
         """
         return self.clib.set_maximum_logger_level(maxLevel)
 
+    def drivers(self):
+        """
+            Returns list of registered drivers (e.g. ["sqlite", "postgresql"])
+
+            raises GeoDiffLibError on error
+        """
+        return self.clib.drivers()
+        
+    def driver_is_registered(self, name):
+        """
+            Returns whether dataset with given name is registered (e.g. "sqlite" or "postgresql")
+        """
+        return self.clib.driver_is_registered(name)
+        
     def create_changeset(self, base, modified, changeset):
         """
             Creates changeset file (binary) in such way that
@@ -60,7 +74,7 @@ class GeoDiff:
             \param modified [input] MODIFIED sqlite3/geopackage file
             \param changeset [output] changeset between BASE -> MODIFIED
 
-            raises SqliteDiffError on error
+            raises GeoDiffLibError on error
         """
         return self.clib.create_changeset(base, modified, changeset)
 
@@ -75,7 +89,7 @@ class GeoDiff:
 
             \returns number of conflics
 
-            raises SqliteDiffError on error
+            raises GeoDiffLibError on error
         """
         return self.clib.invert_changeset(changeset, changeset_inv)
 
@@ -100,7 +114,7 @@ class GeoDiff:
              \param modified [input] local copy of the changes to be rebased
              \param conflict [output] file where the automatically resolved conflicts are stored. If there are no conflicts, file is not created
 
-             raises SqliteDiffError on error
+             raises GeoDiffLibError on error
         """
         return self.clib.rebase(base, modified_their, modified, conflict)
 
@@ -121,7 +135,7 @@ class GeoDiff:
              \param changeset [output] changeset between MODIFIED_THEIR -> MODIFIED_THEIR_PLUS_MINE
              \param conflict [output] file where the automatically resolved conflicts are stored. If there are no conflicts, file is not created
 
-             raises SqliteDiffError on error
+             raises GeoDiffLibError on error
         """
         return self.clib.create_rebased_changeset(base, modified, changeset_their, changeset, conflict)
 
@@ -133,7 +147,7 @@ class GeoDiff:
             \param changeset [input] changeset to apply to BASE
             \returns number of conflicts
 
-            raises SqliteDiffError on error
+            raises GeoDiffLibError on error
         """
         return self.clib.apply_changeset(base, changeset)
 
@@ -143,7 +157,7 @@ class GeoDiff:
             JSON contains all changes in human/machine readable name
             \returns number of changes
 
-             raises SqliteDiffError on error
+             raises GeoDiffLibError on error
         """
         return self.clib.list_changes(changeset, json)
 
@@ -153,7 +167,7 @@ class GeoDiff:
             JSON contains a list of how many inserts/edits/deletes is contained in changeset for each table
             \returns number of changes
 
-             raises SqliteDiffError on error
+             raises GeoDiffLibError on error
         """
         return self.clib.list_changes_summary(changeset, json)
 
@@ -162,7 +176,7 @@ class GeoDiff:
         """
             \returns whether changeset contains at least one change
 
-            raises SqliteDiffError on error
+            raises GeoDiffLibError on error
         """
         return self.clib.has_changes(changeset)
 
@@ -170,7 +184,7 @@ class GeoDiff:
         """
             \returns number of changes
 
-             raises SqliteDiffError on error
+             raises GeoDiffLibError on error
         """
         return self.clib.changes_count(changeset)
 
@@ -183,7 +197,7 @@ class GeoDiff:
 
             Incompatible changes (which would cause conflicts when applied) will be discarded.
 
-            raises SqliteDiffError on error
+            raises GeoDiffLibError on error
         """
         return self.clib.concat_changes(list_changesets, output_changeset)
 
@@ -204,7 +218,7 @@ class GeoDiff:
             argument which is passed to libpq's PQconnectdb(), see PostgreSQL docs for syntax.
             A datasource identifies a PostgreSQL schema name (namespace) within the current database.
 
-            raises SqliteDiffError on error
+            raises GeoDiffLibError on error
         """
         return self.clib.make_copy(driver_src, driver_src_info, src, driver_dst, driver_dst_info, dst)
 
@@ -216,7 +230,7 @@ class GeoDiff:
             of files on the file system: it will take into account other readers/writers and WAL file,
             so we should never end up with a corrupt copy.
 
-            raises SqliteDiffError on error
+            raises GeoDiffLibError on error
         """
         return self.clib.make_copy_sqlite(src, dst)
 
@@ -228,7 +242,7 @@ class GeoDiff:
 
             See documentation of make_copy() for details about supported drivers.
 
-            raises SqliteDiffError on error
+            raises GeoDiffLibError on error
         """
         return self.clib.create_changeset_ex(driver, driver_info, base, modified, changeset)
 
@@ -250,7 +264,7 @@ class GeoDiff:
             \param dst [input] MODIFIED sqlite3/geopackage file for sqlite and schema name for postgres
             \param changeset [output] changeset between SRC -> DST
 
-            raises SqliteDiffError on error
+            raises GeoDiffLibError on error
         """
         return self.clib.create_changeset_dr(driver_src, driver_src_info, src, driver_dst, driver_dst_info, dst, changeset)
 
@@ -262,7 +276,7 @@ class GeoDiff:
 
             See documentation of make_copy() for details about supported drivers.
 
-            raises SqliteDiffError on error
+            raises GeoDiffLibError on error
         """
         return self.clib.apply_changeset_ex(driver, driver_info, base, changeset)
 
@@ -271,7 +285,7 @@ class GeoDiff:
             This function takes an existing changeset "base2modified" and rebases it on top of changes in
             "base2their" and writes output to a new changeset "rebased"
 
-            raises SqliteDiffError on error
+            raises GeoDiffLibError on error
         """
         return self.clib.create_rebased_changeset_ex(driver, driver_info, base, base2modified, base2their, rebased, conflict_file)
 
@@ -280,7 +294,7 @@ class GeoDiff:
             This function takes care of updating "modified" dataset by taking any changes between "base"
             and "modified" datasets and rebasing them on top of base2their changeset.
 
-            raises SqliteDiffError on error
+            raises GeoDiffLibError on error
         """
         return self.clib.rebase_ex(driver, driver_info, base, modified, base2their, conflict_file)
 
@@ -288,7 +302,7 @@ class GeoDiff:
         """
             Dumps all data from the data source as INSERT statements to a new changeset file.
 
-            raises SqliteDiffError on error
+            raises GeoDiffLibError on error
         """
         return self.clib.dump_data(driver, driver_info, src, changeset)
 
@@ -296,7 +310,7 @@ class GeoDiff:
         """
             Writes a JSON file containing database schema of tables as understood by geodiff.
 
-            raises SqliteDiffError on error
+            raises GeoDiffLibError on error
         """
         return self.clib.schema(driver, driver_info, src, json)
 

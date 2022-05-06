@@ -18,6 +18,13 @@ class UnitTestsPythonApiCalls(GeoDiffTests):
         outdir = tmpdir() + "/pyapi-calls"
         create_dir("api-calls")
 
+        print("-- driver_api")
+        if len(self.geodiff.drivers()) < 1:
+            raise TestError("no drivers registered")
+            
+        if not self.geodiff.driver_is_registered("sqlite"):
+            raise TestError("sqlite driver not registered")
+           
         print("-- concat_changes")
         self.geodiff.concat_changes(
             [testdir()+'/concat/foo-insert-update-1.diff', testdir()+'/concat/foo-insert-update-2.diff'],

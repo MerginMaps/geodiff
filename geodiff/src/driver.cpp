@@ -17,13 +17,9 @@
 const std::string Driver::SQLITEDRIVERNAME = "sqlite";
 const std::string Driver::POSTGRESDRIVERNAME = "postgres";
 
-Driver::Driver()
-{
-}
+Driver::Driver() = default;
 
-Driver::~Driver()
-{
-}
+Driver::~Driver() = default;
 
 std::vector<std::string> Driver::drivers()
 {
@@ -33,6 +29,12 @@ std::vector<std::string> Driver::drivers()
   names.push_back( POSTGRESDRIVERNAME );
 #endif
   return names;
+}
+
+bool Driver::driverIsRegistered( const std::string &driverName )
+{
+  const std::vector<std::string> drivers = Driver::drivers();
+  return std::find( drivers.begin(), drivers.end(), driverName ) != drivers.end();
 }
 
 std::unique_ptr<Driver> Driver::createDriver( const std::string &driverName )

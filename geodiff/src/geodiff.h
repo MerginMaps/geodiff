@@ -103,6 +103,23 @@ GEODIFF_EXPORT void GEODIFF_setMaximumLoggerLevel( GEODIFF_LoggerLevel maxLogLev
 GEODIFF_EXPORT const char *GEODIFF_version();
 
 /**
+ * Returns count of available/registered drivers
+ */
+GEODIFF_EXPORT int GEODIFF_driverCount();
+
+/**
+ * Returns driver name by index
+ * driverName should be allocated to 256 chars, will be populated with driver name
+ * \returns GEODIFF_SUCCESS on success
+ */
+GEODIFF_EXPORT int GEODIFF_driverNameFromIndex( int index, char *driverName );
+
+/**
+ * Returns whether the driver is available/registered
+ */
+GEODIFF_EXPORT bool GEODIFF_driverIsRegistered( const char *driverName );
+
+/**
  * Creates changeset file (binary) in such way that
  * if CHANGESET is applied to BASE by applyChangeset,
  * MODIFIED will be created
