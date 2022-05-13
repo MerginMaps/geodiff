@@ -144,7 +144,23 @@ TEST( SqliteDriverTest, test_open )
 
 
 //
+TEST( SqliteDriverApi, test_driver_sqlite_api )
+{
+  int ndrivers = 1;
+#ifdef HAVE_POSTGRES
+  ++ndrivers;
+#endif
 
+  EXPECT_EQ( GEODIFF_driverCount(), ndrivers );
+
+  char driverName[256];
+  EXPECT_EQ( GEODIFF_driverNameFromIndex( 0, driverName ), GEODIFF_SUCCESS );
+  EXPECT_EQ( GEODIFF_driverNameFromIndex( 99, driverName ), GEODIFF_ERROR );
+
+  EXPECT_EQ( std::string( driverName ), "sqlite" );
+
+  EXPECT_TRUE( GEODIFF_driverIsRegistered( "sqlite" ) );
+}
 
 TEST( SqliteDriverTest, create_changeset_insert )
 {

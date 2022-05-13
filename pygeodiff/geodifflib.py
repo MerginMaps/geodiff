@@ -64,7 +64,7 @@ class GeoDiffLib:
         self.check_version()
         self._register_functions()
 
-    def _register_functions(self):
+    def _register_functions(self):                      
         self._readChangeset = self.lib.GEODIFF_readChangeset
         self._readChangeset.argtypes = [ctypes.c_char_p]
         self._readChangeset.restype = ctypes.c_void_p
@@ -185,6 +185,35 @@ class GeoDiffLib:
         pyversion = __version__
         if cversion != pyversion:
             raise GeoDiffLibVersionError("version mismatch ({} C vs {} PY)".format(cversion, pyversion))
+
+    def drivers(self):
+        _driver_count_f = self.lib.GEODIFF_driverCount
+        _driver_count_f.restype = ctypes.c_int
+      
+        _driver_name_from_index_f = self.lib.GEODIFF_driverNameFromIndex
+        _driver_name_from_index_f.argtypes = [ctypes.c_int, ctypes.c_char_p]
+        _driver_name_from_index_f.restype = ctypes.c_int  
+        
+        drivers_list = []
+        driversCount =  _driver_count_f()
+        for index in range(driversCount):
+            name_raw = 256*""
+            b_string1 = name_raw.encode('utf-8') 
+            res = _driver_name_from_index_f(index, b_string1)
+            _parse_return_code(res, "drivers")
+            name = b_string1.decode('utf-8')
+            drivers_list.append(name)
+            
+        return drivers_list
+    
+    def driver_is_registered(self, name):
+        func = self.lib.GEODIFF_driverIsRegistered
+        func.argtypes = [ctypes.c_char_p]
+        func.restype = ctypes.c_bool
+        
+        b_string1 = name.encode('utf-8')
+        return func(b_string1)
+        
 
     def create_changeset(self, base, modified, changeset):
         func = self.lib.GEODIFF_createChangeset

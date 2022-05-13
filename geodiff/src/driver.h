@@ -49,6 +49,11 @@ class Driver
     static std::vector<std::string> drivers();
 
     /**
+     * Returns whether driver is supported
+     */
+    static bool driverIsRegistered( const std::string &driverName );
+
+    /**
      * Returns a new instance of a driver given its name. Returns nullptr if such driver does not exist.
      */
     static std::unique_ptr<Driver> createDriver( const std::string &driverName );

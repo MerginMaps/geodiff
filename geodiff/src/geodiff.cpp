@@ -19,6 +19,7 @@
 #include <stdlib.h>
 #include <stdarg.h>
 #include <ctype.h>
+#include <cstring>
 #include <string.h>
 
 #include <sqlite3.h>
@@ -32,6 +33,41 @@
 const char *GEODIFF_version()
 {
   return "1.0.6";
+}
+
+int GEODIFF_driverCount()
+{
+  const std::vector<std::string> drivers = Driver::drivers();
+  return ( int ) drivers.size();
+}
+
+int GEODIFF_driverNameFromIndex( int index, char *driverName )
+{
+  const std::vector<std::string> drivers = Driver::drivers();
+
+  if ( ( size_t ) index >= drivers.size() )
+  {
+    Logger::instance().error( "Index out of range in GEODIFF_driverNameFromIndex" );
+    return GEODIFF_ERROR;
+  }
+
+  const std::string name = drivers[index];
+  const char *cname = name.c_str();
+  const size_t len = name.size() + 1;
+  assert( len < 256 );
+  memcpy( driverName, cname, len );
+  return GEODIFF_SUCCESS;
+}
+
+bool GEODIFF_driverIsRegistered( const char *driverName )
+{
+  if ( !driverName )
+  {
+    Logger::instance().error( "NULL arguments to GEODIFF_driverIsRegistered" );
+    return GEODIFF_ERROR;
+  }
+
+  return Driver::driverIsRegistered( std::string( driverName ) );
 }
 
 void _errorLogCallback( void * /* pArg */, int iErrCode, const char *zMsg )
