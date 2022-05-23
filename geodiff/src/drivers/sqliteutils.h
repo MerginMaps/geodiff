@@ -130,4 +130,7 @@ int parseGpkgbHeaderSize( const std::string &gpkgWkb );
  */
 std::string createGpkgHeader( std::string &wkb, const TableColumnInfo &col );
 
+// Creates WKB geometry from the GPB envelope
+std::string createWkbFromGpkgHeader( const std::string &gpkgWkb );
+
 #endif // SQLITEUTILS_H

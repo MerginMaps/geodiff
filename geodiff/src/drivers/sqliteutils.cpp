@@ -636,3 +636,11 @@ std::string createGpkgHeader( std::string &wkb, const TableColumnInfo &col )
 
   return header;
 }
+
+std::string createWkbFromGpkgHeader( const std::string &gpkgWkb )
+{
+  int headerSize = parseGpkgbHeaderSize( gpkgWkb );
+  std::string wkb( gpkgWkb.size() - headerSize, 0 );
+  memcpy( &wkb[0], &gpkgWkb[headerSize], gpkgWkb.size() - headerSize );
+  return wkb;
+}
