@@ -99,9 +99,9 @@ geodiff.apply_changeset('data-a.gpkg, 'a-to-b.diff')
 geodiff.list_changes('a-to-b.diff', 'a-to-b.json')
 ```
 
-If there are any problems, calls will raise `pygeodiff.GeoDiffLibError` exception. 
+If there are any problems, calls will raise `pygeodiff.GeoDiffLibError` exception.
 
-If you have Mergin plugin for QGIS installed, you can also use pygeodiff from QGIS' Python Console by starting with 
+If you have Mergin plugin for QGIS installed, you can also use pygeodiff from QGIS' Python Console by starting with
 
 ```
 import Mergin.mergin.deps.pygeodiff as pygeodiff
@@ -124,11 +124,11 @@ Install postgresql client and sqlite3 library, e.g. for Linux
 ```bash
 sudo apt-get install libsqlite3-dev libpq-dev
 ```
-or MacOS (using SQLite from [QGIS deps](https://qgis.org/downloads/macos/deps/)) by defining SQLite variables in 
+or MacOS (using SQLite from [QGIS deps](https://qgis.org/downloads/macos/deps/)) by defining SQLite variables in
 a cmake configuration as following:
 ```bash
-SQLite3_INCLUDE_DIR=/opt/QGIS/qgis-deps-${QGIS_DEPS_VERSION}/stage/include 
-SQLite3_LIBRARY=/opt/QGIS/qgis-deps-${QGIS_DEPS_VERSION}/stage/lib/libsqlite3.dylib 
+SQLite3_INCLUDE_DIR=/opt/QGIS/qgis-deps-${QGIS_DEPS_VERSION}/stage/include
+SQLite3_LIBRARY=/opt/QGIS/qgis-deps-${QGIS_DEPS_VERSION}/stage/lib/libsqlite3.dylib
 ```
 
 Compile geodiff:
@@ -139,7 +139,7 @@ cmake .. -DWITH_POSTGRESQL=TRUE
 make
 ```
 
-## Development of geodiff 
+## Development of geodiff
 
 ### Running tests
 
@@ -150,7 +150,7 @@ Python tests: you need to setup GEODIFFLIB with path to .so/.dylib from build st
 GEODIFFLIB=`pwd`/../build/libgeodiff.dylib nose2
 ```
 
-### Releasing new version 
+### Releasing new version
 
 - run `python3 ./scripts/update_version.py --version x.y.z`
 - push to GitHub
@@ -162,3 +162,4 @@ Library uses its own copy of
  - [base64](geodiff/src/3rdparty/base64utils.cpp)
  - [endian](geodiff/src/3rdparty/portableendian.h)
  - [libgpkg](https://github.com/luciad/libgpkg) (Apache-2)
+ - [json](https://github.com/nlohmann/json) (MIT)
