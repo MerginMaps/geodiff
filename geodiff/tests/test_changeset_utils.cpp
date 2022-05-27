@@ -13,6 +13,10 @@
 
 #include "geodiffutils.hpp"
 
+#include "json.hpp"
+
+using json = nlohmann::json;
+
 
 static void doInvert( const std::string &changeset, const std::string &invChangeset )
 {
@@ -110,13 +114,13 @@ static void doExportAndCompare( const std::string &changesetBase, const std::str
   ChangesetReader reader;
   EXPECT_TRUE( reader.open( changesetBase + ".diff" ) );
 
-  std::string json = summary ? changesetToJSONSummary( reader ) : changesetToJSON( reader );
+  json json = summary ? changesetToJSONSummary( reader ) : changesetToJSON( reader );
   std::string expectedFilename = changesetBase + ( summary ? "-summary.json" : ".json" );
 
   {
     std::ofstream f( changesetDest );
     EXPECT_TRUE( f.is_open() );
-    f << json;
+    f << json.dump( 2 );
   }
 
   EXPECT_TRUE( fileContentEquals( expectedFilename, changesetDest ) );

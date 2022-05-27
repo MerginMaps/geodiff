@@ -83,37 +83,44 @@ std::string escapeJSONString( std::string val )
   val = replace( val, "\r", "\\r" );
   val = replace( val, "\t", "\\t" );
   val = replace( val, "\"", "\\\"" );
-  return "\"" + val + "\"";
+  return val;
 }
 
-std::string valueToJSON( const Value &value )
+json valueToJSON( const Value &value )
 {
+  json j;
   switch ( value.type() )
   {
     case Value::TypeUndefined:
-      return std::string();  // actually this not get printed - undefined value should be omitted completely
+      break;  // actually this not get printed - undefined value should be omitted completely
     case Value::TypeInt:
-      return std::to_string( value.getInt() );
+      j= value.getInt();
+      break;
     case Value::TypeDouble:
-      return to_string_with_max_precision( value.getDouble() );
+      j = value.getDouble();
+      break;
     case Value::TypeText:
-      return escapeJSONString( value.getString() );
+      j = value.getString();
+      break;
     case Value::TypeBlob:
     {
       // this used to either show "blob N bytes" or would be converted to WKT
       // but this is better - it preserves content of any type + can be decoded back
       std::string base64 = base64_encode( ( const unsigned char * ) value.getString().data(), ( unsigned int ) value.getString().size() );
-      return escapeJSONString( base64 );
+      j = escapeJSONString( base64 );
+      break;
     }
     case Value::TypeNull:
-      return "null";
+      j = "null";
+      break;
     default:
-      return "\"(unknown)\"";  // should never happen
+      j = "(unknown)";  // should never happen
   }
+  return j;
 }
 
 
-std::string changesetEntryToJSON( const ChangesetEntry &entry )
+json changesetEntryToJSON( const ChangesetEntry &entry )
 {
   std::string status;
   if ( entry.op == ChangesetEntry::OpUpdate )
@@ -123,11 +130,11 @@ std::string changesetEntryToJSON( const ChangesetEntry &entry )
   else if ( entry.op == ChangesetEntry::OpDelete )
     status = "delete";
 
-  std::string res = "      {\n";
-  res += "        \"table\": \"" + entry.table->name + "\",\n";
-  res += "        \"type\": \"" + status + "\",\n";
-  res += "        \"changes\": [";
-  bool first = true;
+  json res;
+  res[ "table" ] = entry.table->name;
+  res[ "type" ] = status;
+
+  auto entries = json::array();
 
   Value valueOld, valueNew;
   for ( size_t i = 0; i < entry.table->columnCount(); ++i )
@@ -135,62 +142,45 @@ std::string changesetEntryToJSON( const ChangesetEntry &entry )
     valueNew = ( entry.op == ChangesetEntry::OpUpdate || entry.op == ChangesetEntry::OpInsert ) ? entry.newValues[i] : Value();
     valueOld = ( entry.op == ChangesetEntry::OpUpdate || entry.op == ChangesetEntry::OpDelete ) ? entry.oldValues[i] : Value();
 
+    json change;
+
     if ( valueNew.type() != Value::TypeUndefined || valueOld.type() != Value::TypeUndefined )
     {
-      if ( first )
-      {
-        first = false;
-        res += "\n          {\n";
-      }
-      else
-      {
-        res += ",\n          {\n";
-      }
-      res += "              \"column\": " + std::to_string( i );
+      change[ "column" ] = i;
 
-      std::string strValueOld = valueToJSON( valueOld );
-      std::string strValueNew = valueToJSON( valueNew );
-      if ( !strValueOld.empty() )
-        res += ",\n              \"old\": " + strValueOld;
-      if ( !strValueNew.empty() )
-        res += ",\n              \"new\": " + strValueNew;
-      res += "\n          }";
+      json jsonValueOld = valueToJSON( valueOld );
+      json jsonValueNew = valueToJSON( valueNew );
+      if ( !jsonValueOld.empty() )
+        change[ "old" ] = jsonValueOld;
+      if ( !jsonValueNew.empty() )
+        change[ "new" ] = jsonValueNew;
+
+      entries.push_back( change );
     }
   }
-  // close brackets
-  res += "\n        ]\n"; // end properties
-  res += "      }"; // end feature
+
+  res[ "changes" ] = entries;
   return res;
 }
 
-std::string changesetToJSON( ChangesetReader &reader )
+json changesetToJSON( ChangesetReader &reader )
 {
-  std::string res = "{\n   \"geodiff\": [";
+  auto entries = json::array();
 
   ChangesetEntry entry;
-  bool first = true;
   while ( reader.nextEntry( entry ) )
   {
-    std::string msg = changesetEntryToJSON( entry );
+    json msg = changesetEntryToJSON( entry );
     if ( msg.empty() )
       continue;
 
-    if ( first )
-    {
-      res += "\n" + msg;
-      first = false;
-    }
-    else
-    {
-      res += ",\n" + msg;
-    }
+    entries.push_back( msg );
   }
 
-  res += "\n   ]\n";
-  res += "}";
+  json res;
+  res[ "geodiff" ] = entries;
   return res;
 }
-
 
 //! auxiliary table used to create table changes summary
 struct TableSummary
@@ -201,11 +191,10 @@ struct TableSummary
   int deletes;
 };
 
-std::string changesetToJSONSummary( ChangesetReader &reader )
+json changesetToJSONSummary( ChangesetReader &reader )
 {
   std::map< std::string, TableSummary > summary;
 
-  bool first = true;
   ChangesetEntry entry;
   while ( reader.nextEntry( entry ) )
   {
@@ -221,102 +210,67 @@ std::string changesetToJSONSummary( ChangesetReader &reader )
   }
 
   // write JSON
-  std::string res = "{\n   \"geodiff_summary\": [";
+  auto entries = json::array();
   for ( const auto &kv : summary )
   {
-    std::string tableJson;
-    tableJson += "      {\n";
-    tableJson += "         \"table\": \"" + kv.first + "\",\n";
-    tableJson += "         \"insert\": " + std::to_string( kv.second.inserts ) + ",\n";
-    tableJson += "         \"update\": " + std::to_string( kv.second.updates ) + ",\n";
-    tableJson += "         \"delete\": " + std::to_string( kv.second.deletes ) + "\n";
-    tableJson += "      }";
+    json tableJson;
+    tableJson[ "table" ] = kv.first;
+    tableJson[ "insert" ] = kv.second.inserts;
+    tableJson[ "update" ] = kv.second.updates;
+    tableJson[ "delete" ] = kv.second.deletes;
 
-    if ( first )
-    {
-      res += "\n" + tableJson;
-      first = false;
-    }
-    else
-    {
-      res += ",\n" + tableJson;
-    }
-
+    entries.push_back( tableJson );
   }
-  res += "\n   ]\n";
-  res += "}";
+  json res;
+  res[ "geodiff_summary" ] = entries;
   return res;
 }
 
-
-std::string conflictToJSON( const ConflictFeature &conflict )
+json conflictToJSON( const ConflictFeature &conflict )
 {
-  std::string status = "conflict";
+  json res;
+  res[ "table" ] = std::string( conflict.tableName() );
+  res[ "type" ] = "conflict";
+  res[ "fid" ] = conflict.pk();
 
-  std::string res = "      {\n";
-  res += "        \"table\": \"" + std::string( conflict.tableName() ) + "\",\n";
-  res += "        \"type\": \"" + status + "\",\n";
-  res += "        \"fid\": \"" + std::to_string( conflict.pk() ) + "\",\n";
-  res += "        \"changes\": [";
-  bool first = true;
+  auto entries = json::array();
 
   const std::vector<ConflictItem> items = conflict.items();
   for ( const ConflictItem &item : items )
   {
-    if ( first )
-    {
-      first = false;
-      res += "\n          {\n";
-    }
-    else
-    {
-      res += ",\n          {\n";
-    }
-    res += "              \"column\": " + std::to_string( item.column() );
+    json change;
+    change[ "column" ] = std::to_string( item.column() );
 
-    std::string strValueBase = valueToJSON( item.base() );
-    std::string strValueOld = valueToJSON( item.theirs() );
-    std::string strValueNew = valueToJSON( item.ours() );
-    if ( !strValueBase.empty() )
-      res += ",\n              \"base\": " + strValueBase;
-    if ( !strValueOld.empty() )
-      res += ",\n              \"old\": " + strValueOld;
-    if ( !strValueNew.empty() )
-      res += ",\n              \"new\": " + strValueNew;
+    json valueBase = valueToJSON( item.base() );
+    json valueOld = valueToJSON( item.theirs() );
+    json valueNew = valueToJSON( item.ours() );
+    if ( !valueBase.empty() )
+      change[ "base" ] = valueBase;
+    if ( !valueOld.empty() )
+      change[ "old" ] = valueOld;
+    if ( !valueNew.empty() )
+      change[ "new" ] = valueNew;
 
-    res += "\n";
-    res += "          }";
+    entries.push_back( change );
   }
-  // close brackets
-  res += "\n        ]\n"; // end properties
-  res += "      }"; // end feature
+  res[ "changes" ] = entries;
   return res;
 }
 
-std::string conflictsToJSON( const std::vector<ConflictFeature> &conflicts )
+json conflictsToJSON( const std::vector<ConflictFeature> &conflicts )
 {
-  std::string res = "{\n   \"geodiff\": [";
-
-  bool first = true;
+  auto entries = json::array();
   for ( const ConflictFeature &item : conflicts )
   {
-    std::string msg = conflictToJSON( item );
+    json msg = conflictToJSON( item );
     if ( msg.empty() )
       continue;
 
-    if ( first )
-    {
-      res += "\n" + msg;
-      first = false;
-    }
-    else
-    {
-      res += ",\n" + msg;
-    }
+    entries.push_back( msg );
   }
 
-  res += "\n   ]\n";
-  res += "}";
+  json res;
+  res[ "geodiff" ] = entries;
   return res;
 }
 

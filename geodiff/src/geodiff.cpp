@@ -29,6 +29,11 @@
 #include <string>
 #include <vector>
 
+#include "json.hpp"
+
+using json = nlohmann::json;
+
+
 // use scripts/update_version.py to update the version here and in other places at once
 const char *GEODIFF_version()
 {
@@ -308,8 +313,8 @@ int GEODIFF_createRebasedChangesetEx( const char *driverName,
       }
       else
       {
-        std::string res = conflictsToJSON( conflicts );
-        flushString( conflictfile, res );
+        json res = conflictsToJSON( conflicts );
+        flushString( conflictfile, res.dump( 2 ) );
       }
     }
     return rc;
@@ -378,7 +383,7 @@ static int listChangesJSON( const char *changeset, const char *jsonfile, bool on
     return GEODIFF_ERROR;
   }
 
-  std::string res;
+  json res;
   try
   {
     if ( onlySummary )
@@ -395,11 +400,11 @@ static int listChangesJSON( const char *changeset, const char *jsonfile, bool on
   if ( !jsonfile )
   {
     // print to terminal
-    std::cout << res << std::endl;
+    std::cout << res.dump( 2 ) << std::endl;
   }
   else
   {
-    flushString( jsonfile, res );
+    flushString( jsonfile, res.dump( 2 ) );
   }
 
   return GEODIFF_SUCCESS;
