@@ -94,7 +94,7 @@ json valueToJSON( const Value &value )
     case Value::TypeUndefined:
       break;  // actually this not get printed - undefined value should be omitted completely
     case Value::TypeInt:
-      j= value.getInt();
+      j = value.getInt();
       break;
     case Value::TypeDouble:
       j = value.getDouble();
