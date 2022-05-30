@@ -132,14 +132,16 @@ void testCreateChangeset( const std::string &testname, const std::string &connin
     driver->createChangeset( writer );
   }
 
-  ChangesetReader reader;
-  reader.open( output );
-  nlohmann::json json = changesetToJSON( reader );
+  {
+    ChangesetReader reader;
+    reader.open( output );
+    nlohmann::json json = changesetToJSON( reader );
+    std::ofstream f( outputJson );
+    EXPECT_TRUE( f.is_open() );
+    f << json.dump( 2 );
+  }
 
-  std::ifstream f( pathjoin( testdir(), "postgres", expectedChangeset ) );
-  nlohmann::json expected = nlohmann::json::parse( f );
-
-  EXPECT_TRUE( json == expected );
+  EXPECT_TRUE( fileContentEquals( output, pathjoin( testdir(), "postgres", expectedChangeset ) ) );
 }
 
 TEST( PostgresDriverApi, test_driver_postgres_api )

@@ -388,7 +388,14 @@ TEST( ChangesetUtils, test_schema )
 
   // valid input
   EXPECT_EQ( GEODIFF_schema( "sqlite", nullptr, base.data(), schema.data() ), GEODIFF_SUCCESS );
-  EXPECT_TRUE( fileContentEquals( pathjoin( testdir(), "schema", "base-schema.json" ), schema ) );
+
+  std::ifstream fo( schema );
+  nlohmann::json created = nlohmann::json::parse( fo );
+
+  std::ifstream fe( pathjoin( testdir(), "schema", "base-schema.json" ) );
+  nlohmann::json expected = nlohmann::json::parse( fe );
+
+  EXPECT_TRUE( created == expected );
 }
 
 int main( int argc, char **argv )

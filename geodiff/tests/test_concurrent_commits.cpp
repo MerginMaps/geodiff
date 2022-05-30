@@ -3,9 +3,12 @@
  Copyright (C) 2019 Peter Petrik
 */
 
+#include <fstream>
 #include "geodiff.h"
 #include "geodiff_testutils.hpp"
 #include "gtest/gtest.h"
+#include "json.hpp"
+
 
 bool _test(
   const std::string &baseX,
@@ -159,7 +162,13 @@ bool _test_createRebasedChangesetEx(
   // check conflict equality
   if ( !expectedConflictFile.empty() )
   {
-    if ( !fileContentEquals( conflictFile, expectedConflictFile ) )
+    std::ifstream cf( conflictFile );
+    nlohmann::json j_conflict = nlohmann::json::parse( cf );
+
+    std::ifstream ef( expectedConflictFile );
+    nlohmann::json j_expected = nlohmann::json::parse( ef );
+
+    if ( j_conflict != j_expected )
     {
       std::cerr << "err conflict file is not equal to the expected conflict file" << std::endl;
       return false;

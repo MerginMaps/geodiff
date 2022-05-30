@@ -874,7 +874,7 @@ int GEODIFF_schema( const char *driverName, const char *driverExtraInfo, const c
         {
           nlohmann::json geometryData;
           geometryData[ "type" ] = column.geomType;
-          geometryData[ "srs_id" ] = column.geomSrsId;
+          geometryData[ "srs_id" ] = std::to_string( column.geomSrsId );
           if ( column.geomHasZ )
             geometryData[ "has_z" ] = true;
           if ( column.geomHasM )

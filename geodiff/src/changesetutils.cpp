@@ -221,7 +221,7 @@ nlohmann::json conflictToJSON( const ConflictFeature &conflict )
   nlohmann::json res;
   res[ "table" ] = std::string( conflict.tableName() );
   res[ "type" ] = "conflict";
-  res[ "fid" ] = conflict.pk();
+  res[ "fid" ] = std::to_string( conflict.pk() );
 
   auto entries = nlohmann::json::array();
 
@@ -229,7 +229,7 @@ nlohmann::json conflictToJSON( const ConflictFeature &conflict )
   for ( const ConflictItem &item : items )
   {
     nlohmann::json change;
-    change[ "column" ] = std::to_string( item.column() );
+    change[ "column" ] = item.column();
 
     nlohmann::json valueBase = valueToJSON( item.base() );
     nlohmann::json valueOld = valueToJSON( item.theirs() );
