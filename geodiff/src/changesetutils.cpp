@@ -76,16 +76,6 @@ void invertChangeset( ChangesetReader &reader, ChangesetWriter &writer )
   }
 }
 
-std::string escapeJSONString( std::string val )
-{
-  //val = replace( val, "\\", "\\\\" );  // TODO: escaping of backslashes?
-  val = replace( val, "\n", "\\n" );
-  val = replace( val, "\r", "\\r" );
-  val = replace( val, "\t", "\\t" );
-  val = replace( val, "\"", "\\\"" );
-  return val;
-}
-
 json valueToJSON( const Value &value )
 {
   json j;
@@ -107,7 +97,7 @@ json valueToJSON( const Value &value )
       // this used to either show "blob N bytes" or would be converted to WKT
       // but this is better - it preserves content of any type + can be decoded back
       std::string base64 = base64_encode( ( const unsigned char * ) value.getString().data(), ( unsigned int ) value.getString().size() );
-      j = escapeJSONString( base64 );
+      j = base64;
       break;
     }
     case Value::TypeNull:
