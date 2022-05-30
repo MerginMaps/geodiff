@@ -1208,3 +1208,8 @@ bool GEODIFF_CT_columnIsPkey( GEODIFF_ContextH /*contextHandle*/, GEODIFF_Change
 {
   return static_cast<ChangesetTable *>( tableHandle )->primaryKeys.at( i );
 }
+
+const char *GEODIFF_G_getWkb( const char *gpkgWkb )
+{
+  return createWkbFromGpkgHeader( std::string( gpkgWkb ) ).c_str();
+}

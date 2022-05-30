@@ -14,11 +14,11 @@ class GeoDiff:
     """
         geodiff is a module to create and apply changesets to GIS files (geopackage)
     """
-    
+
     def __init__(self, libname=None):
         """
             if libname is None, it tries to import c-extension from wheel
-            messages are shown in stdout/stderr. 
+            messages are shown in stdout/stderr.
             Use environment variable GEODIFF_LOGGER_LEVEL 0(Nothing)-4(Debug) to
             set level (Errors by default)
         """
@@ -56,13 +56,13 @@ class GeoDiff:
             raises GeoDiffLibError on error
         """
         return self.clib.drivers()
-        
+
     def driver_is_registered(self, name):
         """
             Returns whether dataset with given name is registered (e.g. "sqlite" or "postgresql")
         """
         return self.clib.driver_is_registered(name)
-        
+
     def create_changeset(self, base, modified, changeset):
         """
             Creates changeset file (binary) in such way that
@@ -327,6 +327,11 @@ class GeoDiff:
         """
         return self.clib.version()
 
+    def get_wkb_from_geometry(self, geometry):
+        """
+        Extracts geometry in WKB format from the geometry encoded according to GeoPackage spec
+        """
+        return self.clib.get_wkb_from_geometry(geometry)
 
 def main():
     diff_lib = GeoDiff()

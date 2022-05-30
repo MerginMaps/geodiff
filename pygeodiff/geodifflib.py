@@ -75,7 +75,7 @@ class GeoDiffLib:
            func(self.context)
            self.context = None
          
-    def _register_functions(self):                      
+    def _register_functions(self):
         self._readChangeset = self.lib.GEODIFF_readChangeset
         self._readChangeset.argtypes = [ctypes.c_void_p, ctypes.c_char_p]
         self._readChangeset.restype = ctypes.c_void_p
@@ -202,31 +202,31 @@ class GeoDiffLib:
         _driver_count_f = self.lib.GEODIFF_driverCount
         _driver_count_f.argtypes = [ctypes.c_void_p]
         _driver_count_f.restype = ctypes.c_int
-      
+
         _driver_name_from_index_f = self.lib.GEODIFF_driverNameFromIndex
         _driver_name_from_index_f.argtypes = [ctypes.c_void_p, ctypes.c_int, ctypes.c_char_p]
-        _driver_name_from_index_f.restype = ctypes.c_int  
-        
+        _driver_name_from_index_f.restype = ctypes.c_int
+
         drivers_list = []
         driversCount =  _driver_count_f(self.context)
         for index in range(driversCount):
             name_raw = 256*""
-            b_string1 = name_raw.encode('utf-8') 
+            b_string1 = name_raw.encode('utf-8')
             res = _driver_name_from_index_f(self.context, index, b_string1)
             _parse_return_code(res, "drivers")
             name = b_string1.decode('utf-8')
             drivers_list.append(name)
-            
+
         return drivers_list
-    
+
     def driver_is_registered(self, name):
         func = self.lib.GEODIFF_driverIsRegistered
         func.argtypes = [ctypes.c_void_p, ctypes.c_char_p]
         func.restype = ctypes.c_bool
-        
+
         b_string1 = name.encode('utf-8')
         return func(self.context, b_string1)
-        
+
 
     def create_changeset(self, base, modified, changeset):
         func = self.lib.GEODIFF_createChangeset
@@ -456,6 +456,12 @@ class GeoDiffLib:
         if reader_ptr is None:
             raise GeoDiffLibError("Unable to open reader for: " + changeset)
         return ChangesetReader(self, reader_ptr)
+
+    def get_wkb_from_geometry(self, geometry):
+        func = self.lib.GEODIFF_G_getWkb
+        func.restype = ctypes.c_char_p
+        wkb = func(ctypes.c_char_p(geometry.encode('utf-8')))
+        return wkb.decode('utf-8')
 
 
 class ChangesetReader(object):
