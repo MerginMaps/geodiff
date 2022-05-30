@@ -1,122 +1,122 @@
 {
-   "geodiff": [
-      {
-        "table": "simple",
-        "type": "insert",
-        "changes": [
-          {
-              "column": 0,
-              "new": 4
-          },
-          {
-              "column": 1,
-              "new": "R1AAAeYQAAABAQAAAHJ3RCD8he2/qrZYVBML4D8="
-          },
-          {
-              "column": 2,
-              "new": null
-          },
-          {
-              "column": 3,
-              "new": 2
-          }
-        ]
-      },
-      {
-        "table": "simple",
-        "type": "insert",
-        "changes": [
-          {
-              "column": 0,
-              "new": 5
-          },
-          {
-              "column": 1,
-              "new": "R1AAAeYQAAABAQAAAEtzTyFU3ua/iJw/gqTeyT8="
-          },
-          {
-              "column": 2,
-              "new": "hello"
-          },
-          {
-              "column": 3,
-              "new": 4
-          }
-        ]
-      },
-      {
-        "table": "simple",
-        "type": "insert",
-        "changes": [
-          {
-              "column": 0,
-              "new": 6
-          },
-          {
-              "column": 1,
-              "new": "R1AAAeYQAAABAQAAAA4lg7blV+2/ZHkBBm/f3z8="
-          },
-          {
-              "column": 2,
-              "new": "\n\t\r\"';,"
-          },
-          {
-              "column": 3,
-              "new": null
-          }
-        ]
-      },
-      {
-        "table": "simple",
-        "type": "delete",
-        "changes": [
-          {
-              "column": 0,
-              "old": 2
-          },
-          {
-              "column": 1,
-              "old": "R1AAAeYQAAABAQAAAPBDGq/kSde/+HS2Feb94T8="
-          },
-          {
-              "column": 2,
-              "old": "feature2"
-          },
-          {
-              "column": 3,
-              "old": 2
-          }
-        ]
-      },
-      {
-        "table": "simple",
-        "type": "update",
-        "changes": [
-          {
-              "column": 0,
-              "old": 1
-          },
-          {
-              "column": 1,
-              "old": "R1AAAeYQAAABAQAAAB54y6E2bPG/cOaqyDmB3T8=",
-              "new": "R1AAAeYQAAABAQAAAKSTueneJ+6/BF8n+EdI1D8="
-          }
-        ]
-      },
-      {
-        "table": "simple",
-        "type": "update",
-        "changes": [
-          {
-              "column": 0,
-              "old": 3
-          },
-          {
-              "column": 2,
-              "old": "feature3",
-              "new": "renamed"
-          }
-        ]
-      }
-   ]
+  "geodiff": [
+    {
+      "changes": [
+        {
+          "column": 0,
+          "new": 4
+        },
+        {
+          "column": 1,
+          "new": "R1AAAeYQAAABAQAAAHJ3RCD8he2/qrZYVBML4D8="
+        },
+        {
+          "column": 2,
+          "new": "null"
+        },
+        {
+          "column": 3,
+          "new": 2
+        }
+      ],
+      "table": "simple",
+      "type": "insert"
+    },
+    {
+      "changes": [
+        {
+          "column": 0,
+          "new": 5
+        },
+        {
+          "column": 1,
+          "new": "R1AAAeYQAAABAQAAAEtzTyFU3ua/iJw/gqTeyT8="
+        },
+        {
+          "column": 2,
+          "new": "hello"
+        },
+        {
+          "column": 3,
+          "new": 4
+        }
+      ],
+      "table": "simple",
+      "type": "insert"
+    },
+    {
+      "changes": [
+        {
+          "column": 0,
+          "new": 6
+        },
+        {
+          "column": 1,
+          "new": "R1AAAeYQAAABAQAAAA4lg7blV+2/ZHkBBm/f3z8="
+        },
+        {
+          "column": 2,
+          "new": "\\n\\t\\r\"';,"
+        },
+        {
+          "column": 3,
+          "new": "null"
+        }
+      ],
+      "table": "simple",
+      "type": "insert"
+    },
+    {
+      "changes": [
+        {
+          "column": 0,
+          "old": 2
+        },
+        {
+          "column": 1,
+          "old": "R1AAAeYQAAABAQAAAPBDGq/kSde/+HS2Feb94T8="
+        },
+        {
+          "column": 2,
+          "old": "feature2"
+        },
+        {
+          "column": 3,
+          "old": 2
+        }
+      ],
+      "table": "simple",
+      "type": "delete"
+    },
+    {
+      "changes": [
+        {
+          "column": 0,
+          "old": 1
+        },
+        {
+          "column": 1,
+          "new": "R1AAAeYQAAABAQAAAKSTueneJ+6/BF8n+EdI1D8=",
+          "old": "R1AAAeYQAAABAQAAAB54y6E2bPG/cOaqyDmB3T8="
+        }
+      ],
+      "table": "simple",
+      "type": "update"
+    },
+    {
+      "changes": [
+        {
+          "column": 0,
+          "old": 3
+        },
+        {
+          "column": 2,
+          "new": "renamed",
+          "old": "feature3"
+        }
+      ],
+      "table": "simple",
+      "type": "update"
+    }
+  ]
 }
