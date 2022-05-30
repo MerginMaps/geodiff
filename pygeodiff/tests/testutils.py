@@ -78,18 +78,20 @@ def test_json(geodiff, changeset, json, expect_success ):
     _test_json(geodiff.list_changes, changeset, json, expect_success)
 
 
-def compare_json(json, expected_json):
+def compare_json(json_file, expected_json):
     print ("comparing JSON to " + expected_json)
-    if not os.path.exists(json):
+    if not os.path.exists(json_file):
         raise TestError("missing generated JSON file")
 
-    with open(json, 'r') as fin:
+    with open(json_file, 'r') as fin:
         json_generated = fin.read()
 
     with open(expected_json, 'r') as fin:
         json_expected = fin.read()
 
-    if json_generated.strip() != json_expected.strip():
+    a = json.loads(json_generated)
+    b = json.loads(json_expected)
+    if not dict_diff(a, b):
         print("---- JSON GENERATED ----")
         print(json_generated)
         print("---- JSON EXPECTED ----")
@@ -100,6 +102,19 @@ def compare_json(json, expected_json):
 def logger(level, rawString):
     msg = rawString.decode('utf-8')
     print( "GEODIFFTEST: " + str(level) + " " + msg )
+
+
+def dict_diff(a, b):
+    for key in a.keys():
+        if key not in b:
+            return False
+
+        if isinstance(a[key], dict):
+            return find_diff(a[key], b[key])
+        else:
+            if a[key] != b[key]:
+                return False
+    return True
 
 
 class GeoDiffTests(unittest.TestCase):

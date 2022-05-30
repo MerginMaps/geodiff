@@ -140,10 +140,21 @@ nlohmann::json changesetEntryToJSON( const ChangesetEntry &entry )
 
       nlohmann::json jsonValueOld = valueToJSON( valueOld );
       nlohmann::json jsonValueNew = valueToJSON( valueNew );
+
       if ( !jsonValueOld.empty() )
-        change[ "old" ] = jsonValueOld;
+      {
+        if ( jsonValueOld == "null" )
+          change[ "old" ] = nullptr;
+        else
+          change[ "old" ] = jsonValueOld;
+      }
       if ( !jsonValueNew.empty() )
-        change[ "new" ] = jsonValueNew;
+      {
+        if ( jsonValueNew == "null" )
+          change[ "new" ] = nullptr;
+        else
+          change[ "new" ] = jsonValueNew;
+      }
 
       entries.push_back( change );
     }
@@ -234,12 +245,28 @@ nlohmann::json conflictToJSON( const ConflictFeature &conflict )
     nlohmann::json valueBase = valueToJSON( item.base() );
     nlohmann::json valueOld = valueToJSON( item.theirs() );
     nlohmann::json valueNew = valueToJSON( item.ours() );
+
     if ( !valueBase.empty() )
-      change[ "base" ] = valueBase;
+    {
+      if ( valueBase == "null" )
+        change[ "base" ] = nullptr;
+      else
+        change[ "base" ] = valueBase;
+    }
     if ( !valueOld.empty() )
-      change[ "old" ] = valueOld;
+    {
+      if ( valueOld == "null" )
+        change[ "old" ] = nullptr;
+      else
+        change[ "old" ] = valueOld;
+    }
     if ( !valueNew.empty() )
-      change[ "new" ] = valueNew;
+    {
+      if ( valueNew == "null" )
+        change[ "new" ] = nullptr;
+      else
+        change[ "new" ] = valueNew;
+    }
 
     entries.push_back( change );
   }
