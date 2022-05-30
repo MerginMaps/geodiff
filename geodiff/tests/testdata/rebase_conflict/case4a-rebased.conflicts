@@ -1,17 +1,17 @@
 {
-   "geodiff": [
-      {
-        "table": "simple",
-        "type": "conflict",
-        "fid": "2",
-        "changes": [
-          {
-              "column": 2,
-              "base": "feature2",
-              "old": "feature2B",
-              "new": "feature2A"
-          }
-        ]
-      }
-   ]
+  "geodiff": [
+    {
+      "changes": [
+        {
+          "base": "feature2",
+          "column": "2",
+          "new": "feature2A",
+          "old": "feature2B"
+        }
+      ],
+      "fid": 2,
+      "table": "simple",
+      "type": "conflict"
+    }
+  ]
 }

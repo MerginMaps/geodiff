@@ -1,23 +1,23 @@
 {
-   "geodiff": [
-      {
-        "table": "simple",
-        "type": "conflict",
-        "fid": "2",
-        "changes": [
-          {
-              "column": 2,
-              "base": "feature2",
-              "old": "feature2B",
-              "new": "feature2A"
-          },
-          {
-              "column": 3,
-              "base": 2,
-              "old": 21,
-              "new": 20
-          }
-        ]
-      }
-   ]
+  "geodiff": [
+    {
+      "changes": [
+        {
+          "base": "feature2",
+          "column": "2",
+          "new": "feature2A",
+          "old": "feature2B"
+        },
+        {
+          "base": 2,
+          "column": "3",
+          "new": 20,
+          "old": 21
+        }
+      ],
+      "fid": 2,
+      "table": "simple",
+      "type": "conflict"
+    }
+  ]
 }
