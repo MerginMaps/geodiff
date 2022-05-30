@@ -1,10 +1,10 @@
 {
-  "geodiff_summary": [
-    {
-      "delete": 0,
-      "insert": 0,
-      "table": "simple",
-      "update": 1
-    }
-  ]
+   "geodiff_summary": [
+      {
+         "table": "simple",
+         "insert": 0,
+         "update": 1,
+         "delete": 0
+      }
+   ]
 }

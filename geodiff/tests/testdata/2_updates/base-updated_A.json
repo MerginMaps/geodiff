@@ -1,24 +1,24 @@
 {
-  "geodiff": [
-    {
-      "changes": [
-        {
-          "column": 0,
-          "old": 2
-        },
-        {
-          "column": 1,
-          "new": "R1AAAeYQAAABAQAAAMp+uos0te2/hISLbYZyzj8=",
-          "old": "R1AAAeYQAAABAQAAAPBDGq/kSde/+HS2Feb94T8="
-        },
-        {
-          "column": 3,
-          "new": 9999,
-          "old": 2
-        }
-      ],
-      "table": "simple",
-      "type": "update"
-    }
-  ]
+   "geodiff": [
+      {
+        "table": "simple",
+        "type": "update",
+        "changes": [
+          {
+              "column": 0,
+              "old": 2
+          },
+          {
+              "column": 1,
+              "old": "R1AAAeYQAAABAQAAAPBDGq/kSde/+HS2Feb94T8=",
+              "new": "R1AAAeYQAAABAQAAAMp+uos0te2/hISLbYZyzj8="
+          },
+          {
+              "column": 3,
+              "old": 2,
+              "new": 9999
+          }
+        ]
+      }
+   ]
 }

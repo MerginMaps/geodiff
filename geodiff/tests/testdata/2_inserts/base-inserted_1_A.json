@@ -1,26 +1,26 @@
 {
-  "geodiff": [
-    {
-      "changes": [
-        {
-          "column": 0,
-          "new": 4
-        },
-        {
-          "column": 1,
-          "new": "R1AAAeYQAAABAQAAAFyu1BOp6um/PoMqH8N01j8="
-        },
-        {
-          "column": 2,
-          "new": "my new point A"
-        },
-        {
-          "column": 3,
-          "new": 1
-        }
-      ],
-      "table": "simple",
-      "type": "insert"
-    }
-  ]
+   "geodiff": [
+      {
+        "table": "simple",
+        "type": "insert",
+        "changes": [
+          {
+              "column": 0,
+              "new": 4
+          },
+          {
+              "column": 1,
+              "new": "R1AAAeYQAAABAQAAAFyu1BOp6um/PoMqH8N01j8="
+          },
+          {
+              "column": 2,
+              "new": "my new point A"
+          },
+          {
+              "column": 3,
+              "new": 1
+          }
+        ]
+      }
+   ]
 }
