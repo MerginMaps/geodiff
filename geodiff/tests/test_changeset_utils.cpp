@@ -114,13 +114,10 @@ static void doExportAndCompare( const std::string &changesetBase, const std::str
   nlohmann::json json = summary ? changesetToJSONSummary( reader ) : changesetToJSON( reader );
   std::string expectedFilename = changesetBase + ( summary ? "-summary.json" : ".json" );
 
-  {
-    std::ofstream f( changesetDest );
-    EXPECT_TRUE( f.is_open() );
-    f << json.dump( 2 );
-  }
+  std::ifstream f( expectedFilename );
+  nlohmann::json expected = nlohmann::json::parse( f );
 
-  EXPECT_TRUE( fileContentEquals( expectedFilename, changesetDest ) );
+  EXPECT_TRUE( json == expected );
 }
 
 TEST( ChangesetUtils, test_export_json )
