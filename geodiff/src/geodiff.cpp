@@ -31,9 +31,6 @@
 
 #include "json.hpp"
 
-using json = nlohmann::json;
-
-
 // use scripts/update_version.py to update the version here and in other places at once
 const char *GEODIFF_version()
 {
@@ -313,7 +310,7 @@ int GEODIFF_createRebasedChangesetEx( const char *driverName,
       }
       else
       {
-        json res = conflictsToJSON( conflicts );
+        nlohmann::json res = conflictsToJSON( conflicts );
         flushString( conflictfile, res.dump( 2 ) );
       }
     }
@@ -383,7 +380,7 @@ static int listChangesJSON( const char *changeset, const char *jsonfile, bool on
     return GEODIFF_ERROR;
   }
 
-  json res;
+  nlohmann::json res;
   try
   {
     if ( onlySummary )
@@ -830,9 +827,9 @@ int GEODIFF_dumpData( const char *driverName, const char *driverExtraInfo, const
 }
 
 
-int GEODIFF_schema( const char *driverName, const char *driverExtraInfo, const char *src, const char *filePath )
+int GEODIFF_schema( const char *driverName, const char *driverExtraInfo, const char *src, const char *json )
 {
-  if ( !driverName || !src || !filePath )
+  if ( !driverName || !src || !json )
   {
     Logger::instance().error( "NULL arguments to GEODIFF_schema" );
     return GEODIFF_ERROR;
@@ -855,15 +852,15 @@ int GEODIFF_schema( const char *driverName, const char *driverExtraInfo, const c
     driver->open( conn );
 
     // prepare JSON
-    auto tablesData = json::array();
+    auto tablesData = nlohmann::json::array();
     for ( const std::string &tableName : driver->listTables() )
     {
       const TableSchema tbl = driver->tableSchema( tableName );
 
-      auto columnsJson = json::array();
+      auto columnsJson = nlohmann::json::array();
       for ( const TableColumnInfo &column : tbl.columns )
       {
-        json columnData;
+        nlohmann::json columnData;
         columnData[ "name" ] = column.name;
         columnData[ "type" ] = TableColumnType::baseTypeToString( column.type.baseType );
         columnData[ "type_db" ] = column.type.dbType;
@@ -875,7 +872,7 @@ int GEODIFF_schema( const char *driverName, const char *driverExtraInfo, const c
           columnData[ "auto_increment" ] = true;
         if ( column.isGeometry )
         {
-          json geometryData;
+          nlohmann::json geometryData;
           geometryData[ "type" ] = column.geomType;
           geometryData[ "srs_id" ] = column.geomSrsId;
           if ( column.geomHasZ )
@@ -889,12 +886,12 @@ int GEODIFF_schema( const char *driverName, const char *driverExtraInfo, const c
         columnsJson.push_back( columnData );
       }
 
-      json tableJson;
+      nlohmann::json tableJson;
       tableJson[ "table"] = tableName;
       tableJson[ "columns" ] = columnsJson;
       if ( tbl.crs.srsId != 0 )
       {
-        json crsJson;
+        nlohmann::json crsJson;
         crsJson[ "srs_id" ] = tbl.crs.srsId;
         crsJson[ "auth_name" ] = tbl.crs.authName;
         crsJson[ "auth_code" ] = tbl.crs.authCode;
@@ -905,11 +902,11 @@ int GEODIFF_schema( const char *driverName, const char *driverExtraInfo, const c
       tablesData.push_back( tableJson );
     }
 
-    json res;
+    nlohmann::json res;
     res[ "geodiff_schema" ] = tablesData;
 
     // write file content
-    flushString( filePath, res.dump( 2 ) );
+    flushString( json, res.dump( 2 ) );
   }
   catch ( const  GeoDiffException &exc )
   {

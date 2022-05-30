@@ -15,8 +15,6 @@
 
 #include "json.hpp"
 
-using json = nlohmann::json;
-
 extern "C"
 {
 #include <libpq-fe.h>
@@ -137,7 +135,7 @@ void testCreateChangeset( const std::string &testname, const std::string &connin
   {
     ChangesetReader reader;
     reader.open( output );
-    json json = changesetToJSON( reader );
+    nlohmann::json json = changesetToJSON( reader );
     std::ofstream f( outputJson );
     EXPECT_TRUE( f.is_open() );
     f << json.dump( 2 );

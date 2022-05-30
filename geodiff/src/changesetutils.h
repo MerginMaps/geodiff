@@ -12,8 +12,6 @@
 
 #include "json.hpp"
 
-using json = nlohmann::json;
-
 class ConflictFeature;
 class ChangesetReader;
 class ChangesetWriter;
@@ -28,15 +26,15 @@ void invertChangeset( ChangesetReader &reader, ChangesetWriter &writer );
 
 void concatChangesets( const std::vector<std::string> &filenames, const std::string &outputChangeset );
 
-json changesetEntryToJSON( const ChangesetEntry &entry );
+nlohmann::json changesetEntryToJSON( const ChangesetEntry &entry );
 
-json changesetToJSON( ChangesetReader &reader );
+nlohmann::json changesetToJSON( ChangesetReader &reader );
 
-json changesetToJSONSummary( ChangesetReader &reader );
+nlohmann::json changesetToJSONSummary( ChangesetReader &reader );
 
-json conflictsToJSON( const std::vector<ConflictFeature> &conflicts );
+nlohmann::json conflictsToJSON( const std::vector<ConflictFeature> &conflicts );
 
-json valueToJSON( const Value &value );
+nlohmann::json valueToJSON( const Value &value );
 
 std::string hex2bin( const std::string &str );
 std::string bin2hex( const std::string &str );

@@ -76,9 +76,9 @@ void invertChangeset( ChangesetReader &reader, ChangesetWriter &writer )
   }
 }
 
-json valueToJSON( const Value &value )
+nlohmann::json valueToJSON( const Value &value )
 {
-  json j;
+  nlohmann::json j;
   switch ( value.type() )
   {
     case Value::TypeUndefined:
@@ -110,7 +110,7 @@ json valueToJSON( const Value &value )
 }
 
 
-json changesetEntryToJSON( const ChangesetEntry &entry )
+nlohmann::json changesetEntryToJSON( const ChangesetEntry &entry )
 {
   std::string status;
   if ( entry.op == ChangesetEntry::OpUpdate )
@@ -120,11 +120,11 @@ json changesetEntryToJSON( const ChangesetEntry &entry )
   else if ( entry.op == ChangesetEntry::OpDelete )
     status = "delete";
 
-  json res;
+  nlohmann::json res;
   res[ "table" ] = entry.table->name;
   res[ "type" ] = status;
 
-  auto entries = json::array();
+  auto entries = nlohmann::json::array();
 
   Value valueOld, valueNew;
   for ( size_t i = 0; i < entry.table->columnCount(); ++i )
@@ -132,14 +132,14 @@ json changesetEntryToJSON( const ChangesetEntry &entry )
     valueNew = ( entry.op == ChangesetEntry::OpUpdate || entry.op == ChangesetEntry::OpInsert ) ? entry.newValues[i] : Value();
     valueOld = ( entry.op == ChangesetEntry::OpUpdate || entry.op == ChangesetEntry::OpDelete ) ? entry.oldValues[i] : Value();
 
-    json change;
+    nlohmann::json change;
 
     if ( valueNew.type() != Value::TypeUndefined || valueOld.type() != Value::TypeUndefined )
     {
       change[ "column" ] = i;
 
-      json jsonValueOld = valueToJSON( valueOld );
-      json jsonValueNew = valueToJSON( valueNew );
+      nlohmann::json jsonValueOld = valueToJSON( valueOld );
+      nlohmann::json jsonValueNew = valueToJSON( valueNew );
       if ( !jsonValueOld.empty() )
         change[ "old" ] = jsonValueOld;
       if ( !jsonValueNew.empty() )
@@ -153,21 +153,21 @@ json changesetEntryToJSON( const ChangesetEntry &entry )
   return res;
 }
 
-json changesetToJSON( ChangesetReader &reader )
+nlohmann::json changesetToJSON( ChangesetReader &reader )
 {
-  auto entries = json::array();
+  auto entries = nlohmann::json::array();
 
   ChangesetEntry entry;
   while ( reader.nextEntry( entry ) )
   {
-    json msg = changesetEntryToJSON( entry );
+    nlohmann::json msg = changesetEntryToJSON( entry );
     if ( msg.empty() )
       continue;
 
     entries.push_back( msg );
   }
 
-  json res;
+  nlohmann::json res;
   res[ "geodiff" ] = entries;
   return res;
 }
@@ -181,7 +181,7 @@ struct TableSummary
   int deletes;
 };
 
-json changesetToJSONSummary( ChangesetReader &reader )
+nlohmann::json changesetToJSONSummary( ChangesetReader &reader )
 {
   std::map< std::string, TableSummary > summary;
 
@@ -200,10 +200,10 @@ json changesetToJSONSummary( ChangesetReader &reader )
   }
 
   // write JSON
-  auto entries = json::array();
+  auto entries = nlohmann::json::array();
   for ( const auto &kv : summary )
   {
-    json tableJson;
+    nlohmann::json tableJson;
     tableJson[ "table" ] = kv.first;
     tableJson[ "insert" ] = kv.second.inserts;
     tableJson[ "update" ] = kv.second.updates;
@@ -211,29 +211,29 @@ json changesetToJSONSummary( ChangesetReader &reader )
 
     entries.push_back( tableJson );
   }
-  json res;
+  nlohmann::json res;
   res[ "geodiff_summary" ] = entries;
   return res;
 }
 
-json conflictToJSON( const ConflictFeature &conflict )
+nlohmann::json conflictToJSON( const ConflictFeature &conflict )
 {
-  json res;
+  nlohmann::json res;
   res[ "table" ] = std::string( conflict.tableName() );
   res[ "type" ] = "conflict";
   res[ "fid" ] = conflict.pk();
 
-  auto entries = json::array();
+  auto entries = nlohmann::json::array();
 
   const std::vector<ConflictItem> items = conflict.items();
   for ( const ConflictItem &item : items )
   {
-    json change;
+    nlohmann::json change;
     change[ "column" ] = std::to_string( item.column() );
 
-    json valueBase = valueToJSON( item.base() );
-    json valueOld = valueToJSON( item.theirs() );
-    json valueNew = valueToJSON( item.ours() );
+    nlohmann::json valueBase = valueToJSON( item.base() );
+    nlohmann::json valueOld = valueToJSON( item.theirs() );
+    nlohmann::json valueNew = valueToJSON( item.ours() );
     if ( !valueBase.empty() )
       change[ "base" ] = valueBase;
     if ( !valueOld.empty() )
@@ -247,19 +247,19 @@ json conflictToJSON( const ConflictFeature &conflict )
   return res;
 }
 
-json conflictsToJSON( const std::vector<ConflictFeature> &conflicts )
+nlohmann::json conflictsToJSON( const std::vector<ConflictFeature> &conflicts )
 {
-  auto entries = json::array();
+  auto entries = nlohmann::json::array();
   for ( const ConflictFeature &item : conflicts )
   {
-    json msg = conflictToJSON( item );
+    nlohmann::json msg = conflictToJSON( item );
     if ( msg.empty() )
       continue;
 
     entries.push_back( msg );
   }
 
-  json res;
+  nlohmann::json res;
   res[ "geodiff" ] = entries;
   return res;
 }

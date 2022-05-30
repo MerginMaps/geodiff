@@ -15,9 +15,6 @@
 
 #include "json.hpp"
 
-using json = nlohmann::json;
-
-
 static void doInvert( const std::string &changeset, const std::string &invChangeset )
 {
   ChangesetReader reader;
@@ -114,7 +111,7 @@ static void doExportAndCompare( const std::string &changesetBase, const std::str
   ChangesetReader reader;
   EXPECT_TRUE( reader.open( changesetBase + ".diff" ) );
 
-  json json = summary ? changesetToJSONSummary( reader ) : changesetToJSON( reader );
+  nlohmann::json json = summary ? changesetToJSONSummary( reader ) : changesetToJSON( reader );
   std::string expectedFilename = changesetBase + ( summary ? "-summary.json" : ".json" );
 
   {
