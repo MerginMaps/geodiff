@@ -12,19 +12,19 @@
 
 #include "geodiff.h"
 #include "geodiff_config.hpp"
+#include "geodiffcontext.hpp"
 
 #ifdef WIN32
 #define UNICODE
 #endif
 
 std::string testdir();
-std::string tmpdir();
 std::string pathjoin( const std::string &dir, const std::string &filename );
 std::string pathjoin( const std::string &dir, const std::string &dir2, const std::string &filename );
 void makedir( const std::string &dir );
-void filecopy( const std::string &to, const std::string &from );
 
 void init_test();
+GEODIFF_ContextH testContext();
 void finalize_test();
 
 std::string test_file( std::string basename );
@@ -47,9 +47,6 @@ bool equals( const std::string &file1,
 
 //! Tests whether two files are binary equal
 bool fileContentEquals( const std::string &file1, const std::string &file2 );
-
-//! Tests whether a file exists (it is accessible)
-bool fileExists( const std::string &filepath );
 
 //! Tests whether a file is empty (has zero size). \note returns false when file does not exist
 bool isFileEmpty( const std::string &filepath );

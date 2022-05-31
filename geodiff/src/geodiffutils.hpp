@@ -6,6 +6,8 @@
 #ifndef GEODIFFUTILS_H
 #define GEODIFFUTILS_H
 
+#define GEODIFF_UNUSED(x) (void)(x)
+
 #include <string>
 #include <sstream>
 #include <memory>
@@ -15,6 +17,7 @@
 
 #include "geodiff.h"
 #include "changeset.h"
+#include "geodiffcontext.hpp"
 
 class Buffer;
 struct ChangesetEntry;
@@ -76,13 +79,25 @@ class Buffer
 //! In some cases we need max. precision to make sure we do not loose data
 std::string to_string_with_max_precision( double a_value );
 
-//! copy file from to location. override if exists
-void filecopy( const std::string &to, const std::string &from );
+/**
+ * Copies file from to location. override if exists
+ * Returns true on success
+ * never throws
+ */
+bool filecopy( const std::string &to, const std::string &from );
 
-//! remove a file if exists
+/*
+* Removes a file if exists.
+*
+* Returns true if file was removed or doesn't exist at all
+* Never throws
+*/
 bool fileremove( const std::string &path );
 
-//! whether file exists
+/**
+ *  whether file exists
+ *  never throws
+ */
 bool fileexists( const std::string &path );
 
 //! whether string starts with substring
@@ -93,8 +108,12 @@ std::string lowercaseString( const std::string &str );
 
 std::string replace( const std::string &str, const std::string &substr, const std::string &replacestr );
 
-//! writes std::string to file
-void flushString( const std::string &filename, const std::string &str );
+/**
+ *  Writes std::string to file
+ *  Returns true if successful
+ *  never throws
+ */
+bool flushString( const std::string &filename, const std::string &str );
 
 //! Joins a container of strings together using a separator
 //! from https://codereview.stackexchange.com/questions/142902/simple-string-joiner-in-modern-c
@@ -116,14 +135,11 @@ template<typename InputIt> std::string join( InputIt begin, InputIt end, const s
 
 bool isLayerTable( const std::string &tableName );
 
-
 int indexOf( const std::vector<std::string> &arr, const std::string &val );
 
 std::string concatNames( const std::vector<std::string> &names );
 
-
 void get_primary_key( const ChangesetEntry &entry, int &fid, int &nColumn );
-
 
 
 //! Returns value of an environment variable - or returns default value if it is not set
@@ -132,30 +148,45 @@ std::string getEnvVar( std::string const &key, const std::string &defaultVal );
 //! Returns integer value of an environment variable - or returns default value if it is not set
 int getEnvVarInt( std::string const &key, int defaultVal );
 
-//! Returns temporary directory (including trailing slash)
+/*
+* Returns temporary directory (including trailing slash)
+* Returns empty string on error
+* never throws
+*/
 std::string tmpdir();
 
 //! Returns string given number of random alpha-numeric characters
 std::string randomString( size_t length );
 
-//! Returns a randomly generated filename in the temporary directory (e.g. "/tmp/geodiff_th3ix1")
-std::string randomTmpFilename();
+/*
+* Returns a randomly generated filename in the temporary directory (e.g. "/tmp/geodiff_th3ix1")
+* Returns empty string on error
+* never throws
+*/
+std::string randomTmpFilename( );
 
-//! converts std::string to std::wstring
+/**
+ *  Converts std::string to std::wstring
+ *  throws GeoDiffException if conversion is not possible
+ */
 std::wstring stringToWString( const std::string &str );
 
-//! converts std::wstring to std::string
+/**
+ * Converts std::wstring to std::string
+ *  throws GeoDiffException if conversion is not possible
+ */
 std::string wstringToString( const std::wstring &wStr );
 
-//! opens file with specific function for windows
+/**
+ *  Opens file with specific function for windows
+ *  throws GeoDiffException on error
+ */
 FILE *openFile( const std::string &path, const std::string &mode );
-
-
 
 class TmpFile
 {
   public:
-    TmpFile();
+    TmpFile( );
     explicit TmpFile( const std::string &path );
     ~TmpFile();
 
@@ -193,8 +224,7 @@ class ConflictItem
 class ConflictFeature
 {
   public:
-    ConflictFeature( int pk,
-                     const std::string &tableName );
+    ConflictFeature( int pk, const std::string &tableName );
     bool isValid() const;
     void addItem( const ConflictItem &item );
     std::string tableName() const;

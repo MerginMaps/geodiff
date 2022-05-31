@@ -11,6 +11,7 @@
 #include <unordered_set>
 
 #include "geodifflogger.hpp"
+#include "geodiffcontext.hpp"
 #include "geodiffutils.hpp"
 #include "changesetreader.h"
 #include "changesetwriter.h"
@@ -192,7 +193,10 @@ static MergeEntriesResult mergeEntriesForRow( ChangesetEntry *e1, ChangesetEntry
 
 //! Concatenation of multiple changesets, based on the implementation from sqlite3session
 //! (functions sqlite3changegroup_add() and sqlite3changegroup_output())
-void concatChangesets( const std::vector<std::string> &filenames, const std::string &outputChangeset )
+void concatChangesets(
+  const Context *context,
+  const std::vector<std::string> &filenames,
+  const std::string &outputChangeset )
 {
   // hashtable: table name -> ( fid -> changeset entry )
   std::unordered_map<std::string, TableChanges> result;
@@ -241,7 +245,7 @@ void concatChangesets( const std::vector<std::string> &filenames, const std::str
               break;
             case Unsupported:
               // we are discarding the new entry (there's no sensible way to integrate it)
-              Logger::instance().warn( "concatChangesets: unsupported sequence of entries for a single row - discarding newer entry" );
+              context->logger().warn( "concatChangesets: unsupported sequence of entries for a single row - discarding newer entry" );
               delete entry0;
               break;
           }
@@ -251,8 +255,7 @@ void concatChangesets( const std::vector<std::string> &filenames, const std::str
   }
 
   ChangesetWriter writer;
-  if ( !writer.open( outputChangeset ) )
-    throw GeoDiffException( "concatChangesets: unable to open output file: " + outputChangeset );
+  writer.open( outputChangeset );
 
   // output all we have captured
   for ( auto it = result.begin(); it != result.end(); ++it )

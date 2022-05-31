@@ -14,6 +14,7 @@
 #include "geodiff.h"
 #include "tableschema.h"
 
+class Context;
 class ChangesetReader;
 class ChangesetWriter;
 
@@ -56,7 +57,7 @@ class Driver
     /**
      * Returns a new instance of a driver given its name. Returns nullptr if such driver does not exist.
      */
-    static std::unique_ptr<Driver> createDriver( const std::string &driverName );
+    static std::unique_ptr<Driver> createDriver( const Context *context, const std::string &driverName );
 
     /**
      * Returns driver parameters for Sqlite driver - it needs filenames of two sqlite databases.
@@ -70,7 +71,7 @@ class Driver
 
     //
 
-    Driver();
+    explicit Driver( const Context *context );
     virtual ~Driver();
 
     /**
@@ -136,6 +137,11 @@ class Driver
 
     static const std::string SQLITEDRIVERNAME;
     static const std::string POSTGRESDRIVERNAME;
+
+    const Context *context() const;
+
+  private:
+    const Context *mContext; // never null
 };
 
 

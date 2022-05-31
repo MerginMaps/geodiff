@@ -17,6 +17,7 @@ extern "C"
 class PostgresDriver : public Driver
 {
   public:
+    explicit PostgresDriver( const Context *context );
     ~PostgresDriver() override;
 
     void open( const DriverParametersMap &conn ) override;
@@ -30,6 +31,7 @@ class PostgresDriver : public Driver
     void checkCompatibleForRebase( bool useModified = false ) override;
 
   private:
+    void logApplyConflict( const std::string &type, const ChangesetEntry &entry ) const;
     void openPrivate( const DriverParametersMap &conn );
     void close();
     std::string getSequenceObjectName( const TableSchema &tbl, int &autoIncrementPkeyIndex );

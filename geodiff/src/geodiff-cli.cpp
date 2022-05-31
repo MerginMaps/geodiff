@@ -12,12 +12,21 @@
 #include <fstream>
 #include <vector>
 #include "geodiffutils.hpp"
+#include "geodiffcontext.hpp"
 #include "driver.h"
 
 static bool fileToStdout( const std::string &filepath )
 {
 #ifdef WIN32
-  std::ifstream f( stringToWString( filepath ) );
+  std::ifstream f;
+  try
+  {
+    f.open( stringToWString( filepath ) );
+  }
+  catch ( GeoDiffException & )
+  {
+    return false;
+  }
 #else
   std::ifstream f( filepath );
 #endif
@@ -86,7 +95,7 @@ static bool parseDriverOption( const std::vector<std::string> &args, size_t &i, 
 }
 
 
-static int handleCmdDiff( const std::vector<std::string> &args )
+static int handleCmdDiff( GEODIFF_ContextH context, const std::vector<std::string> &args )
 {
   //   geodiff diff [OPTIONS...] DB_1 DB_2 [CH_OUTPUT]
 
@@ -167,7 +176,7 @@ static int handleCmdDiff( const std::vector<std::string> &args )
   TmpFile tmpChangeset;
   if ( printOutput || writeJson || writeSummary )
   {
-    changeset = randomTmpFilename();
+    changeset = randomTmpFilename( );
     tmpChangeset.setPath( changeset );
   }
   else
@@ -175,7 +184,8 @@ static int handleCmdDiff( const std::vector<std::string> &args )
 
   if ( driver1Name == driver2Name && driver1Options == driver2Options )
   {
-    int ret = GEODIFF_createChangesetEx( driver1Name.data(), driver1Options.data(),
+    int ret = GEODIFF_createChangesetEx( context,
+                                         driver1Name.data(), driver1Options.data(),
                                          db1.data(), db2.data(), changeset.data() );
     if ( ret != GEODIFF_SUCCESS )
     {
@@ -185,7 +195,8 @@ static int handleCmdDiff( const std::vector<std::string> &args )
   }
   else
   {
-    int ret = GEODIFF_createChangesetDr( driver1Name.data(), driver1Options.data(), db1.data(),
+    int ret = GEODIFF_createChangesetDr( context,
+                                         driver1Name.data(), driver1Options.data(), db1.data(),
                                          driver2Name.data(), driver2Options.data(), db2.data(),
                                          changeset.data() );
     if ( ret != GEODIFF_SUCCESS )
@@ -201,7 +212,7 @@ static int handleCmdDiff( const std::vector<std::string> &args )
     TmpFile tmpJson;
     if ( printOutput )
     {
-      json = randomTmpFilename();
+      json = randomTmpFilename( );
       tmpJson.setPath( json );
     }
     else
@@ -209,7 +220,7 @@ static int handleCmdDiff( const std::vector<std::string> &args )
 
     if ( writeJson )
     {
-      if ( GEODIFF_listChanges( changeset.data(), json.data() ) != GEODIFF_SUCCESS )
+      if ( GEODIFF_listChanges( context, changeset.data(), json.data() ) != GEODIFF_SUCCESS )
       {
         std::cout << "Error: failed to convert changeset to JSON!" << std::endl;
         return 1;
@@ -217,7 +228,7 @@ static int handleCmdDiff( const std::vector<std::string> &args )
     }
     else  // writeSummary
     {
-      if ( GEODIFF_listChangesSummary( changeset.data(), json.data() ) != GEODIFF_SUCCESS )
+      if ( GEODIFF_listChangesSummary( context, changeset.data(), json.data() ) != GEODIFF_SUCCESS )
       {
         std::cout << "Error: failed to convert changeset to summary!" << std::endl;
         return 1;
@@ -246,7 +257,7 @@ static int handleCmdDiff( const std::vector<std::string> &args )
 }
 
 
-static int handleCmdApply( const std::vector<std::string> &args )
+static int handleCmdApply( GEODIFF_ContextH context, const std::vector<std::string> &args )
 {
   // geodiff apply [OPTIONS...] DB CH_INPUT
 
@@ -266,7 +277,7 @@ static int handleCmdApply( const std::vector<std::string> &args )
   if ( !checkNoExtraArguments( args, i, "apply" ) )
     return 1;
 
-  int ret = GEODIFF_applyChangesetEx( driverName.data(), driverOptions.data(), db.data(), changeset.data() );
+  int ret = GEODIFF_applyChangesetEx( context, driverName.data(), driverOptions.data(), db.data(), changeset.data() );
   if ( ret != GEODIFF_SUCCESS )
   {
     std::cout << "Error: apply changeset failed!" << std::endl;
@@ -276,7 +287,7 @@ static int handleCmdApply( const std::vector<std::string> &args )
   return 0;
 }
 
-static int handleCmdRebaseDiff( const std::vector<std::string> &args )
+static int handleCmdRebaseDiff( GEODIFF_ContextH context,  const std::vector<std::string> &args )
 {
   // geodiff rebase-diff [OPTIONS...] DB_BASE CH_BASE_OUR CH_BASE_THEIR CH_REBASED CONFLICT
 
@@ -302,6 +313,7 @@ static int handleCmdRebaseDiff( const std::vector<std::string> &args )
     return 1;
 
   int ret = GEODIFF_createRebasedChangesetEx(
+              context,
               driverName.data(), driverOptions.data(),
               dbBase.data(), chBaseOur.data(),
               chBaseTheir.data(), chRebased.data(), conflict.data() );
@@ -314,7 +326,7 @@ static int handleCmdRebaseDiff( const std::vector<std::string> &args )
   return 0;
 }
 
-static int handleCmdRebaseDb( const std::vector<std::string> &args )
+static int handleCmdRebaseDb( GEODIFF_ContextH context, const std::vector<std::string> &args )
 {
   // geodiff rebase-db [OPTIONS...] DB_BASE DB_OUR CH_BASE_THEIR CONFLICT
 
@@ -337,7 +349,8 @@ static int handleCmdRebaseDb( const std::vector<std::string> &args )
   if ( !checkNoExtraArguments( args, i, "rebase-db" ) )
     return 1;
 
-  int ret = GEODIFF_rebaseEx( driverName.data(), driverOptions.data(), dbBase.data(), dbOur.data(),
+  int ret = GEODIFF_rebaseEx( context,
+                              driverName.data(), driverOptions.data(), dbBase.data(), dbOur.data(),
                               chBaseTheir.data(), conflict.data() );
   if ( ret != GEODIFF_SUCCESS )
   {
@@ -348,7 +361,7 @@ static int handleCmdRebaseDb( const std::vector<std::string> &args )
   return 0;
 }
 
-static int handleCmdInvert( const std::vector<std::string> &args )
+static int handleCmdInvert( GEODIFF_ContextH context, const std::vector<std::string> &args )
 {
   // geodiff invert CH_INPUT CH_OUTPUT
 
@@ -362,7 +375,7 @@ static int handleCmdInvert( const std::vector<std::string> &args )
   if ( !checkNoExtraArguments( args, i, "invert" ) )
     return 1;
 
-  int ret = GEODIFF_invertChangeset( chInput.data(), chOutput.data() );
+  int ret = GEODIFF_invertChangeset( context, chInput.data(), chOutput.data() );
   if ( ret != GEODIFF_SUCCESS )
   {
     std::cout << "Error: invert changeset failed!" << std::endl;
@@ -372,7 +385,7 @@ static int handleCmdInvert( const std::vector<std::string> &args )
   return 0;
 }
 
-static int handleCmdConcat( const std::vector<std::string> &args )
+static int handleCmdConcat( GEODIFF_ContextH context, const std::vector<std::string> &args )
 {
   // geodiff concat CH_INPUT_1 CH_INPUT_2 [...] CH_OUTPUT
 
@@ -390,7 +403,7 @@ static int handleCmdConcat( const std::vector<std::string> &args )
     changesets.push_back( args[i].data() );
   }
 
-  int ret = GEODIFF_concatChanges( ( int ) changesets.size(), changesets.data(), chOutput.data() );
+  int ret = GEODIFF_concatChanges( context, ( int ) changesets.size(), changesets.data(), chOutput.data() );
   if ( ret != GEODIFF_SUCCESS )
   {
     std::cout << "Error: concat changesets failed!" << std::endl;
@@ -400,7 +413,7 @@ static int handleCmdConcat( const std::vector<std::string> &args )
   return 0;
 }
 
-static int handleCmdAsJson( const std::vector<std::string> &args )
+static int handleCmdAsJson( GEODIFF_ContextH context, const std::vector<std::string> &args )
 {
   // geodiff as-json CH_INPUT [CH_OUTPUT]
 
@@ -426,13 +439,13 @@ static int handleCmdAsJson( const std::vector<std::string> &args )
   TmpFile tmpChangeset;
   if ( printOutput )
   {
-    changeset = randomTmpFilename();
+    changeset = randomTmpFilename( );
     tmpChangeset.setPath( changeset );
   }
   else
     changeset = chOutput;
 
-  int ret = GEODIFF_listChanges( chInput.data(), changeset.data() );
+  int ret = GEODIFF_listChanges( context, chInput.data(), changeset.data() );
   if ( ret != GEODIFF_SUCCESS )
   {
     std::cout << "Error: export changeset to JSON failed!" << std::endl;
@@ -451,7 +464,7 @@ static int handleCmdAsJson( const std::vector<std::string> &args )
   return 0;
 }
 
-static int handleCmdAsSummary( const std::vector<std::string> &args )
+static int handleCmdAsSummary( GEODIFF_ContextH context, const std::vector<std::string> &args )
 {
   // geodiff as-summary CH_INPUT [SUMMARY]
 
@@ -477,13 +490,13 @@ static int handleCmdAsSummary( const std::vector<std::string> &args )
   TmpFile tmpSummary;
   if ( printOutput )
   {
-    summary = randomTmpFilename();
+    summary = randomTmpFilename( );
     tmpSummary.setPath( summary );
   }
   else
     summary = chOutput;
 
-  int ret = GEODIFF_listChangesSummary( chInput.data(), summary.data() );
+  int ret = GEODIFF_listChangesSummary( context, chInput.data(), summary.data() );
   if ( ret != GEODIFF_SUCCESS )
   {
     std::cout << "Error: export changeset to summary failed!" << std::endl;
@@ -502,7 +515,7 @@ static int handleCmdAsSummary( const std::vector<std::string> &args )
   return 0;
 }
 
-static int handleCmdCopy( const std::vector<std::string> &args )
+static int handleCmdCopy( GEODIFF_ContextH context, const std::vector<std::string> &args )
 {
   // geodiff copy [OPTIONS...] DB_SOURCE DB_DESTINATION
 
@@ -552,7 +565,7 @@ static int handleCmdCopy( const std::vector<std::string> &args )
 
   if ( driver1Name == "sqlite" && driver2Name == "sqlite" )
   {
-    int ret = GEODIFF_makeCopySqlite( chInput.data(), chOutput.data() );
+    int ret = GEODIFF_makeCopySqlite( context, chInput.data(), chOutput.data() );
     if ( ret != GEODIFF_SUCCESS )
     {
       std::cout << "Error: copy failed!" << std::endl;
@@ -561,7 +574,8 @@ static int handleCmdCopy( const std::vector<std::string> &args )
   }
   else
   {
-    int ret = GEODIFF_makeCopy( driver1Name.data(), driver1Options.data(), chInput.data(),
+    int ret = GEODIFF_makeCopy( context,
+                                driver1Name.data(), driver1Options.data(), chInput.data(),
                                 driver2Name.data(), driver2Options.data(), chOutput.data() );
     if ( ret != GEODIFF_SUCCESS )
     {
@@ -573,7 +587,7 @@ static int handleCmdCopy( const std::vector<std::string> &args )
   return 0;
 }
 
-static int handleCmdSchema( const std::vector<std::string> &args )
+static int handleCmdSchema( GEODIFF_ContextH context, const std::vector<std::string> &args )
 {
   // geodiff schema [OPTIONS...] DB [SCHEMA_JSON]
 
@@ -604,13 +618,13 @@ static int handleCmdSchema( const std::vector<std::string> &args )
   TmpFile tmpJson;
   if ( printOutput )
   {
-    json = randomTmpFilename();
+    json = randomTmpFilename( );
     tmpJson.setPath( json );
   }
   else
     json = schemaJson;
 
-  int ret = GEODIFF_schema( driverName.data(), driverOptions.data(), db.data(), json.data() );
+  int ret = GEODIFF_schema( context, driverName.data(), driverOptions.data(), db.data(), json.data() );
   if ( ret != GEODIFF_SUCCESS )
   {
     std::cout << "Error: export changeset to summary failed!" << std::endl;
@@ -629,7 +643,7 @@ static int handleCmdSchema( const std::vector<std::string> &args )
   return 0;
 }
 
-static int handleCmdDump( const std::vector<std::string> &args )
+static int handleCmdDump( GEODIFF_ContextH context, const std::vector<std::string> &args )
 {
   // geodiff dump [OPTIONS...] DB CH_OUTPUT
 
@@ -648,7 +662,7 @@ static int handleCmdDump( const std::vector<std::string> &args )
   if ( !checkNoExtraArguments( args, i, "dump" ) )
     return 1;
 
-  int ret = GEODIFF_dumpData( driverName.data(), driverOptions.data(), db.data(), chOutput.data() );
+  int ret = GEODIFF_dumpData( context, driverName.data(), driverOptions.data(), db.data(), chOutput.data() );
   if ( ret != GEODIFF_SUCCESS )
   {
     std::cout << "Error: dump database failed!" << std::endl;
@@ -850,12 +864,32 @@ Copyright (C) 2019-2021 Lutra Consulting\n\
   return 0;
 }
 
+class GeodiffContext
+{
+  public:
+    GeodiffContext()
+    {
+      mContext = GEODIFF_createContext();
+      GEODIFF_CX_setMaximumLoggerLevel( mContext,  getGeodiffLoggerLevel() );
+    }
+    ~GeodiffContext()
+    {
+      if ( mContext )
+      {
+        GEODIFF_CX_destroy( mContext );
+        mContext = nullptr;
+      }
+    }
+    GEODIFF_ContextH handle() {return mContext;}
+
+  private:
+    GEODIFF_ContextH mContext = nullptr;
+};
+
 
 int main( int argc, char *argv[] )
 {
-  GEODIFF_init();
-
-  GEODIFF_setMaximumLoggerLevel( getGeodiffLoggerLevel() );
+  GeodiffContext context;
 
   std::vector<std::string> args;
   for ( int i = 1; i < argc; ++i )
@@ -870,47 +904,47 @@ int main( int argc, char *argv[] )
   std::string command = args[0];
   if ( command == "diff" )
   {
-    return handleCmdDiff( args );
+    return handleCmdDiff( context.handle(), args );
   }
   else if ( command == "apply" )
   {
-    return handleCmdApply( args );
+    return handleCmdApply( context.handle(), args );
   }
   else if ( command == "rebase-diff" )
   {
-    return handleCmdRebaseDiff( args );
+    return handleCmdRebaseDiff( context.handle(),  args );
   }
   else if ( command == "rebase-db" )
   {
-    return handleCmdRebaseDb( args );
+    return handleCmdRebaseDb( context.handle(),  args );
   }
   else if ( command == "invert" )
   {
-    return handleCmdInvert( args );
+    return handleCmdInvert( context.handle(),  args );
   }
   else if ( command == "concat" )
   {
-    return handleCmdConcat( args );
+    return handleCmdConcat( context.handle(), args );
   }
   else if ( command == "as-json" )
   {
-    return handleCmdAsJson( args );
+    return handleCmdAsJson( context.handle(),  args );
   }
   else if ( command == "as-summary" )
   {
-    return handleCmdAsSummary( args );
+    return handleCmdAsSummary( context.handle(),  args );
   }
   else if ( command == "copy" )
   {
-    return handleCmdCopy( args );
+    return handleCmdCopy( context.handle(), args );
   }
   else if ( command == "schema" )
   {
-    return handleCmdSchema( args );
+    return handleCmdSchema( context.handle(),  args );
   }
   else if ( command == "dump" )
   {
-    return handleCmdDump( args );
+    return handleCmdDump( context.handle(), args );
   }
   else if ( command == "drivers" )
   {

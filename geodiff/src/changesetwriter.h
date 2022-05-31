@@ -24,8 +24,11 @@ class ChangesetWriter
 {
   public:
 
-    //! opens a file for writing changeset (will overwrite if it exists already)
-    bool open( const std::string &filename );
+    /**
+     *  opens a file for writing changeset (will overwrite if it exists already)
+     *  throws GeoDiffException on error
+     */
+    void open( const std::string &filename );
 
     //! writes table information, all subsequent writes will be related to this table until next call to beginTable()
     void beginTable( const ChangesetTable &table );

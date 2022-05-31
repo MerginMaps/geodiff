@@ -8,14 +8,15 @@
 #include "changesetreader.h"
 #include "changesetwriter.h"
 #include "changesetutils.h"
+#include "geodiffcontext.hpp"
 #include "geodifflogger.hpp"
 
 #include <memory.h>
 
 
-static void logApplyConflict( const std::string &type, const ChangesetEntry &entry )
+void SqliteDriver::logApplyConflict( const std::string &type, const ChangesetEntry &entry ) const
 {
-  Logger::instance().warn( "CONFLICT: " + type + ":\n" + changesetEntryToJSON( entry ).dump( 2 ) );
+  context()->logger().warn( "CONFLICT: " + type + ":\n" + changesetEntryToJSON( entry ).dump( 2 ) );
 }
 
 /**
@@ -82,6 +83,11 @@ class Sqlite3SavepointTransaction
 
 ///////
 
+
+SqliteDriver::SqliteDriver( const Context *context )
+  : Driver( context )
+{
+}
 
 void SqliteDriver::open( const DriverParametersMap &conn )
 {
@@ -225,7 +231,8 @@ bool tableExists( std::shared_ptr<Sqlite3Db> db, const std::string &tableName, c
   return sqlite3_step( stmtHasGeomColumnsInfo.get() ) == SQLITE_ROW;
 }
 
-TableSchema SqliteDriver::tableSchema( const std::string &tableName, bool useModified )
+TableSchema SqliteDriver::tableSchema( const std::string &tableName,
+                                       bool useModified )
 {
   std::string dbName = databaseName( useModified );
 
@@ -316,7 +323,7 @@ TableSchema SqliteDriver::tableSchema( const std::string &tableName, bool useMod
   {
     size_t i = tbl.columnFromName( it.first );
     TableColumnInfo &col = tbl.columns[i];
-    tbl.columns[i].type = columnType( it.second, Driver::SQLITEDRIVERNAME, col.isGeometry );
+    tbl.columns[i].type = columnType( context(), it.second, Driver::SQLITEDRIVERNAME, col.isGeometry );
 
     if ( col.isPrimaryKey && ( lowercaseString( col.type.dbType ) == "integer" ) )
     {

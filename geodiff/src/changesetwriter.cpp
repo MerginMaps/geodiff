@@ -14,8 +14,7 @@
 
 #include <sstream>
 
-
-bool ChangesetWriter::open( const std::string &filename )
+void ChangesetWriter::open( const std::string &filename )
 {
 #ifdef WIN32
   mFile.open( stringToWString( filename ), std::ios::out | std::ios::binary );
@@ -23,9 +22,7 @@ bool ChangesetWriter::open( const std::string &filename )
   mFile.open( filename, std::ios::out | std::ios::binary );
 #endif
   if ( !mFile.is_open() )
-    return false;
-
-  return true;
+    throw GeoDiffException( "Unable to open changeset file for writing: " + filename );
 }
 
 void ChangesetWriter::beginTable( const ChangesetTable &table )

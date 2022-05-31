@@ -47,8 +47,10 @@
 extern "C" {
 #endif
 
+typedef void *GEODIFF_ContextH;
+
 /**
- * Initialize library
+ * Initialize session context
  *
  * The default logger is set, where all the messages printed are printed to stdout/stderr
  * and can be controlled by environment variable GEODIFF_LOGGER_LEVEL
@@ -60,7 +62,9 @@ extern "C" {
  *
  * Default logger level is 1 (errors are printed)
  */
-GEODIFF_EXPORT void GEODIFF_init();
+GEODIFF_EXPORT GEODIFF_ContextH GEODIFF_createContext();
+
+GEODIFF_EXPORT void GEODIFF_CX_destroy( GEODIFF_ContextH contextHandle );
 
 /**
 * Type of message level to log
@@ -84,7 +88,7 @@ typedef void ( *GEODIFF_LoggerCallback )( GEODIFF_LoggerLevel level, const char 
  * Replace default stdout/stderr logger with custom.
  * When loggerCallback is nullptr, no output is produced at all
  */
-GEODIFF_EXPORT void GEODIFF_setLoggerCallback( GEODIFF_LoggerCallback loggerCallback );
+GEODIFF_EXPORT int GEODIFF_CX_setLoggerCallback( GEODIFF_ContextH contextHandle, GEODIFF_LoggerCallback loggerCallback );
 
 /**
  * Assign maximum level of messages that are passed to logger callback
@@ -96,7 +100,7 @@ GEODIFF_EXPORT void GEODIFF_setLoggerCallback( GEODIFF_LoggerCallback loggerCall
  * maxLogLevel = 3 errors, warnings and infos are passed to logger callback
  * maxLogLevel = 4 errors, warnings, infos, debug messages are passed to logger callback
  */
-GEODIFF_EXPORT void GEODIFF_setMaximumLoggerLevel( GEODIFF_LoggerLevel maxLogLevel );
+GEODIFF_EXPORT int GEODIFF_CX_setMaximumLoggerLevel( GEODIFF_ContextH contextHandle, GEODIFF_LoggerLevel maxLogLevel );
 
 
 //! Returns version in format X.Y.Z where xyz are positive integers
@@ -105,19 +109,19 @@ GEODIFF_EXPORT const char *GEODIFF_version();
 /**
  * Returns count of available/registered drivers
  */
-GEODIFF_EXPORT int GEODIFF_driverCount();
+GEODIFF_EXPORT int GEODIFF_driverCount( GEODIFF_ContextH context );
 
 /**
  * Returns driver name by index
  * driverName should be allocated to 256 chars, will be populated with driver name
  * \returns GEODIFF_SUCCESS on success
  */
-GEODIFF_EXPORT int GEODIFF_driverNameFromIndex( int index, char *driverName );
+GEODIFF_EXPORT int GEODIFF_driverNameFromIndex( GEODIFF_ContextH contextHandle, int index, char *driverName );
 
 /**
  * Returns whether the driver is available/registered
  */
-GEODIFF_EXPORT bool GEODIFF_driverIsRegistered( const char *driverName );
+GEODIFF_EXPORT bool GEODIFF_driverIsRegistered( GEODIFF_ContextH contextHandle, const char *driverName );
 
 /**
  * Creates changeset file (binary) in such way that
@@ -132,6 +136,7 @@ GEODIFF_EXPORT bool GEODIFF_driverIsRegistered( const char *driverName );
  * \returns GEODIFF_SUCCESS on success
  */
 GEODIFF_EXPORT int GEODIFF_createChangeset(
+  GEODIFF_ContextH contextHandle,
   const char *base,
   const char *modified,
   const char *changeset );
@@ -148,7 +153,10 @@ GEODIFF_EXPORT int GEODIFF_createChangeset(
  * \param changeset_inv [output] changeset between MODIFIED -> BASE
  * \returns GEODIFF_SUCCESS on success
  */
-GEODIFF_EXPORT int GEODIFF_invertChangeset( const char *changeset, const char *changeset_inv );
+GEODIFF_EXPORT int GEODIFF_invertChangeset(
+  GEODIFF_ContextH contextHandle,
+  const char *changeset,
+  const char *changeset_inv );
 
 /**
  * Creates changeset file (binary) in such way that
@@ -168,6 +176,7 @@ GEODIFF_EXPORT int GEODIFF_invertChangeset( const char *changeset, const char *c
  * \returns GEODIFF_SUCCESS on success
  */
 GEODIFF_EXPORT int GEODIFF_createRebasedChangeset(
+  GEODIFF_ContextH contextHandle,
   const char *base,
   const char *modified,
   const char *changeset_their,
@@ -198,6 +207,7 @@ GEODIFF_EXPORT int GEODIFF_createRebasedChangeset(
  * \returns GEODIFF_SUCCESS on success
  */
 GEODIFF_EXPORT int GEODIFF_rebase(
+  GEODIFF_ContextH contextHandle,
   const char *base,
   const char *modified_their,
   const char *modified,
@@ -220,6 +230,7 @@ GEODIFF_EXPORT int GEODIFF_rebase(
  *          GEODIFF_CONFICTS if the changeset was applied but conflicts were found
  */
 GEODIFF_EXPORT int GEODIFF_applyChangeset(
+  GEODIFF_ContextH contextHandle,
   const char *base,
   const char *changeset );
 
@@ -227,18 +238,23 @@ GEODIFF_EXPORT int GEODIFF_applyChangeset(
 /**
  * \returns -1 on error, 0 no changes, 1 has changes
  */
-GEODIFF_EXPORT int GEODIFF_hasChanges( const char *changeset );
+GEODIFF_EXPORT int GEODIFF_hasChanges(
+  GEODIFF_ContextH contextHandle,
+  const char *changeset );
 
 /**
  * \returns number of changes, -1 on error
  */
-GEODIFF_EXPORT int GEODIFF_changesCount( const char *changeset );
+GEODIFF_EXPORT int GEODIFF_changesCount(
+  GEODIFF_ContextH contextHandle,
+  const char *changeset );
 
 /**
  * Expand changeset to JSON
  * \returns GEODIFF_SUCCESS on success
  */
 GEODIFF_EXPORT int GEODIFF_listChanges(
+  GEODIFF_ContextH contextHandle,
   const char *changeset,
   const char *jsonfile
 );
@@ -248,6 +264,7 @@ GEODIFF_EXPORT int GEODIFF_listChanges(
  * \returns GEODIFF_SUCCESS on success
  */
 GEODIFF_EXPORT int GEODIFF_listChangesSummary(
+  GEODIFF_ContextH contextHandle,
   const char *changeset,
   const char *jsonfile
 );
@@ -263,6 +280,7 @@ GEODIFF_EXPORT int GEODIFF_listChangesSummary(
  * \returns GEODIFF_SUCCESS on success
  */
 GEODIFF_EXPORT int GEODIFF_concatChanges(
+  GEODIFF_ContextH contextHandle,
   int inputChangesetsCount,
   const char **inputChangesets,
   const char *outputChangeset
@@ -285,8 +303,14 @@ GEODIFF_EXPORT int GEODIFF_concatChanges(
  *   A datasource identifies a PostgreSQL schema name (namespace) within the current database.
  *
  */
-GEODIFF_EXPORT int GEODIFF_makeCopy( const char *driverSrcName, const char *driverSrcExtraInfo, const char *src,
-                                     const char *driverDstName, const char *driverDstExtraInfo, const char *dst );
+GEODIFF_EXPORT int GEODIFF_makeCopy(
+  GEODIFF_ContextH contextHandle,
+  const char *driverSrcName,
+  const char *driverSrcExtraInfo,
+  const char *src,
+  const char *driverDstName,
+  const char *driverDstExtraInfo,
+  const char *dst );
 
 /**
  * Makes a copy of a SQLite database. If the destination database file exists, it will be overwritten.
@@ -295,7 +319,10 @@ GEODIFF_EXPORT int GEODIFF_makeCopy( const char *driverSrcName, const char *driv
  * of files on the file system: it will take into account other readers/writers and WAL file,
  * so we should never end up with a corrupt copy.
  */
-GEODIFF_EXPORT int GEODIFF_makeCopySqlite( const char *src, const char *dst );
+GEODIFF_EXPORT int GEODIFF_makeCopySqlite(
+  GEODIFF_ContextH contextHandle,
+  const char *src,
+  const char *dst );
 
 /**
  * This is an extended version of GEODIFF_createChangeset() which also allows specification
@@ -304,9 +331,13 @@ GEODIFF_EXPORT int GEODIFF_makeCopySqlite( const char *src, const char *dst );
  *
  * See documentation of GEODIFF_makeCopy() for details about supported drivers.
  */
-GEODIFF_EXPORT int GEODIFF_createChangesetEx( const char *driverName, const char *driverExtraInfo,
-    const char *base, const char *modified,
-    const char *changeset );
+GEODIFF_EXPORT int GEODIFF_createChangesetEx(
+  GEODIFF_ContextH contextHandle,
+  const char *driverName,
+  const char *driverExtraInfo,
+  const char *base,
+  const char *modified,
+  const char *changeset );
 
 /**
  * Compares 2 sources from various drivers by creating changeset. Sources are converted to geopackage and then compared via
@@ -315,6 +346,7 @@ GEODIFF_EXPORT int GEODIFF_createChangesetEx( const char *driverName, const char
  * See documentation of GEODIFF_makeCopy() for details about supported drivers.
  */
 GEODIFF_EXPORT int GEODIFF_createChangesetDr(
+  GEODIFF_ContextH contextHandle,
   const char *driverSrcName,
   const char *driverSrcExtraInfo,
   const char *src,
@@ -331,8 +363,12 @@ GEODIFF_EXPORT int GEODIFF_createChangesetDr(
  *
  * See documentation of GEODIFF_makeCopy() for details about supported drivers.
  */
-GEODIFF_EXPORT int GEODIFF_applyChangesetEx( const char *driverName, const char *driverExtraInfo,
-    const char *base, const char *changeset );
+GEODIFF_EXPORT int GEODIFF_applyChangesetEx(
+  GEODIFF_ContextH contextHandle,
+  const char *driverName,
+  const char *driverExtraInfo,
+  const char *base,
+  const char *changeset );
 
 
 /**
@@ -340,6 +376,7 @@ GEODIFF_EXPORT int GEODIFF_applyChangesetEx( const char *driverName, const char 
  * "base2their" and writes output to a new changeset "rebased"
  */
 GEODIFF_EXPORT int GEODIFF_createRebasedChangesetEx(
+  GEODIFF_ContextH contextHandle,
   const char *driverName,
   const char *driverExtraInfo,
   const char *base,
@@ -354,6 +391,7 @@ GEODIFF_EXPORT int GEODIFF_createRebasedChangesetEx(
  * and "modified" datasets and rebasing them on top of base2their changeset.
  */
 GEODIFF_EXPORT int GEODIFF_rebaseEx(
+  GEODIFF_ContextH contextHandle,
   const char *driverName,
   const char *driverExtraInfo,
   const char *base,
@@ -365,13 +403,22 @@ GEODIFF_EXPORT int GEODIFF_rebaseEx(
 /**
  * Dumps all data from the data source as INSERT statements to a new changeset file.
  */
-GEODIFF_EXPORT int GEODIFF_dumpData( const char *driverName, const char *driverExtraInfo,
-                                     const char *src, const char *changeset );
+GEODIFF_EXPORT int GEODIFF_dumpData(
+  GEODIFF_ContextH contextHandle,
+  const char *driverName,
+  const char *driverExtraInfo,
+  const char *src,
+  const char *changeset );
 
 /**
  * Writes a JSON file containing database schema of tables as understood by geodiff.
  */
-GEODIFF_EXPORT int GEODIFF_schema( const char *driverName, const char *driverExtraInfo, const char *src, const char *json );
+GEODIFF_EXPORT int GEODIFF_schema(
+  GEODIFF_ContextH contextHandle,
+  const char *driverName,
+  const char *driverExtraInfo,
+  const char *src,
+  const char *json );
 
 
 typedef void *GEODIFF_ChangesetReaderH;
@@ -385,7 +432,9 @@ typedef void *GEODIFF_ValueH;
  * of the returned object is passed to the caller - GEODIFF_CR_destroy() should be called
  * when the reader is not needed anymore.
  */
-GEODIFF_EXPORT GEODIFF_ChangesetReaderH GEODIFF_readChangeset( const char *changeset );
+GEODIFF_EXPORT GEODIFF_ChangesetReaderH GEODIFF_readChangeset(
+  GEODIFF_ContextH contextHandle,
+  const char *changeset );
 
 //
 // ChangesetReader-related functions
@@ -399,12 +448,17 @@ GEODIFF_EXPORT GEODIFF_ChangesetReaderH GEODIFF_readChangeset( const char *chang
  * If an exception has occurred (e.g. bad file content), the passed "ok" variable will be set
  * to false. Normally it will be set to true (even we have reached the end of the file).
  */
-GEODIFF_EXPORT GEODIFF_ChangesetEntryH GEODIFF_CR_nextEntry( GEODIFF_ChangesetReaderH readerHandle, bool *ok );
+GEODIFF_EXPORT GEODIFF_ChangesetEntryH GEODIFF_CR_nextEntry(
+  GEODIFF_ContextH contextHandle,
+  GEODIFF_ChangesetReaderH readerHandle,
+  bool *ok );
 
 /**
  * Deletes an existing changeset reader object and frees any resources related to it.
  */
-GEODIFF_EXPORT void GEODIFF_CR_destroy( GEODIFF_ChangesetReaderH readerHandle );
+GEODIFF_EXPORT void GEODIFF_CR_destroy(
+  GEODIFF_ContextH contextHandle,
+  GEODIFF_ChangesetReaderH readerHandle );
 
 //
 // ChangesetEntry-related functions
@@ -413,38 +467,52 @@ GEODIFF_EXPORT void GEODIFF_CR_destroy( GEODIFF_ChangesetReaderH readerHandle );
 /**
  * Reads entry's operation type - whether it is an insert, update or delete.
  */
-GEODIFF_EXPORT int GEODIFF_CE_operation( GEODIFF_ChangesetEntryH entryHandle );
+GEODIFF_EXPORT int GEODIFF_CE_operation(
+  GEODIFF_ContextH contextHandle,
+  GEODIFF_ChangesetEntryH entryHandle );
 
 /**
  * Returns table-related information object of the entry. The returned object is owned
  * by geodiff and does not need to be deleted by the caller. It is only valid while
  * the changeset entry is not deleted.
  */
-GEODIFF_EXPORT GEODIFF_ChangesetTableH GEODIFF_CE_table( GEODIFF_ChangesetEntryH entryHandle );
+GEODIFF_EXPORT GEODIFF_ChangesetTableH GEODIFF_CE_table(
+  GEODIFF_ContextH contextHandle,
+  GEODIFF_ChangesetEntryH entryHandle );
 
 /**
  * Returns number of items in the list of old/new values.
  */
-GEODIFF_EXPORT int GEODIFF_CE_countValues( GEODIFF_ChangesetEntryH entryHandle );
+GEODIFF_EXPORT int GEODIFF_CE_countValues(
+  GEODIFF_ContextH contextHandle,
+  GEODIFF_ChangesetEntryH entryHandle );
 
 /**
  * Returns old value of an entry (only valid for UPDATE and DELETE).
  * The ownership of the value object is passed to the caller - GEODIFF_V_destroy()
  * should be called when the value object is not needed anymore.
  */
-GEODIFF_EXPORT GEODIFF_ValueH GEODIFF_CE_oldValue( GEODIFF_ChangesetEntryH entryHandle, int i );
+GEODIFF_EXPORT GEODIFF_ValueH GEODIFF_CE_oldValue(
+  GEODIFF_ContextH contextHandle,
+  GEODIFF_ChangesetEntryH entryHandle,
+  int i );
 
 /**
  * Returns new value of an entry (only valid for UPDATE and INSERT).
  * The ownership of the value object is passed to the caller - GEODIFF_V_destroy()
  * should be called when the value object is not needed anymore.
  */
-GEODIFF_EXPORT GEODIFF_ValueH GEODIFF_CE_newValue( GEODIFF_ChangesetEntryH entryHandle, int i );
+GEODIFF_EXPORT GEODIFF_ValueH GEODIFF_CE_newValue(
+  GEODIFF_ContextH contextHandle,
+  GEODIFF_ChangesetEntryH entryHandle,
+  int i );
 
 /**
  * Deletes an existing changeset entry object and frees any resources related to it.
  */
-GEODIFF_EXPORT void GEODIFF_CE_destroy( GEODIFF_ChangesetEntryH entryHandle );
+GEODIFF_EXPORT void GEODIFF_CE_destroy(
+  GEODIFF_ContextH contextHandle,
+  GEODIFF_ChangesetEntryH entryHandle );
 
 //
 // ChangesetTable-related functions
@@ -454,17 +522,24 @@ GEODIFF_EXPORT void GEODIFF_CE_destroy( GEODIFF_ChangesetEntryH entryHandle );
  * Returns name of the table. Ownership of the returned pointer is NOT passed to the caller
  * and should not be modified or freed.
  */
-GEODIFF_EXPORT const char *GEODIFF_CT_name( GEODIFF_ChangesetTableH tableHandle );
+GEODIFF_EXPORT const char *GEODIFF_CT_name(
+  GEODIFF_ContextH contextHandle,
+  GEODIFF_ChangesetTableH tableHandle );
 
 /**
  * Returns number of columns in the table.
  */
-GEODIFF_EXPORT int GEODIFF_CT_columnCount( GEODIFF_ChangesetTableH tableHandle );
+GEODIFF_EXPORT int GEODIFF_CT_columnCount(
+  GEODIFF_ContextH contextHandle,
+  GEODIFF_ChangesetTableH tableHandle );
 
 /**
  * Returns whether column at the given index is a part of the table's primary key.
  */
-GEODIFF_EXPORT bool GEODIFF_CT_columnIsPkey( GEODIFF_ChangesetTableH tableHandle, int i );
+GEODIFF_EXPORT bool GEODIFF_CT_columnIsPkey(
+  GEODIFF_ContextH contextHandle,
+  GEODIFF_ChangesetTableH tableHandle,
+  int i );
 
 
 //
@@ -474,32 +549,45 @@ GEODIFF_EXPORT bool GEODIFF_CT_columnIsPkey( GEODIFF_ChangesetTableH tableHandle
 /**
  * Returns type of the value stored in the object
  */
-GEODIFF_EXPORT int GEODIFF_V_type( GEODIFF_ValueH valueHandle );
+GEODIFF_EXPORT int GEODIFF_V_type(
+  GEODIFF_ContextH contextHandle,
+  GEODIFF_ValueH valueHandle );
 
 /**
  * Returns integer value (if type is not TypeInt, the result is undefined)
  */
-GEODIFF_EXPORT int64_t GEODIFF_V_getInt( GEODIFF_ValueH valueHandle );
+GEODIFF_EXPORT int64_t GEODIFF_V_getInt(
+  GEODIFF_ContextH contextHandle,
+  GEODIFF_ValueH valueHandle );
 
 /**
  * Returns double value (if type is not TypeDouble, the result is undefined)
  */
-GEODIFF_EXPORT double GEODIFF_V_getDouble( GEODIFF_ValueH valueHandle );
+GEODIFF_EXPORT double GEODIFF_V_getDouble(
+  GEODIFF_ContextH contextHandle,
+  GEODIFF_ValueH valueHandle );
 
 /**
  * Returns number of bytes of text/blob value (if type is not TypeText or TypeBlob, the result is undefined)
  */
-GEODIFF_EXPORT int GEODIFF_V_getDataSize( GEODIFF_ValueH valueHandle );
+GEODIFF_EXPORT int GEODIFF_V_getDataSize(
+  GEODIFF_ContextH contextHandle,
+  GEODIFF_ValueH valueHandle );
 
 /**
  * Copies data of the text/blob value to given buffer (if type is not TypeText or TypeBlob, the result is undefined)
  */
-GEODIFF_EXPORT void GEODIFF_V_getData( GEODIFF_ValueH valueHandle, char *data );
+GEODIFF_EXPORT void GEODIFF_V_getData(
+  GEODIFF_ContextH contextHandle,
+  GEODIFF_ValueH valueHandle,
+  char *data );
 
 /**
  * Deletes an existing value object and frees any resources related to it.
  */
-GEODIFF_EXPORT void GEODIFF_V_destroy( GEODIFF_ValueH valueHandle );
+GEODIFF_EXPORT void GEODIFF_V_destroy(
+  GEODIFF_ContextH contextHandle,
+  GEODIFF_ValueH valueHandle );
 
 
 #ifdef __cplusplus

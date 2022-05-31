@@ -24,6 +24,7 @@
 class SqliteDriver : public Driver
 {
   public:
+    explicit SqliteDriver( const Context *context );
 
     void open( const DriverParametersMap &conn ) override;
     void create( const DriverParametersMap &conn, bool overwrite = false ) override;
@@ -36,7 +37,7 @@ class SqliteDriver : public Driver
     void checkCompatibleForRebase( bool useModified = false ) override;
 
   private:
-
+    void logApplyConflict( const std::string &type, const ChangesetEntry &entry ) const;
     std::string databaseName( bool useModified = false );
 
     std::shared_ptr<Sqlite3Db> mDb;

@@ -23,11 +23,12 @@ class GeoDiff:
             set level (Errors by default)
         """
         self.clib = GeoDiffLib(libname)
-
+  
     def set_logger_callback(self, callback):
         """
             Assign custom logger
             Replace default stdout/stderr logger with custom.
+            callback function has 2 arguments: (int) errorCode, (string) msg 
         """
         return self.clib.set_logger_callback(callback)
 

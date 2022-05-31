@@ -7,6 +7,7 @@
 
 #include "geodiffutils.hpp"
 #include "geodifflogger.hpp"
+#include "geodiffcontext.hpp"
 
 #include <gpkg.h>
 
@@ -585,8 +586,8 @@ std::string createGpkgHeader( std::string &wkb, const TableColumnInfo &col )
   errorstream_t err;
   if ( wkb_fill_envelope( &inStream, WKB_ISO, &envelope, &err ) != SQLITE_OK )
   {
-    Logger::instance().error( error_message( &err ) );
-    throw GeoDiffException( "Could not fill envelope for GeoPackage header" );
+    std::string error( error_message( &err ) );
+    throw GeoDiffException( "Could not fill envelope for GeoPackage header: " + error );
   }
 
   bool geomIsEmpty = geom_envelope_finalize( &envelope );
@@ -617,8 +618,8 @@ std::string createGpkgHeader( std::string &wkb, const TableColumnInfo &col )
   // write header to outstream
   if ( gpb_write_header( &outStream, &gpbHeader, &err ) != SQLITE_OK )
   {
-    Logger::instance().error( error_message( &err ) );
-    throw GeoDiffException( "Could not create GeoPackage header" );
+    std::string error( error_message( &err ) );
+    throw GeoDiffException( "Could not create GeoPackage header: " + error );
   }
 
   /*

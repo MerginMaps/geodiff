@@ -7,6 +7,7 @@
 #include "geodiffutils.hpp"
 #include "geodiff.h"
 #include "geodifflogger.hpp"
+#include "geodiffcontext.hpp"
 
 #include "changesetreader.h"
 #include "changesetwriter.h"
@@ -73,9 +74,9 @@ struct DatabaseRebaseInfo
 {
   std::map<std::string, TableRebaseInfo> tables;   //!< mapping for each table (key = table name)
 
-  void dump()
+  void dump( const Context *context )
   {
-    if ( Logger::instance().maxLogLevel() != GEODIFF_LoggerLevel::LevelDebug )
+    if ( context->logger().maxLogLevel() != GEODIFF_LoggerLevel::LevelDebug )
       return;
 
     std::ostringstream ret;
@@ -86,7 +87,7 @@ struct DatabaseRebaseInfo
       it.second.dump( ret );
     }
 
-    Logger::instance().debug( ret.str() );
+    context->logger().debug( ret.str() );
   }
 };
 
@@ -156,9 +157,9 @@ struct RebaseMapping
     }
   }
 
-  void dump() const
+  void dump( const Context *context ) const
   {
-    if ( Logger::instance().maxLogLevel() != GEODIFF_LoggerLevel::LevelDebug )
+    if ( context->logger().maxLogLevel() != GEODIFF_LoggerLevel::LevelDebug )
       return;
 
     std::ostringstream ret;
@@ -179,7 +180,7 @@ struct RebaseMapping
       ret << std::endl;
     }
 
-    Logger::instance().debug( ret.str() );
+    context->logger().debug( ret.str() );
   }
 
 };
@@ -199,7 +200,10 @@ int _get_primary_key( const ChangesetEntry &entry )
 }
 
 
-int _parse_old_changeset( ChangesetReader &reader_BASE_THEIRS, DatabaseRebaseInfo &dbInfo )
+int _parse_old_changeset(
+  const Context *context,
+  ChangesetReader &reader_BASE_THEIRS,
+  DatabaseRebaseInfo &dbInfo )
 {
   ChangesetEntry entry;
   while ( reader_BASE_THEIRS.nextEntry( entry ) )
@@ -222,13 +226,16 @@ int _parse_old_changeset( ChangesetReader &reader_BASE_THEIRS, DatabaseRebaseInf
     }
   }
 
-  dbInfo.dump();
+  dbInfo.dump( context );
 
   return GEODIFF_SUCCESS;
 }
 
-int _find_mapping_for_new_changeset( ChangesetReader &reader, const DatabaseRebaseInfo &dbInfo,
-                                     RebaseMapping &mapping )
+int _find_mapping_for_new_changeset(
+  const Context *context,
+  ChangesetReader &reader,
+  const DatabaseRebaseInfo &dbInfo,
+  RebaseMapping &mapping )
 {
   // figure out first free primary key value when rebasing for each table
   // TODO: should we consider all rows in the table instead of just the inserts? (maybe not needed - those were available in the other source too)
@@ -327,7 +334,7 @@ int _find_mapping_for_new_changeset( ChangesetReader &reader, const DatabaseReba
     }
   }
 
-  mapping.dump();
+  mapping.dump( context );
 
   return GEODIFF_SUCCESS;
 }
@@ -504,9 +511,10 @@ bool _handle_update( const ChangesetEntry &entry, const RebaseMapping &mapping,
   return entryHasChanges;
 }
 
-int _prepare_new_changeset( ChangesetReader &reader, const std::string &changesetNew,
-                            const RebaseMapping &mapping, const DatabaseRebaseInfo &dbInfo,
-                            std::vector<ConflictFeature> &conflicts )
+//! throws GeoDiffException on error
+void _prepare_new_changeset( ChangesetReader &reader, const std::string &changesetNew,
+                             const RebaseMapping &mapping, const DatabaseRebaseInfo &dbInfo,
+                             std::vector<ConflictFeature> &conflicts )
 {
   ChangesetEntry entry;
   std::map<std::string, ChangesetTable> tableDefinitions;
@@ -550,11 +558,7 @@ int _prepare_new_changeset( ChangesetReader &reader, const std::string &changese
   }
 
   ChangesetWriter writer;
-  if ( !writer.open( changesetNew ) )
-  {
-    std::cout << "unable to open file for writing " << changesetNew << std::endl;
-    return GEODIFF_ERROR;
-  }
+  writer.open( changesetNew );
 
   for ( auto it : tableDefinitions )
   {
@@ -572,14 +576,14 @@ int _prepare_new_changeset( ChangesetReader &reader, const std::string &changese
       writer.writeEntry( writeEntry );
     }
   }
-
-  return GEODIFF_SUCCESS;
 }
 
-int rebase( const std::string &changeset_BASE_THEIRS,
-            const std::string &changeset_THEIRS_MODIFIED,
-            const std::string &changeset_BASE_MODIFIED,
-            std::vector<ConflictFeature> &conflicts )
+void rebase(
+  const Context *context,
+  const std::string &changeset_BASE_THEIRS,
+  const std::string &changeset_THEIRS_MODIFIED,
+  const std::string &changeset_BASE_MODIFIED,
+  std::vector<ConflictFeature> &conflicts )
 
 {
   fileremove( changeset_THEIRS_MODIFIED );
@@ -587,47 +591,41 @@ int rebase( const std::string &changeset_BASE_THEIRS,
   ChangesetReader reader_BASE_THEIRS;
   if ( !reader_BASE_THEIRS.open( changeset_BASE_THEIRS ) )
   {
-    Logger::instance().error( "Could not open changeset_BASE_THEIRS: " + changeset_BASE_THEIRS );
-    return GEODIFF_ERROR;
+    throw GeoDiffException( "Could not open changeset_BASE_THEIRS: " + changeset_BASE_THEIRS );
   }
   if ( reader_BASE_THEIRS.isEmpty() )
   {
-    Logger::instance().info( " -- no rebase needed! (empty base2theirs) --\n" );
+    context->logger().info( " -- no rebase needed! (empty base2theirs) --\n" );
     filecopy( changeset_BASE_MODIFIED, changeset_THEIRS_MODIFIED );
-    return GEODIFF_SUCCESS;
+    return;
   }
 
   ChangesetReader reader_BASE_MODIFIED;
   if ( !reader_BASE_MODIFIED.open( changeset_BASE_MODIFIED ) )
   {
-    Logger::instance().error( "Could not open changeset_BASE_MODIFIED: " + changeset_BASE_MODIFIED );
-    return GEODIFF_ERROR;
+    throw GeoDiffException( "Could not open changeset_BASE_MODIFIED: " + changeset_BASE_MODIFIED );
   }
   if ( reader_BASE_MODIFIED.isEmpty() )
   {
-    Logger::instance().info( " -- no rebase needed! (empty base2modified) --\n" );
+    context->logger().info( " -- no rebase needed! (empty base2modified) --\n" );
     filecopy( changeset_BASE_THEIRS, changeset_THEIRS_MODIFIED );
-    return GEODIFF_SUCCESS;
+    return;
   }
 
   // 1. go through the original changeset and extract data that will be needed in the second step
   DatabaseRebaseInfo dbInfo;
-  int rc = _parse_old_changeset( reader_BASE_THEIRS, dbInfo );
+  int rc = _parse_old_changeset( context, reader_BASE_THEIRS, dbInfo );
   if ( rc != GEODIFF_SUCCESS )
-    return rc;
+    throw GeoDiffException( "Could not parse changeset_BASE_THEIRS: " + changeset_BASE_THEIRS );
 
   // 2. go through the changeset to be rebased and figure out changes we will need to do to it
   RebaseMapping mapping;
-  rc = _find_mapping_for_new_changeset( reader_BASE_MODIFIED, dbInfo, mapping );
+  rc = _find_mapping_for_new_changeset( context, reader_BASE_MODIFIED, dbInfo, mapping );
   if ( rc != GEODIFF_SUCCESS )
-    return rc;
+    throw GeoDiffException( "Could not figure out changes for rebase" );
 
   reader_BASE_MODIFIED.rewind();
 
   // 3. go through the changeset to be rebased again and write it with changes determined in step 2
-  rc = _prepare_new_changeset( reader_BASE_MODIFIED, changeset_THEIRS_MODIFIED, mapping, dbInfo, conflicts );
-  if ( rc != GEODIFF_SUCCESS )
-    return rc;
-
-  return GEODIFF_SUCCESS;
+  _prepare_new_changeset( reader_BASE_MODIFIED, changeset_THEIRS_MODIFIED, mapping, dbInfo, conflicts );
 }

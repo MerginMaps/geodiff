@@ -37,43 +37,37 @@ Logger::Logger()
   setCallback( &StdoutLogger );
 }
 
-Logger &Logger::instance()
-{
-  static Logger instance;
-  return instance;
-}
-
 void Logger::setCallback( GEODIFF_LoggerCallback loggerCallback )
 {
   mLoggerCallback = loggerCallback;
 }
 
-void Logger::debug( const std::string &msg )
+void Logger::debug( const std::string &msg ) const
 {
   log( GEODIFF_LoggerLevel::LevelDebug, msg );
 }
 
-void Logger::warn( const std::string &msg )
+void Logger::warn( const std::string &msg ) const
 {
   log( GEODIFF_LoggerLevel::LevelWarning, msg );
 }
 
-void Logger::error( const std::string &msg )
+void Logger::error( const std::string &msg ) const
 {
   log( GEODIFF_LoggerLevel::LevelError, msg );
 }
 
-void Logger::error( const GeoDiffException &exp )
+void Logger::error( const GeoDiffException &exp ) const
 {
   log( GEODIFF_LoggerLevel::LevelError, exp.what() );
 }
 
-void Logger::info( const std::string &msg )
+void Logger::info( const std::string &msg ) const
 {
   log( GEODIFF_LoggerLevel::LevelInfo, msg );
 }
 
-void Logger::log( GEODIFF_LoggerLevel level, const std::string &msg )
+void Logger::log( GEODIFF_LoggerLevel level, const std::string &msg ) const
 {
   if ( mLoggerCallback )
   {

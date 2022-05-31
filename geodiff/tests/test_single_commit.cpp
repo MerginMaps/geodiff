@@ -6,6 +6,7 @@
 #include "gtest/gtest.h"
 #include "geodiff_testutils.hpp"
 #include "geodiff.h"
+#include "geodiffutils.hpp"
 
 bool _test(
   const std::string &testname,
@@ -28,13 +29,13 @@ bool _test(
   std::string json = pathjoin( tmpdir(), testname, testname + ".json" );
   std::string json_summary = pathjoin( tmpdir(), testname, testname + "_summary.json" );
 
-  if ( GEODIFF_createChangeset( base.c_str(), modified.c_str(), changeset.c_str() ) != GEODIFF_SUCCESS )
+  if ( GEODIFF_createChangeset( testContext(), base.c_str(), modified.c_str(), changeset.c_str() ) != GEODIFF_SUCCESS )
   {
     std::cout << "err GEODIFF_createChangeset" << std::endl;
     return false;
   }
 
-  int nchanges = GEODIFF_changesCount( changeset.c_str() );
+  int nchanges = GEODIFF_changesCount( testContext(), changeset.c_str() );
   if ( nchanges != expected_changes )
   {
     std::cout << "err GEODIFF_listChanges " <<  nchanges << " vs " << expected_changes << std::endl;
@@ -42,7 +43,7 @@ bool _test(
   }
 
   filecopy( patched, base );
-  if ( GEODIFF_applyChangeset( patched.c_str(), changeset.c_str() ) != GEODIFF_SUCCESS )
+  if ( GEODIFF_applyChangeset( testContext(), patched.c_str(), changeset.c_str() ) != GEODIFF_SUCCESS )
   {
     std::cout << "err GEODIFF_applyChangeset" << std::endl;
     return false;
@@ -56,14 +57,14 @@ bool _test(
   }
 
   // create inversed changeset
-  if ( GEODIFF_invertChangeset( changeset.c_str(), changeset_inv.c_str() ) != GEODIFF_SUCCESS )
+  if ( GEODIFF_invertChangeset( testContext(), changeset.c_str(), changeset_inv.c_str() ) != GEODIFF_SUCCESS )
   {
     std::cout << "err GEODIFF_invertChangeset" << std::endl;
     return false;
   }
 
   // apply inversed changeset
-  if ( GEODIFF_applyChangeset( patched.c_str(), changeset_inv.c_str() ) != GEODIFF_SUCCESS )
+  if ( GEODIFF_applyChangeset( testContext(), patched.c_str(), changeset_inv.c_str() ) != GEODIFF_SUCCESS )
   {
     std::cout << "err GEODIFF_applyChangeset inversed" << std::endl;
     return false;
@@ -78,7 +79,7 @@ bool _test(
 
   // check that direct rebase works
   filecopy( patched2, modified );
-  if ( GEODIFF_rebase( base.c_str(), base.c_str(), patched2.c_str(), conflict.c_str() ) != GEODIFF_SUCCESS )
+  if ( GEODIFF_rebase( testContext(), base.c_str(), base.c_str(), patched2.c_str(), conflict.c_str() ) != GEODIFF_SUCCESS )
   {
     std::cout << "err GEODIFF_rebase inversed" << std::endl;
     return false;
@@ -176,10 +177,12 @@ TEST( SingleCommitSqlite3Test, GpkgTriggersTest )
   bool ret1 = _test( "gpkg_triggers",
                      pathjoin( "gpkg_triggers", "db-base.gpkg" ),
                      pathjoin( "gpkg_triggers", "db-modified.gpkg" ),
-                     GEODIFF_changesCount( pathjoin( testdir(), "gpkg_triggers", "modified-changeset.diff" ).c_str() )
+                     GEODIFF_changesCount( testContext(),
+                         pathjoin( testdir(), "gpkg_triggers", "modified-changeset.diff" ).c_str() )
                    );
 
   bool ret2 = GEODIFF_createRebasedChangeset(
+                testContext(),
                 pathjoin( testdir(), "gpkg_triggers", "db-base.gpkg" ).c_str(),
                 pathjoin( testdir(), "gpkg_triggers", "db-modified.gpkg" ).c_str(),
                 pathjoin( testdir(), "gpkg_triggers", "modified-changeset.diff" ).c_str(),
@@ -198,22 +201,24 @@ TEST( SingleCommitSqlite3Test, NonAsciiCharactersTest )
 {
   std::cout << "non ascii characters in path test" << std::endl;
 
-  bool ret = _test( "non_ascii_\xc5\xa1", // add special sign also here, because changeset file is created from it
-                    pathjoin( "utf_test_\xc5\xa1\xc4\x8d\xc3\xa9", "test\xc3\xa1\xc3\xa1.gpkg" ), // testaa
-                    pathjoin( "utf_test_\xc5\xa1\xc4\x8d\xc3\xa9", "test\xc4\x8d\xc4\x8d.gpkg" ), // testcc
-                    2
-                  );
+  bool ret = _test(
+               "non_ascii_\xc5\xa1", // add special sign also here, because changeset file is created from it
+               pathjoin( "utf_test_\xc5\xa1\xc4\x8d\xc3\xa9", "test\xc3\xa1\xc3\xa1.gpkg" ), // testaa
+               pathjoin( "utf_test_\xc5\xa1\xc4\x8d\xc3\xa9", "test\xc4\x8d\xc4\x8d.gpkg" ), // testcc
+               2
+             );
   ASSERT_TRUE( ret );
 }
 
 TEST( SingleCommitSqlite3Test, QuoteCharacterGpkgName )
 {
   std::cout << "path with quote character" << std::endl;
-  bool ret = _test( "quote's test",
-                    pathjoin( "dir_with_quote's's", "base.gpkg" ),
-                    pathjoin( "dir_with_quote's's", "recreated.gpkg" ),
-                    8
-                  );
+  bool ret = _test(
+               "quote's test",
+               pathjoin( "dir_with_quote's's", "base.gpkg" ),
+               pathjoin( "dir_with_quote's's", "recreated.gpkg" ),
+               8
+             );
 
   ASSERT_TRUE( ret );
 }

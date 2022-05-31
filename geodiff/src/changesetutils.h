@@ -19,12 +19,13 @@ struct ChangesetEntry;
 struct ChangesetTable;
 struct TableSchema;
 struct Value;
+class Context;
 
 ChangesetTable schemaToChangesetTable( const std::string &tableName, const TableSchema &tbl );
 
 void invertChangeset( ChangesetReader &reader, ChangesetWriter &writer );
 
-void concatChangesets( const std::vector<std::string> &filenames, const std::string &outputChangeset );
+void concatChangesets( const Context *context, const std::vector<std::string> &filenames, const std::string &outputChangeset );
 
 nlohmann::json changesetEntryToJSON( const ChangesetEntry &entry );
 

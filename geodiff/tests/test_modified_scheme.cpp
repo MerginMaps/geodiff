@@ -6,6 +6,7 @@
 #include "gtest/gtest.h"
 #include "geodiff_testutils.hpp"
 #include "geodiff.h"
+#include "geodiffutils.hpp"
 
 TEST( ModifiedSchemeSqlite3Test, add_attribute )
 {
@@ -17,7 +18,7 @@ TEST( ModifiedSchemeSqlite3Test, add_attribute )
   std::string modified = pathjoin( testdir(), "modified_scheme", "added_attribute.gpkg" );
   std::string changeset = pathjoin( tmpdir(), testname, "changeset.bin" );
 
-  ASSERT_EQ( GEODIFF_createChangeset( base.c_str(), modified.c_str(), changeset.c_str() ), GEODIFF_ERROR );
+  ASSERT_EQ( GEODIFF_createChangeset( testContext(), base.c_str(), modified.c_str(), changeset.c_str() ), GEODIFF_ERROR );
 }
 
 TEST( ModifiedSchemeSqlite3Test, add_table )
@@ -30,7 +31,7 @@ TEST( ModifiedSchemeSqlite3Test, add_table )
   std::string modified = pathjoin( testdir(), "modified_scheme", "added_table.gpkg" );
   std::string changeset = pathjoin( tmpdir(), testname, "changeset.bin" );
 
-  ASSERT_EQ( GEODIFF_createChangeset( base.c_str(), modified.c_str(), changeset.c_str() ), GEODIFF_ERROR );
+  ASSERT_EQ( GEODIFF_createChangeset( testContext(), base.c_str(), modified.c_str(), changeset.c_str() ), GEODIFF_ERROR );
 }
 
 TEST( ModifiedSchemeSqlite3Test, delete_attribute )
@@ -43,7 +44,7 @@ TEST( ModifiedSchemeSqlite3Test, delete_attribute )
   std::string modified = pathjoin( testdir(), "base.gpkg" );
   std::string changeset = pathjoin( tmpdir(), testname, "changeset.bin" );
 
-  ASSERT_EQ( GEODIFF_createChangeset( base.c_str(), modified.c_str(), changeset.c_str() ), GEODIFF_ERROR );
+  ASSERT_EQ( GEODIFF_createChangeset( testContext(), base.c_str(), modified.c_str(), changeset.c_str() ), GEODIFF_ERROR );
 }
 
 TEST( ModifiedSchemeSqlite3Test, delete_table )
@@ -56,7 +57,7 @@ TEST( ModifiedSchemeSqlite3Test, delete_table )
   std::string modified = pathjoin( testdir(), "base.gpkg" );
   std::string changeset = pathjoin( tmpdir(), testname, "changeset.bin" );
 
-  ASSERT_EQ( GEODIFF_createChangeset( base.c_str(), modified.c_str(), changeset.c_str() ), GEODIFF_ERROR );
+  ASSERT_EQ( GEODIFF_createChangeset( testContext(), base.c_str(), modified.c_str(), changeset.c_str() ), GEODIFF_ERROR );
 }
 
 TEST( ModifiedSchemeSqlite3Test, rename_table )
@@ -69,7 +70,7 @@ TEST( ModifiedSchemeSqlite3Test, rename_table )
   std::string modified = pathjoin( testdir(), "modified_scheme", "added_table2.gpkg" );
   std::string changeset = pathjoin( tmpdir(), testname, "changeset.bin" );
 
-  ASSERT_EQ( GEODIFF_createChangeset( base.c_str(), modified.c_str(), changeset.c_str() ), GEODIFF_ERROR );
+  ASSERT_EQ( GEODIFF_createChangeset( testContext(), base.c_str(), modified.c_str(), changeset.c_str() ), GEODIFF_ERROR );
 }
 
 TEST( ModifiedSchemeSqlite3Test, rename_attribute )
@@ -82,7 +83,7 @@ TEST( ModifiedSchemeSqlite3Test, rename_attribute )
   std::string modified = pathjoin( testdir(), "modified_scheme", "added_attribute2.gpkg" );
   std::string changeset = pathjoin( tmpdir(), testname, "changeset.bin" );
 
-  ASSERT_EQ( GEODIFF_createChangeset( base.c_str(), modified.c_str(), changeset.c_str() ), GEODIFF_ERROR );
+  ASSERT_EQ( GEODIFF_createChangeset( testContext(), base.c_str(), modified.c_str(), changeset.c_str() ), GEODIFF_ERROR );
 }
 
 int main( int argc, char **argv )
