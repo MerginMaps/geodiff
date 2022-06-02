@@ -13,6 +13,7 @@
 
 #include "geodiffutils.hpp"
 
+#include "json.hpp"
 
 static void doInvert( const std::string &changeset, const std::string &invChangeset )
 {
@@ -110,16 +111,13 @@ static void doExportAndCompare( const std::string &changesetBase, const std::str
   ChangesetReader reader;
   EXPECT_TRUE( reader.open( changesetBase + ".diff" ) );
 
-  std::string json = summary ? changesetToJSONSummary( reader ) : changesetToJSON( reader );
+  nlohmann::json json = summary ? changesetToJSONSummary( reader ) : changesetToJSON( reader );
   std::string expectedFilename = changesetBase + ( summary ? "-summary.json" : ".json" );
 
-  {
-    std::ofstream f( changesetDest );
-    EXPECT_TRUE( f.is_open() );
-    f << json;
-  }
+  std::ifstream f( expectedFilename );
+  nlohmann::json expected = nlohmann::json::parse( f );
 
-  EXPECT_TRUE( fileContentEquals( expectedFilename, changesetDest ) );
+  EXPECT_TRUE( json == expected );
 }
 
 TEST( ChangesetUtils, test_export_json )
@@ -390,7 +388,14 @@ TEST( ChangesetUtils, test_schema )
 
   // valid input
   EXPECT_EQ( GEODIFF_schema( "sqlite", nullptr, base.data(), schema.data() ), GEODIFF_SUCCESS );
-  EXPECT_TRUE( fileContentEquals( pathjoin( testdir(), "schema", "base-schema.json" ), schema ) );
+
+  std::ifstream fo( schema );
+  nlohmann::json created = nlohmann::json::parse( fo );
+
+  std::ifstream fe( pathjoin( testdir(), "schema", "base-schema.json" ) );
+  nlohmann::json expected = nlohmann::json::parse( fe );
+
+  EXPECT_TRUE( created == expected );
 }
 
 int main( int argc, char **argv )

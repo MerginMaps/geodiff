@@ -64,7 +64,7 @@ class PostgresTransaction
 
 static void logApplyConflict( const std::string &type, const ChangesetEntry &entry )
 {
-  Logger::instance().warn( "CONFLICT: " + type + ":\n" + changesetEntryToJSON( entry ) );
+  Logger::instance().warn( "CONFLICT: " + type + ":\n" + changesetEntryToJSON( entry ).dump( 2 ) );
 }
 
 /////

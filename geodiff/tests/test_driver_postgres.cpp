@@ -13,6 +13,8 @@
 #include "driver.h"
 #include "postgresutils.h"
 
+#include "json.hpp"
+
 extern "C"
 {
 #include <libpq-fe.h>
@@ -133,10 +135,10 @@ void testCreateChangeset( const std::string &testname, const std::string &connin
   {
     ChangesetReader reader;
     reader.open( output );
-    std::string json = changesetToJSON( reader );
+    nlohmann::json json = changesetToJSON( reader );
     std::ofstream f( outputJson );
     EXPECT_TRUE( f.is_open() );
-    f << json;
+    f << json.dump( 2 );
   }
 
   EXPECT_TRUE( fileContentEquals( output, pathjoin( testdir(), "postgres", expectedChangeset ) ) );

@@ -112,12 +112,6 @@ template<typename InputIt> std::string join( InputIt begin, InputIt end, const s
   return ss.str();
 }
 
-//! Quotes strings for use in JSON
-inline std::string jsonQuoted( const std::string &str )
-{
-  return replace( str, "\"", "\\\"" );
-}
-
 // SOME SQL
 
 bool isLayerTable( const std::string &tableName );

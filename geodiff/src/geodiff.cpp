@@ -29,6 +29,8 @@
 #include <string>
 #include <vector>
 
+#include "json.hpp"
+
 // use scripts/update_version.py to update the version here and in other places at once
 const char *GEODIFF_version()
 {
@@ -308,8 +310,8 @@ int GEODIFF_createRebasedChangesetEx( const char *driverName,
       }
       else
       {
-        std::string res = conflictsToJSON( conflicts );
-        flushString( conflictfile, res );
+        nlohmann::json res = conflictsToJSON( conflicts );
+        flushString( conflictfile, res.dump( 2 ) );
       }
     }
     return rc;
@@ -378,7 +380,7 @@ static int listChangesJSON( const char *changeset, const char *jsonfile, bool on
     return GEODIFF_ERROR;
   }
 
-  std::string res;
+  nlohmann::json res;
   try
   {
     if ( onlySummary )
@@ -395,11 +397,11 @@ static int listChangesJSON( const char *changeset, const char *jsonfile, bool on
   if ( !jsonfile )
   {
     // print to terminal
-    std::cout << res << std::endl;
+    std::cout << res.dump( 2 ) << std::endl;
   }
   else
   {
-    flushString( jsonfile, res );
+    flushString( jsonfile, res.dump( 2 ) );
   }
 
   return GEODIFF_SUCCESS;
@@ -850,81 +852,61 @@ int GEODIFF_schema( const char *driverName, const char *driverExtraInfo, const c
     driver->open( conn );
 
     // prepare JSON
-    std::vector<std::string> tablesData;
+    auto tablesData = nlohmann::json::array();
     for ( const std::string &tableName : driver->listTables() )
     {
       const TableSchema tbl = driver->tableSchema( tableName );
 
-      std::vector<std::string> columnsJson;
+      auto columnsJson = nlohmann::json::array();
       for ( const TableColumnInfo &column : tbl.columns )
       {
-        std::vector<std::string> columnData;
-        columnData.push_back( "\"name\": \"" + jsonQuoted( column.name ) + "\"" );
-        columnData.push_back( "\"type\": \"" + TableColumnType::baseTypeToString( column.type.baseType ) + "\"" );
-        columnData.push_back( "\"type_db\": \"" + jsonQuoted( column.type.dbType ) + "\"" );
+        nlohmann::json columnData;
+        columnData[ "name" ] = column.name;
+        columnData[ "type" ] = TableColumnType::baseTypeToString( column.type.baseType );
+        columnData[ "type_db" ] = column.type.dbType;
         if ( column.isPrimaryKey )
-          columnData.push_back( "\"primary_key\": true" );
+          columnData[ "primary_key" ] = true;
         if ( column.isNotNull )
-          columnData.push_back( "\"not_null\": true" );
+          columnData[ "not_null" ] = true;
         if ( column.isAutoIncrement )
-          columnData.push_back( "\"auto_increment\": true" );
+          columnData[ "auto_increment" ] = true;
         if ( column.isGeometry )
         {
-          std::vector<std::string> geometryData;
-          geometryData.push_back( "\"type\": \"" + jsonQuoted( column.geomType ) + "\"" );
-          geometryData.push_back( "\"srs_id\": \"" + std::to_string( column.geomSrsId ) + "\"" );
+          nlohmann::json geometryData;
+          geometryData[ "type" ] = column.geomType;
+          geometryData[ "srs_id" ] = std::to_string( column.geomSrsId );
           if ( column.geomHasZ )
-            geometryData.push_back( "\"has_z\": true" );
+            geometryData[ "has_z" ] = true;
           if ( column.geomHasM )
-            geometryData.push_back( "\"has_m\": true" );
+            geometryData[ "has_m" ] = true;
 
-          std::string geometryJson;
-          geometryJson += "\"geometry\": {\n               ";
-          geometryJson += join( geometryData.begin(), geometryData.end(), ",\n               " );
-          geometryJson += "\n            }";
-          columnData.push_back( geometryJson );
+          columnData[ "geometry" ] = geometryData;
         }
 
-        std::string columnJson;
-        columnJson += "         {\n";
-        columnJson += "            ";
-        columnJson += join( columnData.begin(), columnData.end(), ",\n            " );
-        columnJson += "\n         }";
-
-        columnsJson.push_back( columnJson );
+        columnsJson.push_back( columnData );
       }
 
-      std::vector<std::string> tableData;
-      tableData.push_back( "\"table\": \"" + jsonQuoted( tableName ) + "\"" );
-      tableData.push_back( "\"columns\": [\n" + join( columnsJson.begin(), columnsJson.end(), ",\n" ) + "\n         ]" );
+      nlohmann::json tableJson;
+      tableJson[ "table"] = tableName;
+      tableJson[ "columns" ] = columnsJson;
       if ( tbl.crs.srsId != 0 )
       {
-        std::vector<std::string> crsData;
-        crsData.push_back( "\"srs_id\": " + std::to_string( tbl.crs.srsId ) );
-        crsData.push_back( "\"auth_name\": \"" + tbl.crs.authName + "\"" );
-        crsData.push_back( "\"auth_code\": " + std::to_string( tbl.crs.authCode ) );
-        crsData.push_back( "\"wkt\": \"" + jsonQuoted( tbl.crs.wkt ) + "\"" );
+        nlohmann::json crsJson;
+        crsJson[ "srs_id" ] = tbl.crs.srsId;
+        crsJson[ "auth_name" ] = tbl.crs.authName;
+        crsJson[ "auth_code" ] = tbl.crs.authCode;
+        crsJson[ "wkt" ] = tbl.crs.wkt;
 
-        std::string crsJson;
-        crsJson += "\"crs\": {\n            ";
-        crsJson += join( crsData.begin(), crsData.end(), ",\n            " );
-        crsJson += "\n         }";
-        tableData.push_back( crsJson );
+        tableJson[ "crs" ] = crsJson;
       }
-      std::string tableJson;
-      tableJson += "      {\n         ";
-      tableJson += join( tableData.begin(), tableData.end(), ",\n         " );
-      tableJson += "\n      }";
-
       tablesData.push_back( tableJson );
     }
-    std::string res = "{\n   \"geodiff_schema\": [\n";
-    res += join( tablesData.begin(), tablesData.end(), ",\n   " );
-    res += "\n   ]\n";
-    res += "}\n";
+
+    nlohmann::json res;
+    res[ "geodiff_schema" ] = tablesData;
 
     // write file content
-    flushString( json, res );
+    flushString( json, res.dump( 2 ) );
   }
   catch ( const  GeoDiffException &exc )
   {

@@ -161,6 +161,7 @@ SET(external_3rd_party_src
   src/3rdparty/portableendian.h
   src/3rdparty/changesetgetvarint.h
   src/3rdparty/changesetputvarint.h
+  src/3rdparty/json.hpp
 )
 
 IF (POSTGRES_FOUND)
@@ -221,7 +222,7 @@ ENDIF ()
 # command line tool
 IF (BUILD_TOOLS)
     SET(geodiff_cli_src src/geodiff-cli.cpp)
-    
+
     ADD_EXECUTABLE(geodiff-cli ${geodiff_cli_src})
     TARGET_LINK_LIBRARIES(geodiff-cli PUBLIC ${GEODIFF_NAME}_a )
     SET_TARGET_PROPERTIES(geodiff-cli PROPERTIES OUTPUT_NAME geodiff)
@@ -245,7 +246,7 @@ ENDIF(ENABLE_TESTS)
 # Setup pedantic warnings
 IF (PEDANTIC)
   IF (MSVC)
-    # warning level 4 and all warnings as errors. 
+    # warning level 4 and all warnings as errors.
     set_source_files_properties(${geodiff_src} ${geodiff_cli_src} PROPERTIES COMPILE_OPTIONS "/W4;/WX")
   ELSE(MSVC)
     # lots of warnings and all warnings as errors

@@ -10,6 +10,8 @@
 #include <string>
 #include <vector>
 
+#include "json.hpp"
+
 class ConflictFeature;
 class ChangesetReader;
 class ChangesetWriter;
@@ -24,15 +26,15 @@ void invertChangeset( ChangesetReader &reader, ChangesetWriter &writer );
 
 void concatChangesets( const std::vector<std::string> &filenames, const std::string &outputChangeset );
 
-std::string changesetEntryToJSON( const ChangesetEntry &entry );
+nlohmann::json changesetEntryToJSON( const ChangesetEntry &entry );
 
-std::string changesetToJSON( ChangesetReader &reader );
+nlohmann::json changesetToJSON( ChangesetReader &reader );
 
-std::string changesetToJSONSummary( ChangesetReader &reader );
+nlohmann::json changesetToJSONSummary( ChangesetReader &reader );
 
-std::string conflictsToJSON( const std::vector<ConflictFeature> &conflicts );
+nlohmann::json conflictsToJSON( const std::vector<ConflictFeature> &conflicts );
 
-std::string valueToJSON( const Value &value );
+nlohmann::json valueToJSON( const Value &value );
 
 std::string hex2bin( const std::string &str );
 std::string bin2hex( const std::string &str );
