@@ -459,10 +459,17 @@ class GeoDiffLib:
 
     def get_wkb_from_geometry(self, geometry):
         func = self.lib.GEODIFF_createWkbFromGpkgHeader
-        func.restype = ctypes.c_char_p
-        wkb = func(ctypes.c_char_p(geometry.encode('utf-8')))
-        return wkb.decode('utf-8')
+        func.argtypes = [ctypes.c_char_p, ctypes.POINTER(ctypes.c_size_t)]
+        func.restype = ctypes.POINTER(ctypes.c_char)
+        free_func = self.lib.GEODIFF_free
+        free_func.argtypes = [ctypes.c_char_p]
+        free_func.restype = None
 
+        size = ctypes.c_size_t(len(geometry))
+        ptr  = func(geometry, ctypes.byref(size))
+        result = ptr[:size.value]
+        free_func(ptr)
+        return result
 
 class ChangesetReader(object):
     """ Wrapper around GEODIFF_CR_* functions from C API """

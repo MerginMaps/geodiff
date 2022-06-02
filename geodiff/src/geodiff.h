@@ -7,6 +7,7 @@
 #define GEODIFF_H
 
 #include <stdint.h>
+#include <stdio.h>
 
 #ifdef GEODIFF_STATIC
 #  define GEODIFF_EXPORT
@@ -591,9 +592,16 @@ GEODIFF_EXPORT void GEODIFF_V_destroy(
 
 
 /**
- * Extracts WKB geometry from the geometry encoded according to GeoPackage spec
+ * Extracts WKB geometry from the geometry encoded according to GeoPackage spec.
+ * Strips GeoPackageBinaryHeader from the StandardGeoPackageBinary envelope and
+ * returns geometry as WKB. More details at https://www.geopackage.org/spec/#gpb_format
  */
-GEODIFF_EXPORT const char *GEODIFF_createWkbFromGpkgHeader( const char *gpkgWkb );
+GEODIFF_EXPORT const char *GEODIFF_createWkbFromGpkgHeader( const char *gpkgWkb, size_t *length );
+
+/**
+ * Frees memory allocated for buffer.
+ */
+GEODIFF_EXPORT void GEODIFF_free( const char *buf );
 
 
 #ifdef __cplusplus

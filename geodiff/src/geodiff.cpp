@@ -16,7 +16,6 @@
 
 #include "sqliteutils.h"
 
-#include <stdio.h>
 #include <stdlib.h>
 #include <stdarg.h>
 #include <ctype.h>
@@ -1209,7 +1208,17 @@ bool GEODIFF_CT_columnIsPkey( GEODIFF_ContextH /*contextHandle*/, GEODIFF_Change
   return static_cast<ChangesetTable *>( tableHandle )->primaryKeys.at( i );
 }
 
-const char *GEODIFF_createWkbFromGpkgHeader( const char *gpkgWkb )
+const char *GEODIFF_createWkbFromGpkgHeader( const char *gpkgWkb, size_t *length )
 {
-  return createWkbFromGpkgHeader( std::string( gpkgWkb ) ).c_str();
+  auto result = createWkbFromGpkgHeader( std::string( gpkgWkb, *length ) );
+  auto result_len = result.length();
+  auto wkb = new char[ result_len ];
+  memcpy( wkb, result.data(), result_len );
+  *length = result_len;
+  return wkb;
+}
+
+void GEODIFF_free( const char *buf )
+{
+  delete []buf;
 }

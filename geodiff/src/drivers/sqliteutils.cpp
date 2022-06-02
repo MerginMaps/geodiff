@@ -14,6 +14,9 @@
 #include <algorithm>
 #include <memory.h>
 
+#include <iostream>
+
+
 extern "C" {
 #include "binstream.h"
 #include "wkb.h"
