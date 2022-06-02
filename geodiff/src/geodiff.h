@@ -593,7 +593,7 @@ GEODIFF_EXPORT void GEODIFF_V_destroy(
 /**
  * Extracts WKB geometry from the geometry encoded according to GeoPackage spec
  */
-GEODIFF_EXPORT const char *GEODIFF_G_getWkb( const char *gpkgWkb );
+GEODIFF_EXPORT const char *GEODIFF_createWkbFromGpkgHeader( const char *gpkgWkb );
 
 
 #ifdef __cplusplus

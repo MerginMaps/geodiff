@@ -458,7 +458,7 @@ class GeoDiffLib:
         return ChangesetReader(self, reader_ptr)
 
     def get_wkb_from_geometry(self, geometry):
-        func = self.lib.GEODIFF_G_getWkb
+        func = self.lib.GEODIFF_createWkbFromGpkgHeader
         func.restype = ctypes.c_char_p
         wkb = func(ctypes.c_char_p(geometry.encode('utf-8')))
         return wkb.decode('utf-8')
