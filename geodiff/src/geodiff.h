@@ -595,6 +595,9 @@ GEODIFF_EXPORT void GEODIFF_V_destroy(
  * Extracts WKB geometry from the geometry encoded according to GeoPackage spec.
  * Strips GeoPackageBinaryHeader from the StandardGeoPackageBinary envelope and
  * returns geometry as WKB. More details at https://www.geopackage.org/spec/#gpb_format
+ * gpkgWkb is a geometry encoded according to GeoPackage spec
+ * length is a length of the passed geometry buffer
+ * returns buffer containing WKB encoded geometry. Caller should free that buffer by calling GEODIFF_free
  */
 GEODIFF_EXPORT const char *GEODIFF_createWkbFromGpkgHeader( const char *gpkgWkb, size_t *length );
 
