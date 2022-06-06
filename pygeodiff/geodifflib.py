@@ -64,17 +64,17 @@ class GeoDiffLib:
         self.callbackLogger = None
         if self.context is None:
             raise GeoDiffLibVersionError("Unable to create GeoDiff context")
-            
+
         self.check_version()
         self._register_functions()
 
     def __del__(self):
-        if self.context is not None:  
+        if self.context is not None:
            func = self.lib.GEODIFF_CX_destroy
            func.argtypes = [ctypes.c_void_p]
            func(self.context)
            self.context = None
-         
+
     def _register_functions(self):
         self._readChangeset = self.lib.GEODIFF_readChangeset
         self._readChangeset.argtypes = [ctypes.c_void_p, ctypes.c_char_p]
@@ -466,7 +466,7 @@ class GeoDiffLib:
         func.restype = ctypes.POINTER(ctypes.c_char)
 
         size = ctypes.c_size_t(len(geometry))
-        ptr  = func(geometry, ctypes.byref(size))
+        ptr  = func(self.context, geometry, ctypes.byref(size))
         result = ptr[:size.value]
         self._free(ptr)
         return result

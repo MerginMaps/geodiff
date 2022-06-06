@@ -599,7 +599,7 @@ GEODIFF_EXPORT void GEODIFF_V_destroy(
  * length is a length of the passed geometry buffer
  * returns buffer containing WKB encoded geometry. Caller should free that buffer by calling GEODIFF_free
  */
-GEODIFF_EXPORT const char *GEODIFF_createWkbFromGpkgHeader( const char *gpkgWkb, size_t *length );
+GEODIFF_EXPORT const char *GEODIFF_createWkbFromGpkgHeader( GEODIFF_ContextH contextHandle, const char *gpkgWkb, size_t *length );
 
 /**
  * Frees memory allocated for buffer.
