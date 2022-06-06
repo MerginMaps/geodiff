@@ -7,6 +7,7 @@
 #include "geodiff_testutils.hpp"
 #include "geodiff.h"
 
+#include "geodiffcontext.hpp"
 #include "changesetreader.h"
 #include "changesetutils.h"
 #include "changesetwriter.h"
@@ -62,7 +63,7 @@ TEST( PostgresDriverTest, test_basic )
   params["conninfo"] = conninfo;
   params["base"] = "gd_base";
 
-  std::unique_ptr<Driver> driver( Driver::createDriver( "postgres" ) );
+  std::unique_ptr<Driver> driver( Driver::createDriver( static_cast<Context *>( testContext() ), "postgres" ) );
   ASSERT_TRUE( driver );
   driver->open( params );
 
@@ -122,19 +123,19 @@ void testCreateChangeset( const std::string &testname, const std::string &connin
   params["base"] = schemaBase;
   params["modified"] = schemaModified;
 
-  std::unique_ptr<Driver> driver( Driver::createDriver( "postgres" ) );
+  std::unique_ptr<Driver> driver( Driver::createDriver( static_cast<Context *>( testContext() ), "postgres" ) );
   ASSERT_TRUE( driver );
   driver->open( params );
 
   {
     ChangesetWriter writer;
-    writer.open( output );
+    ASSERT_NO_THROW( writer.open( output ) );
     driver->createChangeset( writer );
   }
 
   {
     ChangesetReader reader;
-    reader.open( output );
+    EXPECT_TRUE( reader.open( output ) );
     nlohmann::json json = changesetToJSON( reader );
     std::ofstream f( outputJson );
     EXPECT_TRUE( f.is_open() );
@@ -147,14 +148,14 @@ void testCreateChangeset( const std::string &testname, const std::string &connin
 TEST( PostgresDriverApi, test_driver_postgres_api )
 {
   int ndrivers = 2;
-  EXPECT_EQ( GEODIFF_driverCount(), ndrivers );
+  EXPECT_EQ( GEODIFF_driverCount( testContext() ), ndrivers );
 
   char driverName[256];
-  EXPECT_EQ( GEODIFF_driverNameFromIndex( 1, driverName ), GEODIFF_SUCCESS );
+  EXPECT_EQ( GEODIFF_driverNameFromIndex( testContext(), 1, driverName ), GEODIFF_SUCCESS );
 
   EXPECT_EQ( std::string( driverName ), "postgres" );
 
-  EXPECT_TRUE( GEODIFF_driverIsRegistered( "postgres" ) );
+  EXPECT_TRUE( GEODIFF_driverIsRegistered( testContext(), "postgres" ) );
 }
 
 TEST( PostgresDriverTest, test_create_changeset )
@@ -174,7 +175,7 @@ bool schemasEqual( const std::string &conninfo, const std::string &schema1, cons
   std::string changesetCompare = pathjoin( changesetComparePath, "compare.diff" );
   makedir( changesetComparePath );
   remove( changesetCompare.c_str() );
-  EXPECT_FALSE( fileExists( changesetCompare ) );
+  EXPECT_FALSE( fileexists( changesetCompare ) );
 
   {
     DriverParametersMap paramsCompare;
@@ -182,16 +183,16 @@ bool schemasEqual( const std::string &conninfo, const std::string &schema1, cons
     paramsCompare["base"] = schema1;
     paramsCompare["modified"] = schema2;
 
-    std::unique_ptr<Driver> driver( Driver::createDriver( "postgres" ) );
+    std::unique_ptr<Driver> driver( Driver::createDriver( static_cast<Context *>( testContext() ), "postgres" ) );
     EXPECT_TRUE( driver );
     driver->open( paramsCompare );
 
     ChangesetWriter writer;
-    writer.open( changesetCompare );
+    EXPECT_NO_THROW( writer.open( changesetCompare ) );
     driver->createChangeset( writer );
   }
 
-  EXPECT_TRUE( fileExists( changesetCompare ) );
+  EXPECT_TRUE( fileexists( changesetCompare ) );
 
   return isFileEmpty( changesetCompare );
 }
@@ -207,12 +208,12 @@ void testApplyChangeset( const std::string &changeset, const std::string &connin
   params["base"] = "gd_test_apply";
 
   {
-    std::unique_ptr<Driver> driver( Driver::createDriver( "postgres" ) );
+    std::unique_ptr<Driver> driver( Driver::createDriver( static_cast<Context *>( testContext() ), "postgres" ) );
     ASSERT_TRUE( driver );
     driver->open( params );
 
     ChangesetReader reader;
-    reader.open( changeset );
+    EXPECT_TRUE( reader.open( changeset ) );
     driver->applyChangeset( reader );
   }
 
@@ -247,12 +248,12 @@ TEST( PostgresDriverTest, test_apply_changeset_conflict )
   params["base"] = "gd_test_apply";
 
   {
-    std::unique_ptr<Driver> driver( Driver::createDriver( "postgres" ) );
+    std::unique_ptr<Driver> driver( Driver::createDriver( static_cast<Context *>( testContext() ), "postgres" ) );
     ASSERT_TRUE( driver );
     driver->open( params );
 
     ChangesetReader reader;
-    reader.open( fileChangeset );
+    EXPECT_TRUE( reader.open( fileChangeset ) );
     EXPECT_ANY_THROW( driver->applyChangeset( reader ) );
   }
 
@@ -274,13 +275,13 @@ TEST( PostgresDriverTest, test_dump_data )
   paramsBase["conninfo"] = conninfo;
   paramsBase["base"] = "gd_base";
 
-  std::unique_ptr<Driver> driverBase( Driver::createDriver( "postgres" ) );
+  std::unique_ptr<Driver> driverBase( Driver::createDriver( static_cast<Context *>( testContext() ), "postgres" ) );
   ASSERT_TRUE( driverBase );
   driverBase->open( paramsBase );
 
   {
     ChangesetWriter writer;
-    writer.open( output );
+    ASSERT_NO_THROW( writer.open( output ) );
     driverBase->dumpData( writer );
   }
 
@@ -297,7 +298,7 @@ TEST( PostgresDriverTest, test_create_tables )
   paramsBase["conninfo"] = conninfo;
   paramsBase["base"] = "gd_base";
 
-  std::unique_ptr<Driver> driverBase( Driver::createDriver( "postgres" ) );
+  std::unique_ptr<Driver> driverBase( Driver::createDriver( static_cast<Context *>( testContext() ), "postgres" ) );
   ASSERT_TRUE( driverBase );
   driverBase->open( paramsBase );
 
@@ -309,7 +310,7 @@ TEST( PostgresDriverTest, test_create_tables )
   paramsCreate["conninfo"] = conninfo;
   paramsCreate["base"] = "gd_schema_test";
 
-  std::unique_ptr<Driver> driverCreate( Driver::createDriver( "postgres" ) );
+  std::unique_ptr<Driver> driverCreate( Driver::createDriver( static_cast<Context *>( testContext() ), "postgres" ) );
   ASSERT_TRUE( driverCreate );
   driverCreate->create( paramsCreate, true );
 
@@ -322,7 +323,7 @@ TEST( PostgresDriverTest, test_create_tables )
 
   {
     ChangesetReader reader;
-    reader.open( pathjoin( testdir(), "postgres", "dump_data.diff" ) );
+    EXPECT_TRUE( reader.open( pathjoin( testdir(), "postgres", "dump_data.diff" ) ) );
     driverCreate->applyChangeset( reader );
   }
 
@@ -333,7 +334,7 @@ TEST( PostgresDriverTest, test_create_tables )
   paramsCheck["base"] = "gd_base";
   paramsCheck["modified"] = "gd_schema_test";
 
-  std::unique_ptr<Driver> driverCheck( Driver::createDriver( "postgres" ) );
+  std::unique_ptr<Driver> driverCheck( Driver::createDriver( static_cast<Context *>( testContext() ), "postgres" ) );
   ASSERT_TRUE( driverCheck );
   driverCheck->open( paramsCheck );
 
@@ -341,7 +342,7 @@ TEST( PostgresDriverTest, test_create_tables )
   std::string output = pathjoin( tmpdir(), "test_postgres_create_tables", "output.diff" );
   {
     ChangesetWriter writerCheck;
-    writerCheck.open( output );
+    ASSERT_NO_THROW( writerCheck.open( output ) );
     driverCheck->createChangeset( writerCheck );
   }
 
@@ -361,7 +362,7 @@ TEST( PostgresDriverTest, test_create_sqlite_from_postgres )
   std::map<std::string, std::string> connBase;
   connBase["conninfo"] = conninfo;
   connBase["base"] = "gd_base";
-  std::unique_ptr<Driver> driverBase( Driver::createDriver( "postgres" ) );
+  std::unique_ptr<Driver> driverBase( Driver::createDriver( static_cast<Context *>( testContext() ), "postgres" ) );
   driverBase->open( connBase );
   TableSchema tblBaseSimple = driverBase->tableSchema( "simple" );
 
@@ -370,7 +371,7 @@ TEST( PostgresDriverTest, test_create_sqlite_from_postgres )
   // create the new database
   std::map<std::string, std::string> conn;
   conn["base"] = testdb;
-  std::unique_ptr<Driver> driver( Driver::createDriver( "sqlite" ) );
+  std::unique_ptr<Driver> driver( Driver::createDriver( static_cast<Context *>( testContext() ), "sqlite" ) );
   EXPECT_NO_THROW( driver->create( conn, true ) );
   EXPECT_ANY_THROW( driver->tableSchema( "simple" ) );
 
@@ -391,21 +392,21 @@ TEST( PostgresDriverTest, test_create_postgres_from_sqlite )
 {
   TableColumnInfo test1c1;
   test1c1.name = "c1";
-  test1c1.type = columnType( "mediumint", Driver::SQLITEDRIVERNAME );
+  test1c1.type = columnType( static_cast<const Context *>( testContext() ), "mediumint", Driver::SQLITEDRIVERNAME );
   test1c1.isPrimaryKey = true;
   test1c1.isAutoIncrement = true;
 
   TableColumnInfo test1c2;
   test1c2.name = "c2";
-  test1c2.type = columnType( "bool", Driver::SQLITEDRIVERNAME );
+  test1c2.type = columnType( static_cast<const Context *>( testContext() ), "bool", Driver::SQLITEDRIVERNAME );
 
   TableColumnInfo test1c3;
   test1c3.name = "c3";
-  test1c3.type = columnType( "mediumint", Driver::SQLITEDRIVERNAME );
+  test1c3.type = columnType( static_cast<const Context *>( testContext() ), "mediumint", Driver::SQLITEDRIVERNAME );
 
   TableColumnInfo test1c4;
   test1c4.name = "c4";
-  test1c4.type = columnType( "varchar(255)", Driver::SQLITEDRIVERNAME );
+  test1c4.type = columnType( static_cast<const Context *>( testContext() ), "varchar(255)", Driver::SQLITEDRIVERNAME );
 
   TableSchema tblTest1;
   tblTest1.name = "test_1";
@@ -427,7 +428,7 @@ TEST( PostgresDriverTest, test_create_postgres_from_sqlite )
   DriverParametersMap paramsBase;
   paramsBase["conninfo"] = pgTestConnInfo();
   paramsBase["base"] = "gd_test_postgres_from_sqlite";
-  std::unique_ptr<Driver> driver( Driver::createDriver( "postgres" ) );
+  std::unique_ptr<Driver> driver( Driver::createDriver( static_cast<Context *>( testContext() ), "postgres" ) );
   ASSERT_TRUE( driver );
   driver->create( paramsBase );
   std::vector<TableSchema> tables;
@@ -458,12 +459,12 @@ TEST( PostgresDriverTest, test_updated_sequence )
   params["base"] = "gd_test_apply";
 
   {
-    std::unique_ptr<Driver> driver( Driver::createDriver( "postgres" ) );
+    std::unique_ptr<Driver> driver( Driver::createDriver( static_cast<Context *>( testContext() ), "postgres" ) );
     ASSERT_TRUE( driver );
     driver->open( params );
 
     ChangesetReader reader;
-    reader.open( changeset );
+    EXPECT_TRUE( reader.open( changeset ) );
     driver->applyChangeset( reader );
   }
 
@@ -491,12 +492,12 @@ TEST( PostgresDriverTest, test_rebase )
   std::string base2their = pathjoin( tmpdir(), testname, "base2their" );
   std::string conflictfile = pathjoin( tmpdir(), testname, "conflict" );
 
-  int res1 = GEODIFF_createChangesetEx( "postgres", conninfo.c_str(), "gd_base", "gd_inserted_1_a", base2our.c_str() );
-  int res2 = GEODIFF_createChangesetEx( "postgres", conninfo.c_str(), "gd_base", "gd_inserted_1_b", base2their.c_str() );
+  int res1 = GEODIFF_createChangesetEx( testContext(), "postgres", conninfo.c_str(), "gd_base", "gd_inserted_1_a", base2our.c_str() );
+  int res2 = GEODIFF_createChangesetEx( testContext(), "postgres", conninfo.c_str(), "gd_base", "gd_inserted_1_b", base2their.c_str() );
   EXPECT_EQ( res1, GEODIFF_SUCCESS );
   EXPECT_EQ( res2, GEODIFF_SUCCESS );
 
-  int rc = GEODIFF_rebaseEx( "postgres", conninfo.c_str(), "gd_base", "gd_inserted_1_a", base2their.c_str(), conflictfile.c_str() );
+  int rc = GEODIFF_rebaseEx( testContext(), "postgres", conninfo.c_str(), "gd_base", "gd_inserted_1_a", base2their.c_str(), conflictfile.c_str() );
   EXPECT_EQ( rc, GEODIFF_SUCCESS );
 
   // check the actual results
@@ -535,15 +536,15 @@ TEST( PostgresDriverTest, test_capital_letters )
   std::string modifiedGpkg( pathjoin( testdir(), "capital-letters", "db-capital-modified.gpkg" ) );
 
   // try capital letters when in schema and table names
-  EXPECT_EQ( GEODIFF_makeCopy( "sqlite", "", baseGpkg.c_str(), "postgres", conninfo.c_str(), "GD_base" ), GEODIFF_SUCCESS );
-  EXPECT_EQ( GEODIFF_makeCopy( "sqlite", "", modifiedGpkg.c_str(), "postgres", conninfo.c_str(), "GD_modified" ), GEODIFF_SUCCESS );
-  EXPECT_EQ( GEODIFF_makeCopy( "postgres", conninfo.c_str(), "GD_base", "postgres", conninfo.c_str(), "GD_base_copy" ), GEODIFF_SUCCESS );
+  EXPECT_EQ( GEODIFF_makeCopy( testContext(), "sqlite", "", baseGpkg.c_str(), "postgres", conninfo.c_str(), "GD_base" ), GEODIFF_SUCCESS );
+  EXPECT_EQ( GEODIFF_makeCopy( testContext(), "sqlite", "", modifiedGpkg.c_str(), "postgres", conninfo.c_str(), "GD_modified" ), GEODIFF_SUCCESS );
+  EXPECT_EQ( GEODIFF_makeCopy( testContext(), "postgres", conninfo.c_str(), "GD_base", "postgres", conninfo.c_str(), "GD_base_copy" ), GEODIFF_SUCCESS );
 
-  EXPECT_EQ( GEODIFF_createChangesetEx( "postgres", conninfo.c_str(), "GD_base", "GD_modified", changeset.c_str() ), GEODIFF_SUCCESS );
+  EXPECT_EQ( GEODIFF_createChangesetEx( testContext(), "postgres", conninfo.c_str(), "GD_base", "GD_modified", changeset.c_str() ), GEODIFF_SUCCESS );
 
-  ASSERT_TRUE( fileExists( changeset ) );
+  ASSERT_TRUE( fileexists( changeset ) );
 
-  EXPECT_EQ( GEODIFF_applyChangesetEx( "postgres", conninfo.c_str(), "GD_base", changeset.c_str() ), GEODIFF_SUCCESS );
+  EXPECT_EQ( GEODIFF_applyChangesetEx( testContext(), "postgres", conninfo.c_str(), "GD_base", changeset.c_str() ), GEODIFF_SUCCESS );
 
   // check value
   PostgresResult resTestFid5( execSql( c, "SELECT \"Name\" FROM \"GD_base\".\"CapitalCity\" where fid = 6" ) );
@@ -561,7 +562,7 @@ TEST( PostgresDriverTest, test_gpkg_with_envelope )
 
   std::string envelopeGpkg( pathjoin( testdir(), "envelope_gpkg", "db-envelope.gpkg" ) );
 
-  EXPECT_EQ( GEODIFF_makeCopy( "sqlite", "", envelopeGpkg.c_str(), "postgres", conninfo.c_str(), "gd_envelope_test" ), GEODIFF_SUCCESS );
+  EXPECT_EQ( GEODIFF_makeCopy( testContext(), "sqlite", "", envelopeGpkg.c_str(), "postgres", conninfo.c_str(), "gd_envelope_test" ), GEODIFF_SUCCESS );
 
   std::string testName( "test_gpkg_with_envelope" );
   makedir( pathjoin( tmpdir(), testName ) );
@@ -569,12 +570,12 @@ TEST( PostgresDriverTest, test_gpkg_with_envelope )
   std::string changeset( pathjoin( tmpdir(), testName, "changeset.diff" ) );
   std::string tmpEnvelopeGpkg( pathjoin( tmpdir(), testName, "db-envelope-tmp.gpkg" ) );
 
-  EXPECT_EQ( GEODIFF_makeCopy( "postgres", conninfo.c_str(), "gd_envelope_test", "sqlite", "", tmpEnvelopeGpkg.c_str() ), GEODIFF_SUCCESS );
+  EXPECT_EQ( GEODIFF_makeCopy( testContext(), "postgres", conninfo.c_str(), "gd_envelope_test", "sqlite", "", tmpEnvelopeGpkg.c_str() ), GEODIFF_SUCCESS );
 
-  EXPECT_EQ( GEODIFF_createChangeset( envelopeGpkg.c_str(), tmpEnvelopeGpkg.c_str(), changeset.c_str() ), GEODIFF_SUCCESS );
+  EXPECT_EQ( GEODIFF_createChangeset( testContext(), envelopeGpkg.c_str(), tmpEnvelopeGpkg.c_str(), changeset.c_str() ), GEODIFF_SUCCESS );
 
   ChangesetReader r;
-  r.open( changeset );
+  EXPECT_TRUE( r.open( changeset ) );
   EXPECT_TRUE( r.isEmpty() );
 
   PQfinish( c );
@@ -590,13 +591,13 @@ TEST( PostgresDriverTest, test_conversion_with_dates )
   std::string testName( "test_conversion_with_dates" );
   std::string timeGpkg( pathjoin( testdir(), "conversions", "db-time.gpkg" ) );
 
-  EXPECT_EQ( GEODIFF_makeCopy( "sqlite", "", timeGpkg.c_str(), "postgres", conninfo.c_str(), "gd_time" ), GEODIFF_SUCCESS );
+  EXPECT_EQ( GEODIFF_makeCopy( testContext(), "sqlite", "", timeGpkg.c_str(), "postgres", conninfo.c_str(), "gd_time" ), GEODIFF_SUCCESS );
 
   DriverParametersMap params;
   params["conninfo"] = conninfo;
   params["base"] = "gd_time";
 
-  std::unique_ptr<Driver> driverPG( Driver::createDriver( "postgres" ) );
+  std::unique_ptr<Driver> driverPG( Driver::createDriver( static_cast<Context *>( testContext() ), "postgres" ) );
   ASSERT_TRUE( driverPG );
   driverPG->open( params );
 
@@ -612,9 +613,9 @@ TEST( PostgresDriverTest, test_conversion_with_dates )
   makedir( pathjoin( tmpdir(), testName ) );
   std::string tmpGpkg( pathjoin( tmpdir(), testName, "tmpGpkg.gpkg" ) );
 
-  EXPECT_EQ( GEODIFF_makeCopy( "postgres", conninfo.c_str(), "gd_time",  "sqlite", "", tmpGpkg.c_str() ), GEODIFF_SUCCESS );
+  EXPECT_EQ( GEODIFF_makeCopy( testContext(), "postgres", conninfo.c_str(), "gd_time",  "sqlite", "", tmpGpkg.c_str() ), GEODIFF_SUCCESS );
 
-  std::unique_ptr<Driver> driverGPKG( Driver::createDriver( "sqlite" ) );
+  std::unique_ptr<Driver> driverGPKG( Driver::createDriver( static_cast<Context *>( testContext() ), "sqlite" ) );
   ASSERT_TRUE( driverGPKG );
   driverGPKG->open( Driver::sqliteParametersSingleSource( tmpGpkg ) );
 
@@ -637,22 +638,22 @@ TEST( PostgresDriverTest, test_ignore_gpkg_meta_tables )
   PGconn *c = PQconnectdb( conninfo.c_str() );
   ASSERT_EQ( PQstatus( c ), CONNECTION_OK );
 
-  std::string tmpTestDir( pathjoin( tmpdir(), "test_ignore_gpkg_meta_tables" ) );
-  makedir( tmpTestDir );
+  std::string tmpdirectory( pathjoin( tmpdir(), "test_ignore_gpkg_meta_tables" ) );
+  makedir( tmpdirectory );
 
   // Some geopackages in testdata (like base or inserted_1_A) do not contain meta tables coming from former versions on GPKG.
   // This resulted in table mismatch between sources and thus failing some operations in geodiff API.
   std::string modifiedGpkg( pathjoin( testdir(), "2_inserts", "inserted_1_A.gpkg" ) );
-  std::string baseGpkg( pathjoin( tmpTestDir, "comparingBase.gpkg" ) );
-  std::string changeset( pathjoin( tmpTestDir, "changeset.diff" ) );
+  std::string baseGpkg( pathjoin( tmpdirectory, "comparingBase.gpkg" ) );
+  std::string changeset( pathjoin( tmpdirectory, "changeset.diff" ) );
 
-  EXPECT_EQ( GEODIFF_makeCopy( "postgres", conninfo.c_str(), "gd_base", "sqlite", "", baseGpkg.c_str() ), GEODIFF_SUCCESS );
+  EXPECT_EQ( GEODIFF_makeCopy( testContext(), "postgres", conninfo.c_str(), "gd_base", "sqlite", "", baseGpkg.c_str() ), GEODIFF_SUCCESS );
 
-  EXPECT_EQ( GEODIFF_createChangeset( baseGpkg.c_str(), modifiedGpkg.c_str(), changeset.c_str() ), GEODIFF_SUCCESS );
+  EXPECT_EQ( GEODIFF_createChangeset( testContext(), baseGpkg.c_str(), modifiedGpkg.c_str(), changeset.c_str() ), GEODIFF_SUCCESS );
 
-  ASSERT_TRUE( fileExists( changeset ) );
+  ASSERT_TRUE( fileexists( changeset ) );
 
-  EXPECT_EQ( GEODIFF_applyChangeset( baseGpkg.c_str(), changeset.c_str() ), GEODIFF_SUCCESS );
+  EXPECT_EQ( GEODIFF_applyChangeset( testContext(), baseGpkg.c_str(), changeset.c_str() ), GEODIFF_SUCCESS );
 
   PQfinish( c );
 }
@@ -673,15 +674,15 @@ TEST( PostgresDriverTest, test_changesetdr_sqlite_to_pg )
   std::string changeset = pathjoin( tmpdir(), testname, "changeset.diff" );
 
   // compare sqlite base, PG modified
-  int ret = GEODIFF_createChangesetDr( "sqlite", "", baseGpkg.c_str(), "postgres", conninfo.c_str(), "gd_inserted_1_a", changeset.c_str() );
+  int ret = GEODIFF_createChangesetDr( testContext(), "sqlite", "", baseGpkg.c_str(), "postgres", conninfo.c_str(), "gd_inserted_1_a", changeset.c_str() );
   EXPECT_EQ( ret, GEODIFF_SUCCESS );
 
-  EXPECT_TRUE( fileExists( changeset ) );
+  EXPECT_TRUE( fileexists( changeset ) );
 
   std::string toApplyGpkg = pathjoin( tmpdir(), testname, "to-apply.gpkg" );
   filecopy( toApplyGpkg, baseGpkg );
 
-  ret = GEODIFF_applyChangesetEx( "sqlite", "", toApplyGpkg.c_str(), changeset.c_str() );
+  ret = GEODIFF_applyChangesetEx( testContext(), "sqlite", "", toApplyGpkg.c_str(), changeset.c_str() );
   EXPECT_EQ( ret, GEODIFF_SUCCESS );
 
   std::string comparingGpkg = pathjoin( testdir(), "changeset-drivers", "modified.gpkg" );
@@ -707,12 +708,12 @@ TEST( PostgresDriverTest, test_changesetdr_pg_to_sqlite )
   std::string changeset = pathjoin( tmpdir(), testname, "changeset.diff" );
 
   // compare PG base, sqlite modified
-  int ret = GEODIFF_createChangesetDr( "postgres", conninfo.c_str(), "gd_base", "sqlite", "", modifiedGpkg.c_str(), changeset.c_str() );
+  int ret = GEODIFF_createChangesetDr( testContext(), "postgres", conninfo.c_str(), "gd_base", "sqlite", "", modifiedGpkg.c_str(), changeset.c_str() );
   EXPECT_EQ( ret, GEODIFF_SUCCESS );
 
-  EXPECT_TRUE( fileExists( changeset ) );
+  EXPECT_TRUE( fileexists( changeset ) );
 
-  ret = GEODIFF_applyChangesetEx( "postgres", conninfo.c_str(), "gd_base", changeset.c_str() );
+  ret = GEODIFF_applyChangesetEx( testContext(), "postgres", conninfo.c_str(), "gd_base", changeset.c_str() );
   EXPECT_EQ( ret, GEODIFF_SUCCESS );
 
   // check value
@@ -738,11 +739,11 @@ TEST( PostgresDriverTest, test_changesetdr_pg_to_pg )
   std::string changeset = pathjoin( tmpdir(), testname, "changeset.diff" );
 
   // compare the same drivers
-  int ret = GEODIFF_createChangesetDr( "postgres", conninfo.c_str(), "gd_base", "postgres", conninfo.c_str(), "gd_inserted_1_a", changeset.c_str() );
+  int ret = GEODIFF_createChangesetDr( testContext(), "postgres", conninfo.c_str(), "gd_base", "postgres", conninfo.c_str(), "gd_inserted_1_a", changeset.c_str() );
   EXPECT_EQ( ret, GEODIFF_SUCCESS );
 
   ChangesetReader reader;
-  reader.open( changeset );
+  EXPECT_TRUE( reader.open( changeset ) );
 
   EXPECT_TRUE( !reader.isEmpty() );
 
@@ -757,7 +758,7 @@ TEST( PostgresDriverTest, test_multipart_geometries )
   ASSERT_EQ( PQstatus( c ), CONNECTION_OK );
 
   std::string from = pathjoin( testdir(), "conversions", "db-multi-geometries.gpkg" );
-  ASSERT_EQ( GEODIFF_makeCopy( "sqlite", "", from.c_str(), "postgres", conninfo.c_str(), "db_multipart" ), GEODIFF_SUCCESS );
+  ASSERT_EQ( GEODIFF_makeCopy( testContext(), "sqlite", "", from.c_str(), "postgres", conninfo.c_str(), "db_multipart" ), GEODIFF_SUCCESS );
 
   PQfinish( c );
 }
@@ -775,16 +776,16 @@ TEST( PostgresDriverTest, test_3d_geometries )
   std::string pgBase( "gd_3d_base" );
   std::string pgAux( "gd_3d_aux" );
 
-  ASSERT_EQ( GEODIFF_makeCopy( "sqlite", "", gpkgBase.c_str(), "postgres", conninfo.c_str(), pgAux.c_str() ), GEODIFF_SUCCESS );
-  ASSERT_EQ( GEODIFF_makeCopy( "postgres", conninfo.c_str(), pgAux.c_str(), "postgres", conninfo.c_str(), pgBase.c_str() ), GEODIFF_SUCCESS );
+  ASSERT_EQ( GEODIFF_makeCopy( testContext(), "sqlite", "", gpkgBase.c_str(), "postgres", conninfo.c_str(), pgAux.c_str() ), GEODIFF_SUCCESS );
+  ASSERT_EQ( GEODIFF_makeCopy( testContext(), "postgres", conninfo.c_str(), pgAux.c_str(), "postgres", conninfo.c_str(), pgBase.c_str() ), GEODIFF_SUCCESS );
 
   makedir( pathjoin( tmpdir(), "test_3d_geometries" ) );
   std::string changeset( pathjoin( tmpdir(), "test_3d_geometries", "changeset.diff" ) );
 
-  ASSERT_EQ( GEODIFF_createChangesetDr( "postgres", conninfo.c_str(), pgBase.c_str(), "sqlite", "", gpkgModified.c_str(), changeset.c_str() ), GEODIFF_SUCCESS );
+  ASSERT_EQ( GEODIFF_createChangesetDr( testContext(), "postgres", conninfo.c_str(), pgBase.c_str(), "sqlite", "", gpkgModified.c_str(), changeset.c_str() ), GEODIFF_SUCCESS );
 
   ChangesetReader reader;
-  reader.open( changeset );
+  EXPECT_TRUE( reader.open( changeset ) );
   EXPECT_TRUE( !reader.isEmpty() );
 
   PQfinish( c );
@@ -807,10 +808,10 @@ TEST( PostgresDriverTest, test_floating_point_values )
   std::string gpkgCopy( pathjoin( tmpdir(), "test_floating_point_values", "db-floating-copy.gpkg" ) );
   std::string diff( pathjoin( tmpdir(), "test_floating_point_values", "db-floating.diff" ) );
 
-  ASSERT_EQ( GEODIFF_makeCopy( "sqlite", "", gpkgBase.c_str(), "postgres", conninfo.c_str(), pgBase.c_str() ), GEODIFF_SUCCESS );
-  ASSERT_EQ( GEODIFF_makeCopy( "postgres", conninfo.c_str(), pgBase.c_str(), "sqlite", "", gpkgCopy.c_str() ), GEODIFF_SUCCESS );
+  ASSERT_EQ( GEODIFF_makeCopy( testContext(), "sqlite", "", gpkgBase.c_str(), "postgres", conninfo.c_str(), pgBase.c_str() ), GEODIFF_SUCCESS );
+  ASSERT_EQ( GEODIFF_makeCopy( testContext(), "postgres", conninfo.c_str(), pgBase.c_str(), "sqlite", "", gpkgCopy.c_str() ), GEODIFF_SUCCESS );
 
-  ASSERT_EQ( GEODIFF_createChangesetEx( "sqlite", "", gpkgBase.c_str(), gpkgCopy.c_str(), diff.c_str() ), GEODIFF_SUCCESS );
+  ASSERT_EQ( GEODIFF_createChangesetEx( testContext(), "sqlite", "", gpkgBase.c_str(), gpkgCopy.c_str(), diff.c_str() ), GEODIFF_SUCCESS );
 
   ASSERT_TRUE( isFileEmpty( diff ) );
 
@@ -827,12 +828,12 @@ TEST( PostgresDriverTest, test_floating_point_values_2 )
 
   execSqlCommands( conninfo, pathjoin( testdir(), "postgres", "floats.sql" ) );
 
-  ASSERT_EQ( GEODIFF_makeCopy( "postgres", conninfo.c_str(), "gd_floats", "postgres", conninfo.c_str(), "gd_floats_copy" ), GEODIFF_SUCCESS );
+  ASSERT_EQ( GEODIFF_makeCopy( testContext(), "postgres", conninfo.c_str(), "gd_floats", "postgres", conninfo.c_str(), "gd_floats_copy" ), GEODIFF_SUCCESS );
 
   makedir( pathjoin( tmpdir(), "test_floating_point_values_2" ) );
   std::string diff( pathjoin( tmpdir(), "test_floating_point_values_2", "orig-copy.diff" ) );
 
-  ASSERT_EQ( GEODIFF_createChangesetEx( "postgres", conninfo.c_str(), "gd_floats", "gd_floats_copy", diff.c_str() ), GEODIFF_SUCCESS );
+  ASSERT_EQ( GEODIFF_createChangesetEx( testContext(), "postgres", conninfo.c_str(), "gd_floats", "gd_floats_copy", diff.c_str() ), GEODIFF_SUCCESS );
 
   ASSERT_TRUE( isFileEmpty( diff ) );
 }
@@ -855,10 +856,10 @@ TEST( PostgresDriverTest, test_empty_geom )
   std::string gpkgCopy( pathjoin( tmpdir(), "test_empty_geom", "db-empty.gpkg" ) );
   std::string diff( pathjoin( tmpdir(), "test_empty_geom", "db-empty.diff" ) );
 
-  ASSERT_EQ( GEODIFF_makeCopy( "sqlite", "", gpkgBase.c_str(), "postgres", conninfo.c_str(), pgBase.c_str() ), GEODIFF_SUCCESS );
-  ASSERT_EQ( GEODIFF_makeCopy( "postgres", conninfo.c_str(), pgBase.c_str(), "sqlite", "", gpkgCopy.c_str() ), GEODIFF_SUCCESS );
+  ASSERT_EQ( GEODIFF_makeCopy( testContext(), "sqlite", "", gpkgBase.c_str(), "postgres", conninfo.c_str(), pgBase.c_str() ), GEODIFF_SUCCESS );
+  ASSERT_EQ( GEODIFF_makeCopy( testContext(), "postgres", conninfo.c_str(), pgBase.c_str(), "sqlite", "", gpkgCopy.c_str() ), GEODIFF_SUCCESS );
 
-  ASSERT_EQ( GEODIFF_createChangesetEx( "sqlite", "", gpkgBase.c_str(), gpkgCopy.c_str(), diff.c_str() ), GEODIFF_SUCCESS );
+  ASSERT_EQ( GEODIFF_createChangesetEx( testContext(), "sqlite", "", gpkgBase.c_str(), gpkgCopy.c_str(), diff.c_str() ), GEODIFF_SUCCESS );
 
   ASSERT_TRUE( isFileEmpty( diff ) );
 
@@ -882,11 +883,11 @@ TEST( PostgresDriverTest, test_edge_cases )
   std::string gpkgChangeset( pathjoin( tmpdir(), "test_edge_cases", "gpkgChangeset.diff" ) );
   std::string pgChangeset( pathjoin( tmpdir(), "test_edge_cases", "pgChangeset.diff" ) );
 
-  ASSERT_EQ( GEODIFF_makeCopy( "sqlite", "", gpkgBase.c_str(), "postgres", conninfo.c_str(), pgBase.c_str() ), GEODIFF_SUCCESS );
-  ASSERT_EQ( GEODIFF_makeCopy( "sqlite", "", gpkgMod.c_str(), "postgres", conninfo.c_str(), pgMod.c_str() ), GEODIFF_SUCCESS );
+  ASSERT_EQ( GEODIFF_makeCopy( testContext(), "sqlite", "", gpkgBase.c_str(), "postgres", conninfo.c_str(), pgBase.c_str() ), GEODIFF_SUCCESS );
+  ASSERT_EQ( GEODIFF_makeCopy( testContext(), "sqlite", "", gpkgMod.c_str(), "postgres", conninfo.c_str(), pgMod.c_str() ), GEODIFF_SUCCESS );
 
-  ASSERT_EQ( GEODIFF_createChangesetEx( "sqlite", "", gpkgBase.c_str(), gpkgMod.c_str(), gpkgChangeset.c_str() ), GEODIFF_SUCCESS );
-  ASSERT_EQ( GEODIFF_createChangesetEx( "postgres", conninfo.c_str(), pgBase.c_str(), pgMod.c_str(), pgChangeset.c_str() ), GEODIFF_SUCCESS );
+  ASSERT_EQ( GEODIFF_createChangesetEx( testContext(), "sqlite", "", gpkgBase.c_str(), gpkgMod.c_str(), gpkgChangeset.c_str() ), GEODIFF_SUCCESS );
+  ASSERT_EQ( GEODIFF_createChangesetEx( testContext(), "postgres", conninfo.c_str(), pgBase.c_str(), pgMod.c_str(), pgChangeset.c_str() ), GEODIFF_SUCCESS );
 
   EXPECT_TRUE( fileContentEquals( gpkgChangeset, pgChangeset ) );
 

@@ -20,8 +20,7 @@ static void doInvert( const std::string &changeset, const std::string &invChange
   ChangesetReader reader;
   ChangesetWriter writer;
   EXPECT_TRUE( reader.open( changeset ) );
-  EXPECT_TRUE( writer.open( invChangeset ) );
-
+  ASSERT_NO_THROW( writer.open( invChangeset ) );
   invertChangeset( reader, writer );
 }
 
@@ -167,7 +166,7 @@ void testConcat( std::string testName,
   writeChangeset( expected, tables, entriesExpected );
 
   const char *inputs[] = { input1.data(), input2.data() };
-  int res = GEODIFF_concatChanges( 2, inputs, output.data() );
+  int res = GEODIFF_concatChanges( testContext(), 2, inputs, output.data() );
   EXPECT_EQ( res, GEODIFF_SUCCESS );
 
   // check result
@@ -383,11 +382,11 @@ TEST( ChangesetUtils, test_schema )
   std::string schema = pathjoin( tmpdir(), "test_schema", "schema.json" );
 
   // invalid inputs
-  EXPECT_EQ( GEODIFF_schema( "qqq", nullptr, base.data(), schema.data() ), GEODIFF_ERROR );
-  EXPECT_EQ( GEODIFF_schema( "sqlite", nullptr, "--bad filename--", schema.data() ), GEODIFF_ERROR );
+  EXPECT_EQ( GEODIFF_schema( testContext(), "qqq", nullptr, base.data(), schema.data() ), GEODIFF_ERROR );
+  EXPECT_EQ( GEODIFF_schema( testContext(), "sqlite", nullptr, "--bad filename--", schema.data() ), GEODIFF_ERROR );
 
   // valid input
-  EXPECT_EQ( GEODIFF_schema( "sqlite", nullptr, base.data(), schema.data() ), GEODIFF_SUCCESS );
+  EXPECT_EQ( GEODIFF_schema( testContext(), "sqlite", nullptr, base.data(), schema.data() ), GEODIFF_SUCCESS );
 
   std::ifstream fo( schema );
   nlohmann::json created = nlohmann::json::parse( fo );

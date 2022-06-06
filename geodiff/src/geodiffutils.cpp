@@ -7,6 +7,7 @@
 #include "geodiffutils.hpp"
 #include "changeset.h"
 #include "geodifflogger.hpp"
+#include "geodiffcontext.hpp"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -239,21 +240,28 @@ FILE *openFile( const std::string &path, const std::string &mode )
 #endif
 }
 
-void filecopy( const std::string &to, const std::string &from )
+bool filecopy( const std::string &to, const std::string &from )
 {
   fileremove( to );
 
 #ifdef WIN32
-  std::wstring wFrom = stringToWString( from );
-  std::wstring wTo = stringToWString( to );
-  CopyFile( wFrom.c_str(), wTo.c_str(), false );
+  try
+  {
+    std::wstring wFrom = stringToWString( from );
+    std::wstring wTo = stringToWString( to );
+    CopyFile( wFrom.c_str(), wTo.c_str(), false );
+  }
+  catch ( GeoDiffException & )
+  {
+    return false;
+  }
 #else
-
   std::ifstream  src( from, std::ios::binary );
   std::ofstream  dst( to,   std::ios::binary );
 
   dst << src.rdbuf();
 #endif
+  return true;
 }
 
 bool fileremove( const std::string &path )
@@ -261,7 +269,15 @@ bool fileremove( const std::string &path )
   if ( fileexists( path ) )
   {
 #ifdef WIN32
-    int res = _wremove( stringToWString( path ).c_str() );
+    int res = 0;
+    try
+    {
+      res = _wremove( stringToWString( path ).c_str() );
+    }
+    catch ( GeoDiffException & )
+    {
+      return false;
+    }
 #else
     int res = remove( path.c_str() );
 #endif
@@ -273,12 +289,18 @@ bool fileremove( const std::string &path )
 bool fileexists( const std::string &path )
 {
 #ifdef WIN32
-  std::wstring wPath = stringToWString( path );
+  try
+  {
+    std::wstring wPath = stringToWString( path );
+    if ( wPath.empty() )
+      return false;
 
-  if ( wPath.empty() )
+    return PathFileExists( wPath.c_str() );
+  }
+  catch ( GeoDiffException & )
+  {
     return false;
-
-  return PathFileExists( wPath.c_str() );
+  }
 #else
   // https://stackoverflow.com/a/12774387/2838364
   struct stat buffer;
@@ -407,16 +429,26 @@ void get_primary_key( const ChangesetEntry &entry, int &fid, int &nColumn )
 }
 
 
-void flushString( const std::string &filename, const std::string &str )
+bool flushString( const std::string &filename, const std::string &str )
 {
 #ifdef WIN32
-  std::wstring wFilename = stringToWString( filename );
-  std::ofstream out( wFilename );
+  try
+  {
+    std::wstring wFilename = stringToWString( filename );
+    std::ofstream out( wFilename );
+    out << str;
+    out.close();
+  }
+  catch ( GeoDiffException & )
+  {
+    return false;
+  }
 #else
   std::ofstream out( filename );
-#endif
   out << str;
   out.close();
+#endif
+  return true;
 }
 
 std::string getEnvVar( std::string const &key, const std::string &defaultVal )
@@ -461,7 +493,15 @@ std::string tmpdir()
     return std::string( "C:/temp/" );
   }
 
-  return wstringToString( tempDirPath );
+  try
+  {
+    return wstringToString( tempDirPath );
+  }
+  catch ( GeoDiffException & )
+  {
+    return std::string();
+  }
+
 #else
   return getEnvVar( "TMPDIR", "/tmp/" );
 #endif
@@ -480,8 +520,7 @@ std::wstring stringToWString( const std::string &str )
   }
   catch ( const std::range_error & )
   {
-    Logger::instance().error( "Unable to convert UTF-8 to UTF-16." );
-    return std::wstring();
+    throw GeoDiffException( "Unable to convert UTF-8 to UTF-16." );
   }
 }
 
@@ -498,15 +537,15 @@ std::string wstringToString( const std::wstring &wStr )
   }
   catch ( const std::range_error & )
   {
-    Logger::instance().error( "Unable to convert UTF-16 to UTF-8." );
-    return std::string();
+    throw GeoDiffException( "Unable to convert UTF-8 to UTF-16." );
   }
 }
 
-TmpFile::TmpFile() = default;
+TmpFile::TmpFile( ) = default;
 
-TmpFile::TmpFile( const std::string &path ):
-  mPath( path )
+
+TmpFile::TmpFile( const std::string &path )
+  : mPath( path )
 {
 }
 
@@ -647,5 +686,9 @@ std::string randomString( size_t length )
 
 std::string randomTmpFilename()
 {
-  return tmpdir() + "geodiff_" + randomString( 6 );
+  std::string tdir = tmpdir();
+  if ( tdir.empty() )
+    return tdir;
+  else
+    return tmpdir() + "geodiff_" + randomString( 6 );
 }

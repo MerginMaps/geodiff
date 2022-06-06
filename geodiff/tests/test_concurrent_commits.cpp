@@ -7,8 +7,9 @@
 #include "geodiff.h"
 #include "geodiff_testutils.hpp"
 #include "gtest/gtest.h"
-#include "json.hpp"
 
+#include "json.hpp"
+#include "geodiffutils.hpp"
 
 bool _test(
   const std::string &baseX,
@@ -41,13 +42,13 @@ bool _test(
 
 
   // create changeset base to A
-  if ( GEODIFF_createChangeset( base.c_str(), modifiedA.c_str(), changesetbaseA.c_str() ) != GEODIFF_SUCCESS )
+  if ( GEODIFF_createChangeset( testContext(), base.c_str(), modifiedA.c_str(), changesetbaseA.c_str() ) != GEODIFF_SUCCESS )
   {
     std::cout << "err GEODIFF_createChangeset A" << std::endl;
     return false;
   }
 
-  int nchanges = GEODIFF_changesCount( changesetbaseA.c_str() );
+  int nchanges = GEODIFF_changesCount( testContext(), changesetbaseA.c_str() );
   if ( nchanges != expected_changes_A )
   {
     std::cout << "err GEODIFF_listChanges A: " << nchanges << std::endl;
@@ -55,7 +56,7 @@ bool _test(
   }
 
   // create changeset A to B
-  if ( GEODIFF_createRebasedChangeset( base.c_str(), modifiedB.c_str(), changesetbaseA.c_str(), changesetAB.c_str(), conflictAB.c_str() ) != GEODIFF_SUCCESS )
+  if ( GEODIFF_createRebasedChangeset( testContext(),  base.c_str(), modifiedB.c_str(), changesetbaseA.c_str(), changesetAB.c_str(), conflictAB.c_str() ) != GEODIFF_SUCCESS )
   {
     std::cout << "err GEODIFF_createRebasedChangeset AB" << std::endl;
     return false;
@@ -64,7 +65,7 @@ bool _test(
   // print JSON
   printJSON( changesetAB, json, json_summary );
 
-  nchanges = GEODIFF_changesCount( changesetAB.c_str() );
+  nchanges = GEODIFF_changesCount( testContext(), changesetAB.c_str() );
   if ( nchanges != expected_changes_AB )
   {
     std::cout << "err GEODIFF_listChanges AB: " << nchanges << " expected: " << expected_changes_AB << " in " << changesetAB << std::endl;
@@ -85,20 +86,20 @@ bool _test(
 
   // apply changeset to A to get AB
   filecopy( patchedAB, modifiedA );
-  if ( GEODIFF_applyChangeset( patchedAB.c_str(), changesetAB.c_str() ) != GEODIFF_SUCCESS )
+  if ( GEODIFF_applyChangeset( testContext(), patchedAB.c_str(), changesetAB.c_str() ) != GEODIFF_SUCCESS )
   {
     std::cout << "err GEODIFF_applyChangeset A -> AB" << std::endl;
     return false;
   }
 
   // check that then new data has both edits
-  if ( GEODIFF_createChangeset( base.c_str(), patchedAB.c_str(), changesetBbase.c_str() ) != GEODIFF_SUCCESS )
+  if ( GEODIFF_createChangeset( testContext(), base.c_str(), patchedAB.c_str(), changesetBbase.c_str() ) != GEODIFF_SUCCESS )
   {
     std::cout << "err GEODIFF_createChangeset B -> base" << std::endl;
     return false;
   }
 
-  nchanges = GEODIFF_changesCount( changesetBbase.c_str() );
+  nchanges = GEODIFF_changesCount( testContext(), changesetBbase.c_str() );
   if ( nchanges != expected_changes_XB )
   {
     std::cout << "err GEODIFF_listChanges B->base: " << nchanges << " expected: " << expected_changes_XB << " in " << changesetBbase << std::endl;
@@ -115,7 +116,7 @@ bool _test(
 
   // now check that we get same result in case of direct rebase
   filecopy( patchedAB_2, modifiedB );
-  if ( GEODIFF_rebase( base.c_str(), modifiedA.c_str(), patchedAB_2.c_str(), conflict2.c_str() ) != GEODIFF_SUCCESS )
+  if ( GEODIFF_rebase( testContext(), base.c_str(), modifiedA.c_str(), patchedAB_2.c_str(), conflict2.c_str() ) != GEODIFF_SUCCESS )
   {
     std::cout << "err GEODIFF_rebase A" << std::endl;
     return false;
@@ -145,7 +146,7 @@ bool _test_createRebasedChangesetEx(
 
   std::string diffOurRebased = pathjoin( tmpdir(), testName, "rebased.diff" );
   std::string conflictFile = pathjoin( tmpdir(), testName, "conflicts.json" );
-  int res = GEODIFF_createRebasedChangesetEx( "sqlite", "", testBaseDb.c_str(), diffOur.c_str(), diffTheir.c_str(), diffOurRebased.c_str(), conflictFile.c_str() );
+  int res = GEODIFF_createRebasedChangesetEx( testContext(), "sqlite", "", testBaseDb.c_str(), diffOur.c_str(), diffTheir.c_str(), diffOurRebased.c_str(), conflictFile.c_str() );
   if ( res != GEODIFF_SUCCESS )
   {
     std::cerr << "err GEODIFF_createRebasedChangesetEx" << std::endl;
@@ -177,7 +178,7 @@ bool _test_createRebasedChangesetEx(
   else
   {
     // it is expected that no conflict file would be created...
-    if ( fileExists( conflictFile ) )
+    if ( fileexists( conflictFile ) )
     {
       std::cerr << "err conflict file should not be created, but it got created" << std::endl;
       return false;
@@ -206,13 +207,13 @@ bool _test_expect_not_implemented(
 
 
   // create changeset base to A
-  if ( GEODIFF_createChangeset( base.c_str(), modifiedA.c_str(), changesetbaseA.c_str() ) != GEODIFF_SUCCESS )
+  if ( GEODIFF_createChangeset( testContext(), base.c_str(), modifiedA.c_str(), changesetbaseA.c_str() ) != GEODIFF_SUCCESS )
   {
     std::cout << "err GEODIFF_createChangeset A" << std::endl;
     return false;
   }
 
-  int nchanges = GEODIFF_changesCount( changesetbaseA.c_str() );
+  int nchanges = GEODIFF_changesCount( testContext(), changesetbaseA.c_str() );
   if ( nchanges != expected_changes_A )
   {
     std::cout << "err GEODIFF_listChanges A: " << nchanges << std::endl;
@@ -220,7 +221,7 @@ bool _test_expect_not_implemented(
   }
 
   // create changeset A to B -- EXPECT ERROR!
-  if ( GEODIFF_createRebasedChangeset( base.c_str(), modifiedB.c_str(), changesetbaseA.c_str(), changesetAB.c_str(), conflictAB.c_str() ) == GEODIFF_SUCCESS )
+  if ( GEODIFF_createRebasedChangeset( testContext(), base.c_str(), modifiedB.c_str(), changesetbaseA.c_str(), changesetAB.c_str(), conflictAB.c_str() ) == GEODIFF_SUCCESS )
   {
     std::cout << "err GEODIFF_createRebasedChangeset AB" << std::endl;
     return false;
@@ -500,11 +501,11 @@ TEST( ConcurrentCommitsSqlite3Test, test_conflict )
   filecopy( baseB, modifiedB );
 
   // create changeset base to A
-  ASSERT_TRUE( GEODIFF_createChangeset( base.c_str(), modifiedA.c_str(), changesetbaseA.c_str() ) == GEODIFF_SUCCESS );
+  ASSERT_TRUE( GEODIFF_createChangeset( testContext(), base.c_str(), modifiedA.c_str(), changesetbaseA.c_str() ) == GEODIFF_SUCCESS );
 
 
   // use modifiedC as base --> conflict
-  ASSERT_TRUE( GEODIFF_applyChangeset( baseB.c_str(), changesetbaseA.c_str() ) != GEODIFF_SUCCESS );
+  ASSERT_TRUE( GEODIFF_applyChangeset( testContext(), baseB.c_str(), changesetbaseA.c_str() ) != GEODIFF_SUCCESS );
 }
 
 TEST( ConcurrentCommitsSqlite3Test, test_rebase_conflict )

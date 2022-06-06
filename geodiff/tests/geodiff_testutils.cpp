@@ -19,6 +19,7 @@
 
 #include "changesetreader.h"
 #include "changesetwriter.h"
+#include "geodiffutils.hpp"
 
 #ifdef WIN32
 #include <windows.h>
@@ -94,11 +95,42 @@ static void logger( GEODIFF_LoggerLevel level, const char *msg )
   std::cout << prefix << msg << std::endl ;
 }
 
+class ContextSingleton
+{
+  public:
+    ContextSingleton()
+    {
+      mContextH = GEODIFF_createContext();
+      GEODIFF_CX_setLoggerCallback( mContextH, &logger );
+      GEODIFF_CX_setMaximumLoggerLevel( mContextH,  GEODIFF_LoggerLevel::LevelDebug );
+    }
+    ~ContextSingleton()
+    {
+      if ( mContextH )
+      {
+        GEODIFF_CX_destroy( mContextH );
+        mContextH = nullptr;
+      }
+    }
+    GEODIFF_ContextH contextH() const;
+
+  private:
+    GEODIFF_ContextH mContextH = nullptr;
+};
+
+static std::unique_ptr<ContextSingleton> sContext = nullptr;
+
+GEODIFF_ContextH testContext()
+{
+  if ( !sContext )
+  {
+    sContext = std::unique_ptr<ContextSingleton>( new ContextSingleton );
+  }
+  return sContext->contextH();
+}
+
 void init_test()
 {
-  GEODIFF_init();
-  GEODIFF_setLoggerCallback( &logger );
-  GEODIFF_setMaximumLoggerLevel( GEODIFF_LoggerLevel::LevelDebug );
 }
 
 void finalize_test()
@@ -108,7 +140,7 @@ void finalize_test()
 bool equals( const std::string &file1, const std::string &file2, bool ignore_timestamp_change )
 {
   std::string changeset = file1 + "_changeset.bin";
-  if ( GEODIFF_createChangeset( file1.c_str(), file2.c_str(), changeset.c_str() ) != GEODIFF_SUCCESS )
+  if ( GEODIFF_createChangeset( testContext(), file1.c_str(), file2.c_str(), changeset.c_str() ) != GEODIFF_SUCCESS )
     return false;
 
   int expected_changes = 0;
@@ -116,9 +148,9 @@ bool equals( const std::string &file1, const std::string &file2, bool ignore_tim
     expected_changes = 1;
 
   if ( expected_changes == 0 )
-    return ( GEODIFF_hasChanges( changeset.c_str() ) == 0 );
+    return ( GEODIFF_hasChanges( testContext(), changeset.c_str() ) == 0 );
   else
-    return ( GEODIFF_changesCount( changeset.c_str() )  == expected_changes );
+    return ( GEODIFF_changesCount( testContext(), changeset.c_str() )  == expected_changes );
 }
 
 static long file_size( std::ifstream &is )
@@ -180,11 +212,11 @@ void printFileToStdout( const std::string &caption, const std::string &filepath 
 void printJSON( const std::string &changeset, const std::string &json, const std::string &json_summary )
 {
   // printout JSON summary
-  GEODIFF_listChangesSummary( changeset.c_str(), json_summary.c_str() );
+  GEODIFF_listChangesSummary( testContext(), changeset.c_str(), json_summary.c_str() );
   printFileToStdout( "JSON Summary", json_summary );
 
   // printout JSON
-  GEODIFF_listChanges( changeset.c_str(), json.c_str() );
+  GEODIFF_listChanges( testContext(),  changeset.c_str(), json.c_str() );
   printFileToStdout( "JSON Full", json );
 }
 
@@ -209,22 +241,6 @@ int fileContains( const std::string &filepath, const std::string key )
     // file does not exist or is not readable
     return 0;
   }
-}
-
-
-bool fileExists( const std::string &filepath )
-{
-#ifdef WIN32
-  std::wstring wPath = stringToWString( filepath );
-
-  if ( wPath.empty() )
-    return false;
-
-  return PathFileExists( wPath.c_str() );
-#else
-  struct stat buffer;
-  return ( stat( filepath.c_str(), &buffer ) == 0 );
-#endif
 }
 
 bool isFileEmpty( const std::string &filepath )
@@ -255,7 +271,14 @@ void writeChangeset( std::string filename, const std::unordered_map<std::string,
                      const std::unordered_map<std::string, std::vector<ChangesetEntry> > &entries )
 {
   ChangesetWriter w;
-  assert( w.open( filename ) );
+  try
+  {
+    w.open( filename );
+  }
+  catch ( GeoDiffException & )
+  {
+    assert( false );
+  }
   for ( auto it = entries.begin(); it != entries.end(); ++it )
   {
     std::string tableName = it->first;
@@ -346,3 +369,8 @@ std::string pgTestConnInfo()
   return getEnvVar( "GEODIFF_PG_CONNINFO", "" );
 }
 #endif
+
+GEODIFF_ContextH ContextSingleton::contextH() const
+{
+  return mContextH;
+}

@@ -6,6 +6,7 @@
 #include "tableschema.h"
 #include "driver.h"
 
+#include "geodiffcontext.hpp"
 #include "geodifflogger.hpp"
 
 #include <algorithm>
@@ -35,7 +36,10 @@ size_t TableSchema::geometryColumn() const
   return SIZE_MAX;
 }
 
-TableColumnType sqliteToBaseColumn( const std::string &columnType, bool isGeometry )
+TableColumnType sqliteToBaseColumn(
+  const Context *context,
+  const std::string &columnType,
+  bool isGeometry )
 {
   TableColumnType type;
   type.dbType = columnType;
@@ -79,14 +83,17 @@ TableColumnType sqliteToBaseColumn( const std::string &columnType, bool isGeomet
   }
   else
   {
-    Logger::instance().info( "Converting GeoPackage type " + columnType + " to base type unsuccessful, using text." );
+    context->logger().info( "Converting GeoPackage type " + columnType + " to base type unsuccessful, using text." );
     type.baseType = TableColumnType::TEXT;
   }
 
   return type;
 }
 
-TableColumnType postgresToBaseColumn( const std::string &columnType, bool isGeometry )
+TableColumnType postgresToBaseColumn(
+  const Context *context,
+  const std::string &columnType,
+  bool isGeometry )
 {
   TableColumnType type;
   type.dbType = columnType;
@@ -132,7 +139,7 @@ TableColumnType postgresToBaseColumn( const std::string &columnType, bool isGeom
   }
   else
   {
-    Logger::instance().warn( "Converting PostgreSQL type " + columnType + " to base type unsuccessful, using text." );
+    context->logger().warn( "Converting PostgreSQL type " + columnType + " to base type unsuccessful, using text." );
     type.baseType = TableColumnType::TEXT;
   }
 
@@ -225,12 +232,13 @@ void tableSchemaConvert( const std::string &driverDstName, TableSchema &tbl )
     throw GeoDiffException( "Uknown driver name " + driverDstName );
 }
 
-TableColumnType columnType( const std::string &columnType, const std::string &driverName, bool isGeometry )
+TableColumnType columnType( const Context *context,
+                            const std::string &columnType, const std::string &driverName, bool isGeometry )
 {
   if ( driverName == Driver::SQLITEDRIVERNAME )
-    return sqliteToBaseColumn( columnType, isGeometry );
+    return sqliteToBaseColumn( context, columnType, isGeometry );
   else if ( driverName == Driver::POSTGRESDRIVERNAME )
-    return postgresToBaseColumn( columnType, isGeometry );
+    return postgresToBaseColumn( context, columnType, isGeometry );
   else
     throw GeoDiffException( "Uknown driver name " + driverName );
 }

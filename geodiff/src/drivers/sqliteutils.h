@@ -119,10 +119,15 @@ std::vector<std::string> sqliteColumnNames(
   const std::string &tableName
 );
 
-// Returns size of GeoPackage binary header including envelope
+/**
+ *  Returns size of GeoPackage binary header including envelope
+ */
 int parseGpkgbHeaderSize( const std::string &gpkgWkb );
 
-// Creates GeoPackage binary header and fills it with data from WKB
+/**
+ * Creates GeoPackage binary header and fills it with data from WKB
+ * throws GeoDiffException on error
+ */
 std::string createGpkgHeader( std::string &wkb, const TableColumnInfo &col );
 
 #endif // SQLITEUTILS_H

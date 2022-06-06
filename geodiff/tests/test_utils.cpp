@@ -15,10 +15,10 @@ TEST( UtilsTest, test_unicode )
   std::string json = pathjoin( tmpdir(), "čúčo.json" );
 
   // test whether unicode characters are working
-  EXPECT_EQ( GEODIFF_listChanges( diffSource.c_str(), json.c_str() ), GEODIFF_SUCCESS );
+  EXPECT_EQ( GEODIFF_listChanges( testContext(), diffSource.c_str(), json.c_str() ), GEODIFF_SUCCESS );
 
   // make sure our test util functions can deal with unicode
-  EXPECT_TRUE( fileExists( json ) );
+  EXPECT_TRUE( fileexists( json ) );
   EXPECT_FALSE( isFileEmpty( json ) );
   EXPECT_TRUE( fileContains( json, "geodiff" ) );
 

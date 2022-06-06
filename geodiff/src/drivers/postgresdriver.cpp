@@ -13,6 +13,7 @@
 #include "changesetwriter.h"
 #include "postgresutils.h"
 #include "sqliteutils.h"
+#include "geodiffcontext.hpp"
 
 #include <algorithm>
 #include <iostream>
@@ -61,14 +62,17 @@ class PostgresTransaction
     PGconn *mConn = nullptr;
 };
 
-
-static void logApplyConflict( const std::string &type, const ChangesetEntry &entry )
-{
-  Logger::instance().warn( "CONFLICT: " + type + ":\n" + changesetEntryToJSON( entry ).dump( 2 ) );
-}
-
 /////
 
+void PostgresDriver::logApplyConflict( const std::string &type, const ChangesetEntry &entry ) const
+{
+  context()->logger().warn( "CONFLICT: " + type + ":\n" + changesetEntryToJSON( entry ).dump( 2 ) );
+}
+
+PostgresDriver::PostgresDriver( const Context *context )
+  : Driver( context )
+{
+}
 
 PostgresDriver::~PostgresDriver()
 {
@@ -339,7 +343,7 @@ TableSchema PostgresDriver::tableSchema( const std::string &tableName, bool useM
       col.setGeometry( geomTypeName, srsId, hasM, hasZ );
     }
 
-    col.type = columnType( type, Driver::POSTGRESDRIVERNAME, col.isGeometry );
+    col.type = columnType( context(), type, Driver::POSTGRESDRIVERNAME, col.isGeometry );
     col.isNotNull = ( res.value( i, 3 ) == "t" );
     col.isAutoIncrement = ( res.value( i, 4 ) == "t" );
 
@@ -846,7 +850,7 @@ void PostgresDriver::applyChangeset( ChangesetReader &reader )
       {
         logApplyConflict( "insert_failed", entry );
         ++conflictCount;
-        Logger::instance().warn( "Failure doing INSERT: " + res.statusErrorMessage() );
+        context()->logger().warn( "Failure doing INSERT: " + res.statusErrorMessage() );
       }
       if ( res.affectedRows() != "1" )
       {
@@ -870,13 +874,13 @@ void PostgresDriver::applyChangeset( ChangesetReader &reader )
       {
         logApplyConflict( "update_failed", entry );
         ++conflictCount;
-        Logger::instance().warn( "Failure doing UPDATE: " + res.statusErrorMessage() );
+        context()->logger().warn( "Failure doing UPDATE: " + res.statusErrorMessage() );
       }
       if ( res.affectedRows() != "1" )
       {
         logApplyConflict( "update_nothing", entry );
         ++conflictCount;
-        Logger::instance().warn( "Wrong number of affected rows! Expected 1, got: " + res.affectedRows() + "\nSQL: " + sql );
+        context()->logger().warn( "Wrong number of affected rows! Expected 1, got: " + res.affectedRows() + "\nSQL: " + sql );
       }
     }
     else if ( entry.op == ChangesetEntry::OpDelete )
@@ -887,12 +891,12 @@ void PostgresDriver::applyChangeset( ChangesetReader &reader )
       {
         logApplyConflict( "delete_failed", entry );
         ++conflictCount;
-        Logger::instance().warn( "Failure doing DELETE: " + res.statusErrorMessage() );
+        context()->logger().warn( "Failure doing DELETE: " + res.statusErrorMessage() );
       }
       if ( res.affectedRows() != "1" )
       {
         logApplyConflict( "delete_nothing", entry );
-        Logger::instance().warn( "Wrong number of affected rows! Expected 1, got: " + res.affectedRows() );
+        context()->logger().warn( "Wrong number of affected rows! Expected 1, got: " + res.affectedRows() );
       }
     }
     else
@@ -900,7 +904,7 @@ void PostgresDriver::applyChangeset( ChangesetReader &reader )
   }
 
   // at the end, update any SEQUENCE objects if needed
-  for ( const std::pair<std::string, int64_t> &it : autoIncrementTablesToFix )
+  for ( const auto &it : autoIncrementTablesToFix )
     updateSequenceObject( tableNameToSequenceName[it.first], it.second );
 
   if ( !conflictCount )
@@ -947,7 +951,7 @@ void PostgresDriver::updateSequenceObject( const std::string &seqName, int64_t m
 
   if ( currValue < maxValue )
   {
-    Logger::instance().info( "Updating sequence " + seqName + " from " + std::to_string( currValue ) + " to " + std::to_string( maxValue ) );
+    context()->logger().info( "Updating sequence " + seqName + " from " + std::to_string( currValue ) + " to " + std::to_string( maxValue ) );
 
     std::string sql = "SELECT setval(" + quotedString( seqName ) + ", " + std::to_string( maxValue ) + ")";
     PostgresResult resSetVal( execSql( mConn, sql ) );

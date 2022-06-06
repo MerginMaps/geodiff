@@ -10,12 +10,15 @@
 #include <vector>
 #include "geodiffutils.hpp"
 
-int rebase(
-  const std::string &changeset_BASE_THEIRS, //in
-  const std::string &changeset_THEIRS_MODIFIED, // out
-  const std::string &changeset_BASE_MODIFIED, //in
-  std::vector<ConflictFeature> &conflicts// out
-);
+class Logger;
+
+//! throws GeoDiffException on error
+void rebase( const Context *context,
+             const std::string &changeset_BASE_THEIRS, //in
+             const std::string &changeset_THEIRS_MODIFIED, // out
+             const std::string &changeset_BASE_MODIFIED, //in
+             std::vector<ConflictFeature> &conflicts// out
+           );
 
 
 #endif // GEODIFFREBASE_H

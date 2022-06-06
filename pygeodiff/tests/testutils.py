@@ -103,7 +103,6 @@ def logger(level, rawString):
     msg = rawString.decode('utf-8')
     print( "GEODIFFTEST: " + str(level) + " " + msg )
 
-
 def dict_diff(a, b):
     for key in a.keys():
         if key not in b:
@@ -115,7 +114,6 @@ def dict_diff(a, b):
             if a[key] != b[key]:
                 return False
     return True
-
 
 class GeoDiffTests(unittest.TestCase):
     def setUp(self):

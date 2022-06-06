@@ -226,7 +226,7 @@ struct TableSchema
 };
 
 //! Converts column name to base type and returns struct with both names
-TableColumnType columnType( const std::string &columnType, const std::string &driverName, bool isGeometry = false );
+TableColumnType columnType( const Context *context, const std::string &columnType, const std::string &driverName, bool isGeometry = false );
 
 //! Converts table schema from base to destination driver, raises GeoDiffException if that is not supported
 void tableSchemaConvert( const std::string &driverDstName, TableSchema &tbl );

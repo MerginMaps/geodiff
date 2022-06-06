@@ -3,10 +3,10 @@
  Copyright (C) 2020 Martin Dobias
 */
 
+#include <cassert>
+
 #include "driver.h"
-
 #include "sqlitedriver.h"
-
 #include "geodiff_config.hpp"
 
 #ifdef HAVE_POSTGRES
@@ -17,9 +17,18 @@
 const std::string Driver::SQLITEDRIVERNAME = "sqlite";
 const std::string Driver::POSTGRESDRIVERNAME = "postgres";
 
-Driver::Driver() = default;
+Driver::Driver( const Context *context )
+  : mContext( context )
+{
+  assert( mContext );
+}
 
 Driver::~Driver() = default;
+
+const Context *Driver::context() const
+{
+  return mContext;
+}
 
 std::vector<std::string> Driver::drivers()
 {
@@ -37,16 +46,16 @@ bool Driver::driverIsRegistered( const std::string &driverName )
   return std::find( drivers.begin(), drivers.end(), driverName ) != drivers.end();
 }
 
-std::unique_ptr<Driver> Driver::createDriver( const std::string &driverName )
+std::unique_ptr<Driver> Driver::createDriver( const Context *context, const std::string &driverName )
 {
   if ( driverName == SQLITEDRIVERNAME )
   {
-    return std::unique_ptr<Driver>( new SqliteDriver );
+    return std::unique_ptr<Driver>( new SqliteDriver( context ) );
   }
 #ifdef HAVE_POSTGRES
   if ( driverName == POSTGRESDRIVERNAME )
   {
-    return std::unique_ptr<Driver>( new PostgresDriver );
+    return std::unique_ptr<Driver>( new PostgresDriver( context ) );
   }
 #endif
   return std::unique_ptr<Driver>();

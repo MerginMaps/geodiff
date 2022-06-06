@@ -12,20 +12,19 @@
 #include "changesetwriter.h"
 #include "driver.h"
 #include "sqliteutils.h"
-
+#include "geodiffutils.hpp"
 
 static void testCreateChangeset( const std::string &testname, const std::string &fileBase, const std::string &fileModified, const std::string &fileExpected )
 {
   makedir( pathjoin( tmpdir(), testname ) );
   std::string fileOutput = pathjoin( tmpdir(), testname, "output.diff" );
 
-  std::unique_ptr<Driver> driver( Driver::createDriver( "sqlite" ) );
+  std::unique_ptr<Driver> driver( Driver::createDriver( static_cast<Context *>( testContext() ), "sqlite" ) );
   driver->open( Driver::sqliteParameters( fileBase, fileModified ) );
 
   {
     ChangesetWriter writer;
-    bool res = writer.open( fileOutput );
-    ASSERT_TRUE( res );
+    ASSERT_NO_THROW( writer.open( fileOutput ) );
     driver->createChangeset( writer );
   }
 
@@ -39,13 +38,12 @@ static void testApplyChangeset( const std::string &testname, const std::string &
   std::string testdb = pathjoin( tmpdir(), testname, "output.gpkg" );
   filecopy( testdb, fileBase );
 
-  std::unique_ptr<Driver> driver( Driver::createDriver( "sqlite" ) );
+  std::unique_ptr<Driver> driver( Driver::createDriver( static_cast<Context *>( testContext() ), "sqlite" ) );
   driver->open( Driver::sqliteParametersSingleSource( testdb ) );
 
   {
     ChangesetReader reader;
-    bool res = reader.open( fileChangeset );
-    ASSERT_TRUE( res );
+    ASSERT_TRUE( reader.open( fileChangeset ) );
     driver->applyChangeset( reader );
   }
 
@@ -61,7 +59,7 @@ TEST( SqliteDriverTest, test_basic )
   std::vector<std::string> driverNames = Driver::drivers();
   EXPECT_TRUE( std::find( driverNames.begin(), driverNames.end(), "sqlite" ) != driverNames.end() );
 
-  std::unique_ptr<Driver> driver( Driver::createDriver( "sqlite" ) );
+  std::unique_ptr<Driver> driver( Driver::createDriver( static_cast<Context *>( testContext() ), "sqlite" ) );
   ASSERT_TRUE( driver );
   driver->open( Driver::sqliteParametersSingleSource( pathjoin( testdir(), "base.gpkg" ) ) );
 
@@ -113,31 +111,31 @@ TEST( SqliteDriverTest, test_open )
   std::map<std::string, std::string> conn;
 
   {
-    std::unique_ptr<Driver> driver( Driver::createDriver( "sqlite" ) );
+    std::unique_ptr<Driver> driver( Driver::createDriver( static_cast<Context *>( testContext() ), "sqlite" ) );
     EXPECT_ANY_THROW( driver->open( conn ) );
   }
 
   conn["base"] = "invalid_file";
   {
-    std::unique_ptr<Driver> driver( Driver::createDriver( "sqlite" ) );
+    std::unique_ptr<Driver> driver( Driver::createDriver( static_cast<Context *>( testContext() ), "sqlite" ) );
     EXPECT_ANY_THROW( driver->open( conn ) );
   }
 
   conn["base"] = pathjoin( testdir(), "base.gpkg" );
   {
-    std::unique_ptr<Driver> driver( Driver::createDriver( "sqlite" ) );
+    std::unique_ptr<Driver> driver( Driver::createDriver( static_cast<Context *>( testContext() ), "sqlite" ) );
     EXPECT_NO_THROW( driver->open( conn ) );
   }
 
   conn["modified"] = "invalid_file";
   {
-    std::unique_ptr<Driver> driver( Driver::createDriver( "sqlite" ) );
+    std::unique_ptr<Driver> driver( Driver::createDriver( static_cast<Context *>( testContext() ), "sqlite" ) );
     EXPECT_ANY_THROW( driver->open( conn ) );
   }
 
   conn["modified"] = pathjoin( testdir(), "base.gpkg" );
   {
-    std::unique_ptr<Driver> driver( Driver::createDriver( "sqlite" ) );
+    std::unique_ptr<Driver> driver( Driver::createDriver( static_cast<Context *>( testContext() ), "sqlite" ) );
     EXPECT_NO_THROW( driver->open( conn ) );
   }
 }
@@ -151,15 +149,15 @@ TEST( SqliteDriverApi, test_driver_sqlite_api )
   ++ndrivers;
 #endif
 
-  EXPECT_EQ( GEODIFF_driverCount(), ndrivers );
+  EXPECT_EQ( GEODIFF_driverCount( testContext() ), ndrivers );
 
   char driverName[256];
-  EXPECT_EQ( GEODIFF_driverNameFromIndex( 0, driverName ), GEODIFF_SUCCESS );
-  EXPECT_EQ( GEODIFF_driverNameFromIndex( 99, driverName ), GEODIFF_ERROR );
+  EXPECT_EQ( GEODIFF_driverNameFromIndex( testContext(), 0, driverName ), GEODIFF_SUCCESS );
+  EXPECT_EQ( GEODIFF_driverNameFromIndex( testContext(), 99, driverName ), GEODIFF_ERROR );
 
   EXPECT_EQ( std::string( driverName ), "sqlite" );
 
-  EXPECT_TRUE( GEODIFF_driverIsRegistered( "sqlite" ) );
+  EXPECT_TRUE( GEODIFF_driverIsRegistered( testContext(), "sqlite" ) );
 }
 
 TEST( SqliteDriverTest, create_changeset_insert )
@@ -244,13 +242,12 @@ TEST( SqliteDriverTest, apply_changeset_conflict )
   std::string testdb = pathjoin( tmpdir(), testname, "output.gpkg" );
   filecopy( testdb, fileBase );
 
-  std::unique_ptr<Driver> driver( Driver::createDriver( "sqlite" ) );
+  std::unique_ptr<Driver> driver( Driver::createDriver( static_cast<Context *>( testContext() ), "sqlite" ) );
   driver->open( Driver::sqliteParametersSingleSource( testdb ) );
 
   {
     ChangesetReader reader;
-    bool res = reader.open( fileChangeset );
-    ASSERT_TRUE( res );
+    ASSERT_TRUE( reader.open( fileChangeset ) );
     EXPECT_ANY_THROW( driver->applyChangeset( reader ) );
   }
 
@@ -268,14 +265,14 @@ TEST( SqliteDriverTest, test_create_from_gpkg )
   // get table schema in the base database
   std::map<std::string, std::string> connBase;
   connBase["base"] = pathjoin( testdir(), "base.gpkg" );
-  std::unique_ptr<Driver> driverBase( Driver::createDriver( "sqlite" ) );
+  std::unique_ptr<Driver> driverBase( Driver::createDriver( static_cast<Context *>( testContext() ), "sqlite" ) );
   EXPECT_NO_THROW( driverBase->open( connBase ) );
   TableSchema tblBaseSimple = driverBase->tableSchema( "simple" );
 
   // create the new database
   std::map<std::string, std::string> conn;
   conn["base"] = testdb;
-  std::unique_ptr<Driver> driver( Driver::createDriver( "sqlite" ) );
+  std::unique_ptr<Driver> driver( Driver::createDriver( static_cast<Context *>( testContext() ), "sqlite" ) );
   EXPECT_NO_THROW( driver->create( conn, true ) );
   EXPECT_ANY_THROW( driver->tableSchema( "simple" ) );
 
@@ -354,13 +351,12 @@ TEST( SqliteDriverTest, apply_with_gpkg_contents )
   std::string testdb = pathjoin( tmpdir(), testname, "output.gpkg" );
   filecopy( testdb, fileBase );
 
-  std::unique_ptr<Driver> driver( Driver::createDriver( "sqlite" ) );
+  std::unique_ptr<Driver> driver( Driver::createDriver( static_cast<Context *>( testContext() ), "sqlite" ) );
   driver->open( Driver::sqliteParametersSingleSource( testdb ) );
 
   {
     ChangesetReader reader;
-    bool res = reader.open( fileChangeset );
-    ASSERT_TRUE( res );
+    ASSERT_TRUE( reader.open( fileChangeset ) );
     EXPECT_NO_THROW( driver->applyChangeset( reader ) );
   }
 
@@ -370,9 +366,9 @@ TEST( SqliteDriverTest, apply_with_gpkg_contents )
 TEST( SqliteDriverTest, make_copy_sqlite )
 {
   // invalid inputs
-  EXPECT_EQ( GEODIFF_makeCopySqlite( "xxx", nullptr ), GEODIFF_ERROR );
-  EXPECT_EQ( GEODIFF_makeCopySqlite( nullptr, "yyy" ), GEODIFF_ERROR );
-  EXPECT_EQ( GEODIFF_makeCopySqlite( "xxx", "yyy" ), GEODIFF_ERROR );
+  EXPECT_EQ( GEODIFF_makeCopySqlite( testContext(), "xxx", nullptr ), GEODIFF_ERROR );
+  EXPECT_EQ( GEODIFF_makeCopySqlite( testContext(), nullptr, "yyy" ), GEODIFF_ERROR );
+  EXPECT_EQ( GEODIFF_makeCopySqlite( testContext(), "xxx", "yyy" ), GEODIFF_ERROR );
 
   std::string base = pathjoin( testdir(), "base.gpkg" );
 
@@ -382,9 +378,9 @@ TEST( SqliteDriverTest, make_copy_sqlite )
   std::string changeset = pathjoin( tmpdir(), testname, "output.diff" );
 
   // test with valid inputs and check whether the output has the same content as the original database
-  ASSERT_EQ( GEODIFF_makeCopySqlite( base.data(), testdb.data() ), GEODIFF_SUCCESS );
-  EXPECT_EQ( GEODIFF_createChangeset( base.data(), testdb.data(), changeset.data() ), GEODIFF_SUCCESS );
-  EXPECT_FALSE( GEODIFF_hasChanges( changeset.data() ) );
+  ASSERT_EQ( GEODIFF_makeCopySqlite( testContext(), base.data(), testdb.data() ), GEODIFF_SUCCESS );
+  EXPECT_EQ( GEODIFF_createChangeset( testContext(), base.data(), testdb.data(), changeset.data() ), GEODIFF_SUCCESS );
+  EXPECT_FALSE( GEODIFF_hasChanges( testContext(), changeset.data() ) );
 
   // test overwrite: we will do backup into a different database that already exists
   // and verify that it got update to the content of the source database
@@ -392,13 +388,13 @@ TEST( SqliteDriverTest, make_copy_sqlite )
   std::string changeset2 = pathjoin( tmpdir(), testname, "output2.diff" );
   filecopy( testdb2.data(), pathjoin( testdir(), "1_geopackage", "modified_1_geom.gpkg" ) );
 
-  EXPECT_EQ( GEODIFF_createChangeset( base.data(), testdb2.data(), changeset2.data() ), GEODIFF_SUCCESS );
-  EXPECT_TRUE( GEODIFF_hasChanges( changeset2.data() ) );
+  EXPECT_EQ( GEODIFF_createChangeset( testContext(), base.data(), testdb2.data(), changeset2.data() ), GEODIFF_SUCCESS );
+  EXPECT_TRUE( GEODIFF_hasChanges( testContext(), changeset2.data() ) );
 
-  ASSERT_EQ( GEODIFF_makeCopySqlite( base.data(), testdb2.data() ), GEODIFF_SUCCESS );
+  ASSERT_EQ( GEODIFF_makeCopySqlite( testContext(), base.data(), testdb2.data() ), GEODIFF_SUCCESS );
 
-  EXPECT_EQ( GEODIFF_createChangeset( base.data(), testdb2.data(), changeset2.data() ), GEODIFF_SUCCESS );
-  EXPECT_FALSE( GEODIFF_hasChanges( changeset2.data() ) );
+  EXPECT_EQ( GEODIFF_createChangeset( testContext(), base.data(), testdb2.data(), changeset2.data() ), GEODIFF_SUCCESS );
+  EXPECT_FALSE( GEODIFF_hasChanges( testContext(), changeset2.data() ) );
 
   // test overwrite of a file that is not SQLite database
   std::string testdb3 = pathjoin( tmpdir(), testname, "output3.gpkg" );
@@ -407,11 +403,11 @@ TEST( SqliteDriverTest, make_copy_sqlite )
     std::ofstream f( testdb3 );
     f << "hello world";
   }
-  EXPECT_EQ( GEODIFF_createChangeset( base.data(), testdb3.data(), changeset3.data() ), GEODIFF_ERROR );
+  EXPECT_EQ( GEODIFF_createChangeset( testContext(), base.data(), testdb3.data(), changeset3.data() ), GEODIFF_ERROR );
 
-  ASSERT_EQ( GEODIFF_makeCopySqlite( base.data(), testdb3.data() ), GEODIFF_SUCCESS );
-  EXPECT_EQ( GEODIFF_createChangeset( base.data(), testdb3.data(), changeset3.data() ), GEODIFF_SUCCESS );
-  EXPECT_FALSE( GEODIFF_hasChanges( changeset3.data() ) );
+  ASSERT_EQ( GEODIFF_makeCopySqlite( testContext(), base.data(), testdb3.data() ), GEODIFF_SUCCESS );
+  EXPECT_EQ( GEODIFF_createChangeset( testContext(), base.data(), testdb3.data(), changeset3.data() ), GEODIFF_SUCCESS );
+  EXPECT_FALSE( GEODIFF_hasChanges( testContext(), changeset3.data() ) );
 }
 
 
@@ -439,7 +435,7 @@ TEST( SqliteDriverTest, make_copy_sqlite_concurrent )
   filecopy( testdbUnsafeCopy, testdb );
 
   // safe copy using SQLite backup API
-  ASSERT_EQ( GEODIFF_makeCopySqlite( testdb.data(), testdbSafeCopy.data() ), GEODIFF_SUCCESS );
+  ASSERT_EQ( GEODIFF_makeCopySqlite( testContext(), testdb.data(), testdbSafeCopy.data() ), GEODIFF_SUCCESS );
 
   // unsafe copy still thinks there are 3 rows -> change was lost
   std::shared_ptr<Sqlite3Db> dbUnsafe( new Sqlite3Db );
