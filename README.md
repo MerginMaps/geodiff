@@ -1,17 +1,17 @@
-[![Coverage Tests](https://github.com/lutraconsulting/geodiff/workflows/Coverage%20Tests/badge.svg)](https://github.com/lutraconsulting/geodiff/actions?query=workflow%3A%22Coverage+Tests%22)
-[![MemCheck Tests](https://github.com/lutraconsulting/geodiff/workflows/MemCheck%20Tests/badge.svg)](https://github.com/lutraconsulting/geodiff/actions?query=workflow%3A%22MemCheck+Tests%22)
-[![Code Style](https://github.com/lutraconsulting/geodiff/workflows/Code%20Layout/badge.svg)](https://github.com/lutraconsulting/geodiff/actions?query=workflow%3A%22Code+Layout%22)
-[![Coverage Status](https://img.shields.io/coveralls/lutraconsulting/geodiff.svg)](https://coveralls.io/github/lutraconsulting/geodiff?branch=master)
+[![Coverage Tests](https://github.com/MerginMaps/geodiff/workflows/Coverage%20Tests/badge.svg)](https://github.com/MerginMaps/geodiff/actions?query=workflow%3A%22Coverage+Tests%22)
+[![MemCheck Tests](https://github.com/MerginMaps/geodiff/workflows/MemCheck%20Tests/badge.svg)](https://github.com/MerginMaps/geodiff/actions?query=workflow%3A%22MemCheck+Tests%22)
+[![Code Style](https://github.com/MerginMaps/geodiff/workflows/Code%20Layout/badge.svg)](https://github.com/MerginMaps/geodiff/actions?query=workflow%3A%22Code+Layout%22)
+[![Coverage Status](https://coveralls.io/repos/github/MerginMaps/geodiff/badge.svg?branch=master)](https://coveralls.io/github/MerginMaps/geodiff?branch=master)
 [![PyPI version](https://badge.fury.io/py/pygeodiff.svg)](https://badge.fury.io/py/pygeodiff)
-[![Build PyPI wheels](https://github.com/lutraconsulting/geodiff/actions/workflows/python_packages.yml/badge.svg)](https://github.com/lutraconsulting/geodiff/actions/workflows/python_packages.yml)
-[![Various Build Options](https://github.com/lutraconsulting/geodiff/actions/workflows/build_options_test.yml/badge.svg)](https://github.com/lutraconsulting/geodiff/actions/workflows/build_options_test.yml)
-[![Windows Tests](https://github.com/lutraconsulting/geodiff/actions/workflows/win_tests.yml/badge.svg)](https://github.com/lutraconsulting/geodiff/actions/workflows/win_tests.yml)
+[![Build PyPI wheels](https://github.com/MerginMaps/geodiff/actions/workflows/python_packages.yml/badge.svg)](https://github.com/MerginMaps/geodiff/actions/workflows/python_packages.yml)
+[![Various Build Options](https://github.com/MerginMaps/geodiff/actions/workflows/build_options_test.yml/badge.svg)](https://github.com/MerginMaps/geodiff/actions/workflows/build_options_test.yml)
+[![Windows Tests](https://github.com/MerginMaps/geodiff/actions/workflows/win_tests.yml/badge.svg)](https://github.com/MerginMaps/geodiff/actions/workflows/win_tests.yml)
 
 # geodiff
 
 Library for handling diffs for geospatial data. Works with GeoPackage files and PostGIS databases (as well as with non-spatial SQLite and PostgreSQL databases).
 
-Geodiff library is used by [Mergin](https://public.cloudmergin.com/) - a platform for easy sharing of spatial data.
+Geodiff library is used by [Mergin Maps](https://merginmaps.com/) - a platform for easy sharing of spatial data.
 
 <div><img align="left" width="45" height="45" src="https://raw.githubusercontent.com/MerginMaps/docs/main/src/.vuepress/public/slack.svg"><a href="https://merginmaps.com/community/join">Join our community chat</a><br/>and ask questions!</div>
 
@@ -110,7 +110,7 @@ import Mergin.mergin.deps.pygeodiff as pygeodiff
 
 ## Using the library with C API
 
-See [geodiff.h header file](https://github.com/lutraconsulting/geodiff/blob/master/geodiff/src/geodiff.h) for the list of API calls and their documentation.
+See [geodiff.h header file](https://github.com/MerginMaps/geodiff/blob/master/geodiff/src/geodiff.h) for the list of API calls and their documentation.
 
 Output messages can be adjusted by GEODIFF_LOGGER_LEVEL environment variable.
 

@@ -2,7 +2,7 @@ name: MemCheck Tests
 on: [push]
 jobs:
   memcheck_tests:
-    if: github.repository == 'lutraconsulting/geodiff'
+    if: github.repository == 'MerginMaps/geodiff'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Geodiff

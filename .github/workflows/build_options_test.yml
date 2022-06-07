@@ -2,7 +2,7 @@ name: Build Tests
 on: [push]
 jobs:
   build_test:
-    if: github.repository == 'lutraconsulting/geodiff'
+    if: github.repository == 'MerginMaps/geodiff'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Geodiff

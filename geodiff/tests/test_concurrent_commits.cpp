@@ -356,7 +356,7 @@ TEST( ConcurrentCommitsSqlite3Test, test_update_extent )
 {
   std::cout << "the base2theirs contains only a change to \"simple\" table, ";
   std::cout << "but base2modified contains an update to a gpkg_contents table (extent)" << std::endl;
-  std::cout << "https://github.com/lutraconsulting/geodiff/issues/30" << std::endl;
+  std::cout << "https://github.com/merginmaps/geodiff/issues/30" << std::endl;
 
   bool ret = _test(
                "base.gpkg",
@@ -375,7 +375,7 @@ TEST( ConcurrentCommitsSqlite3Test, test_update_extent )
 TEST( ConcurrentCommitsSqlite3Test, test_update_2_different_tables )
 {
   std::cout << "both concurrent changes different tables" << std::endl;
-  std::cout << "https://github.com/lutraconsulting/geodiff/issues/29" << std::endl;
+  std::cout << "https://github.com/merginmaps/geodiff/issues/29" << std::endl;
 
   bool ret = _test(
                "base3.gpkg",
@@ -421,7 +421,7 @@ TEST( ConcurrentCommitsSqlite3Test, test_insert_multiple )
 {
   std::cout << "both concurrent insert rows, e.g. A adds 4,5, B adds fids 4,5,6, " << std::endl;
   std::cout << "when B is rebasing on top of A, we should get fids 6,7,8 in rebased B" << std::endl;
-  std::cout << "https://github.com/lutraconsulting/geodiff/issues/62" << std::endl;
+  std::cout << "https://github.com/merginmaps/geodiff/issues/62" << std::endl;
 
   bool ret = _test(
                "base.gpkg",
@@ -453,7 +453,7 @@ TEST( ConcurrentCommitsSqlite3Test, test_insert_multiple )
 TEST( ConcurrentCommitsSqlite3Test, test_fk_2_updates )
 {
   std::cout << "new tree specie & tree is added on both A and B" << std::endl;
-  std::cout << "https://github.com/lutraconsulting/geodiff/issues/39" << std::endl;
+  std::cout << "https://github.com/merginmaps/geodiff/issues/39" << std::endl;
 
   bool ret = _test_expect_not_implemented(
                "base_fk.gpkg",
@@ -465,7 +465,7 @@ TEST( ConcurrentCommitsSqlite3Test, test_fk_2_updates )
   ASSERT_TRUE( ret );
 
   std::cout << "new tree specie & tree is added on A and just new tree on B" << std::endl;
-  std::cout << "https://github.com/lutraconsulting/geodiff/issues/39" << std::endl;
+  std::cout << "https://github.com/merginmaps/geodiff/issues/39" << std::endl;
   ret = _test_expect_not_implemented(
           "base_fk.gpkg",
           "fk_2_updates",
@@ -476,7 +476,7 @@ TEST( ConcurrentCommitsSqlite3Test, test_fk_2_updates )
   ASSERT_TRUE( ret );
 
   std::cout << "new tree specie & tree is added on B and just new tree on A" << std::endl;
-  std::cout << "https://github.com/lutraconsulting/geodiff/issues/39" << std::endl;
+  std::cout << "https://github.com/merginmaps/geodiff/issues/39" << std::endl;
   ret = _test_expect_not_implemented(
           "base_fk.gpkg",
           "fk_2_updates",

@@ -3,7 +3,7 @@
     pygeodiff.main
     --------------
     Main entry of the library
-    :copyright: (c) 2019 Peter Petrik
+    :copyright: (c) 2019-2022 Lutra Consulting Ltd.
     :license: MIT, see LICENSE for more details.
 """
 

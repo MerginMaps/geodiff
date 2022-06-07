@@ -2,7 +2,7 @@ name: Windows Tests
 on: [push]
 jobs:
   build_win_test:
-    if: github.repository == 'lutraconsulting/geodiff'
+    if: github.repository == 'MerginMaps/geodiff'
     runs-on: windows-latest
     steps:
       - name: Checkout Geodiff
