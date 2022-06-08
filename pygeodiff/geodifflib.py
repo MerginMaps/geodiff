@@ -148,10 +148,6 @@ class GeoDiffLib:
         self._V_destroy = self.lib.GEODIFF_V_destroy
         self._V_destroy.argtypes = [ctypes.c_void_p, ctypes.c_void_p]
 
-        self._free = self.lib.GEODIFF_free
-        self._free.argtypes = [ctypes.c_char_p]
-        self._free.restype = None
-
     def package_libname(self):
         # assume that the package is installed through PIP
         if platform.system() == 'Windows':
@@ -462,13 +458,13 @@ class GeoDiffLib:
 
     def get_wkb_from_geometry(self, geometry):
         func = self.lib.GEODIFF_createWkbFromGpkgHeader
-        func.argtypes = [ctypes.c_char_p, ctypes.POINTER(ctypes.c_size_t)]
+        func.argtypes = [ctypes.c_void_p, ctypes.c_char_p, ctypes.POINTER(ctypes.c_size_t)]
         func.restype = ctypes.POINTER(ctypes.c_char)
 
         size = ctypes.c_size_t(len(geometry))
-        ptr  = func(self.context, geometry, ctypes.byref(size))
-        result = ptr[:size.value]
-        self._free(ptr)
+        out = b'\000' * len(geometry)
+        res = func(self.context, geometry, ctypes.byref(size), ctypes.c_char_p(out))
+        result = out[:size.value]
         return result
 
 class ChangesetReader(object):
