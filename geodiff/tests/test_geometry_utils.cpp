@@ -33,6 +33,7 @@ TEST( GeometryUtilsTest, test_wkb_from_geometry )
   EXPECT_EQ( result, GEODIFF_SUCCESS );
 
   std::string wkb( c_wkb, length );
+  delete c_wkb;
 
   // re-create GPKG envelope
   TableColumnInfo col;

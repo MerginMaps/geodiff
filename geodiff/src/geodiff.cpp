@@ -1211,10 +1211,11 @@ bool GEODIFF_CT_columnIsPkey( GEODIFF_ContextH /*contextHandle*/, GEODIFF_Change
 int GEODIFF_createWkbFromGpkgHeader( GEODIFF_ContextH contextHandle, const char *gpkgWkb, size_t *length, char *wkb )
 {
   const Context *context = static_cast<const Context *>( contextHandle );
-  if ( !context )
+  if ( !context || !gpkgWkb || !length || !wkb )
   {
     return GEODIFF_ERROR;
   }
+
 
   auto result = createWkbFromGpkgHeader( context, std::string( gpkgWkb, *length ) );
   auto result_len = result.length();

@@ -642,7 +642,7 @@ std::string createGpkgHeader( std::string &wkb, const TableColumnInfo &col )
 
 std::string createWkbFromGpkgHeader( const Context *context, const std::string &gpkgWkb )
 {
-  ( void )context;
+  GEODIFF_UNUSED( context );
 
   int headerSize = parseGpkgbHeaderSize( gpkgWkb );
   std::string wkb( gpkgWkb.size() - headerSize, 0 );

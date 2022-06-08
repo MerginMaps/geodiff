@@ -597,7 +597,7 @@ GEODIFF_EXPORT void GEODIFF_V_destroy(
  * returns geometry as WKB. More details at https://www.geopackage.org/spec/#gpb_format
  * gpkgWkb is a geometry encoded according to GeoPackage spec
  * length is a length of the passed geometry buffer
- * wkb is ooutput wkb
+ * wkb is an output wkb, should be allocated by the caller and have size sufficient for output wkb (gpkgWkb - header)
  * returns GEODIFF_SUCCESS on success, GEOSIFF_ERROR of failure
  */
 GEODIFF_EXPORT int GEODIFF_createWkbFromGpkgHeader( GEODIFF_ContextH contextHandle, const char *gpkgWkb, size_t *length, char *wkb );
