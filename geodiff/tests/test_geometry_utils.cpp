@@ -26,7 +26,13 @@ TEST( GeometryUtilsTest, test_wkb_from_geometry )
   EXPECT_EQ( entry.table->name, "simple" );
   EXPECT_EQ( entry.oldValues[1].type(), Value::TypeBlob );
   std::string gpkgWkb = entry.oldValues[1].getString();
-  std::string wkb = createWkbFromGpkgHeader( gpkgWkb );
+  const char* c_gpkgWkb = gpkgWkb.c_str();
+  size_t length = gpkgWkb.length();
+  char *c_wkb = new char[ length ];
+  int result = GEODIFF_createWkbFromGpkgHeader( testContext(), c_gpkgWkb, &length, c_wkb );
+  EXPECT_EQ( result, GEODIFF_SUCCESS );
+
+  std::string wkb( c_wkb, length );
 
   // re-create GPKG envelope
   TableColumnInfo col;
