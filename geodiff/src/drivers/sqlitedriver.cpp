@@ -53,7 +53,7 @@ class Sqlite3SavepointTransaction
       : mDb( db )
     {
       if ( sqlite3_exec( mDb.get()->get(), "SAVEPOINT changeset_apply", 0, 0, 0 ) != SQLITE_OK )
-        throw GeoDiffException( "Unable to start savepoint" );
+        throw GeoDiffException( "Unable to start savepoint: " + std::string( sqlite3_errmsg( mDb.get()->get() ) ) );
     }
 
     ~Sqlite3SavepointTransaction()
@@ -71,7 +71,7 @@ class Sqlite3SavepointTransaction
       assert( mDb );
       // there were no errors - release the savepoint and our changes get saved
       if ( sqlite3_exec( mDb.get()->get(), "RELEASE changeset_apply", 0, 0, 0 ) != SQLITE_OK )
-        throw GeoDiffException( "Failed to release savepoint" );
+        throw GeoDiffException( "Failed to release savepoint: " + std::string( sqlite3_errmsg( mDb.get()->get() ) ) );
       // reset handler to the database so that the destructor does nothing
       mDb.reset();
     }
@@ -862,7 +862,7 @@ static void addGpkgCrsDefinition( std::shared_ptr<Sqlite3Db> db, const CrsDefini
   stmtCheck.prepare( db, "select count(*) from gpkg_spatial_ref_sys where srs_id = %d;", crs.srsId );
   int res = sqlite3_step( stmtCheck.get() );
   if ( res != SQLITE_ROW )
-    throw GeoDiffException( "Failed to access gpkg_spatial_ref_sys table" );
+    throw GeoDiffException( "Failed to access gpkg_spatial_ref_sys table: " + std::string( sqlite3_errmsg( db->get() ) ) );
 
   if ( sqlite3_column_int( stmtCheck.get(), 0 ) )
     return;  // already there
@@ -873,7 +873,9 @@ static void addGpkgCrsDefinition( std::shared_ptr<Sqlite3Db> db, const CrsDefini
                 crs.wkt.c_str() );
   res = sqlite3_step( stmt.get() );
   if ( res != SQLITE_DONE )
-    throw GeoDiffException( "Failed to insert CRS to gpkg_spatial_ref_sys table" );
+  {
+    throw GeoDiffException( "Failed to insert CRS to gpkg_spatial_ref_sys table: " + std::string( sqlite3_errmsg( db->get() ) ) );
+  }
 }
 
 static void addGpkgSpatialTable( std::shared_ptr<Sqlite3Db> db, const TableSchema &tbl, const Extent &extent )
@@ -902,7 +904,9 @@ static void addGpkgSpatialTable( std::shared_ptr<Sqlite3Db> db, const TableSchem
                 tbl.name.c_str(), tbl.name.c_str(), extent.minX, extent.minY, extent.maxX, extent.maxY, srsId );
   int res = sqlite3_step( stmt.get() );
   if ( res != SQLITE_DONE )
-    throw GeoDiffException( "Failed to insert row to gpkg_contents table" );
+  {
+    throw GeoDiffException( "Failed to insert row to gpkg_contents table: " + std::string( sqlite3_errmsg( db->get() ) ) );
+  }
 
   // gpkg_geometry_columns
   //   table_name TEXT NOT NULL, column_name TEXT NOT NULL,
@@ -914,7 +918,9 @@ static void addGpkgSpatialTable( std::shared_ptr<Sqlite3Db> db, const TableSchem
                        tbl.name.c_str(), geomColumn.c_str(), geomType.c_str(), srsId, hasZ, hasM );
   res = sqlite3_step( stmtGeomCol.get() );
   if ( res != SQLITE_DONE )
-    throw GeoDiffException( "Failed to insert row to gpkg_geometry_columns table" );
+  {
+    throw GeoDiffException( "Failed to insert row to gpkg_geometry_columns table :" + std::string( sqlite3_errmsg( db->get() ) ) );
+  }
 }
 
 void SqliteDriver::createTables( const std::vector<TableSchema> &tables )
@@ -925,7 +931,10 @@ void SqliteDriver::createTables( const std::vector<TableSchema> &tables )
   stmt1.prepare( mDb, "SELECT InitSpatialMetadata('main');" );
   int res = sqlite3_step( stmt1.get() );
   if ( res != SQLITE_ROW )
+  {
+    context()->logger().error( "Failure initializing spatial metadata: " + std::string( sqlite3_errmsg( mDb->get() ) ) );
     throw GeoDiffException( "Failure initializing spatial metadata" );
+  }
 
   for ( const TableSchema &tbl : tables )
   {
@@ -971,7 +980,10 @@ void SqliteDriver::createTables( const std::vector<TableSchema> &tables )
     Sqlite3Stmt stmt;
     stmt.prepare( mDb, sql );
     if ( sqlite3_step( stmt.get() ) != SQLITE_DONE )
+    {
+      context()->logger().error( "Failure creating table: " + std::string( sqlite3_errmsg( mDb->get() ) ) );
       throw GeoDiffException( "Failure creating table: " + tbl.name );
+    }
   }
 }
 

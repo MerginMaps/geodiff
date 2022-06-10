@@ -59,7 +59,7 @@ void Sqlite3Db::exec( const Buffer &buf )
   int rc = sqlite3_exec( get(), buf.c_buf(), NULL, 0, NULL );
   if ( rc )
   {
-    throw GeoDiffException( "Unable to exec buffer on sqlite3 database" );
+    throw GeoDiffException( "Unable to exec buffer on sqlite3 database:" + std::string( sqlite3_errmsg( get() ) ) );
   }
 }
 
@@ -140,7 +140,11 @@ void Sqlite3Stmt::close()
 {
   if ( mStmt )
   {
-    sqlite3_finalize( mStmt );
+    int rc = sqlite3_finalize( mStmt );
+    if ( rc )
+    {
+      throw GeoDiffException( "SQL statement error" );
+    }
     mStmt = nullptr;
   }
 }
