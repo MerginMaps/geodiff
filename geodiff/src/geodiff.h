@@ -7,6 +7,7 @@
 #define GEODIFF_H
 
 #include <stdint.h>
+#include <stdio.h>
 
 #ifdef GEODIFF_STATIC
 #  define GEODIFF_EXPORT
