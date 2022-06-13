@@ -458,12 +458,16 @@ class GeoDiffLib:
 
     def create_wkb_from_gpkg_header(self, geometry):
         func = self.lib.GEODIFF_createWkbFromGpkgHeader
-        func.argtypes = [ctypes.c_void_p, ctypes.c_char_p, ctypes.c_size_t, ctypes.c_char_p, ctypes.POINTER(ctypes.c_size_t)]
+        func.argtypes = [ctypes.c_void_p, 
+                         ctypes.POINTER(ctypes.c_char), 
+                         ctypes.c_size_t, 
+                         ctypes.POINTER(ctypes.POINTER(ctypes.c_char)), 
+                         ctypes.POINTER(ctypes.c_size_t)]
         func.restype = ctypes.c_int
         
-        out = b'\000' * len(geometry)
-        out_size = ctypes.c_size_t(len(out))
-        res = func(self.context, geometry, ctypes.c_size_t(len(geometry)), ctypes.c_char_p(out), ctypes.byref(out_size))
+        out = ctypes.POINTER(ctypes.c_char)()
+        out_size = ctypes.c_size_t(len(geometry))
+        res = func(self.context, geometry, ctypes.c_size_t(len(geometry)), ctypes.byref(out), ctypes.byref(out_size))
         _parse_return_code(res, "create_wkb_from_gpkg_header")
         wkb = copy.deepcopy(out[:out_size.value])
         return wkb

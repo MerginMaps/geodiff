@@ -1208,7 +1208,7 @@ bool GEODIFF_CT_columnIsPkey( GEODIFF_ContextH /*contextHandle*/, GEODIFF_Change
   return static_cast<ChangesetTable *>( tableHandle )->primaryKeys.at( i );
 }
 
-int GEODIFF_createWkbFromGpkgHeader( GEODIFF_ContextH contextHandle, const char *gpkgWkb, size_t gpkgLength, char *wkb, size_t *wkbLength )
+int GEODIFF_createWkbFromGpkgHeader( GEODIFF_ContextH contextHandle, const char *gpkgWkb, size_t gpkgLength, const char **wkb, size_t *wkbLength )
 {
   const Context *context = static_cast<const Context *>( contextHandle );
   if ( !context || !gpkgWkb || !wkb || !wkbLength )
@@ -1221,9 +1221,16 @@ int GEODIFF_createWkbFromGpkgHeader( GEODIFF_ContextH contextHandle, const char 
     return GEODIFF_ERROR;
   }
 
-  auto result = createWkbFromGpkgHeader( context, std::string( gpkgWkb, gpkgLength ) );
-  auto result_len = result.length();
-  memcpy( wkb, result.data(), result_len );
+  std::string gpkgWkbStr( gpkgWkb, gpkgLength );
+  int headerSize = parseGpkgbHeaderSize( gpkgWkbStr );
+
+  if ( headerSize < 1 )
+  {
+    return GEODIFF_ERROR;
+  }
+
+  size_t result_len = gpkgLength - headerSize;
+  *wkb = gpkgWkb + headerSize;
   *wkbLength = result_len;
 
   return GEODIFF_SUCCESS;

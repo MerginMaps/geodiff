@@ -14,9 +14,6 @@
 #include <algorithm>
 #include <memory.h>
 
-#include <iostream>
-
-
 extern "C" {
 #include "binstream.h"
 #include "wkb.h"
@@ -638,14 +635,4 @@ std::string createGpkgHeader( std::string &wkb, const TableColumnInfo &col )
   binstream_destroy( &outStream, 1 );
 
   return header;
-}
-
-std::string createWkbFromGpkgHeader( const Context *context, const std::string &gpkgWkb )
-{
-  GEODIFF_UNUSED( context );
-
-  int headerSize = parseGpkgbHeaderSize( gpkgWkb );
-  std::string wkb( gpkgWkb.size() - headerSize, 0 );
-  memcpy( &wkb[0], &gpkgWkb[headerSize], gpkgWkb.size() - headerSize );
-  return wkb;
 }
