@@ -16,11 +16,3 @@ class UnitTestsGeometryUtils(GeoDiffTests):
         expected_wkb = b'\x01\x01\x00\x00\x00\x9e\xe8Z\x89\xa1\xd6MAK\xca\x04\xb9\x873WA'
         wkb = self.geodiff.create_wkb_from_gpkg_header(gpkg_wkb)
         self.assertEqual(wkb, expected_wkb)
-
-    def test_create_wkb_from_gpkg_header_error(self):        
-        try:
-            self.geodiff.create_wkb_from_gpkg_header("")
-            raise TestError("expected GeoDiffLibError")
-        except pygeodiff.GeoDiffLibError:
-            pass
-            

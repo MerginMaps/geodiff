@@ -463,7 +463,7 @@ class GeoDiffLib:
 
         size = ctypes.c_size_t(len(geometry))
         out = b'\000' * len(geometry)
-        out_size = size
+        out_size = ctypes.c_size_t(len(out))
         res = func(self.context, geometry, size, ctypes.c_char_p(out), ctypes.byref(out_size))
         _parse_return_code(res, "create_wkb_from_gpkg_header")
         wkb = copy.deepcopy(out[:out_size])
