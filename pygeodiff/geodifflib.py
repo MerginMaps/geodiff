@@ -460,13 +460,12 @@ class GeoDiffLib:
         func = self.lib.GEODIFF_createWkbFromGpkgHeader
         func.argtypes = [ctypes.c_void_p, ctypes.c_char_p, ctypes.c_size_t, ctypes.c_char_p, ctypes.POINTER(ctypes.c_size_t)]
         func.restype = ctypes.c_int
-
-        size = ctypes.c_size_t(len(geometry))
+        
         out = b'\000' * len(geometry)
         out_size = ctypes.c_size_t(len(out))
-        res = func(self.context, geometry, size, ctypes.c_char_p(out), ctypes.byref(out_size))
+        res = func(self.context, geometry, ctypes.c_size_t(len(geometry)), ctypes.c_char_p(out), ctypes.byref(out_size))
         _parse_return_code(res, "create_wkb_from_gpkg_header")
-        wkb = copy.deepcopy(out[:out_size])
+        wkb = copy.deepcopy(out[:out_size.value])
         return wkb
 
 class ChangesetReader(object):
