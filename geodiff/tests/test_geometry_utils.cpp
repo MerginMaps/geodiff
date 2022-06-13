@@ -29,7 +29,7 @@ TEST( GeometryUtilsTest, test_wkb_from_geometry )
   const char *c_gpkgWkb = gpkgWkb.c_str();
   size_t length = gpkgWkb.length();
 
-  const char **c_wkb;
+  const char **c_wkb = &c_gpkgWkb;
   size_t wkbLength;
 
   int result = GEODIFF_createWkbFromGpkgHeader( testContext(), c_gpkgWkb, length, c_wkb, &wkbLength );
@@ -55,8 +55,9 @@ TEST( GeometryUtilsTest, test_wkb_from_geometry )
 
 TEST( GeometryUtilsTest, test_wkb_from_geometry_errors )
 {
-  const char **res;
-  char *c_wkb = new char[ 10 ];
+  
+  const char *c_wkb = new char[ 10 ];
+  const char **res = &c_wkb;
   size_t wkbLength;
 
   int result = GEODIFF_createWkbFromGpkgHeader( nullptr, c_wkb, 1, res, &wkbLength );
