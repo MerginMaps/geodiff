@@ -603,12 +603,12 @@ GEODIFF_EXPORT void GEODIFF_V_destroy(
  *
  * returns GEODIFF_SUCCESS on success, GEOSIFF_ERROR on failure
  */
-GEODIFF_EXPORT int GEODIFF_createWkbFromGpkgHeader( G
-    EODIFF_ContextH contextHandle,
-    const char *gpkgWkb,
-    size_t gpkgLength,
-    char *wkb,
-    size_t *wkbLength );
+GEODIFF_EXPORT int GEODIFF_createWkbFromGpkgHeader(
+  GEODIFF_ContextH contextHandle,
+  const char *gpkgWkb,
+  size_t gpkgLength,
+  char *wkb,
+  size_t *wkbLength );
 
 
 #ifdef __cplusplus
