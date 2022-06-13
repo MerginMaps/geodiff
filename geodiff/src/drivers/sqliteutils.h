@@ -20,6 +20,7 @@
 #define GPKG_ENVELOPE_SIZE_MASK 14
 
 class Buffer;
+class Context;
 
 
 class Sqlite3Db
@@ -94,30 +95,38 @@ class Sqlite3Value
 };
 
 
-bool register_gpkg_extensions( std::shared_ptr<Sqlite3Db> db );
+bool register_gpkg_extensions( const Context *context, std::shared_ptr<Sqlite3Db> db );
 
-bool isGeoPackage( std::shared_ptr<Sqlite3Db> db );
+bool isGeoPackage( const Context *context, std::shared_ptr<Sqlite3Db> db );
 
-void sqliteTriggers( std::shared_ptr<Sqlite3Db> db,
+void sqliteTriggers( const Context *context,
+                     std::shared_ptr<Sqlite3Db> db,
                      std::vector<std::string> &triggerNames,
                      std::vector<std::string> &triggerCmds );
 
 typedef std::pair<std::string, int> TableColumn; //table name, column ID tree, 4(specie)
 typedef std::map<TableColumn, TableColumn> ForeignKeys; // key is FK to value, e.g tree, 4(specie) -> species, 1(fid)
 
-ForeignKeys sqliteForeignKeys( std::shared_ptr<Sqlite3Db> db, const std::string &dbName );
+ForeignKeys sqliteForeignKeys( const Context *context, std::shared_ptr<Sqlite3Db> db, const std::string &dbName );
 
 // TODO: remove duplicate code (SqliteDriver::listTables)
-void sqliteTables( std::shared_ptr<Sqlite3Db> db,
+void sqliteTables( const Context *context,
+                   std::shared_ptr<Sqlite3Db> db,
                    const std::string &dbName,
                    std::vector<std::string> &tableNames );
 
 // TODO: remove potentially duplicate code (SqliteDriver::tableSchema)
 std::vector<std::string> sqliteColumnNames(
+  const Context *context,
   std::shared_ptr<Sqlite3Db> db,
   const std::string &zDb,
   const std::string &tableName
 );
+
+/**
+ * Returns a string with the latest SQLite error message and extended error code
+ */
+std::string sqliteErrorMessage( sqlite3 *db, const std::string &functionName );
 
 /**
  *  Returns size of GeoPackage binary header including envelope

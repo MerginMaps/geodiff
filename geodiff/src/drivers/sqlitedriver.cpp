@@ -49,11 +49,14 @@ class Sqlite3DbMutexLocker
 class Sqlite3SavepointTransaction
 {
   public:
-    explicit Sqlite3SavepointTransaction( std::shared_ptr<Sqlite3Db> db )
-      : mDb( db )
+    explicit Sqlite3SavepointTransaction( std::shared_ptr<Sqlite3Db> db, const Context *context )
+      : mDb( db ), mContext( context )
     {
       if ( sqlite3_exec( mDb.get()->get(), "SAVEPOINT changeset_apply", 0, 0, 0 ) != SQLITE_OK )
-        throw GeoDiffException( "Unable to start savepoint: " + std::string( sqlite3_errmsg( mDb.get()->get() ) ) );
+      {
+        std::string errMsg = sqliteErrorMessage( mDb.get()->get(), "Sqlite3SavepointTransaction" );
+        throw GeoDiffException( "Unable to start savepoint: " + errMsg );
+      }
     }
 
     ~Sqlite3SavepointTransaction()
@@ -61,8 +64,16 @@ class Sqlite3SavepointTransaction
       if ( mDb )
       {
         // we had some problems - roll back any pending changes
-        sqlite3_exec( mDb.get()->get(), "ROLLBACK TO changeset_apply", 0, 0, 0 );
-        sqlite3_exec( mDb.get()->get(), "RELEASE changeset_apply", 0, 0, 0 );
+        if ( sqlite3_exec( mDb.get()->get(), "ROLLBACK TO changeset_apply", 0, 0, 0 ) != SQLITE_OK )
+        {
+          std::string errMsg = sqliteErrorMessage( mDb.get()->get(), "~Sqlite3SavepointTransaction" );
+          mContext->logger().error( errMsg );
+        }
+        if ( sqlite3_exec( mDb.get()->get(), "RELEASE changeset_apply", 0, 0, 0 ) != SQLITE_OK )
+        {
+          std::string errMsg = sqliteErrorMessage( mDb.get()->get(), "~Sqlite3SavepointTransaction" );
+          mContext->logger().error( errMsg );
+        }
       }
     }
 
@@ -71,13 +82,17 @@ class Sqlite3SavepointTransaction
       assert( mDb );
       // there were no errors - release the savepoint and our changes get saved
       if ( sqlite3_exec( mDb.get()->get(), "RELEASE changeset_apply", 0, 0, 0 ) != SQLITE_OK )
-        throw GeoDiffException( "Failed to release savepoint: " + std::string( sqlite3_errmsg( mDb.get()->get() ) ) );
+      {
+        std::string errMsg = sqliteErrorMessage( mDb.get()->get(), "commitChanges" );
+        throw GeoDiffException( "Failed to release savepoint: " + errMsg );
+      }
       // reset handler to the database so that the destructor does nothing
       mDb.reset();
     }
 
   private:
     std::shared_ptr<Sqlite3Db> mDb;
+    const Context *mContext;
 };
 
 
@@ -127,9 +142,9 @@ void SqliteDriver::open( const DriverParametersMap &conn )
 
   // GeoPackage triggers require few functions like ST_IsEmpty() to be registered
   // in order to be able to apply changesets
-  if ( isGeoPackage( mDb ) )
+  if ( isGeoPackage( context(), mDb ) )
   {
-    bool success = register_gpkg_extensions( mDb );
+    bool success = register_gpkg_extensions( context(), mDb );
     if ( !success )
     {
       throw GeoDiffException( "Unable to enable sqlite3/gpkg extensions" );
@@ -155,7 +170,7 @@ void SqliteDriver::create( const DriverParametersMap &conn, bool overwrite )
   mDb->create( base );
 
   // register geopackage related functions in the newly created sqlite database
-  if ( !register_gpkg_extensions( mDb ) )
+  if ( !register_gpkg_extensions( context(), mDb ) )
   {
     throw GeoDiffException( "Unable to enable sqlite3/gpkg extensions" );
   }
@@ -184,7 +199,8 @@ std::vector<std::string> SqliteDriver::listTables( bool useModified )
                                " ORDER BY name";
   Sqlite3Stmt statement;
   statement.prepare( mDb, "%s", all_tables_sql.c_str() );
-  while ( SQLITE_ROW == sqlite3_step( statement.get() ) )
+  int rc;
+  while ( SQLITE_ROW == ( rc = sqlite3_step( statement.get() ) ) )
   {
     const char *name = ( const char * )sqlite3_column_text( statement.get(), 0 );
     if ( !name )
@@ -218,17 +234,29 @@ std::vector<std::string> SqliteDriver::listTables( bool useModified )
 
     tableNames.push_back( tableName );
   }
+  if ( rc != SQLITE_DONE )
+  {
+    std::string errMsg = sqliteErrorMessage( mDb->get(), "SqliteDriver::listTables" );
+    context()->logger().error( errMsg );
+  }
 
   // result is ordered by name
   return tableNames;
 }
 
-bool tableExists( std::shared_ptr<Sqlite3Db> db, const std::string &tableName, const std::string &dbName )
+bool tableExists( const Context *context, std::shared_ptr<Sqlite3Db> db, const std::string &tableName, const std::string &dbName )
 {
   Sqlite3Stmt stmtHasGeomColumnsInfo;
   stmtHasGeomColumnsInfo.prepare( db, "SELECT name FROM \"%w\".sqlite_master WHERE type='table' "
                                   "AND name='%q'", dbName.c_str(), tableName.c_str() );
-  return sqlite3_step( stmtHasGeomColumnsInfo.get() ) == SQLITE_ROW;
+  int rc = sqlite3_step( stmtHasGeomColumnsInfo.get() );
+  if ( rc != SQLITE_ROW )
+  {
+    std::string errMsg = sqliteErrorMessage( db->get(), "tableExists" );
+    context->logger().error( errMsg );
+  }
+
+  return rc == SQLITE_ROW;
 }
 
 TableSchema SqliteDriver::tableSchema( const std::string &tableName,
@@ -236,7 +264,7 @@ TableSchema SqliteDriver::tableSchema( const std::string &tableName,
 {
   std::string dbName = databaseName( useModified );
 
-  if ( !tableExists( mDb, tableName, dbName ) )
+  if ( !tableExists( context(), mDb, tableName, dbName ) )
     throw GeoDiffException( "Table does not exist: " + tableName );
 
   TableSchema tbl;
@@ -245,7 +273,8 @@ TableSchema SqliteDriver::tableSchema( const std::string &tableName,
 
   Sqlite3Stmt statement;
   statement.prepare( mDb, "PRAGMA '%q'.table_info('%q')", dbName.c_str(), tableName.c_str() );
-  while ( SQLITE_ROW == sqlite3_step( statement.get() ) )
+  int rc;
+  while ( SQLITE_ROW == ( rc = sqlite3_step( statement.get() ) ) )
   {
     const unsigned char *zName = sqlite3_column_text( statement.get(), 1 );
     if ( zName == nullptr )
@@ -259,9 +288,14 @@ TableSchema SqliteDriver::tableSchema( const std::string &tableName,
 
     tbl.columns.push_back( columnInfo );
   }
+  if ( rc != SQLITE_DONE )
+  {
+    std::string errMsg = sqliteErrorMessage( mDb->get(), "SqliteDriver::tableSchema" );
+    context()->logger().error( errMsg );
+  }
 
   // check if the geometry columns table is present (it may not be if this is a "pure" sqlite file)
-  if ( tableExists( mDb, "gpkg_geometry_columns", dbName ) )
+  if ( tableExists( context(), mDb, "gpkg_geometry_columns", dbName ) )
   {
     //
     // get geometry column details (geometry type, whether it has Z/M values, CRS id)
@@ -270,7 +304,7 @@ TableSchema SqliteDriver::tableSchema( const std::string &tableName,
     int srsId = -1;
     Sqlite3Stmt stmtGeomCol;
     stmtGeomCol.prepare( mDb, "SELECT * FROM \"%w\".gpkg_geometry_columns WHERE table_name = '%q'", dbName.c_str(), tableName.c_str() );
-    if ( SQLITE_ROW == sqlite3_step( stmtGeomCol.get() ) )
+    if ( SQLITE_ROW == ( rc = sqlite3_step( stmtGeomCol.get() ) ) )
     {
       const unsigned char *chrColumnName = sqlite3_column_text( stmtGeomCol.get(), 1 );
       const unsigned char *chrTypeName = sqlite3_column_text( stmtGeomCol.get(), 2 );
@@ -292,6 +326,11 @@ TableSchema SqliteDriver::tableSchema( const std::string &tableName,
       TableColumnInfo &col = tbl.columns[i];
       col.setGeometry( geomTypeName, srsId, hasM, hasZ );
     }
+    if ( rc != SQLITE_DONE )
+    {
+      std::string errMsg = sqliteErrorMessage( mDb->get(), "SqliteDriver::tableSchema" );
+      context()->logger().error( errMsg );
+    }
 
     //
     // get CRS information
@@ -302,7 +341,11 @@ TableSchema SqliteDriver::tableSchema( const std::string &tableName,
       Sqlite3Stmt stmtCrs;
       stmtCrs.prepare( mDb, "SELECT * FROM \"%w\".gpkg_spatial_ref_sys WHERE srs_id = %d", dbName.c_str(), srsId );
       if ( SQLITE_ROW != sqlite3_step( stmtCrs.get() ) )
+      {
+        std::string errMsg = sqliteErrorMessage( mDb->get(), "SqliteDriver::tableSchema" );
+        context()->logger().error( errMsg );
         throw GeoDiffException( "Unable to find entry in gpkg_spatial_ref_sys for srs_id = " + std::to_string( srsId ) );
+      }
 
       const unsigned char *chrAuthName = sqlite3_column_text( stmtCrs.get(), 2 );
       const unsigned char *chrWkt = sqlite3_column_text( stmtCrs.get(), 4 );
@@ -435,12 +478,13 @@ static Value changesetValue( sqlite3_value *v )
   return x;
 }
 
-static void handleInserted( const std::string &tableName, const TableSchema &tbl, bool reverse, std::shared_ptr<Sqlite3Db> db, ChangesetWriter &writer, bool &first )
+static void handleInserted( const Context *context, const std::string &tableName, const TableSchema &tbl, bool reverse, std::shared_ptr<Sqlite3Db> db, ChangesetWriter &writer, bool &first )
 {
   std::string sqlInserted = sqlFindInserted( tableName, tbl, reverse );
   Sqlite3Stmt statementI;
   statementI.prepare( db, "%s", sqlInserted.c_str() );
-  while ( SQLITE_ROW == sqlite3_step( statementI.get() ) )
+  int rc;
+  while ( SQLITE_ROW == ( rc = sqlite3_step( statementI.get() ) ) )
   {
     if ( first )
     {
@@ -464,15 +508,21 @@ static void handleInserted( const std::string &tableName, const TableSchema &tbl
 
     writer.writeEntry( e );
   }
+  if ( rc != SQLITE_DONE )
+  {
+    std::string errMsg = sqliteErrorMessage( db->get(), "handleInserted" );
+    context->logger().error( errMsg );
+  }
 }
 
-static void handleUpdated( const std::string &tableName, const TableSchema &tbl, std::shared_ptr<Sqlite3Db> db, ChangesetWriter &writer, bool &first )
+static void handleUpdated( const Context *context, const std::string &tableName, const TableSchema &tbl, std::shared_ptr<Sqlite3Db> db, ChangesetWriter &writer, bool &first )
 {
   std::string sqlModified = sqlFindModified( tableName, tbl );
 
   Sqlite3Stmt statement;
   statement.prepare( db, "%s", sqlModified.c_str() );
-  while ( SQLITE_ROW == sqlite3_step( statement.get() ) )
+  int rc;
+  while ( SQLITE_ROW == ( rc = sqlite3_step( statement.get() ) ) )
   {
     /*
     ** Within the old.* record associated with an UPDATE change, all fields
@@ -534,6 +584,11 @@ static void handleUpdated( const std::string &tableName, const TableSchema &tbl,
       writer.writeEntry( e );
     }
   }
+  if ( rc != SQLITE_DONE )
+  {
+    std::string errMsg = sqliteErrorMessage( db->get(), "handleInserted" );
+    context->logger().error( errMsg );
+  }
 }
 
 void SqliteDriver::createChangeset( ChangesetWriter &writer )
@@ -565,9 +620,9 @@ void SqliteDriver::createChangeset( ChangesetWriter &writer )
 
     bool first = true;
 
-    handleInserted( tableName, tbl, false, mDb, writer, first );  // INSERT
-    handleInserted( tableName, tbl, true, mDb, writer, first );   // DELETE
-    handleUpdated( tableName, tbl, mDb, writer, first );          // UPDATE
+    handleInserted( context(), tableName, tbl, false, mDb, writer, first );  // INSERT
+    handleInserted( context(), tableName, tbl, true, mDb, writer, first );   // DELETE
+    handleUpdated( context(), tableName, tbl, mDb, writer, first );          // UPDATE
   }
 
 }
@@ -694,7 +749,9 @@ static void bindValue( sqlite3_stmt *stmt, int index, const Value &v )
     throw GeoDiffException( "unexpected bind type" );
 
   if ( rc != SQLITE_OK )
+  {
     throw GeoDiffException( "bind failed" );
+  }
 }
 
 
@@ -708,7 +765,7 @@ void SqliteDriver::applyChangeset( ChangesetReader &reader )
   Sqlite3DbMutexLocker dbMutexLocker( mDb );
 
   // start transaction!
-  Sqlite3SavepointTransaction savepointTransaction( mDb );
+  Sqlite3SavepointTransaction savepointTransaction( mDb, context() );
 
   // TODO: when we deal with foreign keys, it may be useful to temporarily set "PRAGMA defer_foreign_keys = 1"
   // so that if a foreign key is violated, the constraint violation is tolerated until we commit the changes
@@ -718,7 +775,7 @@ void SqliteDriver::applyChangeset( ChangesetReader &reader )
   // that we do not recognize (gpkg triggers are filtered)
   std::vector<std::string> triggerNames;
   std::vector<std::string> triggerCmds;
-  sqliteTriggers( mDb, triggerNames, triggerCmds );
+  sqliteTriggers( context(), mDb, triggerNames, triggerCmds );
 
   Sqlite3Stmt statament;
   for ( std::string name : triggerNames )
@@ -851,7 +908,7 @@ void SqliteDriver::applyChangeset( ChangesetReader &reader )
 }
 
 
-static void addGpkgCrsDefinition( std::shared_ptr<Sqlite3Db> db, const CrsDefinition &crs )
+static void addGpkgCrsDefinition( const Context *context, std::shared_ptr<Sqlite3Db> db, const CrsDefinition &crs )
 {
   // gpkg_spatial_ref_sys
   //   srs_name TEXT NOT NULL, srs_id INTEGER NOT NULL PRIMARY KEY,
@@ -862,7 +919,11 @@ static void addGpkgCrsDefinition( std::shared_ptr<Sqlite3Db> db, const CrsDefini
   stmtCheck.prepare( db, "select count(*) from gpkg_spatial_ref_sys where srs_id = %d;", crs.srsId );
   int res = sqlite3_step( stmtCheck.get() );
   if ( res != SQLITE_ROW )
-    throw GeoDiffException( "Failed to access gpkg_spatial_ref_sys table: " + std::string( sqlite3_errmsg( db->get() ) ) );
+  {
+    std::string errMsg = sqliteErrorMessage( db->get(), "addGpkgCrsDefinition" );
+    context->logger().error( errMsg );
+    throw GeoDiffException( "Failed to access gpkg_spatial_ref_sys table" );
+  }
 
   if ( sqlite3_column_int( stmtCheck.get(), 0 ) )
     return;  // already there
@@ -874,11 +935,13 @@ static void addGpkgCrsDefinition( std::shared_ptr<Sqlite3Db> db, const CrsDefini
   res = sqlite3_step( stmt.get() );
   if ( res != SQLITE_DONE )
   {
-    throw GeoDiffException( "Failed to insert CRS to gpkg_spatial_ref_sys table: " + std::string( sqlite3_errmsg( db->get() ) ) );
+    std::string errMsg = sqliteErrorMessage( db->get(), "addGpkgCrsDefinition" );
+    context->logger().error( errMsg );
+    throw GeoDiffException( "Failed to insert CRS to gpkg_spatial_ref_sys table" );
   }
 }
 
-static void addGpkgSpatialTable( std::shared_ptr<Sqlite3Db> db, const TableSchema &tbl, const Extent &extent )
+static void addGpkgSpatialTable( const Context *context, std::shared_ptr<Sqlite3Db> db, const TableSchema &tbl, const Extent &extent )
 {
   size_t i = tbl.geometryColumn();
   if ( i == SIZE_MAX )
@@ -905,7 +968,9 @@ static void addGpkgSpatialTable( std::shared_ptr<Sqlite3Db> db, const TableSchem
   int res = sqlite3_step( stmt.get() );
   if ( res != SQLITE_DONE )
   {
-    throw GeoDiffException( "Failed to insert row to gpkg_contents table: " + std::string( sqlite3_errmsg( db->get() ) ) );
+    std::string errMsg = sqliteErrorMessage( db->get(), "addGpkgSpatialTable" );
+    context->logger().error( errMsg );
+    throw GeoDiffException( "Failed to insert row to gpkg_contents table" );
   }
 
   // gpkg_geometry_columns
@@ -919,7 +984,9 @@ static void addGpkgSpatialTable( std::shared_ptr<Sqlite3Db> db, const TableSchem
   res = sqlite3_step( stmtGeomCol.get() );
   if ( res != SQLITE_DONE )
   {
-    throw GeoDiffException( "Failed to insert row to gpkg_geometry_columns table :" + std::string( sqlite3_errmsg( db->get() ) ) );
+    std::string errMsg = sqliteErrorMessage( db->get(), "addGpkgSpatialTable" );
+    context->logger().error( errMsg );
+    throw GeoDiffException( "Failed to insert row to gpkg_geometry_columns table" );
   }
 }
 
@@ -932,7 +999,8 @@ void SqliteDriver::createTables( const std::vector<TableSchema> &tables )
   int res = sqlite3_step( stmt1.get() );
   if ( res != SQLITE_ROW )
   {
-    context()->logger().error( "Failure initializing spatial metadata: " + std::string( sqlite3_errmsg( mDb->get() ) ) );
+    std::string errMsg = sqliteErrorMessage( mDb->get(), "SqliteDriver::createTables" );
+    context()->logger().error( errMsg );
     throw GeoDiffException( "Failure initializing spatial metadata" );
   }
 
@@ -943,8 +1011,8 @@ void SqliteDriver::createTables( const std::vector<TableSchema> &tables )
 
     if ( tbl.geometryColumn() != SIZE_MAX )
     {
-      addGpkgCrsDefinition( mDb, tbl.crs );
-      addGpkgSpatialTable( mDb, tbl, Extent() );   // TODO: is it OK to set zeros?
+      addGpkgCrsDefinition( context(), mDb, tbl.crs );
+      addGpkgSpatialTable( context(), mDb, tbl, Extent() );   // TODO: is it OK to set zeros?
     }
 
     std::string sql, pkeyCols, columns;
@@ -981,7 +1049,8 @@ void SqliteDriver::createTables( const std::vector<TableSchema> &tables )
     stmt.prepare( mDb, sql );
     if ( sqlite3_step( stmt.get() ) != SQLITE_DONE )
     {
-      context()->logger().error( "Failure creating table: " + std::string( sqlite3_errmsg( mDb->get() ) ) );
+      std::string errMsg = sqliteErrorMessage( mDb->get(), "SqliteDriver::createTables" );
+      context()->logger().error( errMsg );
       throw GeoDiffException( "Failure creating table: " + tbl.name );
     }
   }
@@ -1001,7 +1070,8 @@ void SqliteDriver::dumpData( ChangesetWriter &writer, bool useModified )
     bool first = true;
     Sqlite3Stmt statementI;
     statementI.prepare( mDb, "SELECT * FROM \"%w\".\"%w\"", dbName.c_str(), tableName.c_str() );
-    while ( SQLITE_ROW == sqlite3_step( statementI.get() ) )
+    int rc;
+    while ( SQLITE_ROW == ( rc = sqlite3_step( statementI.get() ) ) )
     {
       if ( first )
       {
@@ -1019,6 +1089,11 @@ void SqliteDriver::dumpData( ChangesetWriter &writer, bool useModified )
       }
       writer.writeEntry( e );
     }
+    if ( rc != SQLITE_DONE )
+    {
+      std::string errMsg = sqliteErrorMessage( mDb->get(), "SqliteDriver::dumpData" );
+      context()->logger().error( errMsg );
+    }
   }
 }
 
@@ -1031,7 +1106,7 @@ void SqliteDriver::checkCompatibleForRebase( bool useModified )
   // we deny rebase changesets with unrecognized triggers
   std::vector<std::string> triggerNames;
   std::vector<std::string> triggerCmds;
-  sqliteTriggers( mDb, triggerNames, triggerCmds );  // TODO: use dbName
+  sqliteTriggers( context(), mDb, triggerNames, triggerCmds );  // TODO: use dbName
   if ( !triggerNames.empty() )
   {
     std::string msg = "Unable to perform rebase for database with unknown triggers:\n";
@@ -1040,7 +1115,7 @@ void SqliteDriver::checkCompatibleForRebase( bool useModified )
     throw GeoDiffException( msg );
   }
 
-  ForeignKeys fks = sqliteForeignKeys( mDb, dbName );
+  ForeignKeys fks = sqliteForeignKeys( context(), mDb, dbName );
   if ( !fks.empty() )
   {
     throw GeoDiffException( "Unable to perform rebase for database with foreign keys" );
