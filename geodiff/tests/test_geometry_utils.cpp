@@ -29,10 +29,11 @@ TEST( GeometryUtilsTest, test_wkb_from_geometry )
   const char *c_gpkgWkb = gpkgWkb.c_str();
   size_t length = gpkgWkb.length();
   char *c_wkb = new char[ length ];
-  int result = GEODIFF_createWkbFromGpkgHeader( testContext(), c_gpkgWkb, &length, c_wkb );
+  size_t wkbLength;
+  int result = GEODIFF_createWkbFromGpkgHeader( testContext(), c_gpkgWkb, length, c_wkb, &wkbLength );
   EXPECT_EQ( result, GEODIFF_SUCCESS );
 
-  std::string wkb( c_wkb, length );
+  std::string wkb( c_wkb, wkbLength );
   delete []c_wkb;
 
   // re-create GPKG envelope
@@ -49,6 +50,29 @@ TEST( GeometryUtilsTest, test_wkb_from_geometry )
   EXPECT_EQ( gpkgWkb, gpb );
 
   EXPECT_FALSE( reader.nextEntry( entry ) );
+}
+
+TEST( GeometryUtilsTest, test_wkb_from_geometry_errors )
+{
+  char *c_wkb = new char[ 10 ];
+  size_t wkbLength;
+
+  int result = GEODIFF_createWkbFromGpkgHeader( nullptr, c_wkb, 1, c_wkb, &wkbLength );
+  EXPECT_EQ( result, GEODIFF_ERROR );
+
+  int result = GEODIFF_createWkbFromGpkgHeader( testContext(), nullptr, 1, c_wkb, &wkbLength );
+  EXPECT_EQ( result, GEODIFF_ERROR );
+
+  int result = GEODIFF_createWkbFromGpkgHeader( testContext(), c_wkb, 0, c_wkb, &wkbLength );
+  EXPECT_EQ( result, GEODIFF_ERROR );
+
+  int result = GEODIFF_createWkbFromGpkgHeader( testContext(), c_wkb, 1, nullptr, &wkbLength );
+  EXPECT_EQ( result, GEODIFF_ERROR );
+
+  int result = GEODIFF_createWkbFromGpkgHeader( testContext(), c_wkb, 1, c_wkb, nullptr );
+  EXPECT_EQ( result, GEODIFF_ERROR );
+
+  delete []c_wkb;
 }
 
 
