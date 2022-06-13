@@ -1224,11 +1224,6 @@ int GEODIFF_createWkbFromGpkgHeader( GEODIFF_ContextH contextHandle, const char 
   std::string gpkgWkbStr( gpkgWkb, gpkgLength );
   int headerSize = parseGpkgbHeaderSize( gpkgWkbStr );
 
-  if ( headerSize < 1 )
-  {
-    return GEODIFF_ERROR;
-  }
-
   size_t result_len = gpkgLength - headerSize;
   *wkb = gpkgWkb + headerSize;
   *wkbLength = result_len;

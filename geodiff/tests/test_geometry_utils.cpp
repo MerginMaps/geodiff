@@ -66,9 +66,6 @@ TEST( GeometryUtilsTest, test_wkb_from_geometry_errors )
   result = GEODIFF_createWkbFromGpkgHeader( testContext(), nullptr, 1, &res, &wkbLength );
   EXPECT_EQ( result, GEODIFF_ERROR );
 
-  result = GEODIFF_createWkbFromGpkgHeader( testContext(), c_wkb, 0, &res, &wkbLength );
-  EXPECT_EQ( result, GEODIFF_ERROR );
-
   result = GEODIFF_createWkbFromGpkgHeader( testContext(), c_wkb, 1, nullptr, &wkbLength );
   EXPECT_EQ( result, GEODIFF_ERROR );
 
