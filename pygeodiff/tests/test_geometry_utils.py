@@ -11,8 +11,8 @@ import os
 
 class UnitTestsGeometryUtils(GeoDiffTests):
 
-    def test_wkb_from_geometry(self):
+    def test_create_wkb_from_gpkg_header(self):
         gpkg_wkb = b'GP\x00\x01\x11\x0f\x00\x00\x01\x01\x00\x00\x00\x9e\xe8Z\x89\xa1\xd6MAK\xca\x04\xb9\x873WA'
         expected_wkb = b'\x01\x01\x00\x00\x00\x9e\xe8Z\x89\xa1\xd6MAK\xca\x04\xb9\x873WA'
-        wkb = self.geodiff.get_wkb_from_geometry(gpkg_wkb)
+        wkb = self.geodiff.create_wkb_from_gpkg_header(gpkg_wkb)
         self.assertEqual(wkb, expected_wkb)

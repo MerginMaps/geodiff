@@ -327,11 +327,11 @@ class GeoDiff:
         """
         return self.clib.version()
 
-    def get_wkb_from_geometry(self, geometry):
+    def create_wkb_from_gpkg_header(self, geometry):
         """
         Extracts geometry in WKB format from the geometry encoded according to GeoPackage spec
         """
-        return self.clib.get_wkb_from_geometry(geometry)
+        return self.clib.create_wkb_from_gpkg_header(geometry)
 
 def main():
     diff_lib = GeoDiff()

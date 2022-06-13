@@ -12,7 +12,7 @@ import os
 import platform
 from ctypes.util import find_library
 from .__about__ import __version__
-
+import copy
 
 class GeoDiffLibError(Exception):
     pass
@@ -456,16 +456,17 @@ class GeoDiffLib:
             raise GeoDiffLibError("Unable to open reader for: " + changeset)
         return ChangesetReader(self, reader_ptr)
 
-    def get_wkb_from_geometry(self, geometry):
+    def create_wkb_from_gpkg_header(self, geometry):
         func = self.lib.GEODIFF_createWkbFromGpkgHeader
-        func.argtypes = [ctypes.c_void_p, ctypes.c_char_p, ctypes.POINTER(ctypes.c_size_t)]
-        func.restype = ctypes.POINTER(ctypes.c_char)
+        func.argtypes = [ctypes.c_void_p, ctypes.c_char_p, ctypes.POINTER(ctypes.c_size_t), ctypes.c_char_p]
+        func.restype = ctypes.c_int
 
         size = ctypes.c_size_t(len(geometry))
         out = b'\000' * len(geometry)
         res = func(self.context, geometry, ctypes.byref(size), ctypes.c_char_p(out))
-        result = out[:size.value]
-        return result
+        _parse_return_code(res, "create_wkb_from_gpkg_header")
+        wkb = copy.deepcopy(out)
+        return wkb
 
 class ChangesetReader(object):
     """ Wrapper around GEODIFF_CR_* functions from C API """
