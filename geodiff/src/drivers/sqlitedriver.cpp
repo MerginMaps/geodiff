@@ -557,12 +557,12 @@ static void handleUpdated( const Context *context, const std::string &tableName,
           stmtDatetime.prepare( db, "SELECT datetime(?1) IS NOT datetime(?2)" );
           sqlite3_bind_value( stmtDatetime.get(), 1, v1.value() );
           sqlite3_bind_value( stmtDatetime.get(), 2, v2.value() );
-          int rc = sqlite3_step( stmtDatetime.get() );
-          if ( SQLITE_ROW == rc )
+          int res = sqlite3_step( stmtDatetime.get() );
+          if ( SQLITE_ROW == res )
           {
             updated = sqlite3_column_int( stmtDatetime.get(), 0 );
           }
-          else if ( SQLITE_DONE != rc )
+          else if ( SQLITE_DONE != res )
           {
             std::string errMsg = sqliteErrorMessage( db->get(), "handleUpdated" );
             context->logger().error( errMsg );
