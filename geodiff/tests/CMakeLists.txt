@@ -39,7 +39,7 @@ ADD_DEFINITIONS(-DTEST_DATA_DIR="${TESTDIR}")
 #########################################################################
 #########################################################################
 
-INCLUDE_DIRECTORIES(  
+INCLUDE_DIRECTORIES(
   ${CMAKE_CURRENT_SOURCE_DIR}
   ${CMAKE_CURRENT_BINARY_DIR}
   ${CMAKE_BINARY_DIR}/src
@@ -75,6 +75,7 @@ SET(TESTS
     test_changeset_utils.cpp
     test_driver_sqlite.cpp
     test_utils.cpp
+    test_geometry_utils.cpp
 )
 
 FOREACH(TESTSRC ${TESTS})

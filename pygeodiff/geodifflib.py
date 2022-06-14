@@ -12,7 +12,7 @@ import os
 import platform
 from ctypes.util import find_library
 from .__about__ import __version__
-
+import copy
 
 class GeoDiffLibError(Exception):
     pass
@@ -64,18 +64,18 @@ class GeoDiffLib:
         self.callbackLogger = None
         if self.context is None:
             raise GeoDiffLibVersionError("Unable to create GeoDiff context")
-            
+
         self.check_version()
         self._register_functions()
 
     def __del__(self):
-        if self.context is not None:  
+        if self.context is not None:
            func = self.lib.GEODIFF_CX_destroy
            func.argtypes = [ctypes.c_void_p]
            func(self.context)
            self.context = None
-         
-    def _register_functions(self):                      
+
+    def _register_functions(self):
         self._readChangeset = self.lib.GEODIFF_readChangeset
         self._readChangeset.argtypes = [ctypes.c_void_p, ctypes.c_char_p]
         self._readChangeset.restype = ctypes.c_void_p
@@ -148,7 +148,6 @@ class GeoDiffLib:
         self._V_destroy = self.lib.GEODIFF_V_destroy
         self._V_destroy.argtypes = [ctypes.c_void_p, ctypes.c_void_p]
 
-
     def package_libname(self):
         # assume that the package is installed through PIP
         if platform.system() == 'Windows':
@@ -202,31 +201,31 @@ class GeoDiffLib:
         _driver_count_f = self.lib.GEODIFF_driverCount
         _driver_count_f.argtypes = [ctypes.c_void_p]
         _driver_count_f.restype = ctypes.c_int
-      
+
         _driver_name_from_index_f = self.lib.GEODIFF_driverNameFromIndex
         _driver_name_from_index_f.argtypes = [ctypes.c_void_p, ctypes.c_int, ctypes.c_char_p]
-        _driver_name_from_index_f.restype = ctypes.c_int  
-        
+        _driver_name_from_index_f.restype = ctypes.c_int
+
         drivers_list = []
         driversCount =  _driver_count_f(self.context)
         for index in range(driversCount):
             name_raw = 256*""
-            b_string1 = name_raw.encode('utf-8') 
+            b_string1 = name_raw.encode('utf-8')
             res = _driver_name_from_index_f(self.context, index, b_string1)
             _parse_return_code(res, "drivers")
             name = b_string1.decode('utf-8')
             drivers_list.append(name)
-            
+
         return drivers_list
-    
+
     def driver_is_registered(self, name):
         func = self.lib.GEODIFF_driverIsRegistered
         func.argtypes = [ctypes.c_void_p, ctypes.c_char_p]
         func.restype = ctypes.c_bool
-        
+
         b_string1 = name.encode('utf-8')
         return func(self.context, b_string1)
-        
+
 
     def create_changeset(self, base, modified, changeset):
         func = self.lib.GEODIFF_createChangeset
@@ -457,6 +456,21 @@ class GeoDiffLib:
             raise GeoDiffLibError("Unable to open reader for: " + changeset)
         return ChangesetReader(self, reader_ptr)
 
+    def create_wkb_from_gpkg_header(self, geometry):
+        func = self.lib.GEODIFF_createWkbFromGpkgHeader
+        func.argtypes = [ctypes.c_void_p, 
+                         ctypes.POINTER(ctypes.c_char), 
+                         ctypes.c_size_t, 
+                         ctypes.POINTER(ctypes.POINTER(ctypes.c_char)), 
+                         ctypes.POINTER(ctypes.c_size_t)]
+        func.restype = ctypes.c_int
+        
+        out = ctypes.POINTER(ctypes.c_char)()
+        out_size = ctypes.c_size_t(len(geometry))
+        res = func(self.context, geometry, ctypes.c_size_t(len(geometry)), ctypes.byref(out), ctypes.byref(out_size))
+        _parse_return_code(res, "create_wkb_from_gpkg_header")
+        wkb = copy.deepcopy(out[:out_size.value])
+        return wkb
 
 class ChangesetReader(object):
     """ Wrapper around GEODIFF_CR_* functions from C API """
