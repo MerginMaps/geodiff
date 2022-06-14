@@ -557,9 +557,15 @@ static void handleUpdated( const Context *context, const std::string &tableName,
           stmtDatetime.prepare( db, "SELECT datetime(?1) IS NOT datetime(?2)" );
           sqlite3_bind_value( stmtDatetime.get(), 1, v1.value() );
           sqlite3_bind_value( stmtDatetime.get(), 2, v2.value() );
-          if ( SQLITE_ROW == sqlite3_step( stmtDatetime.get() ) )
+          int rc = sqlite3_step( stmtDatetime.get() );
+          if ( SQLITE_ROW == rc )
           {
             updated = sqlite3_column_int( stmtDatetime.get(), 0 );
+          }
+          else if ( SQLITE_DONE != rc )
+          {
+            std::string errMsg = sqliteErrorMessage( db->get(), "handleUpdated" );
+            context->logger().error( errMsg );
           }
         }
 
@@ -586,7 +592,7 @@ static void handleUpdated( const Context *context, const std::string &tableName,
   }
   if ( rc != SQLITE_DONE )
   {
-    std::string errMsg = sqliteErrorMessage( db->get(), "handleInserted" );
+    std::string errMsg = sqliteErrorMessage( db->get(), "handleUpdated" );
     context->logger().error( errMsg );
   }
 }
@@ -781,7 +787,13 @@ void SqliteDriver::applyChangeset( ChangesetReader &reader )
   for ( std::string name : triggerNames )
   {
     statament.prepare( mDb, "drop trigger '%q'", name.c_str() );
-    sqlite3_step( statament.get() );
+    int rc = sqlite3_step( statament.get() );
+    if ( SQLITE_DONE != rc )
+    {
+      std::string errMsg = sqliteErrorMessage( mDb->get(), "SqliteDriver::applyChangeset" );
+      context()->logger().error( errMsg );
+
+    }
     statament.close();
   }
 
@@ -893,7 +905,11 @@ void SqliteDriver::applyChangeset( ChangesetReader &reader )
   for ( std::string cmd : triggerCmds )
   {
     statament.prepare( mDb, "%s", cmd.c_str() );
-    sqlite3_step( statament.get() );
+    if ( SQLITE_DONE != sqlite3_step( statament.get() ) )
+    {
+      std::string errMsg = sqliteErrorMessage( mDb->get(), "SqliteDriver::applyChangeset" );
+      context()->logger().error( errMsg );
+    }
     statament.close();
   }
 
@@ -908,7 +924,7 @@ void SqliteDriver::applyChangeset( ChangesetReader &reader )
 }
 
 
-static void addGpkgCrsDefinition( const Context *context, std::shared_ptr<Sqlite3Db> db, const CrsDefinition &crs )
+static void addGpkgCrsDefinition( std::shared_ptr<Sqlite3Db> db, const CrsDefinition &crs )
 {
   // gpkg_spatial_ref_sys
   //   srs_name TEXT NOT NULL, srs_id INTEGER NOT NULL PRIMARY KEY,
@@ -921,8 +937,7 @@ static void addGpkgCrsDefinition( const Context *context, std::shared_ptr<Sqlite
   if ( res != SQLITE_ROW )
   {
     std::string errMsg = sqliteErrorMessage( db->get(), "addGpkgCrsDefinition" );
-    context->logger().error( errMsg );
-    throw GeoDiffException( "Failed to access gpkg_spatial_ref_sys table" );
+    throw GeoDiffException( "Failed to access gpkg_spatial_ref_sys table: " + errMsg );
   }
 
   if ( sqlite3_column_int( stmtCheck.get(), 0 ) )
@@ -936,12 +951,11 @@ static void addGpkgCrsDefinition( const Context *context, std::shared_ptr<Sqlite
   if ( res != SQLITE_DONE )
   {
     std::string errMsg = sqliteErrorMessage( db->get(), "addGpkgCrsDefinition" );
-    context->logger().error( errMsg );
-    throw GeoDiffException( "Failed to insert CRS to gpkg_spatial_ref_sys table" );
+    throw GeoDiffException( "Failed to insert CRS to gpkg_spatial_ref_sys table: " + errMsg );
   }
 }
 
-static void addGpkgSpatialTable( const Context *context, std::shared_ptr<Sqlite3Db> db, const TableSchema &tbl, const Extent &extent )
+static void addGpkgSpatialTable( std::shared_ptr<Sqlite3Db> db, const TableSchema &tbl, const Extent &extent )
 {
   size_t i = tbl.geometryColumn();
   if ( i == SIZE_MAX )
@@ -969,8 +983,7 @@ static void addGpkgSpatialTable( const Context *context, std::shared_ptr<Sqlite3
   if ( res != SQLITE_DONE )
   {
     std::string errMsg = sqliteErrorMessage( db->get(), "addGpkgSpatialTable" );
-    context->logger().error( errMsg );
-    throw GeoDiffException( "Failed to insert row to gpkg_contents table" );
+    throw GeoDiffException( "Failed to insert row to gpkg_contents table: " + errMsg );
   }
 
   // gpkg_geometry_columns
@@ -985,8 +998,7 @@ static void addGpkgSpatialTable( const Context *context, std::shared_ptr<Sqlite3
   if ( res != SQLITE_DONE )
   {
     std::string errMsg = sqliteErrorMessage( db->get(), "addGpkgSpatialTable" );
-    context->logger().error( errMsg );
-    throw GeoDiffException( "Failed to insert row to gpkg_geometry_columns table" );
+    throw GeoDiffException( "Failed to insert row to gpkg_geometry_columns table: " + errMsg );
   }
 }
 
@@ -1000,8 +1012,7 @@ void SqliteDriver::createTables( const std::vector<TableSchema> &tables )
   if ( res != SQLITE_ROW )
   {
     std::string errMsg = sqliteErrorMessage( mDb->get(), "SqliteDriver::createTables" );
-    context()->logger().error( errMsg );
-    throw GeoDiffException( "Failure initializing spatial metadata" );
+    throw GeoDiffException( "Failure initializing spatial metadata: " + errMsg );
   }
 
   for ( const TableSchema &tbl : tables )
@@ -1011,8 +1022,8 @@ void SqliteDriver::createTables( const std::vector<TableSchema> &tables )
 
     if ( tbl.geometryColumn() != SIZE_MAX )
     {
-      addGpkgCrsDefinition( context(), mDb, tbl.crs );
-      addGpkgSpatialTable( context(), mDb, tbl, Extent() );   // TODO: is it OK to set zeros?
+      addGpkgCrsDefinition( mDb, tbl.crs );
+      addGpkgSpatialTable( mDb, tbl, Extent() );   // TODO: is it OK to set zeros?
     }
 
     std::string sql, pkeyCols, columns;
