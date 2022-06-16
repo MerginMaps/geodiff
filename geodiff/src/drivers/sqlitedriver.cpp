@@ -249,14 +249,7 @@ bool tableExists( const Context *context, std::shared_ptr<Sqlite3Db> db, const s
   Sqlite3Stmt stmtHasGeomColumnsInfo;
   stmtHasGeomColumnsInfo.prepare( db, "SELECT name FROM \"%w\".sqlite_master WHERE type='table' "
                                   "AND name='%q'", dbName.c_str(), tableName.c_str() );
-  int rc = sqlite3_step( stmtHasGeomColumnsInfo.get() );
-  if ( rc != SQLITE_ROW )
-  {
-    std::string errMsg = sqliteErrorMessage( db->get(), "tableExists" );
-    context->logger().error( errMsg );
-  }
-
-  return rc == SQLITE_ROW;
+  return sqlite3_step( stmtHasGeomColumnsInfo.get() ) == SQLITE_ROW;
 }
 
 TableSchema SqliteDriver::tableSchema( const std::string &tableName,
