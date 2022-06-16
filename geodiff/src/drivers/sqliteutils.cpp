@@ -249,16 +249,14 @@ bool register_gpkg_extensions( const Context *context, std::shared_ptr<Sqlite3Db
   int rc = sqlite3_enable_load_extension( db->get(), 1 );
   if ( rc )
   {
-    std::string errMsg = sqliteErrorMessage( db->get(), "register_gpkg_extensions" );
-    context->logger().error( errMsg );
+    logSqliteError( db, context->logger(), "register_gpkg_extensions" );
     return false;
   }
 
   rc = sqlite3_gpkg_auto_init( db->get(), NULL, NULL );
   if ( rc )
   {
-    std::string errMsg = sqliteErrorMessage( db->get(), "register_gpkg_extensions" );
-    context->logger().error( errMsg );
+    logSqliteError( db, context->logger(), "register_gpkg_extensions" );
     return false;
   }
 
@@ -338,8 +336,7 @@ void sqliteTriggers( const Context *context, std::shared_ptr<Sqlite3Db> db, std:
   }
   if ( rc != SQLITE_DONE )
   {
-    std::string errMsg = sqliteErrorMessage( db->get(), "sqliteTriggers" );
-    context->logger().error( errMsg );
+    logSqliteError( db, context->logger(), "sqliteTriggers" );
   }
   statament.close();
 }
@@ -387,8 +384,7 @@ ForeignKeys sqliteForeignKeys( const Context *context, std::shared_ptr<Sqlite3Db
       }
       if ( rc != SQLITE_DONE )
       {
-        std::string errMsg = sqliteErrorMessage( db->get(), "sqliteForeignKeys" );
-        context->logger().error( errMsg );
+        logSqliteError( db, context->logger(), "sqliteForeignKeys" );
       }
       pStmt.close();
     }
@@ -446,8 +442,7 @@ void sqliteTables( const Context *context,
   }
   if ( rc != SQLITE_DONE )
   {
-    std::string errMsg = sqliteErrorMessage( db->get(), "sqliteTables" );
-    context->logger().error( errMsg );
+    logSqliteError( db, context->logger(), "sqliteTables" );
   }
   statament.close();
   // result is ordered by name
@@ -491,8 +486,7 @@ std::vector<std::string> sqliteColumnNames(
   }
   if ( rc != SQLITE_DONE )
   {
-    std::string errMsg = sqliteErrorMessage( db->get(), "sqliteColumnNames" );
-    context->logger().error( errMsg );
+    logSqliteError( db, context->logger(), "sqliteColumnNames" );
   }
   pStmt.close();
 
@@ -510,8 +504,7 @@ std::vector<std::string> sqliteColumnNames(
     }
     if ( rc != SQLITE_DONE )
     {
-      std::string errMsg = sqliteErrorMessage( db->get(), "sqliteColumnNames" );
-      context->logger().error( errMsg );
+      logSqliteError( db, context->logger(), "sqliteColumnNames" );
     }
 
     if ( nCol == nKey ) truePk = 1;
@@ -549,8 +542,7 @@ std::vector<std::string> sqliteColumnNames(
   }
   if ( rc != SQLITE_DONE )
   {
-    std::string errMsg = sqliteErrorMessage( db->get(), "sqliteColumnNames" );
-    context->logger().error( errMsg );
+    logSqliteError( db, context->logger(), "sqliteColumnNames" );
   }
   pStmt.close();
 
@@ -588,6 +580,12 @@ std::string sqliteErrorMessage( sqlite3 *db, const std::string &functionName )
   std::string errMsg = std::string( sqlite3_errmsg( db ) );
   std::string errCode = std::to_string( sqlite3_extended_errcode( db ) );
   return "SQLITE3 error [" + errCode + "] from " + functionName + ": " + errMsg;
+}
+
+void logSqliteError( std::shared_ptr<Sqlite3Db> db, const Logger &logger, const std::string &functionName )
+{
+  std::string errMsg = db ? sqliteErrorMessage( db->get(), functionName ) : "unknown SQLite error from " + functionName;
+  logger.error( errMsg );
 }
 
 int parseGpkgbHeaderSize( const std::string &gpkgWkb )

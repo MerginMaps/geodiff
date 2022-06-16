@@ -66,13 +66,11 @@ class Sqlite3SavepointTransaction
         // we had some problems - roll back any pending changes
         if ( sqlite3_exec( mDb.get()->get(), "ROLLBACK TO changeset_apply", 0, 0, 0 ) != SQLITE_OK )
         {
-          std::string errMsg = sqliteErrorMessage( mDb.get()->get(), "~Sqlite3SavepointTransaction" );
-          mContext->logger().error( errMsg );
+          logSqliteError( mDb, mContext->logger(), "~Sqlite3SavepointTransaction" );
         }
         if ( sqlite3_exec( mDb.get()->get(), "RELEASE changeset_apply", 0, 0, 0 ) != SQLITE_OK )
         {
-          std::string errMsg = sqliteErrorMessage( mDb.get()->get(), "~Sqlite3SavepointTransaction" );
-          mContext->logger().error( errMsg );
+          logSqliteError( mDb, mContext->logger(), "~Sqlite3SavepointTransaction" );
         }
       }
     }
@@ -236,15 +234,14 @@ std::vector<std::string> SqliteDriver::listTables( bool useModified )
   }
   if ( rc != SQLITE_DONE )
   {
-    std::string errMsg = sqliteErrorMessage( mDb->get(), "SqliteDriver::listTables" );
-    context()->logger().error( errMsg );
+    logSqliteError( mDb, context()->logger(), "SqliteDriver::listTables" );
   }
 
   // result is ordered by name
   return tableNames;
 }
 
-bool tableExists( const Context *context, std::shared_ptr<Sqlite3Db> db, const std::string &tableName, const std::string &dbName )
+bool tableExists( std::shared_ptr<Sqlite3Db> db, const std::string &tableName, const std::string &dbName )
 {
   Sqlite3Stmt stmtHasGeomColumnsInfo;
   stmtHasGeomColumnsInfo.prepare( db, "SELECT name FROM \"%w\".sqlite_master WHERE type='table' "
@@ -257,7 +254,7 @@ TableSchema SqliteDriver::tableSchema( const std::string &tableName,
 {
   std::string dbName = databaseName( useModified );
 
-  if ( !tableExists( context(), mDb, tableName, dbName ) )
+  if ( !tableExists( mDb, tableName, dbName ) )
     throw GeoDiffException( "Table does not exist: " + tableName );
 
   TableSchema tbl;
@@ -283,12 +280,11 @@ TableSchema SqliteDriver::tableSchema( const std::string &tableName,
   }
   if ( rc != SQLITE_DONE )
   {
-    std::string errMsg = sqliteErrorMessage( mDb->get(), "SqliteDriver::tableSchema" );
-    context()->logger().error( errMsg );
+    logSqliteError( mDb, context()->logger(), "SqliteDriver::tableSchema" );
   }
 
   // check if the geometry columns table is present (it may not be if this is a "pure" sqlite file)
-  if ( tableExists( context(), mDb, "gpkg_geometry_columns", dbName ) )
+  if ( tableExists( mDb, "gpkg_geometry_columns", dbName ) )
   {
     //
     // get geometry column details (geometry type, whether it has Z/M values, CRS id)
@@ -321,8 +317,7 @@ TableSchema SqliteDriver::tableSchema( const std::string &tableName,
     }
     if ( rc != SQLITE_DONE )
     {
-      std::string errMsg = sqliteErrorMessage( mDb->get(), "SqliteDriver::tableSchema" );
-      context()->logger().error( errMsg );
+      logSqliteError( mDb, context()->logger(), "SqliteDriver::tableSchema" );
     }
 
     //
@@ -335,8 +330,7 @@ TableSchema SqliteDriver::tableSchema( const std::string &tableName,
       stmtCrs.prepare( mDb, "SELECT * FROM \"%w\".gpkg_spatial_ref_sys WHERE srs_id = %d", dbName.c_str(), srsId );
       if ( SQLITE_ROW != sqlite3_step( stmtCrs.get() ) )
       {
-        std::string errMsg = sqliteErrorMessage( mDb->get(), "SqliteDriver::tableSchema" );
-        context()->logger().error( errMsg );
+        logSqliteError( mDb, context()->logger(), "SqliteDriver::tableSchema" );
         throw GeoDiffException( "Unable to find entry in gpkg_spatial_ref_sys for srs_id = " + std::to_string( srsId ) );
       }
 
@@ -503,8 +497,7 @@ static void handleInserted( const Context *context, const std::string &tableName
   }
   if ( rc != SQLITE_DONE )
   {
-    std::string errMsg = sqliteErrorMessage( db->get(), "handleInserted" );
-    context->logger().error( errMsg );
+    logSqliteError( db, context->logger(), "handleInserted" );
   }
 }
 
@@ -557,8 +550,7 @@ static void handleUpdated( const Context *context, const std::string &tableName,
           }
           else if ( SQLITE_DONE != res )
           {
-            std::string errMsg = sqliteErrorMessage( db->get(), "handleUpdated" );
-            context->logger().error( errMsg );
+            logSqliteError( db, context->logger(), "handleUpdated" );
           }
         }
 
@@ -585,8 +577,7 @@ static void handleUpdated( const Context *context, const std::string &tableName,
   }
   if ( rc != SQLITE_DONE )
   {
-    std::string errMsg = sqliteErrorMessage( db->get(), "handleUpdated" );
-    context->logger().error( errMsg );
+    logSqliteError( db, context->logger(), "handleUpdated" );
   }
 }
 
@@ -783,9 +774,7 @@ void SqliteDriver::applyChangeset( ChangesetReader &reader )
     int rc = sqlite3_step( statament.get() );
     if ( SQLITE_DONE != rc )
     {
-      std::string errMsg = sqliteErrorMessage( mDb->get(), "SqliteDriver::applyChangeset" );
-      context()->logger().error( errMsg );
-
+      logSqliteError( mDb, context()->logger(), "SqliteDriver::applyChangeset" );
     }
     statament.close();
   }
@@ -900,8 +889,7 @@ void SqliteDriver::applyChangeset( ChangesetReader &reader )
     statament.prepare( mDb, "%s", cmd.c_str() );
     if ( SQLITE_DONE != sqlite3_step( statament.get() ) )
     {
-      std::string errMsg = sqliteErrorMessage( mDb->get(), "SqliteDriver::applyChangeset" );
-      context()->logger().error( errMsg );
+      logSqliteError( mDb, context()->logger(), "SqliteDriver::applyChangeset" );
     }
     statament.close();
   }
@@ -1053,8 +1041,7 @@ void SqliteDriver::createTables( const std::vector<TableSchema> &tables )
     stmt.prepare( mDb, sql );
     if ( sqlite3_step( stmt.get() ) != SQLITE_DONE )
     {
-      std::string errMsg = sqliteErrorMessage( mDb->get(), "SqliteDriver::createTables" );
-      context()->logger().error( errMsg );
+      logSqliteError( mDb, context()->logger(), "SqliteDriver::createTables" );
       throw GeoDiffException( "Failure creating table: " + tbl.name );
     }
   }
@@ -1095,8 +1082,7 @@ void SqliteDriver::dumpData( ChangesetWriter &writer, bool useModified )
     }
     if ( rc != SQLITE_DONE )
     {
-      std::string errMsg = sqliteErrorMessage( mDb->get(), "SqliteDriver::dumpData" );
-      context()->logger().error( errMsg );
+      logSqliteError( mDb, context()->logger(), "SqliteDriver::dumpData" );
     }
   }
 }

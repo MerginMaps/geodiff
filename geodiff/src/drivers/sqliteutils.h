@@ -7,6 +7,7 @@
 #define SQLITEUTILS_H
 
 #include "tableschema.h"
+#include "geodifflogger.hpp"
 
 #include <map>
 #include <memory>
@@ -127,6 +128,12 @@ std::vector<std::string> sqliteColumnNames(
  * Returns a string with the latest SQLite error message and extended error code
  */
 std::string sqliteErrorMessage( sqlite3 *db, const std::string &functionName );
+
+
+/**
+ * Writes SQLite error to the log
+ */
+void logSqliteError( std::shared_ptr<Sqlite3Db> db, const Logger &logger, const std::string &functionName );
 
 /**
  *  Returns size of GeoPackage binary header including envelope
