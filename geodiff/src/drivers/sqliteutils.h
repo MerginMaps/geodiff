@@ -29,10 +29,10 @@ class Sqlite3Db
   public:
     Sqlite3Db();
     ~Sqlite3Db();
-    void open( const std::string &filename );
+    void open( const Logger &logger,  const std::string &filename );
     //! Creates DB file (overwrites if one exists already)
-    void create( const std::string &filename );
-    void exec( const Buffer &buf );
+    void create( const Logger &logger, const std::string &filename );
+    void exec( const Logger &logger, const Buffer &buf );
 
     sqlite3 *get();
     void close();
@@ -46,14 +46,14 @@ class Sqlite3Stmt
   public:
     Sqlite3Stmt();
     ~Sqlite3Stmt();
-    void prepare( std::shared_ptr<Sqlite3Db> db, const std::string &sql );
-    void prepare( std::shared_ptr<Sqlite3Db> db, const char *zFormat, ... );
+    void prepare( const Logger &logger, std::shared_ptr<Sqlite3Db> db, const std::string &sql );
+    void prepare( const Logger &logger, std::shared_ptr<Sqlite3Db> db, const char *zFormat, ... );
     sqlite3_stmt *get();
     void close();
     //! Returns SQL statement with bound parameters expanded
     std::string expandedSql() const;
   private:
-    sqlite3_stmt *db_vprepare( sqlite3 *db, const char *zFormat, va_list ap );
+    sqlite3_stmt *db_vprepare( const Logger &logger, sqlite3 *db, const char *zFormat, va_list ap );
     sqlite3_stmt *mStmt = nullptr;
 };
 
@@ -129,6 +129,10 @@ std::vector<std::string> sqliteColumnNames(
  */
 std::string sqliteErrorMessage( sqlite3 *db, const std::string &functionName );
 
+/**
+ * Throws SQLite exception and saves error to the log.
+ */
+void throwSqliteError( sqlite3 *db, const Logger &logger, const std::string &functionName, const std::string &exceptionDetails );
 
 /**
  * Writes SQLite error to the log
