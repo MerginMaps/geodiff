@@ -7,7 +7,6 @@
 #define SQLITEUTILS_H
 
 #include "tableschema.h"
-#include "geodifflogger.hpp"
 
 #include <map>
 #include <memory>
@@ -95,7 +94,10 @@ class Sqlite3Value
     sqlite3_value *mVal = nullptr;
 };
 
-
+/**
+ * Activates loadable extensions support in SQLite database and loads GPKG
+ * extension. Throws GeoDiffException in case of errors.
+ */
 void register_gpkg_extensions( std::shared_ptr<Sqlite3Db> db );
 
 bool isGeoPackage( const Context *context, std::shared_ptr<Sqlite3Db> db );
@@ -125,19 +127,22 @@ std::vector<std::string> sqliteColumnNames(
 );
 
 /**
- * Returns a string with the latest SQLite error message and extended error code
+ * Returns a string compiled from the given description, SQLite extended
+ * error code and error message
  */
 std::string sqliteErrorMessage( sqlite3 *db, const std::string &description );
 
 /**
- * Throws SQLite exception and saves error to the log.
+ * Throws SQLite exception with the given description and additional error details
+ * from SQLite (extended error code and error text)
  */
 void throwSqliteError( sqlite3 *db, const std::string &description );
 
 /**
- * Writes SQLite error to the log
+ * Writes SQLite error to the log. Error contains given user-friendly description
+ * and additional details from SQLite (extended error code and error text)
  */
-void logSqliteError( std::shared_ptr<Sqlite3Db> db, const Context *context, const std::string &description );
+void logSqliteError( const Context *context, std::shared_ptr<Sqlite3Db> db, const std::string &description );
 
 /**
  *  Returns size of GeoPackage binary header including envelope

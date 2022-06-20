@@ -327,7 +327,7 @@ void sqliteTriggers( const Context *context, std::shared_ptr<Sqlite3Db> db, std:
   }
   if ( rc != SQLITE_DONE )
   {
-    logSqliteError( db, context, "Failed to get list of triggers" );
+    logSqliteError( context, db, "Failed to get list of triggers" );
   }
   statament.close();
 }
@@ -375,7 +375,7 @@ ForeignKeys sqliteForeignKeys( const Context *context, std::shared_ptr<Sqlite3Db
       }
       if ( rc != SQLITE_DONE )
       {
-        logSqliteError( db, context, "Failed to get list of foreing keys" );
+        logSqliteError( context, db, "Failed to get list of foreing keys" );
       }
       pStmt.close();
     }
@@ -433,7 +433,7 @@ void sqliteTables( const Context *context,
   }
   if ( rc != SQLITE_DONE )
   {
-    logSqliteError( db, context, "Failed to get list of tables" );
+    logSqliteError( context, db, "Failed to get list of tables" );
   }
   statament.close();
   // result is ordered by name
@@ -477,7 +477,7 @@ std::vector<std::string> sqliteColumnNames(
   }
   if ( rc != SQLITE_DONE )
   {
-    logSqliteError( db, context, "Failed to get list of primary keys for table " + tableName );
+    logSqliteError( context, db, "Failed to get list of primary keys for table " + tableName );
   }
   pStmt.close();
 
@@ -495,7 +495,7 @@ std::vector<std::string> sqliteColumnNames(
     }
     if ( rc != SQLITE_DONE )
     {
-      logSqliteError( db, context, "Failed to get list of primary keys for table " + tableName );
+      logSqliteError( context, db, "Failed to get list of primary keys for table " + tableName );
     }
 
     if ( nCol == nKey ) truePk = 1;
@@ -533,7 +533,7 @@ std::vector<std::string> sqliteColumnNames(
   }
   if ( rc != SQLITE_DONE )
   {
-    logSqliteError( db, context, "Failed to get list of primary keys for table " + tableName );
+    logSqliteError( context, db, "Failed to get list of primary keys for table " + tableName );
   }
   pStmt.close();
 
@@ -568,20 +568,29 @@ std::vector<std::string> sqliteColumnNames(
 
 std::string sqliteErrorMessage( sqlite3 *db, const std::string &description )
 {
-  std::string errMsg = std::string( sqlite3_errmsg( db ) );
-  std::string errCode = std::to_string( sqlite3_extended_errcode( db ) );
-  return description + " (SQLITE3 error [" + errCode + "]: " + errMsg + ")";
+  std::string errorMessage;
+  if ( db )
+  {
+    std::string errMsg = std::string( sqlite3_errmsg( db ) );
+    std::string errCode = std::to_string( sqlite3_extended_errcode( db ) );
+    errorMessage = description + " (SQLITE3 error [" + errCode + "]: " + errMsg + ")";
+  }
+  else
+  {
+    errorMessage = description + " (unknown SQLite error)";
+  }
+  return errorMessage;
 }
 
-void logSqliteError( std::shared_ptr<Sqlite3Db> db, const Context *context, const std::string &description )
+void logSqliteError( const Context *context, std::shared_ptr<Sqlite3Db> db, const std::string &description )
 {
-  std::string errMsg = db ? sqliteErrorMessage( db->get(), description ) : description + "(unknown SQLite error)";
+  std::string errMsg = sqliteErrorMessage( db->get(), description );
   context->logger().error( errMsg );
 }
 
 void throwSqliteError( sqlite3 *db, const std::string &description )
 {
-  std::string errMsg = db ? sqliteErrorMessage( db, description ) : description + "(unknown SQLite error)";
+  std::string errMsg = sqliteErrorMessage( db, description );
   throw GeoDiffException( errMsg );
 }
 

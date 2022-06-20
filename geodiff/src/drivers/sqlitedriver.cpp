@@ -49,7 +49,7 @@ class Sqlite3DbMutexLocker
 class Sqlite3SavepointTransaction
 {
   public:
-    explicit Sqlite3SavepointTransaction( std::shared_ptr<Sqlite3Db> db, const Context *context )
+    explicit Sqlite3SavepointTransaction( const Context *context, std::shared_ptr<Sqlite3Db> db )
       : mDb( db ), mContext( context )
     {
       if ( sqlite3_exec( mDb.get()->get(), "SAVEPOINT changeset_apply", 0, 0, 0 ) != SQLITE_OK )
@@ -65,11 +65,11 @@ class Sqlite3SavepointTransaction
         // we had some problems - roll back any pending changes
         if ( sqlite3_exec( mDb.get()->get(), "ROLLBACK TO changeset_apply", 0, 0, 0 ) != SQLITE_OK )
         {
-          logSqliteError( mDb, mContext, "Unable to rollback savepoint transaction" );
+          logSqliteError( mContext, mDb, "Unable to rollback savepoint transaction" );
         }
         if ( sqlite3_exec( mDb.get()->get(), "RELEASE changeset_apply", 0, 0, 0 ) != SQLITE_OK )
         {
-          logSqliteError( mDb, mContext, "Unable to release savepoint" );
+          logSqliteError( mContext, mDb, "Unable to release savepoint" );
         }
       }
     }
@@ -224,7 +224,7 @@ std::vector<std::string> SqliteDriver::listTables( bool useModified )
   }
   if ( rc != SQLITE_DONE )
   {
-    logSqliteError( mDb, context(), "Failed to list SQLite tables" );
+    logSqliteError( context(), mDb, "Failed to list SQLite tables" );
   }
 
   // result is ordered by name
@@ -270,7 +270,7 @@ TableSchema SqliteDriver::tableSchema( const std::string &tableName,
   }
   if ( rc != SQLITE_DONE )
   {
-    logSqliteError( mDb, context(), "Failed to get list columns for table " + tableName );
+    logSqliteError( context(), mDb, "Failed to get list columns for table " + tableName );
   }
 
   // check if the geometry columns table is present (it may not be if this is a "pure" sqlite file)
@@ -307,7 +307,7 @@ TableSchema SqliteDriver::tableSchema( const std::string &tableName,
     }
     if ( rc != SQLITE_DONE )
     {
-      logSqliteError( mDb, context(), "Failed to get geometry column info for table " + tableName );
+      logSqliteError( context(), mDb, "Failed to get geometry column info for table " + tableName );
     }
 
     //
@@ -486,7 +486,7 @@ static void handleInserted( const Context *context, const std::string &tableName
   }
   if ( rc != SQLITE_DONE )
   {
-    logSqliteError( db, context, "Failed to write information about inserted rows in table " + tableName );
+    logSqliteError( context, db, "Failed to write information about inserted rows in table " + tableName );
   }
 }
 
@@ -539,7 +539,7 @@ static void handleUpdated( const Context *context, const std::string &tableName,
           }
           else if ( SQLITE_DONE != res )
           {
-            logSqliteError( db, context, "Failed to write information about updated rows in table " + tableName );
+            logSqliteError( context, db, "Failed to write information about updated rows in table " + tableName );
           }
         }
 
@@ -566,7 +566,7 @@ static void handleUpdated( const Context *context, const std::string &tableName,
   }
   if ( rc != SQLITE_DONE )
   {
-    logSqliteError( db, context, "Failed to write information about inserted rows in table " + tableName );
+    logSqliteError( context, db, "Failed to write information about inserted rows in table " + tableName );
   }
 }
 
@@ -744,7 +744,7 @@ void SqliteDriver::applyChangeset( ChangesetReader &reader )
   Sqlite3DbMutexLocker dbMutexLocker( mDb );
 
   // start transaction!
-  Sqlite3SavepointTransaction savepointTransaction( mDb, context() );
+  Sqlite3SavepointTransaction savepointTransaction( context(), mDb );
 
   // TODO: when we deal with foreign keys, it may be useful to temporarily set "PRAGMA defer_foreign_keys = 1"
   // so that if a foreign key is violated, the constraint violation is tolerated until we commit the changes
@@ -763,7 +763,7 @@ void SqliteDriver::applyChangeset( ChangesetReader &reader )
     int rc = sqlite3_step( statament.get() );
     if ( SQLITE_DONE != rc )
     {
-      logSqliteError( mDb, context(), "Failed to drop trigger " + name );
+      logSqliteError( context(), mDb, "Failed to drop trigger " + name );
     }
     statament.close();
   }
@@ -878,7 +878,7 @@ void SqliteDriver::applyChangeset( ChangesetReader &reader )
     statament.prepare( mDb, "%s", cmd.c_str() );
     if ( SQLITE_DONE != sqlite3_step( statament.get() ) )
     {
-      logSqliteError( mDb, context(), "Failed to recreate trigger using SQL \"" + cmd + "\"" );
+      logSqliteError( context(), mDb, "Failed to recreate trigger using SQL \"" + cmd + "\"" );
     }
     statament.close();
   }
@@ -1065,7 +1065,7 @@ void SqliteDriver::dumpData( ChangesetWriter &writer, bool useModified )
     }
     if ( rc != SQLITE_DONE )
     {
-      logSqliteError( mDb, context(), "Failure dumping changeset" );
+      logSqliteError( context(), mDb, "Failure dumping changeset" );
     }
   }
 }
