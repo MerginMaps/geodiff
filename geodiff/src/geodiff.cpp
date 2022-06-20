@@ -877,7 +877,7 @@ int GEODIFF_makeCopySqlite( GEODIFF_ContextH contextHandle, const char *src, con
   Sqlite3Db dbFrom, dbTo;
   try
   {
-    dbFrom.open( context->logger(), src );
+    dbFrom.open( src );
   }
   catch ( const  GeoDiffException &e )
   {
@@ -887,7 +887,7 @@ int GEODIFF_makeCopySqlite( GEODIFF_ContextH contextHandle, const char *src, con
 
   try
   {
-    dbTo.create( context->logger(), dst );
+    dbTo.create( dst );
   }
   catch ( const  GeoDiffException &e )
   {

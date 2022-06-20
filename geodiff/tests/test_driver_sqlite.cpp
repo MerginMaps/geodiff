@@ -424,11 +424,9 @@ TEST( SqliteDriverTest, make_copy_sqlite_concurrent )
   makedir( pathjoin( tmpdir(), testname ) );
   filecopy( testdb, pathjoin( testdir(), "base.gpkg" ) );
 
-  Context *context = static_cast<Context *>( testContext() );
-
   // Make sure DB is in WAL mode. Remove one row - initially there were 3 rows, now there are 2 rows
   Sqlite3Db db;
-  db.open( context->logger(), testdb );
+  db.open( testdb );
   ASSERT_EQ( sqlite3_exec( db.get(), "PRAGMA journal_mode=wal;", nullptr, nullptr, nullptr ), SQLITE_OK );
   ASSERT_EQ( sqlite3_exec( db.get(), "DELETE FROM simple WHERE fid=1;", nullptr, nullptr, nullptr ), SQLITE_OK );
   ASSERT_TRUE( fileexists( pathjoin( tmpdir(), testname, "base.gpkg-wal" ) ) );
@@ -441,17 +439,17 @@ TEST( SqliteDriverTest, make_copy_sqlite_concurrent )
 
   // unsafe copy still thinks there are 3 rows -> change was lost
   std::shared_ptr<Sqlite3Db> dbUnsafe( new Sqlite3Db );
-  dbUnsafe->open( context->logger(), testdbUnsafeCopy );
+  dbUnsafe->open( testdbUnsafeCopy );
   Sqlite3Stmt stmtUnsafe;
-  stmtUnsafe.prepare( context->logger(), dbUnsafe, "%s", "SELECT count(*) FROM simple" );
+  stmtUnsafe.prepare( dbUnsafe, "%s", "SELECT count(*) FROM simple" );
   ASSERT_EQ( sqlite3_step( stmtUnsafe.get() ), SQLITE_ROW );
   ASSERT_EQ( sqlite3_column_int( stmtUnsafe.get(), 0 ), 3 );
 
   // safe copy thinks there are 2 rows -> change got preserved - good!
   std::shared_ptr<Sqlite3Db> dbSafe( new Sqlite3Db );
-  dbSafe->open( context->logger(), testdbSafeCopy );
+  dbSafe->open( testdbSafeCopy );
   Sqlite3Stmt stmtSafe;
-  stmtSafe.prepare( context->logger(), dbSafe, "%s", "SELECT count(*) FROM simple" );
+  stmtSafe.prepare( dbSafe, "%s", "SELECT count(*) FROM simple" );
   ASSERT_EQ( sqlite3_step( stmtSafe.get() ), SQLITE_ROW );
   ASSERT_EQ( sqlite3_column_int( stmtSafe.get(), 0 ), 2 );
 }

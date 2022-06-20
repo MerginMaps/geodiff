@@ -26,17 +26,17 @@ Sqlite3Db::~Sqlite3Db()
   close();
 }
 
-void Sqlite3Db::open( const Logger &logger, const std::string &filename )
+void Sqlite3Db::open( const std::string &filename )
 {
   close();
   int rc = sqlite3_open_v2( filename.c_str(), &mDb, SQLITE_OPEN_READWRITE, nullptr );
   if ( rc )
   {
-    throwSqliteError( mDb, logger, "Unable to open " + filename + " as sqlite3 database" );
+    throwSqliteError( mDb, "Unable to open " + filename + " as sqlite3 database" );
   }
 }
 
-void Sqlite3Db::create( const Logger &logger, const std::string &filename )
+void Sqlite3Db::create( const std::string &filename )
 {
   close();
 
@@ -48,16 +48,16 @@ void Sqlite3Db::create( const Logger &logger, const std::string &filename )
   int rc = sqlite3_open_v2( filename.c_str(), &mDb, SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE, nullptr );
   if ( rc )
   {
-    throwSqliteError( mDb, logger, "Unable to create " + filename + " as sqlite3 database" );
+    throwSqliteError( mDb, "Unable to create " + filename + " as sqlite3 database" );
   }
 }
 
-void Sqlite3Db::exec( const Logger &logger, const Buffer &buf )
+void Sqlite3Db::exec( const Buffer &buf )
 {
   int rc = sqlite3_exec( get(), buf.c_buf(), NULL, 0, NULL );
   if ( rc )
   {
-    throwSqliteError( get(), logger, "Unable to exec buffer on sqlite3 database" );
+    throwSqliteError( get(), "Unable to exec buffer on sqlite3 database" );
   }
 }
 
@@ -86,7 +86,7 @@ Sqlite3Stmt::~Sqlite3Stmt()
   close();
 }
 
-sqlite3_stmt *Sqlite3Stmt::db_vprepare( const Logger &logger, sqlite3 *db, const char *zFormat, va_list ap )
+sqlite3_stmt *Sqlite3Stmt::db_vprepare( sqlite3 *db, const char *zFormat, va_list ap )
 {
   char *zSql;
   int rc;
@@ -102,29 +102,29 @@ sqlite3_stmt *Sqlite3Stmt::db_vprepare( const Logger &logger, sqlite3 *db, const
   sqlite3_free( zSql );
   if ( rc )
   {
-    throwSqliteError( db, logger, "Unable to prepare SQL statement in db_vprepare() call" );
+    throwSqliteError( db, "Unable to prepare SQL statement in db_vprepare() call" );
   }
   return pStmt;
 }
 
-void Sqlite3Stmt::prepare( const Logger &logger, std::shared_ptr<Sqlite3Db> db, const char *zFormat, ... )
+void Sqlite3Stmt::prepare( std::shared_ptr<Sqlite3Db> db, const char *zFormat, ... )
 {
   if ( db && db->get() )
   {
     va_list ap;
     va_start( ap, zFormat );
-    mStmt = db_vprepare( logger, db->get(), zFormat, ap );
+    mStmt = db_vprepare( db->get(), zFormat, ap );
     va_end( ap );
   }
 }
 
-void Sqlite3Stmt::prepare( const Logger &logger, std::shared_ptr<Sqlite3Db> db, const std::string &sql )
+void Sqlite3Stmt::prepare( std::shared_ptr<Sqlite3Db> db, const std::string &sql )
 {
   sqlite3_stmt *pStmt;
   int rc = sqlite3_prepare_v2( db->get(), sql.c_str(), -1, &pStmt, nullptr );
   if ( rc )
   {
-    throwSqliteError( db->get(), logger, "Unable to prepare SQL statement in prepare() call" );
+    throwSqliteError( db->get(), "Unable to prepare SQL statement in prepare() call" );
   }
   mStmt = pStmt;
 }
@@ -238,24 +238,20 @@ bool Sqlite3Value::operator==( const Sqlite3Value &other ) const
 ///
 
 
-bool register_gpkg_extensions( const Context *context, std::shared_ptr<Sqlite3Db> db )
+void register_gpkg_extensions( std::shared_ptr<Sqlite3Db> db )
 {
   // register GPKG functions like ST_IsEmpty
   int rc = sqlite3_enable_load_extension( db->get(), 1 );
   if ( rc )
   {
-    logSqliteError( db, context->logger(), "Failed to enable SQLite extensions loading" );
-    return false;
+    throwSqliteError( db->get(), "Failed to enable SQLite extensions loading" );
   }
 
   rc = sqlite3_gpkg_auto_init( db->get(), NULL, NULL );
   if ( rc )
   {
-    logSqliteError( db, context->logger(), "Failed to initialize GPKG extension" );
-    return false;
+    throwSqliteError( db->get(), "Failed to initialize GPKG extension" );
   }
-
-  return true;
 }
 
 
@@ -277,7 +273,7 @@ void sqliteTriggers( const Context *context, std::shared_ptr<Sqlite3Db> db, std:
   triggerCmds.clear();
 
   Sqlite3Stmt statament;
-  statament.prepare( context->logger(), db, "%s", "select name, sql from sqlite_master where type = 'trigger'" );
+  statament.prepare( db, "%s", "select name, sql from sqlite_master where type = 'trigger'" );
   int rc;
   while ( SQLITE_ROW == ( rc = sqlite3_step( statament.get() ) ) )
   {
@@ -331,7 +327,7 @@ void sqliteTriggers( const Context *context, std::shared_ptr<Sqlite3Db> db, std:
   }
   if ( rc != SQLITE_DONE )
   {
-    logSqliteError( db, context->logger(), "Failed to get list of triggers" );
+    logSqliteError( db, context, "Failed to get list of triggers" );
   }
   statament.close();
 }
@@ -349,7 +345,7 @@ ForeignKeys sqliteForeignKeys( const Context *context, std::shared_ptr<Sqlite3Db
     if ( isLayerTable( fromTableName ) )
     {
       Sqlite3Stmt pStmt;     /* SQL statement being run */
-      pStmt.prepare( context->logger(), db, "SELECT * FROM %s.pragma_foreign_key_list(%Q)", dbName.c_str(), fromTableName.c_str() );
+      pStmt.prepare( db, "SELECT * FROM %s.pragma_foreign_key_list(%Q)", dbName.c_str(), fromTableName.c_str() );
       int rc;
       while ( SQLITE_ROW == ( rc = sqlite3_step( pStmt.get() ) ) )
       {
@@ -379,7 +375,7 @@ ForeignKeys sqliteForeignKeys( const Context *context, std::shared_ptr<Sqlite3Db
       }
       if ( rc != SQLITE_DONE )
       {
-        logSqliteError( db, context->logger(), "Failed to get list of foreing keys" );
+        logSqliteError( db, context, "Failed to get list of foreing keys" );
       }
       pStmt.close();
     }
@@ -399,7 +395,7 @@ void sqliteTables( const Context *context,
                                " WHERE type='table' AND sql NOT LIKE 'CREATE VIRTUAL%%'\n"
                                " ORDER BY name";
   Sqlite3Stmt statament;
-  statament.prepare( context->logger(), db, "%s", all_tables_sql.c_str() );
+  statament.prepare( db, "%s", all_tables_sql.c_str() );
   int rc;
   while ( SQLITE_ROW == ( rc = sqlite3_step( statament.get() ) ) )
   {
@@ -437,7 +433,7 @@ void sqliteTables( const Context *context,
   }
   if ( rc != SQLITE_DONE )
   {
-    logSqliteError( db, context->logger(), "Failed to get list of tables" );
+    logSqliteError( db, context, "Failed to get list of tables" );
   }
   statament.close();
   // result is ordered by name
@@ -469,7 +465,7 @@ std::vector<std::string> sqliteColumnNames(
   **   *  For all other rowid tables, the rowid is the true primary key.
   */
   const char *zTab = tableName.c_str();
-  pStmt.prepare( context->logger(), db, "PRAGMA %s.index_list=%Q", zDb.c_str(), zTab );
+  pStmt.prepare( db, "PRAGMA %s.index_list=%Q", zDb.c_str(), zTab );
   int rc;
   while ( SQLITE_ROW == ( rc = sqlite3_step( pStmt.get() ) ) )
   {
@@ -481,7 +477,7 @@ std::vector<std::string> sqliteColumnNames(
   }
   if ( rc != SQLITE_DONE )
   {
-    logSqliteError( db, context->logger(), "Failed to get list of primary keys for table " + tableName );
+    logSqliteError( db, context, "Failed to get list of primary keys for table " + tableName );
   }
   pStmt.close();
 
@@ -490,7 +486,7 @@ std::vector<std::string> sqliteColumnNames(
     int nKey = 0;
     int nCol = 0;
     truePk = 0;
-    pStmt.prepare( context->logger(), db, "PRAGMA %s.index_xinfo=%Q", zDb.c_str(), zPkIdxName.c_str() );
+    pStmt.prepare( db, "PRAGMA %s.index_xinfo=%Q", zDb.c_str(), zPkIdxName.c_str() );
     while ( SQLITE_ROW == ( rc = sqlite3_step( pStmt.get() ) ) )
     {
       nCol++;
@@ -499,7 +495,7 @@ std::vector<std::string> sqliteColumnNames(
     }
     if ( rc != SQLITE_DONE )
     {
-      logSqliteError( db, context->logger(), "Failed to get list of primary keys for table " + tableName );
+      logSqliteError( db, context, "Failed to get list of primary keys for table " + tableName );
     }
 
     if ( nCol == nKey ) truePk = 1;
@@ -518,7 +514,7 @@ std::vector<std::string> sqliteColumnNames(
     truePk = 1;
     nPK = 1;
   }
-  pStmt.prepare( context->logger(), db, "PRAGMA %s.table_info=%Q", zDb.c_str(), zTab );
+  pStmt.prepare( db, "PRAGMA %s.table_info=%Q", zDb.c_str(), zTab );
 
   naz = nPK;
   az.resize( naz );
@@ -537,7 +533,7 @@ std::vector<std::string> sqliteColumnNames(
   }
   if ( rc != SQLITE_DONE )
   {
-    logSqliteError( db, context->logger(), "Failed to get list of primary keys for table " + tableName );
+    logSqliteError( db, context, "Failed to get list of primary keys for table " + tableName );
   }
   pStmt.close();
 
@@ -577,16 +573,15 @@ std::string sqliteErrorMessage( sqlite3 *db, const std::string &description )
   return description + " (SQLITE3 error [" + errCode + "]: " + errMsg + ")";
 }
 
-void logSqliteError( std::shared_ptr<Sqlite3Db> db, const Logger &logger, const std::string &description )
+void logSqliteError( std::shared_ptr<Sqlite3Db> db, const Context *context, const std::string &description )
 {
   std::string errMsg = db ? sqliteErrorMessage( db->get(), description ) : description + "(unknown SQLite error)";
-  logger.error( errMsg );
+  context->logger().error( errMsg );
 }
 
-void throwSqliteError( sqlite3 *db, const Logger &logger, const std::string &description )
+void throwSqliteError( sqlite3 *db, const std::string &description )
 {
   std::string errMsg = db ? sqliteErrorMessage( db, description ) : description + "(unknown SQLite error)";
-  logger.error( errMsg );
   throw GeoDiffException( errMsg );
 }
 

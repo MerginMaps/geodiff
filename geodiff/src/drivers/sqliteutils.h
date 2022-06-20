@@ -29,10 +29,10 @@ class Sqlite3Db
   public:
     Sqlite3Db();
     ~Sqlite3Db();
-    void open( const Logger &logger,  const std::string &filename );
+    void open( const std::string &filename );
     //! Creates DB file (overwrites if one exists already)
-    void create( const Logger &logger, const std::string &filename );
-    void exec( const Logger &logger, const Buffer &buf );
+    void create( const std::string &filename );
+    void exec( const Buffer &buf );
 
     sqlite3 *get();
     void close();
@@ -46,14 +46,14 @@ class Sqlite3Stmt
   public:
     Sqlite3Stmt();
     ~Sqlite3Stmt();
-    void prepare( const Logger &logger, std::shared_ptr<Sqlite3Db> db, const std::string &sql );
-    void prepare( const Logger &logger, std::shared_ptr<Sqlite3Db> db, const char *zFormat, ... );
+    void prepare( std::shared_ptr<Sqlite3Db> db, const std::string &sql );
+    void prepare( std::shared_ptr<Sqlite3Db> db, const char *zFormat, ... );
     sqlite3_stmt *get();
     void close();
     //! Returns SQL statement with bound parameters expanded
     std::string expandedSql() const;
   private:
-    sqlite3_stmt *db_vprepare( const Logger &logger, sqlite3 *db, const char *zFormat, va_list ap );
+    sqlite3_stmt *db_vprepare( sqlite3 *db, const char *zFormat, va_list ap );
     sqlite3_stmt *mStmt = nullptr;
 };
 
@@ -96,7 +96,7 @@ class Sqlite3Value
 };
 
 
-bool register_gpkg_extensions( const Context *context, std::shared_ptr<Sqlite3Db> db );
+void register_gpkg_extensions( std::shared_ptr<Sqlite3Db> db );
 
 bool isGeoPackage( const Context *context, std::shared_ptr<Sqlite3Db> db );
 
@@ -132,12 +132,12 @@ std::string sqliteErrorMessage( sqlite3 *db, const std::string &description );
 /**
  * Throws SQLite exception and saves error to the log.
  */
-void throwSqliteError( sqlite3 *db, const Logger &logger, const std::string &description );
+void throwSqliteError( sqlite3 *db, const std::string &description );
 
 /**
  * Writes SQLite error to the log
  */
-void logSqliteError( std::shared_ptr<Sqlite3Db> db, const Logger &logger, const std::string &description );
+void logSqliteError( std::shared_ptr<Sqlite3Db> db, const Context *context, const std::string &description );
 
 /**
  *  Returns size of GeoPackage binary header including envelope
