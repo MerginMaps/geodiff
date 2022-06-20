@@ -54,8 +54,7 @@ class Sqlite3SavepointTransaction
     {
       if ( sqlite3_exec( mDb.get()->get(), "SAVEPOINT changeset_apply", 0, 0, 0 ) != SQLITE_OK )
       {
-        std::string errMsg = sqliteErrorMessage( mDb.get()->get(), "Sqlite3SavepointTransaction" );
-        throw GeoDiffException( "Unable to start savepoint: " + errMsg );
+        throwSqliteError( mDb.get()->get(), mContext->logger(), "Unable to start savepoint transaction" );
       }
     }
 
@@ -66,11 +65,11 @@ class Sqlite3SavepointTransaction
         // we had some problems - roll back any pending changes
         if ( sqlite3_exec( mDb.get()->get(), "ROLLBACK TO changeset_apply", 0, 0, 0 ) != SQLITE_OK )
         {
-          logSqliteError( mDb, mContext->logger(), "~Sqlite3SavepointTransaction" );
+          logSqliteError( mDb, mContext->logger(), "Unable to rollback savepoint transaction" );
         }
         if ( sqlite3_exec( mDb.get()->get(), "RELEASE changeset_apply", 0, 0, 0 ) != SQLITE_OK )
         {
-          logSqliteError( mDb, mContext->logger(), "~Sqlite3SavepointTransaction" );
+          logSqliteError( mDb, mContext->logger(), "Unable to release savepoint" );
         }
       }
     }
@@ -81,8 +80,7 @@ class Sqlite3SavepointTransaction
       // there were no errors - release the savepoint and our changes get saved
       if ( sqlite3_exec( mDb.get()->get(), "RELEASE changeset_apply", 0, 0, 0 ) != SQLITE_OK )
       {
-        std::string errMsg = sqliteErrorMessage( mDb.get()->get(), "commitChanges" );
-        throw GeoDiffException( "Failed to release savepoint: " + errMsg );
+        throwSqliteError( mDb.get()->get(), mContext->logger(), "Failed to release savepoint" );
       }
       // reset handler to the database so that the destructor does nothing
       mDb.reset();
@@ -234,7 +232,7 @@ std::vector<std::string> SqliteDriver::listTables( bool useModified )
   }
   if ( rc != SQLITE_DONE )
   {
-    logSqliteError( mDb, context()->logger(), "SqliteDriver::listTables" );
+    logSqliteError( mDb, context()->logger(), "Failed to list SQLite tables" );
   }
 
   // result is ordered by name
@@ -280,7 +278,7 @@ TableSchema SqliteDriver::tableSchema( const std::string &tableName,
   }
   if ( rc != SQLITE_DONE )
   {
-    logSqliteError( mDb, context()->logger(), "SqliteDriver::tableSchema" );
+    logSqliteError( mDb, context()->logger(), "Failed to get list columns for table " + tableName );
   }
 
   // check if the geometry columns table is present (it may not be if this is a "pure" sqlite file)
@@ -317,7 +315,7 @@ TableSchema SqliteDriver::tableSchema( const std::string &tableName,
     }
     if ( rc != SQLITE_DONE )
     {
-      logSqliteError( mDb, context()->logger(), "SqliteDriver::tableSchema" );
+      logSqliteError( mDb, context()->logger(), "Failed to get geometry column info for table " + tableName );
     }
 
     //
@@ -497,7 +495,7 @@ static void handleInserted( const Context *context, const std::string &tableName
   }
   if ( rc != SQLITE_DONE )
   {
-    logSqliteError( db, context->logger(), "handleInserted" );
+    logSqliteError( db, context->logger(), "Failed to write information about inserted rows" );
   }
 }
 
@@ -550,7 +548,7 @@ static void handleUpdated( const Context *context, const std::string &tableName,
           }
           else if ( SQLITE_DONE != res )
           {
-            logSqliteError( db, context->logger(), "handleUpdated" );
+            logSqliteError( db, context->logger(), "Failed to write information about updated rows" );
           }
         }
 
@@ -577,7 +575,7 @@ static void handleUpdated( const Context *context, const std::string &tableName,
   }
   if ( rc != SQLITE_DONE )
   {
-    logSqliteError( db, context->logger(), "handleUpdated" );
+    logSqliteError( db, context->logger(), "Failed to write information about inserted rows" );
   }
 }
 
@@ -774,7 +772,7 @@ void SqliteDriver::applyChangeset( ChangesetReader &reader )
     int rc = sqlite3_step( statament.get() );
     if ( SQLITE_DONE != rc )
     {
-      logSqliteError( mDb, context()->logger(), "SqliteDriver::applyChangeset" );
+      logSqliteError( mDb, context()->logger(), "Failed to drop trigger " + name );
     }
     statament.close();
   }
@@ -889,7 +887,7 @@ void SqliteDriver::applyChangeset( ChangesetReader &reader )
     statament.prepare( context()->logger(), mDb, "%s", cmd.c_str() );
     if ( SQLITE_DONE != sqlite3_step( statament.get() ) )
     {
-      logSqliteError( mDb, context()->logger(), "SqliteDriver::applyChangeset" );
+      logSqliteError( mDb, context()->logger(), "Failed to recreate trigger using SQL \"" + cmd + "\"" );
     }
     statament.close();
   }
@@ -917,7 +915,7 @@ static void addGpkgCrsDefinition( const Logger &logger, std::shared_ptr<Sqlite3D
   int res = sqlite3_step( stmtCheck.get() );
   if ( res != SQLITE_ROW )
   {
-    throwSqliteError( db->get(), logger, "addGpkgCrsDefinition", "Failed to access gpkg_spatial_ref_sys table" );
+    throwSqliteError( db->get(), logger, "Failed to access gpkg_spatial_ref_sys table" );
   }
 
   if ( sqlite3_column_int( stmtCheck.get(), 0 ) )
@@ -930,7 +928,7 @@ static void addGpkgCrsDefinition( const Logger &logger, std::shared_ptr<Sqlite3D
   res = sqlite3_step( stmt.get() );
   if ( res != SQLITE_DONE )
   {
-    throwSqliteError( db->get(), logger, "addGpkgCrsDefinition", "Failed to insert CRS to gpkg_spatial_ref_sys table" );
+    throwSqliteError( db->get(), logger, "Failed to insert CRS to gpkg_spatial_ref_sys table" );
   }
 }
 
@@ -961,7 +959,7 @@ static void addGpkgSpatialTable( const Logger &logger, std::shared_ptr<Sqlite3Db
   int res = sqlite3_step( stmt.get() );
   if ( res != SQLITE_DONE )
   {
-    throwSqliteError( db->get(), logger, "addGpkgSpatialTable", "Failed to insert row to gpkg_contents table" );
+    throwSqliteError( db->get(), logger, "Failed to insert row to gpkg_contents table" );
   }
 
   // gpkg_geometry_columns
@@ -975,7 +973,7 @@ static void addGpkgSpatialTable( const Logger &logger, std::shared_ptr<Sqlite3Db
   res = sqlite3_step( stmtGeomCol.get() );
   if ( res != SQLITE_DONE )
   {
-    throwSqliteError( db->get(), logger, "addGpkgSpatialTable", "Failed to insert row to gpkg_geometry_columns table" );
+    throwSqliteError( db->get(), logger, "Failed to insert row to gpkg_geometry_columns table" );
   }
 }
 
@@ -988,7 +986,7 @@ void SqliteDriver::createTables( const std::vector<TableSchema> &tables )
   int res = sqlite3_step( stmt1.get() );
   if ( res != SQLITE_ROW )
   {
-    throwSqliteError( mDb->get(), context()->logger(), "SqliteDriver::createTables", "Failure initializing spatial metadata" );
+    throwSqliteError( mDb->get(), context()->logger(), "Failure initializing spatial metadata" );
   }
 
   for ( const TableSchema &tbl : tables )
@@ -1036,7 +1034,7 @@ void SqliteDriver::createTables( const std::vector<TableSchema> &tables )
     stmt.prepare( context()->logger(), mDb, sql );
     if ( sqlite3_step( stmt.get() ) != SQLITE_DONE )
     {
-      throwSqliteError( mDb->get(), context()->logger(), "SqliteDriver::createTables", "Failure creating table: " + tbl.name );
+      throwSqliteError( mDb->get(), context()->logger(), "Failure creating table: " + tbl.name );
     }
   }
 }
@@ -1076,7 +1074,7 @@ void SqliteDriver::dumpData( ChangesetWriter &writer, bool useModified )
     }
     if ( rc != SQLITE_DONE )
     {
-      logSqliteError( mDb, context()->logger(), "SqliteDriver::dumpData" );
+      logSqliteError( mDb, context()->logger(), "Failure dumping changeset" );
     }
   }
 }

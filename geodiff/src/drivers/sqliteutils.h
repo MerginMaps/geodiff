@@ -127,17 +127,17 @@ std::vector<std::string> sqliteColumnNames(
 /**
  * Returns a string with the latest SQLite error message and extended error code
  */
-std::string sqliteErrorMessage( sqlite3 *db, const std::string &functionName );
+std::string sqliteErrorMessage( sqlite3 *db, const std::string &description );
 
 /**
  * Throws SQLite exception and saves error to the log.
  */
-void throwSqliteError( sqlite3 *db, const Logger &logger, const std::string &functionName, const std::string &exceptionDetails );
+void throwSqliteError( sqlite3 *db, const Logger &logger, const std::string &description );
 
 /**
  * Writes SQLite error to the log
  */
-void logSqliteError( std::shared_ptr<Sqlite3Db> db, const Logger &logger, const std::string &functionName );
+void logSqliteError( std::shared_ptr<Sqlite3Db> db, const Logger &logger, const std::string &description );
 
 /**
  *  Returns size of GeoPackage binary header including envelope
