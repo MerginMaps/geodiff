@@ -32,8 +32,7 @@ void Sqlite3Db::open( const std::string &filename )
   int rc = sqlite3_open_v2( filename.c_str(), &mDb, SQLITE_OPEN_READWRITE, nullptr );
   if ( rc )
   {
-    std::string errMsg = mDb ? sqlite3_errmsg( mDb ) : "unknown error";
-    throw GeoDiffException( "Unable to open " + filename + " as sqlite3 database (" + errMsg + ")" );
+    throwSqliteError( mDb, "Unable to open " + filename + " as sqlite3 database" );
   }
 }
 
@@ -49,8 +48,7 @@ void Sqlite3Db::create( const std::string &filename )
   int rc = sqlite3_open_v2( filename.c_str(), &mDb, SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE, nullptr );
   if ( rc )
   {
-    std::string errMsg = mDb ? sqlite3_errmsg( mDb ) : "unknown error";
-    throw GeoDiffException( "Unable to create " + filename + " as sqlite3 database (" + errMsg + ")" );
+    throwSqliteError( mDb, "Unable to create " + filename + " as sqlite3 database" );
   }
 }
 
@@ -59,7 +57,7 @@ void Sqlite3Db::exec( const Buffer &buf )
   int rc = sqlite3_exec( get(), buf.c_buf(), NULL, 0, NULL );
   if ( rc )
   {
-    throw GeoDiffException( "Unable to exec buffer on sqlite3 database" );
+    throwSqliteError( get(), "Unable to exec buffer on sqlite3 database" );
   }
 }
 
@@ -104,7 +102,7 @@ sqlite3_stmt *Sqlite3Stmt::db_vprepare( sqlite3 *db, const char *zFormat, va_lis
   sqlite3_free( zSql );
   if ( rc )
   {
-    throw GeoDiffException( "SQL statement error: " + std::string( sqlite3_errmsg( db ) ) );
+    throwSqliteError( db, "Unable to prepare SQL statement in db_vprepare() call" );
   }
   return pStmt;
 }
@@ -126,7 +124,7 @@ void Sqlite3Stmt::prepare( std::shared_ptr<Sqlite3Db> db, const std::string &sql
   int rc = sqlite3_prepare_v2( db->get(), sql.c_str(), -1, &pStmt, nullptr );
   if ( rc )
   {
-    throw GeoDiffException( "SQL statement error: " + std::string( sqlite3_errmsg( db->get() ) ) );
+    throwSqliteError( db->get(), "Unable to prepare SQL statement in prepare() call" );
   }
   mStmt = pStmt;
 }
@@ -240,29 +238,28 @@ bool Sqlite3Value::operator==( const Sqlite3Value &other ) const
 ///
 
 
-bool register_gpkg_extensions( std::shared_ptr<Sqlite3Db> db )
+void register_gpkg_extensions( std::shared_ptr<Sqlite3Db> db )
 {
   // register GPKG functions like ST_IsEmpty
   int rc = sqlite3_enable_load_extension( db->get(), 1 );
   if ( rc )
   {
-    return false;
+    throwSqliteError( db->get(), "Failed to enable SQLite extensions loading" );
   }
 
   rc = sqlite3_gpkg_auto_init( db->get(), NULL, NULL );
   if ( rc )
   {
-    return false;
+    throwSqliteError( db->get(), "Failed to initialize GPKG extension" );
   }
-
-  return true;
 }
 
 
-bool isGeoPackage( std::shared_ptr<Sqlite3Db> db )
+bool isGeoPackage( const Context *context, std::shared_ptr<Sqlite3Db> db )
 {
   std::vector<std::string> tableNames;
-  sqliteTables( db,
+  sqliteTables( context,
+                db,
                 "main",
                 tableNames );
 
@@ -270,14 +267,15 @@ bool isGeoPackage( std::shared_ptr<Sqlite3Db> db )
 }
 
 
-void sqliteTriggers( std::shared_ptr<Sqlite3Db> db, std::vector<std::string> &triggerNames, std::vector<std::string> &triggerCmds )
+void sqliteTriggers( const Context *context, std::shared_ptr<Sqlite3Db> db, std::vector<std::string> &triggerNames, std::vector<std::string> &triggerCmds )
 {
   triggerNames.clear();
   triggerCmds.clear();
 
   Sqlite3Stmt statament;
   statament.prepare( db, "%s", "select name, sql from sqlite_master where type = 'trigger'" );
-  while ( SQLITE_ROW == sqlite3_step( statament.get() ) )
+  int rc;
+  while ( SQLITE_ROW == ( rc = sqlite3_step( statament.get() ) ) )
   {
     const char *name = ( char * ) sqlite3_column_text( statament.get(), 0 );
     const char *sql = ( char * ) sqlite3_column_text( statament.get(), 1 );
@@ -327,14 +325,18 @@ void sqliteTriggers( std::shared_ptr<Sqlite3Db> db, std::vector<std::string> &tr
     triggerNames.push_back( name );
     triggerCmds.push_back( sql );
   }
+  if ( rc != SQLITE_DONE )
+  {
+    logSqliteError( context, db, "Failed to get list of triggers" );
+  }
   statament.close();
 }
 
 
-ForeignKeys sqliteForeignKeys( std::shared_ptr<Sqlite3Db> db, const std::string &dbName )
+ForeignKeys sqliteForeignKeys( const Context *context, std::shared_ptr<Sqlite3Db> db, const std::string &dbName )
 {
   std::vector<std::string> fromTableNames;
-  sqliteTables( db, dbName, fromTableNames );
+  sqliteTables( context, db, dbName, fromTableNames );
 
   ForeignKeys ret;
 
@@ -344,7 +346,8 @@ ForeignKeys sqliteForeignKeys( std::shared_ptr<Sqlite3Db> db, const std::string 
     {
       Sqlite3Stmt pStmt;     /* SQL statement being run */
       pStmt.prepare( db, "SELECT * FROM %s.pragma_foreign_key_list(%Q)", dbName.c_str(), fromTableName.c_str() );
-      while ( SQLITE_ROW == sqlite3_step( pStmt.get() ) )
+      int rc;
+      while ( SQLITE_ROW == ( rc = sqlite3_step( pStmt.get() ) ) )
       {
         const char *fk_to_table = ( const char * )sqlite3_column_text( pStmt.get(), 2 );
         const char *fk_from = ( const char * )sqlite3_column_text( pStmt.get(), 3 );
@@ -355,12 +358,12 @@ ForeignKeys sqliteForeignKeys( std::shared_ptr<Sqlite3Db> db, const std::string 
           // TODO: this part is not speed-optimized and could be slower for databases with a lot of
           // columns and/or foreign keys. For each entry we grab column names again
           // and we search for index of value in plain std::vector array...
-          std::vector<std::string> fromColumnNames = sqliteColumnNames( db, dbName, fromTableName );
+          std::vector<std::string> fromColumnNames = sqliteColumnNames( context, db, dbName, fromTableName );
           int fk_from_id = indexOf( fromColumnNames, fk_from );
           if ( fk_from_id < 0 )
             continue;
 
-          std::vector<std::string> toColumnNames = sqliteColumnNames( db, dbName, fk_to_table );
+          std::vector<std::string> toColumnNames = sqliteColumnNames( context, db, dbName, fk_to_table );
           int fk_to_id = indexOf( toColumnNames, fk_to );
           if ( fk_to_id < 0 )
             continue;
@@ -370,6 +373,10 @@ ForeignKeys sqliteForeignKeys( std::shared_ptr<Sqlite3Db> db, const std::string 
           ret.insert( std::pair<TableColumn, TableColumn>( from, to ) );
         }
       }
+      if ( rc != SQLITE_DONE )
+      {
+        logSqliteError( context, db, "Failed to get list of foreing keys" );
+      }
       pStmt.close();
     }
   }
@@ -378,7 +385,8 @@ ForeignKeys sqliteForeignKeys( std::shared_ptr<Sqlite3Db> db, const std::string 
 }
 
 
-void sqliteTables( std::shared_ptr<Sqlite3Db> db,
+void sqliteTables( const Context *context,
+                   std::shared_ptr<Sqlite3Db> db,
                    const std::string &dbName,
                    std::vector<std::string> &tableNames )
 {
@@ -388,7 +396,8 @@ void sqliteTables( std::shared_ptr<Sqlite3Db> db,
                                " ORDER BY name";
   Sqlite3Stmt statament;
   statament.prepare( db, "%s", all_tables_sql.c_str() );
-  while ( SQLITE_ROW == sqlite3_step( statament.get() ) )
+  int rc;
+  while ( SQLITE_ROW == ( rc = sqlite3_step( statament.get() ) ) )
   {
     const char *name = ( const char * )sqlite3_column_text( statament.get(), 0 );
     if ( !name )
@@ -422,7 +431,11 @@ void sqliteTables( std::shared_ptr<Sqlite3Db> db,
 
     tableNames.push_back( tableName );
   }
-
+  if ( rc != SQLITE_DONE )
+  {
+    logSqliteError( context, db, "Failed to get list of tables" );
+  }
+  statament.close();
   // result is ordered by name
 }
 
@@ -431,6 +444,7 @@ void sqliteTables( std::shared_ptr<Sqlite3Db> db,
  * inspired by sqldiff.c function: columnNames()
  */
 std::vector<std::string> sqliteColumnNames(
+  const Context *context,
   std::shared_ptr<Sqlite3Db> db,
   const std::string &zDb,                /* Database ("main" or "aux") to query */
   const std::string &tableName   /* Name of table to return details of */
@@ -452,13 +466,18 @@ std::vector<std::string> sqliteColumnNames(
   */
   const char *zTab = tableName.c_str();
   pStmt.prepare( db, "PRAGMA %s.index_list=%Q", zDb.c_str(), zTab );
-  while ( SQLITE_ROW == sqlite3_step( pStmt.get() ) )
+  int rc;
+  while ( SQLITE_ROW == ( rc = sqlite3_step( pStmt.get() ) ) )
   {
     if ( sqlite3_stricmp( ( const char * )sqlite3_column_text( pStmt.get(), 3 ), "pk" ) == 0 )
     {
       zPkIdxName = ( const char * ) sqlite3_column_text( pStmt.get(), 1 );
       break;
     }
+  }
+  if ( rc != SQLITE_DONE )
+  {
+    logSqliteError( context, db, "Failed to get list of primary keys for table " + tableName );
   }
   pStmt.close();
 
@@ -468,12 +487,17 @@ std::vector<std::string> sqliteColumnNames(
     int nCol = 0;
     truePk = 0;
     pStmt.prepare( db, "PRAGMA %s.index_xinfo=%Q", zDb.c_str(), zPkIdxName.c_str() );
-    while ( SQLITE_ROW == sqlite3_step( pStmt.get() ) )
+    while ( SQLITE_ROW == ( rc = sqlite3_step( pStmt.get() ) ) )
     {
       nCol++;
       if ( sqlite3_column_int( pStmt.get(), 5 ) ) { nKey++; continue; }
       if ( sqlite3_column_int( pStmt.get(), 1 ) >= 0 ) truePk = 1;
     }
+    if ( rc != SQLITE_DONE )
+    {
+      logSqliteError( context, db, "Failed to get list of primary keys for table " + tableName );
+    }
+
     if ( nCol == nKey ) truePk = 1;
     if ( truePk )
     {
@@ -494,7 +518,7 @@ std::vector<std::string> sqliteColumnNames(
 
   naz = nPK;
   az.resize( naz );
-  while ( SQLITE_ROW == sqlite3_step( pStmt.get() ) )
+  while ( SQLITE_ROW == ( rc = sqlite3_step( pStmt.get() ) ) )
   {
     int iPKey;
     std::string name = ( char * )sqlite3_column_text( pStmt.get(), 1 );
@@ -506,6 +530,10 @@ std::vector<std::string> sqliteColumnNames(
     {
       az.push_back( name );
     }
+  }
+  if ( rc != SQLITE_DONE )
+  {
+    logSqliteError( context, db, "Failed to get list of primary keys for table " + tableName );
   }
   pStmt.close();
 
@@ -536,6 +564,34 @@ std::vector<std::string> sqliteColumnNames(
   }
 
   return az;
+}
+
+std::string sqliteErrorMessage( sqlite3 *db, const std::string &description )
+{
+  std::string errorMessage;
+  if ( db )
+  {
+    std::string errMsg = std::string( sqlite3_errmsg( db ) );
+    std::string errCode = std::to_string( sqlite3_extended_errcode( db ) );
+    errorMessage = description + " (SQLITE3 error [" + errCode + "]: " + errMsg + ")";
+  }
+  else
+  {
+    errorMessage = description + " (unknown SQLite error)";
+  }
+  return errorMessage;
+}
+
+void logSqliteError( const Context *context, std::shared_ptr<Sqlite3Db> db, const std::string &description )
+{
+  std::string errMsg = sqliteErrorMessage( db->get(), description );
+  context->logger().error( errMsg );
+}
+
+void throwSqliteError( sqlite3 *db, const std::string &description )
+{
+  std::string errMsg = sqliteErrorMessage( db, description );
+  throw GeoDiffException( errMsg );
 }
 
 int parseGpkgbHeaderSize( const std::string &gpkgWkb )
