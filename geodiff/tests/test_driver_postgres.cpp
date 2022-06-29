@@ -112,6 +112,77 @@ TEST( PostgresDriverTest, test_basic )
   ASSERT_TRUE( sch.crs.wkt.rfind( "GEOGCS[\"WGS 84\"", 0 ) == 0 );
 }
 
+TEST( PostgresDriverTest, test_datatypes )
+{
+  std::vector<std::string> driverNames = Driver::drivers();
+  EXPECT_TRUE( std::find( driverNames.begin(), driverNames.end(), "postgres" ) != driverNames.end() );
+
+  std::string conninfo = pgTestConnInfo();
+  execSqlCommands( conninfo, pathjoin( testdir(), "postgres", "datatypes.sql" ) );
+
+  DriverParametersMap params;
+  params["conninfo"] = conninfo;
+  params["base"] = "gd_datatypes";
+
+  std::unique_ptr<Driver> driver( Driver::createDriver( static_cast<Context *>( testContext() ), "postgres" ) );
+  ASSERT_TRUE( driver );
+  driver->open( params );
+
+  std::vector<std::string> tables = driver->listTables();
+  ASSERT_EQ( tables.size(), 1 );
+  ASSERT_EQ( tables[0], "simple" );
+
+  TableSchema sch = driver->tableSchema( "simple" );
+  ASSERT_EQ( sch.name, "simple" );
+  ASSERT_EQ( sch.columns.size(), 6 );
+
+  ASSERT_EQ( sch.columns[0].name, "fid" );
+  ASSERT_EQ( sch.columns[0].type.dbType, "integer" );
+  ASSERT_EQ( sch.columns[0].isPrimaryKey, true );
+  ASSERT_EQ( sch.columns[0].isNotNull, true );
+  ASSERT_EQ( sch.columns[0].isAutoIncrement, true );
+  ASSERT_EQ( sch.columns[0].isGeometry, false );
+
+  ASSERT_EQ( sch.columns[1].name, "geometry" );
+  ASSERT_EQ( sch.columns[1].type.dbType, "geometry(Point,4326)" );
+  ASSERT_EQ( sch.columns[1].isPrimaryKey, false );
+  ASSERT_EQ( sch.columns[1].isNotNull, false );
+  ASSERT_EQ( sch.columns[1].isAutoIncrement, false );
+  ASSERT_EQ( sch.columns[1].isGeometry, true );
+  ASSERT_EQ( sch.columns[1].geomType, "POINT" );
+  ASSERT_EQ( sch.columns[1].geomSrsId, 4326 );
+  ASSERT_EQ( sch.columns[1].geomHasZ, false );
+  ASSERT_EQ( sch.columns[1].geomHasM, false );
+
+  ASSERT_EQ( sch.columns[2].name, "name_text" );
+  ASSERT_EQ( sch.columns[2].type.dbType, "text" );
+  ASSERT_EQ( sch.columns[2].isPrimaryKey, false );
+  ASSERT_EQ( sch.columns[2].isNotNull, false );
+  ASSERT_EQ( sch.columns[2].isAutoIncrement, false );
+  ASSERT_EQ( sch.columns[2].isGeometry, false );
+
+  ASSERT_EQ( sch.columns[3].name, "name_varchar" );
+  ASSERT_EQ( sch.columns[3].type.dbType, "character varying" );
+  ASSERT_EQ( sch.columns[3].isPrimaryKey, false );
+  ASSERT_EQ( sch.columns[3].isNotNull, false );
+  ASSERT_EQ( sch.columns[3].isAutoIncrement, false );
+  ASSERT_EQ( sch.columns[3].isGeometry, false );
+
+  ASSERT_EQ( sch.columns[4].name, "name_varchar_len" );
+  ASSERT_EQ( sch.columns[4].type.dbType, "character varying(50)" );
+  ASSERT_EQ( sch.columns[4].isPrimaryKey, false );
+  ASSERT_EQ( sch.columns[4].isNotNull, false );
+  ASSERT_EQ( sch.columns[4].isAutoIncrement, false );
+  ASSERT_EQ( sch.columns[4].isGeometry, false );
+
+  ASSERT_EQ( sch.columns[5].name, "name_char_len" );
+  ASSERT_EQ( sch.columns[5].type.dbType, "character(100)" );
+  ASSERT_EQ( sch.columns[5].isPrimaryKey, false );
+  ASSERT_EQ( sch.columns[5].isNotNull, false );
+  ASSERT_EQ( sch.columns[5].isAutoIncrement, false );
+  ASSERT_EQ( sch.columns[5].isGeometry, false );
+}
+
 void testCreateChangeset( const std::string &testname, const std::string &conninfo, const std::string &schemaBase, const std::string &schemaModified, const std::string &expectedChangeset )
 {
   makedir( pathjoin( tmpdir(), testname ) );

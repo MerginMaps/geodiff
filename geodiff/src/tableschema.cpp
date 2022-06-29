@@ -121,7 +121,8 @@ TableColumnType postgresToBaseColumn(
   else if ( dbType == "text" || startsWith( dbType, "text(" ) ||
             dbType == "varchar" || startsWith( dbType, "varchar(" ) ||
             dbType == "character varying" || startsWith( dbType, "character varying(" ) ||
-            dbType == "char" || dbType == "citetext" )
+            dbType == "char" || startsWith( dbType, "char(" ) || startsWith( dbType, "character(" ) ||
+            dbType == "citetext" )
   {
     type.baseType = TableColumnType::TEXT;
   }
