@@ -122,7 +122,7 @@ TableColumnType postgresToBaseColumn(
             dbType == "varchar" || startsWith( dbType, "varchar(" ) ||
             dbType == "character varying" || startsWith( dbType, "character varying(" ) ||
             dbType == "char" || startsWith( dbType, "char(" ) || startsWith( dbType, "character(" ) ||
-            dbType == "citetext" )
+            dbType == "citetext" || dbType == "uuid" )
   {
     type.baseType = TableColumnType::TEXT;
   }

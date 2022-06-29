@@ -1,4 +1,6 @@
 
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+
 DROP SCHEMA IF EXISTS gd_datatypes CASCADE;
 
 CREATE SCHEMA gd_datatypes;
@@ -9,10 +11,19 @@ CREATE TABLE gd_datatypes.simple (
     "name_text" text,
     "name_varchar" character varying,
     "name_varchar_len" character varying(50),
-    "name_char_len" character(100)
+    "name_char_len" character(100),
+    "feature_id" uuid DEFAULT uuid_generate_v4()
 );
 
-INSERT INTO gd_datatypes.simple VALUES (
+INSERT INTO gd_datatypes.simple (
+    "fid",
+    "geometry",
+    "name_text",
+    "name_varchar",
+    "name_varchar_len",
+    "name_char_len"
+)
+VALUES (
     1,
     ST_GeomFromText('Point (-1.08891928864569065 0.46101231190150482)', 4326),
     'feature1',
