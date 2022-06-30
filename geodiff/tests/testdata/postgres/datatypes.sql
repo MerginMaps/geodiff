@@ -1,6 +1,4 @@
 
-CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
-
 DROP SCHEMA IF EXISTS gd_datatypes CASCADE;
 DROP SCHEMA IF EXISTS gd_datatypes_copy CASCADE;
 
