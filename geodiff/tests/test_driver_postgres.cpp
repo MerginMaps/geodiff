@@ -205,6 +205,58 @@ TEST( PostgresDriverTest, test_datatypes )
   ASSERT_EQ( sch.columns[7].isGeometry, false );
 }
 
+TEST( PostgresDriverTest, test_makeCopy )
+{
+  std::vector<std::string> driverNames = Driver::drivers();
+  EXPECT_TRUE( std::find( driverNames.begin(), driverNames.end(), "postgres" ) != driverNames.end() );
+
+  std::string conninfo = pgTestConnInfo();
+  execSqlCommands( conninfo, pathjoin( testdir(), "postgres", "datatypes.sql" ) );
+
+  DriverParametersMap params;
+  params["conninfo"] = conninfo;
+  params["base"] = "gd_datatypes";
+
+  std::unique_ptr<Driver> driver( Driver::createDriver( static_cast<Context *>( testContext() ), "postgres" ) );
+  ASSERT_TRUE( driver );
+  driver->open( params );
+
+  std::vector<std::string> tables = driver->listTables();
+  ASSERT_EQ( tables.size(), 1 );
+  ASSERT_EQ( tables[0], "simple" );
+
+  TableSchema srcSchema = driver->tableSchema( "simple" );
+
+  // make copy, it should preserve column datatypes as we are copying between
+  // the same drivers
+  EXPECT_EQ( GEODIFF_makeCopy( testContext(), "postgres", conninfo.c_str(), "gd_datatypes", "postgres", conninfo.c_str(), "gd_datatypes_copy" ), GEODIFF_SUCCESS );
+
+  // read schema of the copy
+  std::unique_ptr<Driver> driver2( Driver::createDriver( static_cast<Context *>( testContext() ), "postgres" ) );
+  ASSERT_TRUE( driver2 );
+
+  params["base"] = "gd_datatypes_copy";
+  driver2->open( params );
+
+  tables = driver2->listTables();
+  ASSERT_EQ( tables.size(), 1 );
+  ASSERT_EQ( tables[0], "simple" );
+
+  TableSchema dstSchema = driver->tableSchema( "simple" );
+
+  ASSERT_EQ( srcSchema.columns.size(), dstSchema.columns.size() );
+
+  // make sure columns has the same datatypes
+  for ( size_t i = 0; i < srcSchema.columns.size(); ++i )
+  {
+    TableColumnInfo &srcColumn = srcSchema.columns[i];
+    TableColumnInfo &dstColumn = dstSchema.columns[i];
+
+    ASSERT_EQ( srcColumn.type.baseType, dstColumn.type.baseType );
+    ASSERT_EQ( srcColumn.type, dstColumn.type );
+  }
+}
+
 void testCreateChangeset( const std::string &testname, const std::string &conninfo, const std::string &schemaBase, const std::string &schemaModified, const std::string &expectedChangeset )
 {
   makedir( pathjoin( tmpdir(), testname ) );
