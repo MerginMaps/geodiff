@@ -770,17 +770,19 @@ int GEODIFF_makeCopy( GEODIFF_ContextH contextHandle,
     return GEODIFF_ERROR;
   }
 
-  std::unique_ptr<Driver> driverSrc( Driver::createDriver( context, std::string( driverSrcName ) ) );
+  std::string srcDriverName( driverSrcName );
+  std::string dstDriverName( driverDstName );
+  std::unique_ptr<Driver> driverSrc( Driver::createDriver( context, srcDriverName ) );
   if ( !driverSrc )
   {
-    context->logger().error( "Cannot create driver " + std::string( driverSrcName ) );
+    context->logger().error( "Cannot create driver " + srcDriverName );
     return GEODIFF_ERROR;
   }
 
-  std::unique_ptr<Driver> driverDst( Driver::createDriver( context, std::string( driverDstName ) ) );
+  std::unique_ptr<Driver> driverDst( Driver::createDriver( context, dstDriverName ) );
   if ( !driverDst )
   {
-    context->logger().error( "Cannot create driver " + std::string( driverDstName ) );
+    context->logger().error( "Cannot create driver " + dstDriverName );
     return GEODIFF_ERROR;
   }
 
@@ -797,10 +799,16 @@ int GEODIFF_makeCopy( GEODIFF_ContextH contextHandle,
     // get source tables
     std::vector<TableSchema> tables;
     std::vector<std::string> tableNames = driverSrc->listTables();
+
     for ( const std::string &tableName : tableNames )
     {
       TableSchema tbl = driverSrc->tableSchema( tableName );
-      tableSchemaConvert( driverDstName, tbl );
+      // convert table schemas only if source and descrination drivers are
+      // different, otherwise copied table will have different column types
+      if ( srcDriverName != dstDriverName )
+      {
+        tableSchemaConvert( driverDstName, tbl );
+      }
       tables.push_back( tbl );
     }
 
