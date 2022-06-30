@@ -222,7 +222,7 @@ std::vector<std::string> SqliteDriver::listTables( bool useModified )
 
     tableNames.push_back( tableName );
   }
-  if ( rc != SQLITE_DONE )
+  if ( rc != SQLITE_DONE && rc != SQLITE_ROW )
   {
     logSqliteError( context(), mDb, "Failed to list SQLite tables" );
   }
@@ -268,7 +268,7 @@ TableSchema SqliteDriver::tableSchema( const std::string &tableName,
 
     tbl.columns.push_back( columnInfo );
   }
-  if ( rc != SQLITE_DONE )
+  if ( rc != SQLITE_DONE && rc != SQLITE_ROW )
   {
     logSqliteError( context(), mDb, "Failed to get list columns for table " + tableName );
   }
@@ -305,7 +305,7 @@ TableSchema SqliteDriver::tableSchema( const std::string &tableName,
       TableColumnInfo &col = tbl.columns[i];
       col.setGeometry( geomTypeName, srsId, hasM, hasZ );
     }
-    if ( rc != SQLITE_DONE )
+    if ( rc != SQLITE_DONE && rc != SQLITE_ROW )
     {
       logSqliteError( context(), mDb, "Failed to get geometry column info for table " + tableName );
     }
@@ -484,7 +484,7 @@ static void handleInserted( const Context *context, const std::string &tableName
 
     writer.writeEntry( e );
   }
-  if ( rc != SQLITE_DONE )
+  if ( rc != SQLITE_DONE && rc != SQLITE_ROW )
   {
     logSqliteError( context, db, "Failed to write information about inserted rows in table " + tableName );
   }
@@ -564,7 +564,7 @@ static void handleUpdated( const Context *context, const std::string &tableName,
       writer.writeEntry( e );
     }
   }
-  if ( rc != SQLITE_DONE )
+  if ( rc != SQLITE_DONE && rc != SQLITE_ROW )
   {
     logSqliteError( context, db, "Failed to write information about inserted rows in table " + tableName );
   }
@@ -1063,7 +1063,7 @@ void SqliteDriver::dumpData( ChangesetWriter &writer, bool useModified )
       }
       writer.writeEntry( e );
     }
-    if ( rc != SQLITE_DONE )
+    if ( rc != SQLITE_DONE && rc != SQLITE_ROW )
     {
       logSqliteError( context(), mDb, "Failure dumping changeset" );
     }
