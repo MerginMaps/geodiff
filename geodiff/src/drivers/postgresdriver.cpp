@@ -471,7 +471,7 @@ static bool isColumnInt( const TableColumnInfo &col )
 
 static bool isColumnDouble( const TableColumnInfo &col )
 {
-  return col.type == "real" || col.type == "double precision";
+  return col.type == "real" || col.type == "double precision" || startsWith( col.type.dbType, "numeric" );
 }
 
 static bool isColumnText( const TableColumnInfo &col )
