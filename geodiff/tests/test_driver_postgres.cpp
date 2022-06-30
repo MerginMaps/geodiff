@@ -134,7 +134,7 @@ TEST( PostgresDriverTest, test_datatypes )
 
   TableSchema sch = driver->tableSchema( "simple" );
   ASSERT_EQ( sch.name, "simple" );
-  ASSERT_EQ( sch.columns.size(), 7 );
+  ASSERT_EQ( sch.columns.size(), 8 );
 
   ASSERT_EQ( sch.columns[0].name, "fid" );
   ASSERT_EQ( sch.columns[0].type.baseType, TableColumnType::INTEGER );
@@ -195,6 +195,14 @@ TEST( PostgresDriverTest, test_datatypes )
   ASSERT_EQ( sch.columns[6].isNotNull, false );
   ASSERT_EQ( sch.columns[6].isAutoIncrement, false );
   ASSERT_EQ( sch.columns[6].isGeometry, false );
+
+  ASSERT_EQ( sch.columns[7].name, "col_numeric" );
+  ASSERT_EQ( sch.columns[7].type.baseType, TableColumnType::DOUBLE );
+  ASSERT_EQ( sch.columns[7].type.dbType, "numeric(10,3)" );
+  ASSERT_EQ( sch.columns[7].isPrimaryKey, false );
+  ASSERT_EQ( sch.columns[7].isNotNull, false );
+  ASSERT_EQ( sch.columns[7].isAutoIncrement, false );
+  ASSERT_EQ( sch.columns[7].isGeometry, false );
 }
 
 void testCreateChangeset( const std::string &testname, const std::string &conninfo, const std::string &schemaBase, const std::string &schemaModified, const std::string &expectedChangeset )

@@ -12,7 +12,8 @@ CREATE TABLE gd_datatypes.simple (
     "name_varchar" character varying,
     "name_varchar_len" character varying(50),
     "name_char_len" character(100),
-    "feature_id" uuid DEFAULT uuid_generate_v4()
+    "feature_id" uuid DEFAULT uuid_generate_v4(),
+    "col_numeric" numeric(10,3)
 );
 
 INSERT INTO gd_datatypes.simple (
@@ -21,7 +22,8 @@ INSERT INTO gd_datatypes.simple (
     "name_text",
     "name_varchar",
     "name_varchar_len",
-    "name_char_len"
+    "name_char_len",
+    "col_numeric"
 )
 VALUES (
     1,
@@ -29,5 +31,6 @@ VALUES (
     'feature1',
     'feature1 varchar',
     'feature1 varchar(50)',
-    'feature1 char(100)'
+    'feature1 char(100)',
+    31.203
 );
