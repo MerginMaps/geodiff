@@ -800,16 +800,22 @@ int GEODIFF_makeCopy( GEODIFF_ContextH contextHandle,
     std::vector<TableSchema> tables;
     std::vector<std::string> tableNames = driverSrc->listTables();
 
-    for ( const std::string &tableName : tableNames )
+    if ( srcDriverName != dstDriverName )
     {
-      TableSchema tbl = driverSrc->tableSchema( tableName );
-      // convert table schemas only if source and descrination drivers are
-      // different, otherwise copied table will have different column types
-      if ( srcDriverName != dstDriverName )
+      for ( const std::string &tableName : tableNames )
       {
+        TableSchema tbl = driverSrc->tableSchema( tableName );
         tableSchemaConvert( driverDstName, tbl );
+        tables.push_back( tbl );
       }
-      tables.push_back( tbl );
+    }
+    else
+    {
+      for ( const std::string &tableName : tableNames )
+      {
+        TableSchema tbl = driverSrc->tableSchema( tableName );
+        tables.push_back( tbl );
+      }
     }
 
     // get source data
