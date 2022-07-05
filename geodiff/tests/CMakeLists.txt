@@ -76,6 +76,7 @@ SET(TESTS
     test_driver_sqlite.cpp
     test_utils.cpp
     test_geometry_utils.cpp
+    test_skip_tables.cpp
 )
 
 FOREACH(TESTSRC ${TESTS})
