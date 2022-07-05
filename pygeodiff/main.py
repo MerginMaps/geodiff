@@ -23,14 +23,26 @@ class GeoDiff:
             set level (Errors by default)
         """
         self.clib = GeoDiffLib(libname)
-  
+
     def set_logger_callback(self, callback):
         """
             Assign custom logger
             Replace default stdout/stderr logger with custom.
-            callback function has 2 arguments: (int) errorCode, (string) msg 
+            callback function has 2 arguments: (int) errorCode, (string) msg
         """
         return self.clib.set_logger_callback(callback)
+
+    def set_tables_to_skip(self, tables):
+        """
+            Set list of tables to exclude from geodiff operations. Once defined, these
+            tables will be excluded from the following operations: create changeset,
+            apply changeset, rebase, get database schema, dump database contents, copy
+            database between different drivers.
+
+            Tables passes as semicolon separated list, e.g. "table1;table2;...;tableN".
+            If empty string is passed, list will be reset.
+        """
+        return self.clib.set_tables_to_skip(tables)
 
     LevelError = 1
     LevelWarning = 2

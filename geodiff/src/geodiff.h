@@ -103,6 +103,17 @@ GEODIFF_EXPORT int GEODIFF_CX_setLoggerCallback( GEODIFF_ContextH contextHandle,
  */
 GEODIFF_EXPORT int GEODIFF_CX_setMaximumLoggerLevel( GEODIFF_ContextH contextHandle, GEODIFF_LoggerLevel maxLogLevel );
 
+/**
+ * Set list of tables to exclude from geodiff operations. Once defined, these tables
+ * will be excluded from the following operations: create changeset, apply changeset,
+ * rebase, get database schema, dump database contents, copy database between different
+ * drivers.
+ *
+ * Tables passes as semicolon separated list, e.g. "table1;table2;...;tableN".
+ * If empty string is passed, list will be reset.
+ */
+GEODIFF_EXPORT int GEODIFF_CX_setTablesToSkip( GEODIFF_ContextH contextHandle, const char *tables );
+
 
 //! Returns version in format X.Y.Z where xyz are positive integers
 GEODIFF_EXPORT const char *GEODIFF_version();

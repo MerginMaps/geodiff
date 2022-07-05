@@ -185,6 +185,11 @@ class GeoDiffLib:
         func.argtypes = [ctypes.c_void_p, ctypes.c_int]
         func(self.context, maxLevel)
 
+    def set_tables_to_skip(self, tables):
+        func = self.lib.GEODIFF_CX_setTablesToSkip
+        func.argtypes = [ctypes.c_void_p, ctypes.c_char_p]
+        func(self.context, ctypes.c_char_p(tables.encode('utf-8')))
+
     def version(self):
         func = self.lib.GEODIFF_version
         func.restype = ctypes.c_char_p
@@ -458,13 +463,13 @@ class GeoDiffLib:
 
     def create_wkb_from_gpkg_header(self, geometry):
         func = self.lib.GEODIFF_createWkbFromGpkgHeader
-        func.argtypes = [ctypes.c_void_p, 
-                         ctypes.POINTER(ctypes.c_char), 
-                         ctypes.c_size_t, 
-                         ctypes.POINTER(ctypes.POINTER(ctypes.c_char)), 
+        func.argtypes = [ctypes.c_void_p,
+                         ctypes.POINTER(ctypes.c_char),
+                         ctypes.c_size_t,
+                         ctypes.POINTER(ctypes.POINTER(ctypes.c_char)),
                          ctypes.POINTER(ctypes.c_size_t)]
         func.restype = ctypes.c_int
-        
+
         out = ctypes.POINTER(ctypes.c_char)()
         out_size = ctypes.c_size_t(len(geometry))
         res = func(self.context, geometry, ctypes.c_size_t(len(geometry)), ctypes.byref(out), ctypes.byref(out_size))
