@@ -677,6 +677,11 @@ static int handleCmdCopy( GEODIFF_ContextH context, const std::vector<std::strin
 
   if ( driver1Name == "sqlite" && driver2Name == "sqlite" )
   {
+    if ( !tablesToSkip.empty() )
+    {
+      std::cout << "Source and destination drivers are \"sqlite\". Option \"--skip-tables\" will be ignored." << std::endl;
+    }
+
     int ret = GEODIFF_makeCopySqlite( context, chInput.data(), chOutput.data() );
     if ( ret != GEODIFF_SUCCESS )
     {

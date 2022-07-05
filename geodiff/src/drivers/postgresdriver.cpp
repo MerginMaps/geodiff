@@ -677,6 +677,7 @@ void PostgresDriver::createChangeset( ChangesetWriter &writer )
 
   std::vector<std::string> tablesBase = listTables( false );
   std::vector<std::string> tablesModified = listTables( true );
+  const std::vector<std::string> tablesToSkip = context()->tablesToSkip();
 
   if ( tablesBase != tablesModified )
   {
@@ -687,6 +688,12 @@ void PostgresDriver::createChangeset( ChangesetWriter &writer )
 
   for ( const std::string &tableName : tablesBase )
   {
+    // skip table if necessary
+    if ( std::any_of( tablesToSkip.begin(), tablesToSkip.end(), std::bind( std::equal_to< std::string >(), std::placeholders::_1, tableName ) ) )
+    {
+      continue;
+    }
+
     TableSchema tbl = tableSchema( tableName );
     TableSchema tblNew = tableSchema( tableName, true );
 
@@ -811,6 +818,8 @@ void PostgresDriver::applyChangeset( ChangesetReader &reader )
   // start a transaction, so that all changes get committed at once (or nothing get committed)
   PostgresTransaction transaction( mConn );
 
+  const std::vector<std::string> tablesToSkip = context()->tablesToSkip();
+
   int conflictCount = 0;
   ChangesetEntry entry;
   while ( reader.nextEntry( entry ) )
@@ -819,6 +828,12 @@ void PostgresDriver::applyChangeset( ChangesetReader &reader )
 
     if ( startsWith( tableName, "gpkg_" ) )
       continue;   // skip any changes to GPKG meta tables
+
+    // skip table if necessary
+    if ( std::any_of( tablesToSkip.begin(), tablesToSkip.end(), std::bind( std::equal_to< std::string >(), std::placeholders::_1, tableName ) ) )
+    {
+      continue;
+    }
 
     if ( tableName != lastTableName )
     {
@@ -1007,9 +1022,16 @@ void PostgresDriver::dumpData( ChangesetWriter &writer, bool useModified )
   if ( !mConn )
     throw GeoDiffException( "Not connected to a database" );
 
+  const std::vector<std::string> tablesToSkip = context()->tablesToSkip();
   std::vector<std::string> tables = listTables();
   for ( const std::string &tableName : tables )
   {
+    // skip table if necessary
+    if ( std::any_of( tablesToSkip.begin(), tablesToSkip.end(), std::bind( std::equal_to< std::string >(), std::placeholders::_1, tableName ) ) )
+    {
+      continue;
+    }
+
     TableSchema tbl = tableSchema( tableName, useModified );
     if ( !tbl.hasPrimaryKey() )
       continue;  // ignore tables without primary key - they can't be compared properly
