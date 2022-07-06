@@ -471,7 +471,8 @@ static bool isColumnInt( const TableColumnInfo &col )
 
 static bool isColumnDouble( const TableColumnInfo &col )
 {
-  return col.type == "real" || col.type == "double precision" || startsWith( col.type.dbType, "numeric" );
+  return col.type == "real" || col.type == "double precision" ||
+         startsWith( col.type.dbType, "numeric" ) || startsWith( col.type.dbType, "decimal" );
 }
 
 static bool isColumnText( const TableColumnInfo &col )
@@ -480,7 +481,7 @@ static bool isColumnText( const TableColumnInfo &col )
          col.type == "varchar" || startsWith( col.type.dbType, "varchar(" ) ||
          col.type == "character varying" || startsWith( col.type.dbType, "character varying(" ) ||
          col.type == "char" || startsWith( col.type.dbType, "char(" ) || startsWith( col.type.dbType, "character(" ) ||
-         col.type == "citext" || col.type == "uuid";
+         col.type == "citext";
 }
 
 static bool isColumnGeometry( const TableColumnInfo &col )
@@ -510,7 +511,7 @@ static Value resultToValue( const PostgresResult &res, int r, size_t i, const Ta
     {
       v.setDouble( atof( valueStr.c_str() ) );
     }
-    else if ( isColumnText( col ) )
+    else if ( isColumnText( col ) || col.type == "uuid" )
     {
       v.setString( Value::TypeText, valueStr.c_str(), valueStr.size() );
     }
