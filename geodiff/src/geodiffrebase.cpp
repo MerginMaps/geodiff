@@ -205,15 +205,13 @@ int _parse_old_changeset(
   ChangesetReader &reader_BASE_THEIRS,
   DatabaseRebaseInfo &dbInfo )
 {
-  const std::vector<std::string> tablesToSkip = context->tablesToSkip();
-
   ChangesetEntry entry;
   while ( reader_BASE_THEIRS.nextEntry( entry ) )
   {
     std::string tableName = entry.table->name;
 
     // skip table if necessary
-    if ( std::any_of( tablesToSkip.begin(), tablesToSkip.end(), std::bind( std::equal_to< std::string >(), std::placeholders::_1, tableName ) ) )
+    if ( std::any_of( context->tablesToSkip().begin(), context->tablesToSkip().end(), std::bind( std::equal_to< std::string >(), std::placeholders::_1, tableName ) ) )
     {
       continue;
     }
@@ -259,15 +257,13 @@ int _find_mapping_for_new_changeset(
     freeIndices[mapId.first] = *std::max_element( oldSet.begin(), oldSet.end() ) + 1;
   }
 
-  const std::vector<std::string> tablesToSkip = context->tablesToSkip();
-
   ChangesetEntry entry;
   while ( reader.nextEntry( entry ) )
   {
     std::string tableName = entry.table->name;
 
     // skip table if necessary
-    if ( std::any_of( tablesToSkip.begin(), tablesToSkip.end(), std::bind( std::equal_to< std::string >(), std::placeholders::_1, tableName ) ) )
+    if ( std::any_of( context->tablesToSkip().begin(), context->tablesToSkip().end(), std::bind( std::equal_to< std::string >(), std::placeholders::_1, tableName ) ) )
     {
       continue;
     }
@@ -540,14 +536,12 @@ void _prepare_new_changeset( const Context *context,
   std::map<std::string, ChangesetTable> tableDefinitions;
   std::map<std::string, std::vector<ChangesetEntry> > tableChanges;
 
-  const std::vector<std::string> tablesToSkip = context->tablesToSkip();
-
   while ( reader.nextEntry( entry ) )
   {
     std::string tableName = entry.table->name;
 
     // skip table if necessary
-    if ( std::any_of( tablesToSkip.begin(), tablesToSkip.end(), std::bind( std::equal_to< std::string >(), std::placeholders::_1, tableName ) ) )
+    if ( std::any_of( context->tablesToSkip().begin(), context->tablesToSkip().end(), std::bind( std::equal_to< std::string >(), std::placeholders::_1, tableName ) ) )
     {
       continue;
     }

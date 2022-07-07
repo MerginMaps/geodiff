@@ -810,8 +810,6 @@ int GEODIFF_makeCopy( GEODIFF_ContextH contextHandle,
     connSrc["conninfo"] = std::string( driverSrcExtraInfo );
     driverSrc->open( connSrc );
 
-    const std::vector<std::string> tablesToSkip = context->tablesToSkip();
-
     // get source tables
     std::vector<TableSchema> tables;
     std::vector<std::string> tableNames = driverSrc->listTables();
@@ -821,7 +819,7 @@ int GEODIFF_makeCopy( GEODIFF_ContextH contextHandle,
       for ( const std::string &tableName : tableNames )
       {
       // skip table if necessary
-      if ( std::any_of( tablesToSkip.begin(), tablesToSkip.end(), std::bind( std::equal_to< std::string >(), std::placeholders::_1, tableName ) ) )
+      if ( std::any_of( context->tablesToSkip().begin(), context->tablesToSkip().end(), std::bind( std::equal_to< std::string >(), std::placeholders::_1, tableName ) ) )
       {
         continue;
       }
@@ -1038,14 +1036,12 @@ int GEODIFF_schema( GEODIFF_ContextH contextHandle, const char *driverName, cons
       conn["conninfo"] = std::string( driverExtraInfo );
     driver->open( conn );
 
-    const std::vector<std::string> tablesToSkip = context->tablesToSkip();
-
     // prepare JSON
     auto tablesData = nlohmann::json::array();
     for ( const std::string &tableName : driver->listTables() )
     {
       // skip table if necessary
-      if ( std::any_of( tablesToSkip.begin(), tablesToSkip.end(), std::bind( std::equal_to< std::string >(), std::placeholders::_1, tableName ) ) )
+      if ( std::any_of( context->tablesToSkip().begin(), context->tablesToSkip().end(), std::bind( std::equal_to< std::string >(), std::placeholders::_1, tableName ) ) )
       {
         continue;
       }
