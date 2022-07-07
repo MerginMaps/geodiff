@@ -134,7 +134,7 @@ TEST( PostgresDriverTest, test_datatypes )
 
   TableSchema sch = driver->tableSchema( "simple" );
   ASSERT_EQ( sch.name, "simple" );
-  ASSERT_EQ( sch.columns.size(), 8 );
+  ASSERT_EQ( sch.columns.size(), 9 );
 
   ASSERT_EQ( sch.columns[0].name, "fid" );
   ASSERT_EQ( sch.columns[0].type.baseType, TableColumnType::INTEGER );
@@ -204,13 +204,13 @@ TEST( PostgresDriverTest, test_datatypes )
   ASSERT_EQ( sch.columns[7].isAutoIncrement, false );
   ASSERT_EQ( sch.columns[7].isGeometry, false );
 
-  ASSERT_EQ( sch.columns[7].name, "col_decimal" );
-  ASSERT_EQ( sch.columns[7].type.baseType, TableColumnType::DOUBLE );
-  ASSERT_EQ( sch.columns[7].type.dbType, "decimal(10,3)" );
-  ASSERT_EQ( sch.columns[7].isPrimaryKey, false );
-  ASSERT_EQ( sch.columns[7].isNotNull, false );
-  ASSERT_EQ( sch.columns[7].isAutoIncrement, false );
-  ASSERT_EQ( sch.columns[7].isGeometry, false );
+  ASSERT_EQ( sch.columns[8].name, "col_decimal" );
+  ASSERT_EQ( sch.columns[8].type.baseType, TableColumnType::DOUBLE );
+  ASSERT_EQ( sch.columns[8].type.dbType, "numeric(10,3)" );
+  ASSERT_EQ( sch.columns[8].isPrimaryKey, false );
+  ASSERT_EQ( sch.columns[8].isNotNull, false );
+  ASSERT_EQ( sch.columns[8].isAutoIncrement, false );
+  ASSERT_EQ( sch.columns[8].isGeometry, false );
 }
 
 TEST( PostgresDriverTest, test_makeCopy )
