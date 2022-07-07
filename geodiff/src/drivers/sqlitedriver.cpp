@@ -12,6 +12,7 @@
 #include "geodifflogger.hpp"
 
 #include <memory.h>
+#include <iostream>
 
 
 void SqliteDriver::logApplyConflict( const std::string &type, const ChangesetEntry &entry ) const
@@ -222,7 +223,7 @@ std::vector<std::string> SqliteDriver::listTables( bool useModified )
 
     tableNames.push_back( tableName );
   }
-  if ( rc != SQLITE_DONE && rc != SQLITE_ROW )
+  if ( rc != SQLITE_DONE )
   {
     logSqliteError( context(), mDb, "Failed to list SQLite tables" );
   }
@@ -268,7 +269,7 @@ TableSchema SqliteDriver::tableSchema( const std::string &tableName,
 
     tbl.columns.push_back( columnInfo );
   }
-  if ( rc != SQLITE_DONE && rc != SQLITE_ROW )
+  if ( rc != SQLITE_DONE )
   {
     logSqliteError( context(), mDb, "Failed to get list columns for table " + tableName );
   }
@@ -283,7 +284,7 @@ TableSchema SqliteDriver::tableSchema( const std::string &tableName,
     int srsId = -1;
     Sqlite3Stmt stmtGeomCol;
     stmtGeomCol.prepare( mDb, "SELECT * FROM \"%w\".gpkg_geometry_columns WHERE table_name = '%q'", dbName.c_str(), tableName.c_str() );
-    if ( SQLITE_ROW == ( rc = sqlite3_step( stmtGeomCol.get() ) ) )
+    while ( SQLITE_ROW == ( rc = sqlite3_step( stmtGeomCol.get() ) ) )
     {
       const unsigned char *chrColumnName = sqlite3_column_text( stmtGeomCol.get(), 1 );
       const unsigned char *chrTypeName = sqlite3_column_text( stmtGeomCol.get(), 2 );
@@ -305,7 +306,7 @@ TableSchema SqliteDriver::tableSchema( const std::string &tableName,
       TableColumnInfo &col = tbl.columns[i];
       col.setGeometry( geomTypeName, srsId, hasM, hasZ );
     }
-    if ( rc != SQLITE_DONE && rc != SQLITE_ROW )
+    if ( rc != SQLITE_DONE )
     {
       logSqliteError( context(), mDb, "Failed to get geometry column info for table " + tableName );
     }
@@ -484,7 +485,7 @@ static void handleInserted( const Context *context, const std::string &tableName
 
     writer.writeEntry( e );
   }
-  if ( rc != SQLITE_DONE && rc != SQLITE_ROW )
+  if ( rc != SQLITE_DONE )
   {
     logSqliteError( context, db, "Failed to write information about inserted rows in table " + tableName );
   }
@@ -564,7 +565,7 @@ static void handleUpdated( const Context *context, const std::string &tableName,
       writer.writeEntry( e );
     }
   }
-  if ( rc != SQLITE_DONE && rc != SQLITE_ROW )
+  if ( rc != SQLITE_DONE )
   {
     logSqliteError( context, db, "Failed to write information about inserted rows in table " + tableName );
   }
@@ -1063,7 +1064,7 @@ void SqliteDriver::dumpData( ChangesetWriter &writer, bool useModified )
       }
       writer.writeEntry( e );
     }
-    if ( rc != SQLITE_DONE && rc != SQLITE_ROW )
+    if ( rc != SQLITE_DONE )
     {
       logSqliteError( context(), mDb, "Failure dumping changeset" );
     }
