@@ -675,9 +675,18 @@ void PostgresDriver::createChangeset( ChangesetWriter &writer )
   if ( !mConn )
     throw GeoDiffException( "Not connected to a database" );
 
-  std::vector<std::string> tablesBase = listTables( false );
-  std::vector<std::string> tablesModified = listTables( true );
-  const std::vector<std::string> tablesToSkip = context()->tablesToSkip();
+  std::vector<std::string> tBase = listTables( false );
+  std::vector<std::string> tModified = listTables( true );
+  std::vector<std::string> tablesToSkip( context()->tablesToSkip() );
+
+  // exclude ignored tables from comparison
+  std::sort( tBase.begin(), tBase.end() );
+  std::sort( tModified.begin(), tModified.end() );
+  std::sort( tablesToSkip.begin(), tablesToSkip.end() );
+  std::vector<std::string> tablesBase, tablesModified;
+
+  std::set_difference( tBase.begin(), tBase.end(), tablesToSkip.begin(), tablesToSkip.end(), std::back_inserter( tablesBase ) );
+  std::set_difference( tModified.begin(), tModified.end(), tablesToSkip.begin(), tablesToSkip.end(), std::back_inserter( tablesModified ) );
 
   if ( tablesBase != tablesModified )
   {
@@ -688,12 +697,6 @@ void PostgresDriver::createChangeset( ChangesetWriter &writer )
 
   for ( const std::string &tableName : tablesBase )
   {
-    // skip table if necessary
-    if ( std::any_of( tablesToSkip.begin(), tablesToSkip.end(), std::bind( std::equal_to< std::string >(), std::placeholders::_1, tableName ) ) )
-    {
-      continue;
-    }
-
     TableSchema tbl = tableSchema( tableName );
     TableSchema tblNew = tableSchema( tableName, true );
 
