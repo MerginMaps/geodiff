@@ -110,7 +110,8 @@ TableColumnType postgresToBaseColumn(
   {
     type.baseType = TableColumnType::INTEGER;
   }
-  else if ( dbType == "double precision" || dbType == "real" || startsWith( dbType, "numeric" ) )
+  else if ( dbType == "double precision" || dbType == "real" || startsWith( dbType, "numeric" ) ||
+            startsWith( dbType, "decimal" ) )
   {
     type.baseType = TableColumnType::DOUBLE;
   }
