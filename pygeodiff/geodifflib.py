@@ -186,9 +186,14 @@ class GeoDiffLib:
         func(self.context, maxLevel)
 
     def set_tables_to_skip(self, tables):
-        func = self.lib.GEODIFF_CX_setTablesToSkip
-        func.argtypes = [ctypes.c_void_p, ctypes.c_char_p]
-        func(self.context, ctypes.c_char_p(tables.encode('utf-8')))
+        # make array of char* with utf-8 encoding from python list of strings
+        arr = (ctypes.c_char_p * len(tables))()
+        for i in range(len(tables)):
+            arr[i] = tables[i].encode('utf-8')
+
+        self.lib.GEODIFF_CX_setTablesToSkip(
+            ctypes.c_void_p(self.context),
+            ctypes.c_int(len(tables)), arr)
 
     def version(self):
         func = self.lib.GEODIFF_version

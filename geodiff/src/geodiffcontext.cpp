@@ -8,7 +8,8 @@
 #include "geodifflogger.hpp"
 #include "geodiffutils.hpp"
 #include <iostream>
-#include <sstream>
+#include <functional>
+#include <algorithm>
 
 Context::Context() = default;
 
@@ -27,19 +28,17 @@ const std::vector<std::string> &Context::tablesToSkip() const
   return mTablesToSkip;
 }
 
-void Context::setTablesToSkip( std::string &tables )
+void Context::setTablesToSkip( const std::vector<std::string> &tablesToSkip )
 {
-  mTablesToSkip.clear();
+  mTablesToSkip = tablesToSkip;
+}
 
-  if ( tables.empty() )
+bool Context::isTableSkipped( const std::string &tableName ) const
+{
+  if ( mTablesToSkip.empty() )
   {
-    return;
+    return false;
   }
 
-  std::istringstream strm( tables );
-  std::string s;
-  while ( getline( strm, s, ';' ) )
-  {
-    mTablesToSkip.push_back( s );
-  }
+  return std::any_of( mTablesToSkip.begin(), mTablesToSkip.end(), std::bind( std::equal_to< std::string >(), std::placeholders::_1, tableName ) );
 }

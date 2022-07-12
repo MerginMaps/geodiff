@@ -221,6 +221,9 @@ std::vector<std::string> SqliteDriver::listTables( bool useModified )
     if ( tableName == "sqlite_sequence" )
       continue;
 
+    if ( context()->isTableSkipped( tableName ) )
+      continue;
+
     tableNames.push_back( tableName );
   }
   if ( rc != SQLITE_DONE )
@@ -779,8 +782,6 @@ void SqliteDriver::applyChangeset( ChangesetReader &reader )
     statament.close();
   }
 
-  const std::vector<std::string> tablesToSkip = context()->tablesToSkip();
-
   int conflictCount = 0;
   ChangesetEntry entry;
   while ( reader.nextEntry( entry ) )
@@ -791,7 +792,7 @@ void SqliteDriver::applyChangeset( ChangesetReader &reader )
       continue;   // skip any changes to GPKG meta tables
 
     // skip table if necessary
-    if ( std::any_of( tablesToSkip.begin(), tablesToSkip.end(), std::bind( std::equal_to< std::string >(), std::placeholders::_1, tableName ) ) )
+    if ( context()->isTableSkipped( tableName ) )
     {
       continue;
     }
@@ -1054,15 +1055,8 @@ void SqliteDriver::dumpData( ChangesetWriter &writer, bool useModified )
 {
   std::string dbName = databaseName( useModified );
   std::vector<std::string> tables = listTables();
-  const std::vector<std::string> tablesToSkip = context()->tablesToSkip();
   for ( const std::string &tableName : tables )
   {
-    // skip table if necessary
-    if ( std::any_of( tablesToSkip.begin(), tablesToSkip.end(), std::bind( std::equal_to< std::string >(), std::placeholders::_1, tableName ) ) )
-    {
-      continue;
-    }
-
     TableSchema tbl = tableSchema( tableName, useModified );
     if ( !tbl.hasPrimaryKey() )
       continue;  // ignore tables without primary key - they can't be compared properly

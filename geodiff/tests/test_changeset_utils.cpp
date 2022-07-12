@@ -398,7 +398,7 @@ TEST( ChangesetUtils, test_schema )
   EXPECT_TRUE( created == expected );
 
   // with --skip-tables
-  std::string tablesToSkip( "simple" );
+  std::vector<std::string> tablesToSkip( { "simple" } );
   Context *ctx = static_cast<Context *>( testContext() );
   ctx->setTablesToSkip( tablesToSkip );
 

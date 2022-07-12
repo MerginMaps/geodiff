@@ -211,7 +211,7 @@ int _parse_old_changeset(
     std::string tableName = entry.table->name;
 
     // skip table if necessary
-    if ( std::any_of( context->tablesToSkip().begin(), context->tablesToSkip().end(), std::bind( std::equal_to< std::string >(), std::placeholders::_1, tableName ) ) )
+    if ( context->isTableSkipped( tableName ) )
     {
       continue;
     }
@@ -263,7 +263,7 @@ int _find_mapping_for_new_changeset(
     std::string tableName = entry.table->name;
 
     // skip table if necessary
-    if ( std::any_of( context->tablesToSkip().begin(), context->tablesToSkip().end(), std::bind( std::equal_to< std::string >(), std::placeholders::_1, tableName ) ) )
+    if ( context->isTableSkipped( tableName ) )
     {
       continue;
     }
@@ -541,7 +541,7 @@ void _prepare_new_changeset( const Context *context,
     std::string tableName = entry.table->name;
 
     // skip table if necessary
-    if ( std::any_of( context->tablesToSkip().begin(), context->tablesToSkip().end(), std::bind( std::equal_to< std::string >(), std::placeholders::_1, tableName ) ) )
+    if ( context->isTableSkipped( tableName ) )
     {
       continue;
     }

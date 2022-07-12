@@ -11,6 +11,7 @@
 
 #include <fstream>
 #include <vector>
+#include <sstream>
 #include "geodiffutils.hpp"
 #include "geodiffcontext.hpp"
 #include "driver.h"
@@ -66,6 +67,60 @@ static bool isOption( const std::string &str )
   return str.size() > 0 && str[0] == '-';
 }
 
+static bool parseDriverOption( const std::vector<std::string> &args, size_t &i, const std::string &cmdName, std::string &driverName, std::string &driverOptions, std::string &tablesToSkip )
+{
+  for ( ; i < args.size(); ++i )
+  {
+    if ( !isOption( args[i] ) )
+      break;  // no more options
+
+    if ( args[i] == "--driver" )
+    {
+      if ( i + 2 >= args.size() )
+      {
+        std::cout << "Error: missing arguments for driver option" << std::endl;
+        return false;
+      }
+      driverName = args[i + 1];
+      driverOptions = args[i + 2];
+      i += 2;
+      continue;
+    }
+    else if ( args[i] == "--skip-tables" )
+    {
+      if ( i + 1 >= args.size() )
+      {
+        std::cout << "Error: missing arguments for skip-tables option" << std::endl;
+        return 1;
+      }
+      tablesToSkip = args[i + 1];
+      i += 1;
+      continue;
+    }
+    else
+    {
+      std::cout << "Error: unknown option '" << args[i] << "' for '" << cmdName << "' command." << std::endl;
+      return false;
+    }
+  }
+  return true;
+}
+
+static std::vector<std::string> parseIgnoredTables( std::string &tablesToSkip )
+{
+  std::vector<std::string> tables;
+
+  std::istringstream strm( tablesToSkip );
+  std::string s;
+  while ( getline( strm, s, ';' ) )
+  {
+    tables.push_back( s );
+  }
+
+  return tables;
+}
+
+
 static int handleCmdDiff( GEODIFF_ContextH context, const std::vector<std::string> &args )
 {
   //   geodiff diff [OPTIONS...] DB_1 DB_2 [CH_OUTPUT]
@@ -75,7 +130,7 @@ static int handleCmdDiff( GEODIFF_ContextH context, const std::vector<std::strin
   bool printOutput = true;
   std::string db1, db2, chOutput;
   std::string driver1Name = "sqlite", driver2Name = "sqlite", driver1Options, driver2Options;
-  std::string tablesToSkip = "";
+  std::string tablesToSkip;
   size_t i = 1;
 
   // parse options
@@ -141,7 +196,8 @@ static int handleCmdDiff( GEODIFF_ContextH context, const std::vector<std::strin
 
   // set tables to skip
   Context *ctx = static_cast<Context *>( context );
-  ctx->setTablesToSkip( tablesToSkip );
+  std::vector<std::string> tables = parseIgnoredTables( tablesToSkip );
+  ctx->setTablesToSkip( tables );
 
   // parse required arguments
   if ( !parseRequiredArgument( db1, args, i, "DB_1", "diff" ) )
@@ -251,43 +307,11 @@ static int handleCmdApply( GEODIFF_ContextH context, const std::vector<std::stri
   size_t i = 1;
   std::string db, changeset;
   std::string driverName = "sqlite", driverOptions;
-  std::string tablesToSkip = "";
+  std::string tablesToSkip;
 
   // parse options
-  for ( ; i < args.size(); ++i )
-  {
-    if ( !isOption( args[i] ) )
-      break;  // no more options
-
-    if ( args[i] == "--driver" )
-    {
-      if ( i + 2 >= args.size() )
-      {
-        std::cout << "Error: missing arguments for driver option" << std::endl;
-        return 1;
-      }
-      driverName = args[i + 1];
-      driverOptions = args[i + 2];
-      i += 2;
-      continue;
-    }
-    else if ( args[i] == "--skip-tables" )
-    {
-      if ( i + 1 >= args.size() )
-      {
-        std::cout << "Error: missing arguments for skip-tables option" << std::endl;
-        return 1;
-      }
-      tablesToSkip = args[i + 1];
-      i += 1;
-      continue;
-    }
-    else
-    {
-      std::cout << "Error: unknown option '" << args[i] << "' for 'diff' command." << std::endl;
-      return 1;
-    }
-  }
+  if ( !parseDriverOption( args, i, "apply", driverName, driverOptions, tablesToSkip ) )
+    return 1;
 
   // parse required arguments
   if ( !parseRequiredArgument( db, args, i, "DB", "apply" ) )
@@ -298,7 +322,8 @@ static int handleCmdApply( GEODIFF_ContextH context, const std::vector<std::stri
     return 1;
 
   Context *ctx = static_cast<Context *>( context );
-  ctx->setTablesToSkip( tablesToSkip );
+  std::vector<std::string> tables = parseIgnoredTables( tablesToSkip );
+  ctx->setTablesToSkip( tables );
 
   int ret = GEODIFF_applyChangesetEx( context, driverName.data(), driverOptions.data(), db.data(), changeset.data() );
   if ( ret != GEODIFF_SUCCESS )
@@ -317,44 +342,11 @@ static int handleCmdRebaseDiff( GEODIFF_ContextH context,  const std::vector<std
   size_t i = 1;
   std::string dbBase, chBaseOur, chBaseTheir, chRebased, conflict;
   std::string driverName = "sqlite", driverOptions;
-  std::string tablesToSkip = "";
+  std::string tablesToSkip;
 
   // parse options
-  // parse options
-  for ( ; i < args.size(); ++i )
-  {
-    if ( !isOption( args[i] ) )
-      break;  // no more options
-
-    if ( args[i] == "--driver" )
-    {
-      if ( i + 2 >= args.size() )
-      {
-        std::cout << "Error: missing arguments for driver option" << std::endl;
-        return 1;
-      }
-      driverName = args[i + 1];
-      driverOptions = args[i + 2];
-      i += 2;
-      continue;
-    }
-    else if ( args[i] == "--skip-tables" )
-    {
-      if ( i + 1 >= args.size() )
-      {
-        std::cout << "Error: missing arguments for skip-tables option" << std::endl;
-        return 1;
-      }
-      tablesToSkip = args[i + 1];
-      i += 1;
-      continue;
-    }
-    else
-    {
-      std::cout << "Error: unknown option '" << args[i] << "' for 'diff' command." << std::endl;
-      return 1;
-    }
-  }
+  if ( !parseDriverOption( args, i, "rebase-diff", driverName, driverOptions, tablesToSkip ) )
+    return 1;
 
   if ( !parseRequiredArgument( dbBase, args, i, "DB_BASE", "rebase-diff" ) )
     return 1;
@@ -370,7 +362,8 @@ static int handleCmdRebaseDiff( GEODIFF_ContextH context,  const std::vector<std
     return 1;
 
   Context *ctx = static_cast<Context *>( context );
-  ctx->setTablesToSkip( tablesToSkip );
+  std::vector<std::string> tables = parseIgnoredTables( tablesToSkip );
+  ctx->setTablesToSkip( tables );
 
   int ret = GEODIFF_createRebasedChangesetEx(
               context,
@@ -393,44 +386,11 @@ static int handleCmdRebaseDb( GEODIFF_ContextH context, const std::vector<std::s
   size_t i = 1;
   std::string dbBase, dbOur, chBaseTheir, conflict;
   std::string driverName = "sqlite", driverOptions;
-  std::string tablesToSkip = "";
+  std::string tablesToSkip;
 
   // parse options
-  // parse options
-  for ( ; i < args.size(); ++i )
-  {
-    if ( !isOption( args[i] ) )
-      break;  // no more options
-
-    if ( args[i] == "--driver" )
-    {
-      if ( i + 2 >= args.size() )
-      {
-        std::cout << "Error: missing arguments for driver option" << std::endl;
-        return 1;
-      }
-      driverName = args[i + 1];
-      driverOptions = args[i + 2];
-      i += 2;
-      continue;
-    }
-    else if ( args[i] == "--skip-tables" )
-    {
-      if ( i + 1 >= args.size() )
-      {
-        std::cout << "Error: missing arguments for skip-tables option" << std::endl;
-        return 1;
-      }
-      tablesToSkip = args[i + 1];
-      i += 1;
-      continue;
-    }
-    else
-    {
-      std::cout << "Error: unknown option '" << args[i] << "' for 'diff' command." << std::endl;
-      return 1;
-    }
-  }
+  if ( !parseDriverOption( args, i, "rebase-db", driverName, driverOptions, tablesToSkip ) )
+    return 1;
 
   if ( !parseRequiredArgument( dbBase, args, i, "DB_BASE", "rebase-db" ) )
     return 1;
@@ -445,7 +405,8 @@ static int handleCmdRebaseDb( GEODIFF_ContextH context, const std::vector<std::s
 
   // set tables to skip
   Context *ctx = static_cast<Context *>( context );
-  ctx->setTablesToSkip( tablesToSkip );
+  std::vector<std::string> tables = parseIgnoredTables( tablesToSkip );
+  ctx->setTablesToSkip( tables );
 
   int ret = GEODIFF_rebaseEx( context,
                               driverName.data(), driverOptions.data(), dbBase.data(), dbOur.data(),
@@ -620,7 +581,7 @@ static int handleCmdCopy( GEODIFF_ContextH context, const std::vector<std::strin
   size_t i = 1;
   std::string chInput, chOutput;
   std::string driver1Name = "sqlite", driver1Options, driver2Name = "sqlite", driver2Options;
-  std::string tablesToSkip = "";
+  std::string tablesToSkip;
 
   // parse options
   for ( ; i < args.size(); ++i )
@@ -673,13 +634,15 @@ static int handleCmdCopy( GEODIFF_ContextH context, const std::vector<std::strin
     return 1;
 
   Context *ctx = static_cast<Context *>( context );
-  ctx->setTablesToSkip( tablesToSkip );
+  std::vector<std::string> tables = parseIgnoredTables( tablesToSkip );
+  ctx->setTablesToSkip( tables );
 
   if ( driver1Name == "sqlite" && driver2Name == "sqlite" )
   {
     if ( !tablesToSkip.empty() )
     {
       std::cout << "Source and destination drivers are \"sqlite\". Option \"--skip-tables\" will be ignored." << std::endl;
+      return 1;
     }
 
     int ret = GEODIFF_makeCopySqlite( context, chInput.data(), chOutput.data() );
@@ -712,44 +675,11 @@ static int handleCmdSchema( GEODIFF_ContextH context, const std::vector<std::str
   bool printOutput = true;
   std::string db, schemaJson;
   std::string driverName = "sqlite", driverOptions;
-  std::string tablesToSkip = "";
+  std::string tablesToSkip;
 
   // parse options
-  // parse options
-  for ( ; i < args.size(); ++i )
-  {
-    if ( !isOption( args[i] ) )
-      break;  // no more options
-
-    if ( args[i] == "--driver" )
-    {
-      if ( i + 2 >= args.size() )
-      {
-        std::cout << "Error: missing arguments for driver option" << std::endl;
-        return 1;
-      }
-      driverName = args[i + 1];
-      driverOptions = args[i + 2];
-      i += 2;
-      continue;
-    }
-    else if ( args[i] == "--skip-tables" )
-    {
-      if ( i + 1 >= args.size() )
-      {
-        std::cout << "Error: missing arguments for skip-tables option" << std::endl;
-        return 1;
-      }
-      tablesToSkip = args[i + 1];
-      i += 1;
-      continue;
-    }
-    else
-    {
-      std::cout << "Error: unknown option '" << args[i] << "' for 'diff' command." << std::endl;
-      return 1;
-    }
-  }
+  if ( !parseDriverOption( args, i, "schema", driverName, driverOptions, tablesToSkip ) )
+    return 1;
 
   // parse required arguments
   if ( !parseRequiredArgument( db, args, i, "DB", "schema" ) )
@@ -766,7 +696,8 @@ static int handleCmdSchema( GEODIFF_ContextH context, const std::vector<std::str
   }
 
   Context *ctx = static_cast<Context *>( context );
-  ctx->setTablesToSkip( tablesToSkip );
+  std::vector<std::string> tables = parseIgnoredTables( tablesToSkip );
+  ctx->setTablesToSkip( tables );
 
   std::string json;
   TmpFile tmpJson;
@@ -804,44 +735,11 @@ static int handleCmdDump( GEODIFF_ContextH context, const std::vector<std::strin
   size_t i = 1;
   std::string db, chOutput;
   std::string driverName = "sqlite", driverOptions;
-  std::string tablesToSkip = "";
+  std::string tablesToSkip;
 
   // parse options
-  // parse options
-  for ( ; i < args.size(); ++i )
-  {
-    if ( !isOption( args[i] ) )
-      break;  // no more options
-
-    if ( args[i] == "--driver" )
-    {
-      if ( i + 2 >= args.size() )
-      {
-        std::cout << "Error: missing arguments for driver option" << std::endl;
-        return 1;
-      }
-      driverName = args[i + 1];
-      driverOptions = args[i + 2];
-      i += 2;
-      continue;
-    }
-    else if ( args[i] == "--skip-tables" )
-    {
-      if ( i + 1 >= args.size() )
-      {
-        std::cout << "Error: missing arguments for skip-tables option" << std::endl;
-        return 1;
-      }
-      tablesToSkip = args[i + 1];
-      i += 1;
-      continue;
-    }
-    else
-    {
-      std::cout << "Error: unknown option '" << args[i] << "' for 'diff' command." << std::endl;
-      return 1;
-    }
-  }
+  if ( !parseDriverOption( args, i, "dump", driverName, driverOptions, tablesToSkip ) )
+    return 1;
 
   if ( !parseRequiredArgument( db, args, i, "DB", "dump" ) )
     return 1;
@@ -851,7 +749,8 @@ static int handleCmdDump( GEODIFF_ContextH context, const std::vector<std::strin
     return 1;
 
   Context *ctx = static_cast<Context *>( context );
-  ctx->setTablesToSkip( tablesToSkip );
+  std::vector<std::string> tables = parseIgnoredTables( tablesToSkip );
+  ctx->setTablesToSkip( tables );
 
   int ret = GEODIFF_dumpData( context, driverName.data(), driverOptions.data(), db.data(), chOutput.data() );
   if ( ret != GEODIFF_SUCCESS )

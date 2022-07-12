@@ -20,7 +20,7 @@ TEST( SkipTablesSqlite3Test, test_skip_create )
   makedir( pathjoin( tmpdir(), testname ) );
 
   // ignore lines table when creating changeset
-  std::string tablesToSkip( "lines" );
+  std::vector<std::string> tablesToSkip( { "lines" } );
   Context *ctx = static_cast<Context *>( testContext() );
   ctx->setTablesToSkip( tablesToSkip );
 
@@ -39,7 +39,7 @@ TEST( SkipTablesSqlite3Test, test_skip_create )
   EXPECT_TRUE( equals( patched_points, modified_points, false ) );
 
   // reset skip list
-  tablesToSkip = "";
+  tablesToSkip.clear();
   ctx->setTablesToSkip( tablesToSkip );
 }
 
@@ -61,7 +61,7 @@ TEST( SkipTablesSqlite3Test, test_skip_apply )
   EXPECT_EQ( nchanges, 6 );
 
   // ignore lines table when applying changeset
-  std::string tablesToSkip( "lines" );
+  std::vector<std::string> tablesToSkip( { "lines" } );
   Context *ctx = static_cast<Context *>( testContext() );
   ctx->setTablesToSkip( tablesToSkip );
 
@@ -74,7 +74,7 @@ TEST( SkipTablesSqlite3Test, test_skip_apply )
   EXPECT_TRUE( equals( patched_points, modified_points, false ) );
 
   // reset skip list
-  tablesToSkip = "";
+  tablesToSkip.clear();
   ctx->setTablesToSkip( tablesToSkip );
 }
 

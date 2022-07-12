@@ -22,7 +22,7 @@ class UnitTestsPythonSingleCommit(GeoDiffTests):
         create_dir("test_skip_create")
 
         # ignore lines table when creating changeset
-        self.geodiff.set_tables_to_skip("lines")
+        self.geodiff.set_tables_to_skip(["lines"])
 
         # create changeset
         self.geodiff.create_changeset(base, modified, changeset)
@@ -43,7 +43,7 @@ class UnitTestsPythonSingleCommit(GeoDiffTests):
         self.geodiff.create_changeset_dr("sqlite", "", patched, "sqlite", "", base, changeset2)
         check_nchanges(self.geodiff, changeset2, 0 )
 
-        self.geodiff.set_tables_to_skip("")
+        self.geodiff.set_tables_to_skip([])
 
     def test_skip_apply(self):
         base = testdir() + "/" + "skip_tables" + "/" + "base.gpkg"
@@ -61,7 +61,7 @@ class UnitTestsPythonSingleCommit(GeoDiffTests):
         check_nchanges(self.geodiff, changeset, 6)
 
         # ignore lines table when creating changeset
-        self.geodiff.set_tables_to_skip("lines")
+        self.geodiff.set_tables_to_skip(["lines"])
 
         # apply changeset
         shutil.copyfile(base, patched)
@@ -78,4 +78,4 @@ class UnitTestsPythonSingleCommit(GeoDiffTests):
         self.geodiff.create_changeset_dr("sqlite", "", patched, "sqlite", "", base, changeset2)
         check_nchanges(self.geodiff, changeset2, 0 )
 
-        self.geodiff.set_tables_to_skip("")
+        self.geodiff.set_tables_to_skip([])

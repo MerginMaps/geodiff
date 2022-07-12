@@ -181,6 +181,9 @@ std::vector<std::string> PostgresDriver::listTables( bool useModified )
     if ( startsWith( res.value( i, 0 ), "gpkg_" ) )
       continue;
 
+    if ( context()->isTableSkipped( res.value( i, 0 ) ) )
+      continue;
+
     tables.push_back( res.value( i, 0 ) );
   }
 
@@ -833,7 +836,7 @@ void PostgresDriver::applyChangeset( ChangesetReader &reader )
       continue;   // skip any changes to GPKG meta tables
 
     // skip table if necessary
-    if ( std::any_of( tablesToSkip.begin(), tablesToSkip.end(), std::bind( std::equal_to< std::string >(), std::placeholders::_1, tableName ) ) )
+    if ( context()->isTableSkipped( tableName ) )
     {
       continue;
     }
@@ -1025,16 +1028,9 @@ void PostgresDriver::dumpData( ChangesetWriter &writer, bool useModified )
   if ( !mConn )
     throw GeoDiffException( "Not connected to a database" );
 
-  const std::vector<std::string> tablesToSkip = context()->tablesToSkip();
   std::vector<std::string> tables = listTables();
   for ( const std::string &tableName : tables )
   {
-    // skip table if necessary
-    if ( std::any_of( tablesToSkip.begin(), tablesToSkip.end(), std::bind( std::equal_to< std::string >(), std::placeholders::_1, tableName ) ) )
-    {
-      continue;
-    }
-
     TableSchema tbl = tableSchema( tableName, useModified );
     if ( !tbl.hasPrimaryKey() )
       continue;  // ignore tables without primary key - they can't be compared properly

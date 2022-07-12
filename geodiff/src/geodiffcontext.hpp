@@ -21,7 +21,9 @@ class Context
     const Logger &logger() const;
 
     const std::vector<std::string> &tablesToSkip() const;
-    void setTablesToSkip( std::string &tables );
+    void setTablesToSkip( const std::vector<std::string> &tablesToSkip );
+
+    bool isTableSkipped( const std::string &tableName ) const;
 
   private:
     Logger mLogger;

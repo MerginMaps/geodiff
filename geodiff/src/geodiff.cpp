@@ -28,7 +28,6 @@
 #include <iostream>
 #include <string>
 #include <vector>
-#include <algorithm>
 
 #include "json.hpp"
 
@@ -118,7 +117,7 @@ int GEODIFF_CX_setMaximumLoggerLevel( GEODIFF_ContextH contextHandle,
   return GEODIFF_SUCCESS;
 }
 
-int GEODIFF_CX_setTablesToSkip( GEODIFF_ContextH contextHandle, const char *tables )
+int GEODIFF_CX_setTablesToSkip( GEODIFF_ContextH contextHandle, int tablesCount, const char **tablesToSkip )
 {
   Context *context = static_cast<Context *>( contextHandle );
   if ( !context )
@@ -126,8 +125,20 @@ int GEODIFF_CX_setTablesToSkip( GEODIFF_ContextH contextHandle, const char *tabl
     return GEODIFF_ERROR;
   }
 
-  std::string toSkip( tables );
-  context->setTablesToSkip( toSkip );
+  if ( !tablesToSkip )
+  {
+    context->logger().error( "NULL arguments to GEODIFF_CX_setTablesToSkip" );
+    return GEODIFF_ERROR;
+  }
+
+  std::vector<std::string> tables;
+  for ( int i = 0; i < tablesCount; ++i )
+  {
+    std::string tableName = tablesToSkip[i];
+    tables.push_back( tableName );
+  }
+
+  context->setTablesToSkip( tables );
   return GEODIFF_SUCCESS;
 }
 
@@ -818,11 +829,6 @@ int GEODIFF_makeCopy( GEODIFF_ContextH contextHandle,
     {
       for ( const std::string &tableName : tableNames )
       {
-      // skip table if necessary
-      if ( std::any_of( context->tablesToSkip().begin(), context->tablesToSkip().end(), std::bind( std::equal_to< std::string >(), std::placeholders::_1, tableName ) ) )
-      {
-        continue;
-      }
         TableSchema tbl = driverSrc->tableSchema( tableName );
         tableSchemaConvert( driverDstName, tbl );
         tables.push_back( tbl );
@@ -1040,12 +1046,6 @@ int GEODIFF_schema( GEODIFF_ContextH contextHandle, const char *driverName, cons
     auto tablesData = nlohmann::json::array();
     for ( const std::string &tableName : driver->listTables() )
     {
-      // skip table if necessary
-      if ( std::any_of( context->tablesToSkip().begin(), context->tablesToSkip().end(), std::bind( std::equal_to< std::string >(), std::placeholders::_1, tableName ) ) )
-      {
-        continue;
-      }
-
       const TableSchema tbl = driver->tableSchema( tableName );
 
       auto columnsJson = nlohmann::json::array();
