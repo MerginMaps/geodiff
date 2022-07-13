@@ -576,18 +576,8 @@ static void handleUpdated( const Context *context, const std::string &tableName,
 
 void SqliteDriver::createChangeset( ChangesetWriter &writer )
 {
-  std::vector<std::string> tBase = listTables( false );
-  std::vector<std::string> tModified = listTables( true );
-  std::vector<std::string> tablesToSkip( context()->tablesToSkip() );
-
-  // exclude ignored tables from comparison
-  std::sort( tBase.begin(), tBase.end() );
-  std::sort( tModified.begin(), tModified.end() );
-  std::sort( tablesToSkip.begin(), tablesToSkip.end() );
-  std::vector<std::string> tablesBase, tablesModified;
-
-  std::set_difference( tBase.begin(), tBase.end(), tablesToSkip.begin(), tablesToSkip.end(), std::back_inserter( tablesBase ) );
-  std::set_difference( tModified.begin(), tModified.end(), tablesToSkip.begin(), tablesToSkip.end(), std::back_inserter( tablesModified ) );
+  std::vector<std::string> tablesBase = listTables( false );
+  std::vector<std::string> tablesModified = listTables( true );
 
   if ( tablesBase != tablesModified )
   {

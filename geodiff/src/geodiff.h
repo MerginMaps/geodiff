@@ -109,7 +109,7 @@ GEODIFF_EXPORT int GEODIFF_CX_setMaximumLoggerLevel( GEODIFF_ContextH contextHan
  * rebase, get database schema, dump database contents, copy database between different
  * drivers.
  *
- * If empty string is passed, list will be reset.
+ * If empty list is passed, list will be reset.
  */
 GEODIFF_EXPORT int GEODIFF_CX_setTablesToSkip( GEODIFF_ContextH contextHandle, int tablesCount, const char **tablesToSkip );
 

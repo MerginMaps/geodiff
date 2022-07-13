@@ -125,7 +125,7 @@ int GEODIFF_CX_setTablesToSkip( GEODIFF_ContextH contextHandle, int tablesCount,
     return GEODIFF_ERROR;
   }
 
-  if ( !tablesToSkip )
+  if ( tablesCount > 0 && !tablesToSkip )
   {
     context->logger().error( "NULL arguments to GEODIFF_CX_setTablesToSkip" );
     return GEODIFF_ERROR;
