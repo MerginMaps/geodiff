@@ -380,6 +380,7 @@ TEST( ChangesetUtils, test_schema )
   makedir( pathjoin( tmpdir(), "test_schema" ) );
   std::string base = pathjoin( testdir(), "base.gpkg" );
   std::string schema = pathjoin( tmpdir(), "test_schema", "schema.json" );
+  std::string schema_empty = pathjoin( tmpdir(), "test_schema", "schema-empty.json" );
 
   // invalid inputs
   EXPECT_EQ( GEODIFF_schema( testContext(), "qqq", nullptr, base.data(), schema.data() ), GEODIFF_ERROR );
@@ -393,6 +394,21 @@ TEST( ChangesetUtils, test_schema )
 
   std::ifstream fe( pathjoin( testdir(), "schema", "base-schema.json" ) );
   nlohmann::json expected = nlohmann::json::parse( fe );
+
+  EXPECT_TRUE( created == expected );
+
+  // with --skip-tables
+  std::vector<std::string> tablesToSkip( { "simple" } );
+  Context *ctx = static_cast<Context *>( testContext() );
+  ctx->setTablesToSkip( tablesToSkip );
+
+  EXPECT_EQ( GEODIFF_schema( testContext(), "sqlite", nullptr, base.data(), schema_empty.data() ), GEODIFF_SUCCESS );
+
+  fo = std::ifstream( schema_empty );
+  created = nlohmann::json::parse( fo );
+
+  fe = std::ifstream( pathjoin( testdir(), "schema", "base-schema-no-tables.json" ) );
+  expected = nlohmann::json::parse( fe );
 
   EXPECT_TRUE( created == expected );
 }

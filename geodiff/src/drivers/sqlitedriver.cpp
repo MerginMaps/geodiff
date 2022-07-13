@@ -221,6 +221,9 @@ std::vector<std::string> SqliteDriver::listTables( bool useModified )
     if ( tableName == "sqlite_sequence" )
       continue;
 
+    if ( context()->isTableSkipped( tableName ) )
+      continue;
+
     tableNames.push_back( tableName );
   }
   if ( rc != SQLITE_DONE )
@@ -777,6 +780,12 @@ void SqliteDriver::applyChangeset( ChangesetReader &reader )
 
     if ( startsWith( tableName, "gpkg_" ) )
       continue;   // skip any changes to GPKG meta tables
+
+    // skip table if necessary
+    if ( context()->isTableSkipped( tableName ) )
+    {
+      continue;
+    }
 
     if ( tableName != lastTableName )
     {

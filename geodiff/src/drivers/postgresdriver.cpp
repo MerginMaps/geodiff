@@ -181,6 +181,9 @@ std::vector<std::string> PostgresDriver::listTables( bool useModified )
     if ( startsWith( res.value( i, 0 ), "gpkg_" ) )
       continue;
 
+    if ( context()->isTableSkipped( res.value( i, 0 ) ) )
+      continue;
+
     tables.push_back( res.value( i, 0 ) );
   }
 
@@ -819,6 +822,12 @@ void PostgresDriver::applyChangeset( ChangesetReader &reader )
 
     if ( startsWith( tableName, "gpkg_" ) )
       continue;   // skip any changes to GPKG meta tables
+
+    // skip table if necessary
+    if ( context()->isTableSkipped( tableName ) )
+    {
+      continue;
+    }
 
     if ( tableName != lastTableName )
     {

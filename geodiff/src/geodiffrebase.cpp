@@ -208,9 +208,17 @@ int _parse_old_changeset(
   ChangesetEntry entry;
   while ( reader_BASE_THEIRS.nextEntry( entry ) )
   {
+    std::string tableName = entry.table->name;
+
+    // skip table if necessary
+    if ( context->isTableSkipped( tableName ) )
+    {
+      continue;
+    }
+
     int pk = _get_primary_key( entry );
 
-    TableRebaseInfo &tableInfo = dbInfo.tables[entry.table->name];
+    TableRebaseInfo &tableInfo = dbInfo.tables[tableName];
 
     if ( entry.op == ChangesetEntry::OpInsert )
     {
@@ -253,6 +261,13 @@ int _find_mapping_for_new_changeset(
   while ( reader.nextEntry( entry ) )
   {
     std::string tableName = entry.table->name;
+
+    // skip table if necessary
+    if ( context->isTableSkipped( tableName ) )
+    {
+      continue;
+    }
+
     auto tableIt = dbInfo.tables.find( tableName );
     if ( tableIt == dbInfo.tables.end() )
       continue;  // this table is not in our records at all - no rebasing needed
@@ -512,16 +527,25 @@ bool _handle_update( const ChangesetEntry &entry, const RebaseMapping &mapping,
 }
 
 //! throws GeoDiffException on error
-void _prepare_new_changeset( ChangesetReader &reader, const std::string &changesetNew,
+void _prepare_new_changeset( const Context *context,
+                             ChangesetReader &reader, const std::string &changesetNew,
                              const RebaseMapping &mapping, const DatabaseRebaseInfo &dbInfo,
                              std::vector<ConflictFeature> &conflicts )
 {
   ChangesetEntry entry;
   std::map<std::string, ChangesetTable> tableDefinitions;
   std::map<std::string, std::vector<ChangesetEntry> > tableChanges;
+
   while ( reader.nextEntry( entry ) )
   {
     std::string tableName = entry.table->name;
+
+    // skip table if necessary
+    if ( context->isTableSkipped( tableName ) )
+    {
+      continue;
+    }
+
     // Inserts table into the definitions, if it doesn't already contain it
     tableDefinitions.insert( {tableName, *entry.table} );
 
@@ -627,5 +651,5 @@ void rebase(
   reader_BASE_MODIFIED.rewind();
 
   // 3. go through the changeset to be rebased again and write it with changes determined in step 2
-  _prepare_new_changeset( reader_BASE_MODIFIED, changeset_THEIRS_MODIFIED, mapping, dbInfo, conflicts );
+  _prepare_new_changeset( context, reader_BASE_MODIFIED, changeset_THEIRS_MODIFIED, mapping, dbInfo, conflicts );
 }

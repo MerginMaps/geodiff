@@ -117,6 +117,31 @@ int GEODIFF_CX_setMaximumLoggerLevel( GEODIFF_ContextH contextHandle,
   return GEODIFF_SUCCESS;
 }
 
+int GEODIFF_CX_setTablesToSkip( GEODIFF_ContextH contextHandle, int tablesCount, const char **tablesToSkip )
+{
+  Context *context = static_cast<Context *>( contextHandle );
+  if ( !context )
+  {
+    return GEODIFF_ERROR;
+  }
+
+  if ( tablesCount > 0 && !tablesToSkip )
+  {
+    context->logger().error( "NULL arguments to GEODIFF_CX_setTablesToSkip" );
+    return GEODIFF_ERROR;
+  }
+
+  std::vector<std::string> tables;
+  for ( int i = 0; i < tablesCount; ++i )
+  {
+    std::string tableName = tablesToSkip[i];
+    tables.push_back( tableName );
+  }
+
+  context->setTablesToSkip( tables );
+  return GEODIFF_SUCCESS;
+}
+
 void GEODIFF_CX_destroy( GEODIFF_ContextH contextHandle )
 {
   Context *context = static_cast<Context *>( contextHandle );
