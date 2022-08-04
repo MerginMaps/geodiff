@@ -163,7 +163,7 @@ jobs:
       - name: Install Deps
         run: |
           brew install sqlite3
-          pip install setuptools scikit-build wheel cmake nose2
+          pip install setuptools scikit-build wheel cmake
 
       - name: Build wheels
         uses: pypa/cibuildwheel@v2.3.1

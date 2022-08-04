@@ -147,7 +147,7 @@ C++ tests: run `make test` or `ctest` to run all tests. Alternatively run just a
 
 Python tests: you need to setup GEODIFFLIB with path to .so/.dylib from build step
 ```bash
-GEODIFFLIB=`pwd`/../build/libgeodiff.dylib nose2
+GEODIFFLIB=`pwd`/../build/libgeodiff.dylib pytest
 ```
 
 ### Releasing new version

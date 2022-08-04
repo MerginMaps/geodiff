@@ -56,9 +56,9 @@ class UnitTestsChangesetReader(GeoDiffTests):
         changeset = os.path.join(testdir(), "2_inserts", "base-inserted_1_A.diff")
         i = 0
         for entry in self.geodiff.read_changeset(changeset):
-            self.assertEquals(entry.table.name, 'simple')
-            self.assertEquals(entry.new_values[0], 4)
-            self.assertEquals(entry.new_values[2], 'my new point A')
+            self.assertEqual(entry.table.name, 'simple')
+            self.assertEqual(entry.new_values[0], 4)
+            self.assertEqual(entry.new_values[2], 'my new point A')
             with self.assertRaises(AttributeError):
                 print(entry.old_values)   # with INSERT the "old_values" attribute is not set
             i += 1
@@ -68,9 +68,9 @@ class UnitTestsChangesetReader(GeoDiffTests):
         changeset = os.path.join(testdir(), "2_deletes", "base-deleted_A.diff")
         i = 0
         for entry in self.geodiff.read_changeset(changeset):
-            self.assertEquals(entry.table.name, 'simple')
-            self.assertEquals(entry.old_values[0], 2)
-            self.assertEquals(entry.old_values[2], 'feature2')
+            self.assertEqual(entry.table.name, 'simple')
+            self.assertEqual(entry.old_values[0], 2)
+            self.assertEqual(entry.old_values[2], 'feature2')
             with self.assertRaises(AttributeError):
                 print(entry.new_values)   # with DELETE the "new_values" attribute is not set
             i += 1
