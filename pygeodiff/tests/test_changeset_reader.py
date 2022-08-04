@@ -44,6 +44,8 @@ class UnitTestsChangesetReader(GeoDiffTests):
                 self.assertEqual(entry.old_values[0], 'simple')
             else:  # change in 'simple' table
                 self.assertEqual(entry.table.name, 'simple')
+                self.assertEqual(entry.table.column_is_pkey[0], True)
+                self.assertEqual(entry.table.column_is_pkey[1], False)
                 self.assertEqual(entry.old_values[0], 1)
                 self.assertIsInstance(entry.new_values[0], UndefinedValue)
                 self.assertIsInstance(entry.old_values[1], bytes)

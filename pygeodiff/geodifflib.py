@@ -82,7 +82,7 @@ class GeoDiffLib:
 
         # ChangesetReader
         self._CR_nextEntry = self.lib.GEODIFF_CR_nextEntry
-        self._CR_nextEntry.argtypes = [ctypes.c_void_p, ctypes.c_void_p]
+        self._CR_nextEntry.argtypes = [ctypes.c_void_p, ctypes.c_void_p, ctypes.c_void_p]
         self._CR_nextEntry.restype = ctypes.c_void_p
 
         self._CR_destroy = self.lib.GEODIFF_CR_destroy
@@ -102,11 +102,11 @@ class GeoDiffLib:
         self._CE_count.restype = ctypes.c_int
 
         self._CE_old_value = self.lib.GEODIFF_CE_oldValue
-        self._CE_old_value.argtypes = [ctypes.c_void_p, ctypes.c_int]
+        self._CE_old_value.argtypes = [ctypes.c_void_p, ctypes.c_void_p, ctypes.c_int]
         self._CE_old_value.restype = ctypes.c_void_p
 
         self._CE_new_value = self.lib.GEODIFF_CE_newValue
-        self._CE_new_value.argtypes = [ctypes.c_void_p, ctypes.c_int]
+        self._CE_new_value.argtypes = [ctypes.c_void_p, ctypes.c_void_p, ctypes.c_int]
         self._CE_new_value.restype = ctypes.c_void_p
 
         self._CE_destroy = self.lib.GEODIFF_CE_destroy
@@ -122,7 +122,7 @@ class GeoDiffLib:
         self._CT_column_count.restype = ctypes.c_int
 
         self._CT_column_is_pkey = self.lib.GEODIFF_CT_columnIsPkey
-        self._CT_column_is_pkey.argtypes = [ctypes.c_void_p, ctypes.c_int]
+        self._CT_column_is_pkey.argtypes = [ctypes.c_void_p, ctypes.c_void_p, ctypes.c_int]
         self._CT_column_is_pkey.restype = ctypes.c_bool
 
         # Value
