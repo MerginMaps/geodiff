@@ -52,7 +52,7 @@ jobs:
 
       - name: Run python tests
         run: |
-          GEODIFFLIB=`pwd`/build_coverage_lnx/libgeodiff.so pytest-3
+          GEODIFFLIB=`pwd`/build_coverage_lnx/libgeodiff.so pytest-3 pygeodiff/
 
       - name: Prepare coverage report
         run: |
