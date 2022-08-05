@@ -12,7 +12,7 @@ import json
 import shutil
 
 class TestError(Exception):
-  pass
+    __test__ = False   # this is not a test class, this will make pytest to ignore it
 
 
 REFDIF = os.path.dirname(os.path.realpath(__file__))
@@ -76,6 +76,9 @@ def test_json(geodiff, changeset, json, expect_success ):
 
     print("check export to JSON ")
     _test_json(geodiff.list_changes, changeset, json, expect_success)
+
+
+test_json.__test__ = False  # this is not a standalone test, this will make pytest to ignore it
 
 
 def compare_json(json_file, expected_json):
