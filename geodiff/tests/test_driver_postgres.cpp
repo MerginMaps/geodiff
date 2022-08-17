@@ -1047,6 +1047,37 @@ TEST( PostgresDriverTest, test_edge_cases )
   PQfinish( c );
 }
 
+TEST( PostgresDriverTest, test_timestamp_miliseconds )
+{
+  std::string conninfo = pgTestConnInfo();
+  std::string testname = "test_timestamp_miliseconds";
+  execSqlCommands( conninfo, pathjoin( testdir(), "postgres", "tz_miliseconds.sql" ) );
+  execSqlCommands( conninfo, pathjoin( testdir(), "postgres", "tz_updated.sql" ) );
+
+  makedir( pathjoin( tmpdir(), testname ) );
+  std::string changeset = pathjoin( tmpdir(), testname, "output.diff" );
+
+  int res = GEODIFF_createChangesetEx( testContext(), "postgres", conninfo.c_str(), "gd_tz_base", "gd_tz_updated", changeset.c_str() );
+  EXPECT_EQ( res, GEODIFF_SUCCESS );
+
+  res = GEODIFF_applyChangesetEx( testContext(), "postgres", conninfo.c_str(), "gd_tz_base", changeset.c_str() );
+  EXPECT_EQ( res, GEODIFF_SUCCESS );
+
+  // check the actual results
+  PGconn *c = PQconnectdb( conninfo.c_str() );
+  ASSERT_EQ( PQstatus( c ), CONNECTION_OK );
+
+  PostgresResult resTimeStamp1( execSql( c, "select created from gd_tz_base.simple where fid = 1" ) );
+  EXPECT_EQ( resTimeStamp1.value( 0, 0 ), "2021-10-28 18:34:19.472" );
+  PostgresResult resTimeStamp2( execSql( c, "select created from gd_tz_base.simple where fid = 2" ) );
+  EXPECT_EQ( resTimeStamp2.value( 0, 0 ), "2021-10-28 18:34:19" );
+  PostgresResult resTimeStamp3( execSql( c, "select created from gd_tz_base.simple where fid = 3" ) );
+  EXPECT_EQ( resTimeStamp3.value( 0, 0 ), "2021-10-28 18:34:19.53" );
+
+  PQfinish( c );
+}
+
+
 int main( int argc, char **argv )
 {
   testing::InitGoogleTest( &argc, argv );
