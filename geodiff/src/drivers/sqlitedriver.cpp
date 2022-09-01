@@ -417,8 +417,17 @@ static std::string sqlFindModified( const std::string &tableName, const TableSch
     {
       if ( !exprOther.empty() )
         exprOther += " OR ";
-      exprOther += sqlitePrintf( "\"%w\".\"%w\".\"%w\" IS NOT \"%w\".\"%w\".\"%w\"",
-                                 "main", tableName.c_str(), c.name.c_str(), "aux", tableName.c_str(), c.name.c_str() );
+
+      if ( c.type.dbType == "DATETIME" )
+      {
+        exprOther += sqlitePrintf( "STRFTIME('%%Y-%%m-%%d %%H:%%M:%%S.%%fZ', \"%w\".\"%w\".\"%w\") != STRFTIME('%%Y-%%m-%%d %%H:%%M:%%S.%%fZ', \"%w\".\"%w\".\"%w\")",
+                                   "main", tableName.c_str(), c.name.c_str(), "aux", tableName.c_str(), c.name.c_str() );
+      }
+      else
+      {
+        exprOther += sqlitePrintf( "\"%w\".\"%w\".\"%w\" IS NOT \"%w\".\"%w\".\"%w\"",
+                                   "main", tableName.c_str(), c.name.c_str(), "aux", tableName.c_str(), c.name.c_str() );
+      }
     }
   }
   std::string sql;
@@ -533,7 +542,7 @@ static void handleUpdated( const Context *context, const std::string &tableName,
         if ( tbl.columns[i].type == TableColumnType::DATETIME )
         {
           Sqlite3Stmt stmtDatetime;
-          stmtDatetime.prepare( db, "SELECT datetime(?1) IS NOT datetime(?2)" );
+          stmtDatetime.prepare( db, "SELECT STRFTIME('%%Y-%%m-%%d %%H:%%M:%%S.%%fZ', ?1) != STRFTIME('%%Y-%%m-%%d %%H:%%M:%%S.%%fZ', ?2)" );
           sqlite3_bind_value( stmtDatetime.get(), 1, v1.value() );
           sqlite3_bind_value( stmtDatetime.get(), 2, v2.value() );
           int res = sqlite3_step( stmtDatetime.get() );
@@ -678,7 +687,7 @@ static std::string sqlForUpdate( const std::string &tableName, const TableSchema
     {
       // compare date/time values using datetime() because they may have
       // multiple equivalent string representations (see #143)
-      sql += sqlitePrintf( " ( ?%d = 0 OR datetime(\"%w\") IS datetime(?%d) ) ", i * 3 + 2, tbl.columns[i].name.c_str(), i * 3 + 1 );
+      sql += sqlitePrintf( " ( ?%d = 0 OR STRFTIME('%%Y-%%m-%%d %%H:%%M:%%S.%%fZ', \"%w\") = STRFTIME('%%Y-%%m-%%d %%H:%%M:%%S.%%fZ', ?%d) ) ", i * 3 + 2, tbl.columns[i].name.c_str(), i * 3 + 1 );
     }
     else
       sql += sqlitePrintf( " ( ?%d = 0 OR \"%w\" IS ?%d ) ", i * 3 + 2, tbl.columns[i].name.c_str(), i * 3 + 1 );
@@ -707,7 +716,7 @@ static std::string sqlForDelete( const std::string &tableName, const TableSchema
     {
       // compare date/time values using datetime() because they may have
       // multiple equivalent string representations (see #143)
-      sql += sqlitePrintf( "datetime(\"%w\") IS datetime(?)", tbl.columns[i].name.c_str() );
+      sql += sqlitePrintf( "STRFTIME('%%Y-%%m-%%d %%H:%%M:%%S.%%fZ', \"%w\") IS STRFTIME('%%Y-%%m-%%d %%H:%%M:%%S.%%fZ', ?)", tbl.columns[i].name.c_str() );
     }
     else
       sql += sqlitePrintf( "\"%w\" IS ?", tbl.columns[i].name.c_str() );
