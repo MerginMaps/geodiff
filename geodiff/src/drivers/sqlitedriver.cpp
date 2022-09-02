@@ -418,16 +418,8 @@ static std::string sqlFindModified( const std::string &tableName, const TableSch
       if ( !exprOther.empty() )
         exprOther += " OR ";
 
-      if ( c.type.dbType == "DATETIME" )
-      {
-        exprOther += sqlitePrintf( "STRFTIME('%%Y-%%m-%%d %%H:%%M:%%S.%%fZ', \"%w\".\"%w\".\"%w\") != STRFTIME('%%Y-%%m-%%d %%H:%%M:%%S.%%fZ', \"%w\".\"%w\".\"%w\")",
-                                   "main", tableName.c_str(), c.name.c_str(), "aux", tableName.c_str(), c.name.c_str() );
-      }
-      else
-      {
-        exprOther += sqlitePrintf( "\"%w\".\"%w\".\"%w\" IS NOT \"%w\".\"%w\".\"%w\"",
-                                   "main", tableName.c_str(), c.name.c_str(), "aux", tableName.c_str(), c.name.c_str() );
-      }
+      exprOther += sqlitePrintf( "\"%w\".\"%w\".\"%w\" IS NOT \"%w\".\"%w\".\"%w\"",
+                                 "main", tableName.c_str(), c.name.c_str(), "aux", tableName.c_str(), c.name.c_str() );
     }
   }
   std::string sql;
@@ -539,10 +531,11 @@ static void handleUpdated( const Context *context, const std::string &tableName,
         // Let's do a secondary check for some column types to avoid false positives, for example
         // multiple different string representations could be used for a single datetime value,
         // see "Time Values" section in https://sqlite.org/lang_datefunc.html
+        // Use strftime() to take into account fractional seconds
         if ( tbl.columns[i].type == TableColumnType::DATETIME )
         {
           Sqlite3Stmt stmtDatetime;
-          stmtDatetime.prepare( db, "SELECT STRFTIME('%%Y-%%m-%%d %%H:%%M:%%S.%%fZ', ?1) != STRFTIME('%%Y-%%m-%%d %%H:%%M:%%S.%%fZ', ?2)" );
+          stmtDatetime.prepare( db, "SELECT STRFTIME('%%Y-%%m-%%d %%H:%%M:%%f', ?1) IS NOT STRFTIME('%%Y-%%m-%%d %%H:%%M:%%f', ?2)" );
           sqlite3_bind_value( stmtDatetime.get(), 1, v1.value() );
           sqlite3_bind_value( stmtDatetime.get(), 2, v2.value() );
           int res = sqlite3_step( stmtDatetime.get() );
@@ -687,7 +680,7 @@ static std::string sqlForUpdate( const std::string &tableName, const TableSchema
     {
       // compare date/time values using datetime() because they may have
       // multiple equivalent string representations (see #143)
-      sql += sqlitePrintf( " ( ?%d = 0 OR STRFTIME('%%Y-%%m-%%d %%H:%%M:%%S.%%fZ', \"%w\") = STRFTIME('%%Y-%%m-%%d %%H:%%M:%%S.%%fZ', ?%d) ) ", i * 3 + 2, tbl.columns[i].name.c_str(), i * 3 + 1 );
+      sql += sqlitePrintf( " ( ?%d = 0 OR STRFTIME('%%Y-%%m-%%d %%H:%%M:%%f', \"%w\") IS STRFTIME('%%Y-%%m-%%d %%H:%%M:%%f', ?%d) ) ", i * 3 + 2, tbl.columns[i].name.c_str(), i * 3 + 1 );
     }
     else
       sql += sqlitePrintf( " ( ?%d = 0 OR \"%w\" IS ?%d ) ", i * 3 + 2, tbl.columns[i].name.c_str(), i * 3 + 1 );
@@ -714,9 +707,9 @@ static std::string sqlForDelete( const std::string &tableName, const TableSchema
       sql += sqlitePrintf( "\"%w\" = ?", tbl.columns[i].name.c_str() );
     else if ( tbl.columns[i].type.baseType == TableColumnType::DATETIME )
     {
-      // compare date/time values using datetime() because they may have
-      // multiple equivalent string representations (see #143)
-      sql += sqlitePrintf( "STRFTIME('%%Y-%%m-%%d %%H:%%M:%%S.%%fZ', \"%w\") IS STRFTIME('%%Y-%%m-%%d %%H:%%M:%%S.%%fZ', ?)", tbl.columns[i].name.c_str() );
+      // compare date/time values using strftime() because otherwise
+      // fractional seconds will be lost
+      sql += sqlitePrintf( "STRFTIME('%%Y-%%m-%%d %%H:%%M:%%f', \"%w\") IS STRFTIME('%%Y-%%m-%%d %%H:%%M:%%f', ?)", tbl.columns[i].name.c_str() );
     }
     else
       sql += sqlitePrintf( "\"%w\" IS ?", tbl.columns[i].name.c_str() );
