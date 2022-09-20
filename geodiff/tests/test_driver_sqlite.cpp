@@ -332,6 +332,20 @@ TEST( SqliteDriverTest, apply_changeset_datetime )
                     );
 }
 
+TEST( SqliteDriverTest, test_timestamp_miliseconds )
+{
+  testCreateChangeset( "test_create_changeset_miliseconds",
+                       pathjoin( testdir(), "datetime", "datetime1-ms.gpkg" ),
+                       pathjoin( testdir(), "datetime", "datetime2-ms.gpkg" ),
+                       pathjoin( testdir(), "datetime", "datetime1-2-ms.diff" )
+                     );
+
+  testApplyChangeset( "test_apply_changeset_miliseconds",
+                      pathjoin( testdir(), "datetime", "datetime1-ms.gpkg" ),
+                      pathjoin( testdir(), "datetime", "datetime1-2-ms.diff" ),
+                      pathjoin( testdir(), "datetime", "datetime2-ms.gpkg" )
+                    );
+}
 
 TEST( SqliteDriverTest, apply_with_gpkg_contents )
 {
