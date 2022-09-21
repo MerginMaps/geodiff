@@ -364,8 +364,13 @@ bool compareDiffsByContent( std::string diffA, std::string diffB )
 }
 
 #ifdef HAVE_POSTGRES
-std::string pgTestConnInfo()
+std::string pgTestConnInfo( bool secondInstance )
 {
+  if ( secondInstance )
+  {
+    return getEnvVar( "GEODIFF_PG_CONNINFO2", "" );
+  }
+
   return getEnvVar( "GEODIFF_PG_CONNINFO", "" );
 }
 #endif

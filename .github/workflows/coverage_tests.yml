@@ -29,6 +29,12 @@ jobs:
           sudo runuser -l postgres -c 'psql -d "geodiffdb" -c "CREATE EXTENSION postgis;"'
           sudo runuser -l postgres -c 'psql -d "geodiffdb" -c "CREATE EXTENSION \"uuid-ossp\";"'
           sudo runuser -l postgres -c 'psql -c "GRANT ALL PRIVILEGES ON DATABASE geodiffdb TO geodiffuser"'
+          # second database, to test diffs between different databases and same schemas,
+          # see https://github.com/MerginMaps/geodiff/issues/185
+          sudo runuser -l postgres -c 'psql -c "CREATE DATABASE geodiffdb2"'
+          sudo runuser -l postgres -c 'psql -d "geodiffdb2" -c "CREATE EXTENSION postgis;"'
+          sudo runuser -l postgres -c 'psql -d "geodiffdb2" -c "CREATE EXTENSION \"uuid-ossp\";"'
+          sudo runuser -l postgres -c 'psql -c "GRANT ALL PRIVILEGES ON DATABASE geodiffdb2 TO geodiffuser"'
 
       - name: build geodiff with coverage
         run: |
@@ -46,6 +52,7 @@ jobs:
         env:
           CTEST_TARGET_SYSTEM: Linux-gcc
           GEODIFF_PG_CONNINFO: "host=localhost port=5432 user=geodiffuser password=geodiffpass dbname=geodiffdb"
+          GEODIFF_PG_CONNINFO2: "host=localhost port=5432 user=geodiffuser password=geodiffpass dbname=geodiffdb2"
         run: |
           cd build_coverage_lnx
           ctest -VV

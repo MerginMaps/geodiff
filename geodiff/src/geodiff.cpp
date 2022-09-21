@@ -221,7 +221,9 @@ int GEODIFF_createChangesetDr( GEODIFF_ContextH contextHandle, const char *drive
     return GEODIFF_ERROR;
   }
 
-  if ( strcmp( driverSrcName, driverDstName ) == 0 )
+  // check both driver names and connection details, for more context
+  // see https://github.com/MerginMaps/geodiff/issues/185
+  if ( strcmp( driverSrcName, driverDstName ) == 0 && strcmp( driverSrcExtraInfo, driverDstExtraInfo ) == 0 )
   {
     return GEODIFF_createChangesetEx( contextHandle, driverSrcName, driverSrcExtraInfo, src, dst, changeset );
   }
