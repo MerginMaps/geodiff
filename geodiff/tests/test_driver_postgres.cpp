@@ -502,7 +502,6 @@ TEST( PostgresDriverTest, test_create_tables )
   ASSERT_TRUE( isFileEmpty( output ) );
 }
 
-
 TEST( PostgresDriverTest, test_create_sqlite_from_postgres )
 {
   std::string conninfo = pgTestConnInfo();
@@ -891,7 +890,7 @@ TEST( PostgresDriverTest, test_changesetdr_pg_to_pg )
   makedir( pathjoin( tmpdir(), testname ) );
   std::string changeset = pathjoin( tmpdir(), testname, "changeset.diff" );
 
-  // compare the same drivers
+  // compare the same drivers with the same connection info (same database, different schemas)
   int ret = GEODIFF_createChangesetDr( testContext(), "postgres", conninfo.c_str(), "gd_base", "postgres", conninfo.c_str(), "gd_inserted_1_a", changeset.c_str() );
   EXPECT_EQ( ret, GEODIFF_SUCCESS );
 
@@ -900,7 +899,25 @@ TEST( PostgresDriverTest, test_changesetdr_pg_to_pg )
 
   EXPECT_TRUE( !reader.isEmpty() );
 
+  // compare the same drivers with different connection info (different databases, same schemas)
+  std::string conninfo2 = pgTestConnInfo( true );
+
+  execSqlCommands( conninfo, pathjoin( testdir(), "postgres", "diff.sql" ) );
+  execSqlCommands( conninfo2, pathjoin( testdir(), "postgres", "diff2.sql" ) );
+
+  PGconn *c2 = PQconnectdb( conninfo.c_str() );
+  ASSERT_EQ( PQstatus( c2 ), CONNECTION_OK );
+
+  changeset = pathjoin( tmpdir(), testname, "changeset2.diff" );
+
+  ret = GEODIFF_createChangesetDr( testContext(), "postgres", conninfo.c_str(), "gd_pg_diff", "postgres", conninfo2.c_str(), "gd_pg_diff", changeset.c_str() );
+  EXPECT_EQ( ret, GEODIFF_SUCCESS );
+
+  EXPECT_TRUE( reader.open( changeset ) );
+  EXPECT_TRUE( !reader.isEmpty() );
+
   PQfinish( c );
+  PQfinish( c2 );
 }
 
 TEST( PostgresDriverTest, test_multipart_geometries )

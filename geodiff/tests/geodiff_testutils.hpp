@@ -67,11 +67,14 @@ bool compareDiffsByContent( std::string diffA, std::string diffB );
 
 #ifdef HAVE_POSTGRES
 /**
- * Returns the connection info for the postgres database
- * Use GEODIFF_PG_CONNINFO env variable for setup
+ * Returns the connection info for the postgres databases
+ * Use GEODIFF_PG_CONNINFO and GEODIFF_PG_CONNINFO2 env variables for setup.
+ * By default returns connection info defined by GEODIFF_PG_CONNINFO, to
+ * access connection info from GEODIFF_PG_CONNINFO2 env variable set
+ * secondInstance to true.
  * Returns empty string by default
  */
-std::string pgTestConnInfo();
+std::string pgTestConnInfo( bool secondInstance = false );
 #endif
 
 #endif // GEODIFF_TESTUTILS_HPP
