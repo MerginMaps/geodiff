@@ -6,15 +6,15 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Geodiff
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
 
       - name: install deps
         run: |
-          sudo apt-get --purge remove postgresql-14
+          # sudo apt-get --purge remove postgresql-14
           sudo apt-get update
           sudo apt-get install libpq-dev
           sudo apt-get install libc6-dbg gdb
-          sudo apt-get install postgresql-12 postgresql-contrib-12 postgresql-12-postgis-3 postgresql-common postgis
+          sudo apt-get install postgresql-14 postgresql-contrib-14 postgresql-14-postgis-3 postgresql-common postgis
 
       - name: build geodiff static only
         run: |
