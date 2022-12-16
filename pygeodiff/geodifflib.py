@@ -176,8 +176,11 @@ class GeoDiffLib:
         func = self.lib.GEODIFF_CX_setLoggerCallback
         cFuncType = ctypes.CFUNCTYPE(None, ctypes.c_int, ctypes.c_char_p)
         func.argtypes = [ctypes.c_void_p, cFuncType]
-        # do not remove self, callback needs to be member
-        self.callbackLogger = cFuncType(callback)
+        if callback:
+          # do not remove self, callback needs to be member
+          self.callbackLogger = cFuncType(callback)
+        else:
+          self.callbackLogger = cFuncType()
         func(self.context, self.callbackLogger)
 
     def set_maximum_logger_level(self, maxLevel):

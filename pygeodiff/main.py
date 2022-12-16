@@ -28,7 +28,8 @@ class GeoDiff:
         """
             Assign custom logger
             Replace default stdout/stderr logger with custom.
-            callback function has 2 arguments: (int) errorCode, (string) msg
+            When callback is None, no output is produced at all
+            Callback function has 2 arguments: (int) errorCode, (string) msg
         """
         return self.clib.set_logger_callback(callback)
 

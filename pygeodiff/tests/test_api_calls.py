@@ -10,6 +10,11 @@ import shutil
 
 class UnitTestsPythonApiCalls(GeoDiffTests):
     """ Some quick tests of various API calls just to make sure they are not broken """
+    def test_global_settigs(self):
+        print("********************************************************")
+        print("PYTHON: test setting logger to None and Back")
+        self.geodiff.set_logger_callback(None)
+        self.geodiff.set_logger_callback(logger)
 
     def test_api_calls(self):
         print("********************************************************")

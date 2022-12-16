@@ -14,9 +14,9 @@ jobs:
       CIBW_TEST_COMMAND: python -c "import pygeodiff; pygeodiff.GeoDiff().version()"
 
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
 
-      - uses: actions/setup-python@v2
+      - uses: actions/setup-python@v3
         name: Install Python
         with:
           python-version: '3.8'
@@ -24,7 +24,7 @@ jobs:
       - name: Build wheels
         uses: pypa/cibuildwheel@v2.3.1
 
-      - uses: actions/upload-artifact@v2
+      - uses: actions/upload-artifact@v3
         with:
           path: ./wheelhouse/*.whl
 
@@ -40,9 +40,9 @@ jobs:
       CIBW_TEST_COMMAND: python -c "import pygeodiff; pygeodiff.GeoDiff().version()"
 
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
 
-      - uses: actions/setup-python@v2
+      - uses: actions/setup-python@v3
         name: Install Python
         with:
           python-version: '3.8'
@@ -50,7 +50,7 @@ jobs:
       - name: Build wheels
         uses: pypa/cibuildwheel@v2.3.1
 
-      - uses: actions/upload-artifact@v2
+      - uses: actions/upload-artifact@v3
         with:
           path: ./wheelhouse/*.whl
 
@@ -64,9 +64,9 @@ jobs:
       CIBW_TEST_COMMAND: python -c "import pygeodiff; pygeodiff.GeoDiff().version()"
 
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
 
-      - uses: actions/setup-python@v2
+      - uses: actions/setup-python@v3
         name: Install Python
         with:
           python-version: '3.8'
@@ -74,7 +74,7 @@ jobs:
       - name: Build wheels
         uses: pypa/cibuildwheel@v2.3.1
 
-      - uses: actions/upload-artifact@v2
+      - uses: actions/upload-artifact@v3
         with:
           path: ./wheelhouse/*.whl
 
@@ -89,9 +89,9 @@ jobs:
       CIBW_REPAIR_WHEEL_COMMAND_WINDOWS: "delvewheel repair --add-path C:/vcpkg/installed/x64-windows/bin --no-mangle-all -v -w {dest_dir} {wheel}"
 
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
 
-      - uses: actions/setup-python@v2
+      - uses: actions/setup-python@v3
         name: Install Python
         with:
           python-version: '3.8'
@@ -106,7 +106,7 @@ jobs:
       - name: Build wheels
         uses: pypa/cibuildwheel@v2.3.1
 
-      - uses: actions/upload-artifact@v2
+      - uses: actions/upload-artifact@v3
         with:
           path: ./wheelhouse/*.whl
 
@@ -122,9 +122,9 @@ jobs:
       CIBW_REPAIR_WHEEL_COMMAND_WINDOWS: "delvewheel repair --add-path C:/vcpkg/installed/x86-windows/bin --no-mangle-all -v -w {dest_dir} {wheel}"
 
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
 
-      - uses: actions/setup-python@v2
+      - uses: actions/setup-python@v3
         name: Install Python
         with:
           python-version: '3.8'
@@ -140,7 +140,7 @@ jobs:
       - name: Build wheels
         uses: pypa/cibuildwheel@v2.3.1
 
-      - uses: actions/upload-artifact@v2
+      - uses: actions/upload-artifact@v3
         with:
           path: ./wheelhouse/*.whl
 
@@ -153,9 +153,9 @@ jobs:
         CIBW_TEST_COMMAND: python -c "import pygeodiff; pygeodiff.GeoDiff().version()"
 
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
 
-      - uses: actions/setup-python@v2
+      - uses: actions/setup-python@v3
         name: Install Python
         with:
           python-version: '3.8'
@@ -168,7 +168,7 @@ jobs:
       - name: Build wheels
         uses: pypa/cibuildwheel@v2.3.1
 
-      - uses: actions/upload-artifact@v2
+      - uses: actions/upload-artifact@v3
         with:
           path: ./wheelhouse/*.whl
 
@@ -176,9 +176,9 @@ jobs:
     name: Build source distribution
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
 
-      - uses: actions/setup-python@v2
+      - uses: actions/setup-python@v3
         name: Install Python
         with:
           python-version: '3.8'
@@ -191,7 +191,7 @@ jobs:
       - name: Build sdist
         run: python setup.py sdist
 
-      - uses: actions/upload-artifact@v2
+      - uses: actions/upload-artifact@v3
         with:
           path: dist/*.tar.gz
 
