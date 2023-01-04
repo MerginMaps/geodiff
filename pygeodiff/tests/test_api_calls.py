@@ -35,6 +35,17 @@ class UnitTestsPythonApiCalls(GeoDiffTests):
             [testdir()+'/concat/foo-insert-update-1.diff', testdir()+'/concat/foo-insert-update-2.diff'],
             outdir+'/concat.diff')
 
+        self.geodiff.concat_changes(
+            [testdir()+'/concat/bar-insert.diff', testdir()+'/concat/bar-update.diff', testdir()+'/concat/bar-delete.diff'],
+            outdir+'/concat.diff')
+
+        # This is not a valid concat - you delete feature and then update (deleted feature) and then insert it
+        # But it should not crash. Ideally update is ignored (invalid step) and insert is applied
+        # https://github.com/MerginMaps/geodiff/issues/174
+        self.geodiff.concat_changes(
+            [testdir()+'/concat/bar-delete.diff', testdir()+'/concat/bar-update.diff', testdir()+'/concat/bar-insert.diff'],
+            outdir+'/concat.diff')
+
         print("-- make_copy")
         self.geodiff.make_copy(
             'sqlite', '',
