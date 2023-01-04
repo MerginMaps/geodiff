@@ -246,6 +246,7 @@ void concatChangesets(
             case Unsupported:
               // we are discarding the new entry (there's no sensible way to integrate it)
               context->logger().warn( "concatChangesets: unsupported sequence of entries for a single row - discarding newer entry" );
+              t.entries.erase( entriesIt );
               delete entry0;
               break;
           }
