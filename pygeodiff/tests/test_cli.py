@@ -47,7 +47,9 @@ class UnitTestsCliCalls(GeoDiffCliTests):
         self.run_command(["diff", geodiff_test_dir()+'/base.gpkg', geodiff_test_dir()+'/1_geopackage/modified_1_geom.gpkg', outdir + "/diff.diff", 'extra_arg'], expect_fail=True )
         self.run_command(["diff", '--json', '--summary', geodiff_test_dir()+'/base.gpkg', geodiff_test_dir()+'/1_geopackage/modified_1_geom.gpkg'], expect_fail=True )
         self.run_command(["diff", '--driver1', 'sqlite', '\'\'', '--driver2', 'sqlite', '\'\'', '--summary', geodiff_test_dir()+'/base.gpkg', geodiff_test_dir()+'/1_geopackage/modified_1_geom.gpkg'], check_in_output="geodiff_summary", expect_fail=True )
-        
+        self.run_command(["diff", '--driver1', 'sqlite', '--driver2', 'sqlite', '\'\'', '--summary', geodiff_test_dir()+'/base.gpkg', geodiff_test_dir()+'/1_geopackage/modified_1_geom.gpkg'], check_in_output="geodiff_summary", expect_fail=True )
+        self.run_command(["diff", '--json', '--skip-tables', geodiff_test_dir()+'/base.gpkg', geodiff_test_dir()+'/1_geopackage/modified_1_geom.gpkg'], check_in_output="geodiff", expect_fail=True )
+                
         self.run_command(["diff", geodiff_test_dir()+'/base.gpkg', geodiff_test_dir()+'/1_geopackage/modified_1_geom.gpkg'] )
         self.run_command(["diff", '--json', geodiff_test_dir()+'/base.gpkg', geodiff_test_dir()+'/1_geopackage/modified_1_geom.gpkg'], check_in_output="update" )
         self.run_command(["diff", '--json', '--skip-tables', 'simple', geodiff_test_dir()+'/base.gpkg', geodiff_test_dir()+'/1_geopackage/modified_1_geom.gpkg'], check_in_output="geodiff" ) #empty diff
@@ -60,17 +62,29 @@ class UnitTestsCliCalls(GeoDiffCliTests):
         self.run_command(["copy"], expect_fail=True )
         self.run_command(["copy", geodiff_test_dir()+'/non-existent.gpkg', outdir+'/copy.gpkg'], expect_fail=True )
         self.run_command(["copy", geodiff_test_dir()+'/base.gpkg', outdir+'/copy.gpkg', 'extra_arg'], expect_fail=True )
+        self.run_command(["copy", '--skip-tables', geodiff_test_dir()+'/base.gpkg', outdir+'/copy.gpkg'], expect_fail=True )
+        self.run_command(["copy", '--driver-1', geodiff_test_dir()+'/base.gpkg', outdir+'/copy.gpkg'], expect_fail=True )
+        self.run_command(["copy", '--driver-2', geodiff_test_dir()+'/base.gpkg', outdir+'/copy.gpkg'], expect_fail=True )
+        self.run_command(["copy", '--driver', 'sqlite', '\'\'',  '--skip-tables', 'unknown', geodiff_test_dir()+'/base.gpkg', outdir+'/copy2.gpkg'], expect_fail=True)
+        
         self.run_command(["copy", geodiff_test_dir()+'/base.gpkg', outdir+'/copy.gpkg'])
-
         
         print("-- apply" )
         self.run_command(["copy", geodiff_test_dir()+'/base.gpkg', outdir+'/copyA.gpkg'])
+        self.run_command(["copy", geodiff_test_dir()+'/base.gpkg', outdir+'/copyB.gpkg'])
         
         self.run_command(["apply"], expect_fail=True )
         self.run_command(["apply", outdir+'/copyA.gpkg'], expect_fail=True )
         self.run_command(["apply", outdir+'/copyA.gpkg', geodiff_test_dir()+'/1_geopackage/modified_1_geom.gpkg'], expect_fail=True ) # second arg is diff
         self.run_command(["apply", outdir+'/copyA.gpkg', outdir + "/diff.diff", 'extra_arg'], expect_fail=True )
-        self.run_command(["apply", outdir+'/copyA.gpkg', geodiff_test_dir()+'/2_inserts/base-inserted_1_A.diff'] )
+        self.run_command(["apply", outdir+'/copyA.gpkg', outdir + "/diff.diff", 'extra_arg'], expect_fail=True )
+        self.run_command(["apply", '--driver', outdir+'/copyA.gpkg', geodiff_test_dir()+'/2_inserts/base-inserted_1_A.diff'], expect_fail=True )
+        self.run_command(["apply", '--driver', 'sqlite', outdir+'/copyA.gpkg', geodiff_test_dir()+'/2_inserts/base-inserted_1_A.diff'], expect_fail=True )
+        self.run_command(["apply", '--skip-tables', outdir+'/copyA.gpkg', geodiff_test_dir()+'/2_inserts/base-inserted_1_A.diff'], expect_fail=True )
+        self.run_command(["apply", '--invalid-flag', outdir+'/copyA.gpkg', geodiff_test_dir()+'/2_inserts/base-inserted_1_A.diff'], expect_fail=True )
+        
+        self.run_command(["apply", '--driver', 'sqlite', '\'\'', '--skip-tables', '\'\'', outdir+'/copyA.gpkg', geodiff_test_dir()+'/2_inserts/base-inserted_1_A.diff'] )
+        self.run_command(["apply", outdir+'/copyB.gpkg', geodiff_test_dir()+'/2_inserts/base-inserted_1_A.diff'] )
         
         print("-- rebase-diff" )
         self.run_command(["copy", geodiff_test_dir()+'/base.gpkg', outdir+'/copyF.gpkg'])
