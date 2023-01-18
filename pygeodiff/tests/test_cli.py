@@ -19,6 +19,7 @@ class UnitTestsCliCalls(GeoDiffCliTests):
 
         print("-- invalid")
         self.run_command([], expect_fail=True )
+        self.run_command(["badcommand"], expect_fail=True )
         
         print("-- dump" )
         self.run_command(["dump"], expect_fail=True )
@@ -76,6 +77,8 @@ class UnitTestsCliCalls(GeoDiffCliTests):
         self.run_command(["copy", geodiff_test_dir()+'/base.gpkg', outdir+'/copyB.gpkg'])
         
         self.run_command(["apply"], expect_fail=True )
+        self.run_command(["apply", '--driver'], expect_fail=True )
+        self.run_command(["apply", '--skip-tables'], expect_fail=True )
         self.run_command(["apply", outdir+'/copyA.gpkg'], expect_fail=True )
         self.run_command(["apply", outdir+'/copyA.gpkg', geodiff_test_dir()+'/1_geopackage/modified_1_geom.gpkg'], expect_fail=True ) # second arg is diff
         self.run_command(["apply", outdir+'/copyA.gpkg', outdir + "/diff.diff", 'extra_arg'], expect_fail=True )
