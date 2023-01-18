@@ -4,7 +4,7 @@
     :license: MIT, see LICENSE for more details.
 """
 
-from .testutils import GeoDiffTests, testdir
+from .testutils import GeoDiffTests, geodiff_test_dir
 from pygeodiff import ChangesetEntry, ChangesetReader, GeoDiffLibError, UndefinedValue
 import os
 
@@ -12,19 +12,19 @@ import os
 class UnitTestsChangesetReader(GeoDiffTests):
 
     def test_invalid_file(self):
-        changeset = os.path.join(testdir(), "missing-file.diff")
+        changeset = os.path.join(geodiff_test_dir(), "missing-file.diff")
         with self.assertRaises(GeoDiffLibError):
             ch_reader = self.geodiff.read_changeset(changeset)
 
         # existing file, but wrong format... reader will be created fine
         # (there's no header to verify it's the right file type)
-        changeset = os.path.join(testdir(), "base.gpkg")
+        changeset = os.path.join(geodiff_test_dir(), "base.gpkg")
         ch_reader = self.geodiff.read_changeset(changeset)
         with self.assertRaises(GeoDiffLibError):
             ch_reader.next_entry()
 
     def test_basic(self):
-        changeset = os.path.join(testdir(), "1_geopackage", "base-modified_1_geom.diff")
+        changeset = os.path.join(geodiff_test_dir(), "1_geopackage", "base-modified_1_geom.diff")
         ch_reader = self.geodiff.read_changeset(changeset)
         self.assertIsInstance(ch_reader, ChangesetReader)
         entry = ch_reader.next_entry()
@@ -35,7 +35,7 @@ class UnitTestsChangesetReader(GeoDiffTests):
         self.assertEqual(entry, None)
 
     def test_iterator(self):
-        changeset = os.path.join(testdir(), "1_geopackage", "base-modified_1_geom.diff")
+        changeset = os.path.join(geodiff_test_dir(), "1_geopackage", "base-modified_1_geom.diff")
         i = 0
         for entry in self.geodiff.read_changeset(changeset):
             self.assertEqual(entry.operation, ChangesetEntry.OP_UPDATE)
@@ -55,7 +55,7 @@ class UnitTestsChangesetReader(GeoDiffTests):
         self.assertEqual(i, 2)
 
     def test_insert(self):
-        changeset = os.path.join(testdir(), "2_inserts", "base-inserted_1_A.diff")
+        changeset = os.path.join(geodiff_test_dir(), "2_inserts", "base-inserted_1_A.diff")
         i = 0
         for entry in self.geodiff.read_changeset(changeset):
             self.assertEqual(entry.table.name, 'simple')
@@ -67,7 +67,7 @@ class UnitTestsChangesetReader(GeoDiffTests):
         self.assertEqual(i, 1)
 
     def test_delete(self):
-        changeset = os.path.join(testdir(), "2_deletes", "base-deleted_A.diff")
+        changeset = os.path.join(geodiff_test_dir(), "2_deletes", "base-deleted_A.diff")
         i = 0
         for entry in self.geodiff.read_changeset(changeset):
             self.assertEqual(entry.table.name, 'simple')

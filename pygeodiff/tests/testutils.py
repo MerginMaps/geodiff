@@ -10,6 +10,7 @@ import tempfile
 import pygeodiff
 import json
 import shutil
+import subprocess
 
 class TestError(Exception):
     __test__ = False   # this is not a test class, this will make pytest to ignore it
@@ -18,7 +19,7 @@ class TestError(Exception):
 REFDIF = os.path.dirname(os.path.realpath(__file__))
 
 
-def testdir():
+def geodiff_test_dir():
     return os.path.join(REFDIF, os.pardir, os.pardir, "geodiff", "tests", "testdata")
 
 
@@ -29,6 +30,7 @@ def create_dir(testname):
     if os.path.exists(tmpdir() + "/py" + testname):
         shutil.rmtree(tmpdir() + "/py" + testname)
     os.makedirs(tmpdir() + "/py" + testname)
+    return tmpdir() + "/py" + testname
 
 def check_nchanges(geodiff, changeset, expected_number_of_changes ):
   # test has_changes
@@ -102,6 +104,16 @@ def compare_json(json_file, expected_json):
         raise TestError("JSON generated is different from expected")
 
 
+def file_contains(text_file, expected_str):
+    try:
+        with open(text_file, 'r') as file:
+            content = file.read()
+            if expected_str not in content:
+                raise TestError("file " + text_file + " does not contain " + expected_str)
+    except UnicodeDecodeError:
+        raise TestError("file " + text_file + " is not text file")
+
+
 def logger(level, rawString):
     msg = rawString.decode('utf-8')
     print( "GEODIFFTEST: " + str(level) + " " + msg )
@@ -118,6 +130,7 @@ def dict_diff(a, b):
                 return False
     return True
 
+
 class GeoDiffTests(unittest.TestCase):
     def setUp(self):
         # load lib
@@ -127,3 +140,32 @@ class GeoDiffTests(unittest.TestCase):
         self.geodiff = pygeodiff.GeoDiff(lib)
         self.geodiff.set_logger_callback(logger)
         self.geodiff.set_maximum_logger_level(pygeodiff.GeoDiff.LevelDebug)
+
+
+class GeoDiffCliTests(unittest.TestCase):
+    def setUp(self):
+        # load lib
+        self.cli = os.environ.get("GEODIFFCLI", None)
+        if self.cli is None:
+            raise TestError("missing GEODIFFCLI env variable with path to geodiff-cli")
+    
+    def run_command(self, args, check_in_output = None, expect_fail = False):
+        assert self.cli is not None
+        cmd = [self.cli] + args
+        cmd_str = " ".join(cmd)
+        output = ""
+        try:
+            output = subprocess.check_output(cmd, stderr=subprocess.STDOUT)
+        except subprocess.CalledProcessError as err:
+            if expect_fail:
+                return 
+            else:
+                raise TestError("command " + cmd_str + " returned non-zero code " + str(err.returncode))
+                
+        if expect_fail:
+            raise TestError("command " + cmd_str + " returned zero code even we expected fail")
+        
+        if check_in_output is not None:
+            if str(check_in_output) not in str(output):
+                raise TestError("expected output " + check_in_output + " not found in command " + cmd_str)
+

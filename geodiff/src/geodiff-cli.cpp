@@ -780,7 +780,9 @@ static int handleCmdDrivers( const std::vector<std::string> &args )
 
 static int handleCmdVersion( const std::vector<std::string> &args )
 {
-  ( void )args;
+  size_t i = 1;
+  if ( !checkNoExtraArguments( args, i, "version" ) )
+    return 1;
 
   std::cout << GEODIFF_version() << std::endl;
   return 0;
@@ -793,7 +795,10 @@ static GEODIFF_LoggerLevel getGeodiffLoggerLevel( )
 
 static int handleCmdHelp( const std::vector<std::string> &args )
 {
-  ( void )args; // arguments unused
+  size_t i = 1;
+  if ( !checkNoExtraArguments( args, i, "help" ) )
+    return 1;
+
 
   std::cout << "GEODIFF " << GEODIFF_version() << ", a tool for handling diffs for geospatial data.\n\
 \n\
@@ -970,7 +975,7 @@ Utilities:\n\
 \n\
     Prints this help information.\n\
 \n\
-Copyright (C) 2019-2021 Lutra Consulting\n\
+Copyright (C) 2019-2023 Lutra Consulting\n\
 ";
   return 0;
 }

@@ -11,9 +11,9 @@ import pygeodiff
 
 class UnitTestsPythonSingleCommit(GeoDiffTests):
     def test_skip_create(self):
-        base = testdir() + "/" + "skip_tables" + "/" + "base.gpkg"
-        modified = testdir() + "/" + "skip_tables" + "/" + "modified_all.gpkg"
-        modified_points = testdir() + "/" + "skip_tables" + "/" + "modified_points.gpkg"
+        base = geodiff_test_dir() + "/" + "skip_tables" + "/" + "base.gpkg"
+        modified = geodiff_test_dir() + "/" + "skip_tables" + "/" + "modified_all.gpkg"
+        modified_points = geodiff_test_dir() + "/" + "skip_tables" + "/" + "modified_points.gpkg"
         changeset = tmpdir() + "/py" + "test_skip_create" + "/" + "changeset_points.bin"
         changeset2 = tmpdir() + "/py" + "test_skip_create" + "/" + "changeset_points2.bin"
         changeset_inv = tmpdir() + "/py" + "test_skip_create" + "/" + "changeset_inv.bin"
@@ -46,9 +46,9 @@ class UnitTestsPythonSingleCommit(GeoDiffTests):
         self.geodiff.set_tables_to_skip([])
 
     def test_skip_apply(self):
-        base = testdir() + "/" + "skip_tables" + "/" + "base.gpkg"
-        modified = testdir() + "/" + "skip_tables" + "/" + "modified_all.gpkg"
-        modified_points = testdir() + "/" + "skip_tables" + "/" + "modified_points.gpkg"
+        base = geodiff_test_dir() + "/" + "skip_tables" + "/" + "base.gpkg"
+        modified = geodiff_test_dir() + "/" + "skip_tables" + "/" + "modified_all.gpkg"
+        modified_points = geodiff_test_dir() + "/" + "skip_tables" + "/" + "modified_points.gpkg"
         changeset = tmpdir() + "/py" + "test_skip_apply" + "/" + "changeset_points.bin"
         changeset2 = tmpdir() + "/py" + "test_skip_apply" + "/" + "changeset_points2.bin"
         changeset_inv = tmpdir() + "/py" + "test_skip_apply" + "/" + "changeset_inv.bin"
