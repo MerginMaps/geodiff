@@ -42,6 +42,8 @@ class UnitTestsCliCalls(GeoDiffCliTests):
 
         print("-- diff" )
         self.run_command(["diff"], expect_fail=True )
+        self.run_command(["diff", '--driver1'], expect_fail=True )
+        self.run_command(["diff", '--skip-tables'], expect_fail=True )
         self.run_command(["diff", geodiff_test_dir()+'/non-existent.gpkg'], expect_fail=True )
         self.run_command(["diff", geodiff_test_dir()+'/non-existent.gpkg', geodiff_test_dir()+'/1_geopackage/modified_1_geom.gpkg'], expect_fail=True )
         self.run_command(["diff", geodiff_test_dir()+'/base.gpkg', geodiff_test_dir()+'/1_geopackage/modified_1_geom.gpkg', outdir + "/diff.diff", 'extra_arg'], expect_fail=True )
@@ -93,20 +95,32 @@ class UnitTestsCliCalls(GeoDiffCliTests):
         self.run_command(["rebase-diff", outdir+'/copyF.gpkg'], expect_fail=True )
         self.run_command(["rebase-diff", outdir+'/copyF.gpkg', geodiff_test_dir()+'/1_geopackage/modified_1_geom.gpkg'], expect_fail=True ) # second arg is diff
         self.run_command(["rebase-diff", outdir+'/copyF.gpkg', geodiff_test_dir()+'/2_inserts/base-inserted_1_A.diff', geodiff_test_dir()+'/2_updates/base-updated_A.diff', outdir + "/rebase-diff.diff" , outdir + "/confF.confict" , 'extra_arg'], expect_fail=True )
+        self.run_command(["rebase-diff", outdir+'/copyF.gpkg', geodiff_test_dir()+'/2_inserts/base-inserted_1_A.diff', geodiff_test_dir()+'/bad.diff', outdir + "/rebase-diff.diff" , outdir + "/confF.confict"], expect_fail=True )
+        self.run_command(["rebase-diff", outdir+'/copyF.gpkg', geodiff_test_dir()+'/bad.diff', geodiff_test_dir()+'/2_updates/base-updated_A.diff', outdir + "/rebase-diff.diff" , outdir + "/confF.confict"], expect_fail=True )
+        self.run_command(["rebase-diff", outdir+'/copyF.gpkg', geodiff_test_dir()+'/2_inserts/base-inserted_1_A.diff', geodiff_test_dir()+'/2_updates/base-updated_A.diff', outdir + "/rebase-diff.diff"], expect_fail=True )
+
         self.run_command(["rebase-diff", outdir+'/copyF.gpkg', geodiff_test_dir()+'/2_inserts/base-inserted_1_A.diff', geodiff_test_dir()+'/2_updates/base-updated_A.diff', outdir + "/rebase-diff.diff" , outdir + "/confF.confict"] )
         
         print("-- rebase-db" )
         self.run_command(["copy", geodiff_test_dir()+'/base.gpkg', outdir+'/copyD.gpkg'])
         
         self.run_command(["rebase-db"], expect_fail=True )
+        self.run_command(["rebase-db", "--bad_flag"], expect_fail=True )
         self.run_command(["rebase-db", geodiff_test_dir()+'/base.gpkg', outdir+'/copyD.gpkg', geodiff_test_dir()+'/2_inserts/base-inserted_1_A.diff'], expect_fail=True) # missing arg
+        self.run_command(["rebase-db", geodiff_test_dir()+'/bad.gpkg', outdir+'/copyD.gpkg', geodiff_test_dir()+'/bad.diff',outdir + "/rebasedb.conflicts.json"], expect_fail=True)
+        self.run_command(["rebase-db", geodiff_test_dir()+'/base.gpkg', outdir+'/copyD.gpkg', geodiff_test_dir()+'/bad.diff',outdir + "/rebasedb.conflicts.json"], expect_fail=True)
+        self.run_command(["rebase-db", geodiff_test_dir()+'/base.gpkg', outdir+'/bad.gpkg', geodiff_test_dir()+'/2_inserts/base-inserted_1_A.diff',outdir + "/rebasedb.conflicts.json"], expect_fail=True)
+        
         self.run_command(["rebase-db", geodiff_test_dir()+'/base.gpkg', outdir+'/copyD.gpkg', geodiff_test_dir()+'/2_inserts/base-inserted_1_A.diff',outdir + "/rebasedb.conflicts.json"])
         
         print("-- invert" )
         self.run_command(["invert"], expect_fail=True )
+        self.run_command(["invert", "--bad_flag"], expect_fail=True )
         self.run_command(["invert", geodiff_test_dir()+'/concat/bar-insert.diff'], expect_fail=True)
-        self.run_command(["invert", geodiff_test_dir()+'/concat/bar-insert.diff', outdir+'/invert.diff'])
+        self.run_command(["invert", geodiff_test_dir()+'/concat/bar-insert.diff', outdir+'/invert.diff', 'extra_arg'], expect_fail=True)
         self.run_command(["invert", geodiff_test_dir()+'/concat/non-existent-file.diff', outdir+'/invert.diff'], expect_fail=True)
+        
+        self.run_command(["invert", geodiff_test_dir()+'/concat/bar-insert.diff', outdir+'/invert.diff'])
         self.run_command(["as-json", outdir+'/invert.diff'], check_in_output="points" )
         
         print("-- concat" )
