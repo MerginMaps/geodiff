@@ -9,14 +9,21 @@ import os
 import shutil
 import pygeodiff
 
+
 class UnitTestsPythonSingleCommit(GeoDiffTests):
     def test_skip_create(self):
         base = geodiff_test_dir() + "/" + "skip_tables" + "/" + "base.gpkg"
         modified = geodiff_test_dir() + "/" + "skip_tables" + "/" + "modified_all.gpkg"
-        modified_points = geodiff_test_dir() + "/" + "skip_tables" + "/" + "modified_points.gpkg"
+        modified_points = (
+            geodiff_test_dir() + "/" + "skip_tables" + "/" + "modified_points.gpkg"
+        )
         changeset = tmpdir() + "/py" + "test_skip_create" + "/" + "changeset_points.bin"
-        changeset2 = tmpdir() + "/py" + "test_skip_create" + "/" + "changeset_points2.bin"
-        changeset_inv = tmpdir() + "/py" + "test_skip_create" + "/" + "changeset_inv.bin"
+        changeset2 = (
+            tmpdir() + "/py" + "test_skip_create" + "/" + "changeset_points2.bin"
+        )
+        changeset_inv = (
+            tmpdir() + "/py" + "test_skip_create" + "/" + "changeset_inv.bin"
+        )
         patched = tmpdir() + "/py" + "test_skip_create" + "/" + "patched_points.gpkg"
 
         create_dir("test_skip_create")
@@ -40,17 +47,23 @@ class UnitTestsPythonSingleCommit(GeoDiffTests):
         os.remove(changeset2)
         self.geodiff.invert_changeset(changeset, changeset_inv)
         self.geodiff.apply_changeset(patched, changeset_inv)
-        self.geodiff.create_changeset_dr("sqlite", "", patched, "sqlite", "", base, changeset2)
-        check_nchanges(self.geodiff, changeset2, 0 )
+        self.geodiff.create_changeset_dr(
+            "sqlite", "", patched, "sqlite", "", base, changeset2
+        )
+        check_nchanges(self.geodiff, changeset2, 0)
 
         self.geodiff.set_tables_to_skip([])
 
     def test_skip_apply(self):
         base = geodiff_test_dir() + "/" + "skip_tables" + "/" + "base.gpkg"
         modified = geodiff_test_dir() + "/" + "skip_tables" + "/" + "modified_all.gpkg"
-        modified_points = geodiff_test_dir() + "/" + "skip_tables" + "/" + "modified_points.gpkg"
+        modified_points = (
+            geodiff_test_dir() + "/" + "skip_tables" + "/" + "modified_points.gpkg"
+        )
         changeset = tmpdir() + "/py" + "test_skip_apply" + "/" + "changeset_points.bin"
-        changeset2 = tmpdir() + "/py" + "test_skip_apply" + "/" + "changeset_points2.bin"
+        changeset2 = (
+            tmpdir() + "/py" + "test_skip_apply" + "/" + "changeset_points2.bin"
+        )
         changeset_inv = tmpdir() + "/py" + "test_skip_apply" + "/" + "changeset_inv.bin"
         patched = tmpdir() + "/py" + "test_skip_apply" + "/" + "patched_points.gpkg"
 
@@ -75,7 +88,9 @@ class UnitTestsPythonSingleCommit(GeoDiffTests):
         os.remove(changeset2)
         self.geodiff.invert_changeset(changeset, changeset_inv)
         self.geodiff.apply_changeset(patched, changeset_inv)
-        self.geodiff.create_changeset_dr("sqlite", "", patched, "sqlite", "", base, changeset2)
-        check_nchanges(self.geodiff, changeset2, 0 )
+        self.geodiff.create_changeset_dr(
+            "sqlite", "", patched, "sqlite", "", base, changeset2
+        )
+        check_nchanges(self.geodiff, changeset2, 0)
 
         self.geodiff.set_tables_to_skip([])

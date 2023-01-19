@@ -9,6 +9,7 @@ import os
 import shutil
 import pygeodiff
 
+
 class UnitTestsPythonErrors(GeoDiffTests):
     def test_unsupported_change_error(self):
         create_dir("unsupported_change")
@@ -34,7 +35,7 @@ class UnitTestsPythonErrors(GeoDiffTests):
 
         self.geodiff.create_changeset(base, modifiedA, changesetbaseA)
         try:
-            self.geodiff.apply_changeset( base2, changesetbaseA )
+            self.geodiff.apply_changeset(base2, changesetbaseA)
             raise TestError("expected GeoDiffLibError")
         except pygeodiff.GeoDiffLibError:
             pass
@@ -55,7 +56,9 @@ class UnitTestsPythonErrors(GeoDiffTests):
         self.geodiff.create_changeset(base, modifiedA, changesetbaseA)
 
         try:
-            self.geodiff.create_rebased_changeset(base2, modifiedB, changesetbaseA, changesetAB, conflict)
+            self.geodiff.create_rebased_changeset(
+                base2, modifiedB, changesetbaseA, changesetAB, conflict
+            )
             raise TestError("expected GeoDiffLibError")
         except pygeodiff.GeoDiffLibError:
             pass
