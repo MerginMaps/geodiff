@@ -4,7 +4,7 @@
     :license: MIT, see LICENSE for more details.
 """
 
-from .testutils import GeoDiffTests, testdir
+from .testutils import GeoDiffTests, geodiff_test_dir
 from pygeodiff import ChangesetEntry, ChangesetReader, GeoDiffLibError, UndefinedValue
 import os
 

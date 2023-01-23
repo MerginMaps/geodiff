@@ -15,9 +15,9 @@ class UnitTestsPythonConcurrentCommits(GeoDiffTests):
         testname = "2_inserts"
         create_dir(testname)
 
-        base = testdir() + "/base.gpkg"
-        modifiedA = testdir() + "/" + testname + "/" + "inserted_1_A.gpkg"
-        modifiedB = testdir() + "/" + testname + "/" + "inserted_1_B.gpkg"
+        base = geodiff_test_dir() + "/base.gpkg"
+        modifiedA = geodiff_test_dir() + "/" + testname + "/" + "inserted_1_A.gpkg"
+        modifiedB = geodiff_test_dir() + "/" + testname + "/" + "inserted_1_B.gpkg"
         changesetbaseA = tmpdir() + "/py" + testname + "/" + "changeset_base_to_A.bin"
         changesetAB = tmpdir() + "/py" + testname + "/" + "changeset_A_to_B.bin"
         conflictAB = tmpdir() + "/py" + testname + "/" + "conflict_A_to_B.json"

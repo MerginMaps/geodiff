@@ -21,8 +21,8 @@ def basetest(
   print( "PYTHON: " + testname )
   create_dir(testname)
 
-  base = testdir() + "/" + basename
-  modified = testdir() + "/" + testname + "/" + modifiedname
+  base = geodiff_test_dir() + "/" + basename
+  modified = geodiff_test_dir() + "/" + testname + "/" + modifiedname
   changeset = tmpdir() + "/py" + testname + "/" + "changeset_" + basename + ".bin"
   changeset2 = tmpdir() + "/py" + testname + "/" + "changeset_after_apply_" + basename + ".bin"
   changeset_inv = tmpdir() + "/py" + testname + "/" + "changeset_inv" + basename + ".bin"
@@ -80,4 +80,4 @@ class UnitTestsPythonSingleCommit(GeoDiffTests):
              "complex1.gpkg",
              6,
              True,
-             expected_json=testdir() + "/complex/complex1.json")
+             expected_json=geodiff_test_dir() + "/complex/complex1.json")
