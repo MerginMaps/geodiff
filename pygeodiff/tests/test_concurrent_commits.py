@@ -8,10 +8,13 @@ from .testutils import *
 import os
 import shutil
 
+
 class UnitTestsPythonConcurrentCommits(GeoDiffTests):
     def test_2_inserts(self):
         print("********************************************************")
-        print("PYTHON: geopackage 2 concurent modifications (base) -> (A) and (base) -> (B)")
+        print(
+            "PYTHON: geopackage 2 concurent modifications (base) -> (A) and (base) -> (B)"
+        )
         testname = "2_inserts"
         create_dir(testname)
 
@@ -29,17 +32,19 @@ class UnitTestsPythonConcurrentCommits(GeoDiffTests):
 
         print("create changeset base to A")
         self.geodiff.create_changeset(base, modifiedA, changesetbaseA)
-        check_nchanges(self.geodiff, changesetbaseA,  1)
+        check_nchanges(self.geodiff, changesetbaseA, 1)
 
         print("create changeset A to B")
-        self.geodiff.create_rebased_changeset(base, modifiedB, changesetbaseA, changesetAB, conflictAB)
+        self.geodiff.create_rebased_changeset(
+            base, modifiedB, changesetbaseA, changesetAB, conflictAB
+        )
         check_nchanges(self.geodiff, changesetAB, 1)
         if os.path.exists(conflictAB):
             raise TestError("expected no conflicts")
 
         print("apply changeset to A to get AB")
         shutil.copyfile(modifiedA, patchedAB)
-        self.geodiff.apply_changeset( patchedAB, changesetAB)
+        self.geodiff.apply_changeset(patchedAB, changesetAB)
 
         print("check that then new data has both features\n")
         self.geodiff.create_changeset(base, patchedAB, changesetBbase)
@@ -52,4 +57,4 @@ class UnitTestsPythonConcurrentCommits(GeoDiffTests):
             raise TestError("expected no conflicts")
 
         self.geodiff.create_changeset(base, patchedAB2, changesetAB2)
-        check_nchanges(self.geodiff, changesetAB2,  2)
+        check_nchanges(self.geodiff, changesetAB2, 2)

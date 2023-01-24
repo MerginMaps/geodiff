@@ -156,6 +156,13 @@ GEODIFFLIB=`pwd`/../build/libgeodiff.dylib GEODIFFCLI=`pwd`/build/geodiff pytest
 - push to GitHub
 - tag the master & create github release - Python wheels will be automatically published to PyPI!
 
+### Code style
+
+We use Astyle (C++), Cppcheck(C++) and Black (Python) for formatting
+- run `./scripts/run_astyle.sh`
+- run `./scripts/run_cppcheck.sh`
+- run `./scripts/run_black.sh`
+ 
 ## Dependencies & Licensing
 
 Library uses its own copy of
