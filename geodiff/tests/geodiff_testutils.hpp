@@ -11,10 +11,12 @@
 #include <unordered_map>
 
 #include "geodiff.h"
+
 #include "geodiff_config.hpp"
 #include "geodiffcontext.hpp"
 
 #ifdef WIN32
+#include "geodiffutils.hpp"
 #define UNICODE
 #endif
 
@@ -35,8 +37,7 @@ void printJSON( const std::string &changeset, const std::string &json, const std
 void printFileToStdout( const std::string &caption, const std::string &filepath );
 int countConflicts( const std::string &conflictFile );
 
-std::wstring stringToWString( const std::string &str );
-std::string wstringToString( const std::wstring &wStr );
+
 
 /**
  * \param ignore_timestamp_change ignore last_change in table gpkg_contents

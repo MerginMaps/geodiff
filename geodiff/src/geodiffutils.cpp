@@ -65,11 +65,6 @@ Buffer::~Buffer()
   free();
 }
 
-bool Buffer::isEmpty() const
-{
-  return mAlloc == 0;
-}
-
 void Buffer::free()
 {
   if ( mZ )
@@ -145,13 +140,6 @@ void Buffer::read( const std::string &filename )
   }
 }
 
-void Buffer::read( int size, void *stream )
-{
-  mAlloc = size;
-  mUsed = size;
-  mZ = ( char * ) stream;
-}
-
 void Buffer::printf( const char *zFormat, ... )
 {
   int nNew;
@@ -183,23 +171,7 @@ void Buffer::printf( const char *zFormat, ... )
   }
 }
 
-void Buffer::write( const std::string &filename )
-{
-  FILE *f = openFile( filename, "wb" );
-  if ( !f )
-  {
-    throw GeoDiffException( "Unable to open " + filename + " for writing" );
-  }
-  fwrite( mZ, mAlloc, 1, f );
-  fclose( f );
-}
-
 const char *Buffer::c_buf() const
-{
-  return mZ;
-}
-
-void *Buffer::v_buf() const
 {
   return mZ;
 }
@@ -507,6 +479,7 @@ std::string tmpdir()
 #endif
 }
 
+#ifdef WIN32
 std::wstring stringToWString( const std::string &str )
 {
   // we need to convert UTF-8 string to UTF-16 in order to use WindowsAPI
@@ -540,6 +513,7 @@ std::string wstringToString( const std::wstring &wStr )
     throw GeoDiffException( "Unable to convert UTF-8 to UTF-16." );
   }
 }
+#endif
 
 TmpFile::TmpFile( ) = default;
 

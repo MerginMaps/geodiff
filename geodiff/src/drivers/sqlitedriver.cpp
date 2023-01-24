@@ -1029,8 +1029,14 @@ void SqliteDriver::createTables( const std::vector<TableSchema> &tables )
     }
 
     sql = sqlitePrintf( "CREATE TABLE \"%w\".\"%w\" (", "main", tbl.name.c_str() );
-    sql += columns;
-    sql += ", PRIMARY KEY (" + pkeyCols + ")";
+    if ( !columns.empty() )
+    {
+      sql += columns;
+    }
+    if ( !pkeyCols.empty() )
+    {
+      sql += ", PRIMARY KEY (" + pkeyCols + ")";
+    }
     sql += ");";
 
     Sqlite3Stmt stmt;

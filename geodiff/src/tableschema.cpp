@@ -148,27 +148,27 @@ TableColumnType postgresToBaseColumn(
   return type;
 }
 
+// SQLite has very easy going approach to data types - it looks like anything is accepted
+// as a data type name, and SQLite only does some basic string matching to figure out
+// preferred data type for column (see "Column Affinity" in the docs - for example, "INT"
+// substring in data type name implies integer affinity, "DOUB" substring implies real number
+// affinity. (But columns can contain any data value type anyway.)
+
+// TYPES: http://www.geopackage.org/spec/#table_column_data_types
+static std::map<TableColumnType::BaseType, std::string> sSqliteMapping =
+{
+  { TableColumnType::INTEGER,  "INTEGER"   },
+  { TableColumnType::DOUBLE,   "DOUBLE"    },
+  { TableColumnType::BOOLEAN,  "BOOLEAN"   },
+  { TableColumnType::TEXT,     "TEXT"      },
+  { TableColumnType::BLOB,     "BLOB"      },
+  { TableColumnType::GEOMETRY, ""          },
+  { TableColumnType::DATETIME, "DATETIME"  },
+  { TableColumnType::DATE,     "DATE"      },
+};
+
 void baseToSqlite( TableSchema &tbl )
 {
-  // SQLite has very easy going approach to data types - it looks like anything is accepted
-  // as a data type name, and SQLite only does some basic string matching to figure out
-  // preferred data type for column (see "Column Affinity" in the docs - for example, "INT"
-  // substring in data type name implies integer affinity, "DOUB" substring implies real number
-  // affinity. (But columns can contain any data value type anyway.)
-
-  // TYPES: http://www.geopackage.org/spec/#table_column_data_types
-  static std::map<TableColumnType::BaseType, std::string> mapping =
-  {
-    { TableColumnType::INTEGER,  "INTEGER"   },
-    { TableColumnType::DOUBLE,   "DOUBLE"    },
-    { TableColumnType::BOOLEAN,  "BOOLEAN"   },
-    { TableColumnType::TEXT,     "TEXT"      },
-    { TableColumnType::BLOB,     "BLOB"      },
-    { TableColumnType::GEOMETRY, ""          },
-    { TableColumnType::DATETIME, "DATETIME"  },
-    { TableColumnType::DATE,     "DATE"      },
-  };
-
   for ( size_t i = 0; i < tbl.columns.size(); ++i )
   {
     TableColumnInfo &col = tbl.columns[i];
@@ -179,25 +179,25 @@ void baseToSqlite( TableSchema &tbl )
     }
     else
     {
-      col.type.dbType = mapping.at( col.type.baseType );
+      col.type.dbType = sSqliteMapping.at( col.type.baseType );
     }
   }
 }
 
+static std::map<TableColumnType::BaseType, std::string> sPgMapping =
+{
+  { TableColumnType::INTEGER,  "integer"            },
+  { TableColumnType::DOUBLE,   "double precision"   },
+  { TableColumnType::BOOLEAN,  "boolean"            },
+  { TableColumnType::TEXT,     "text"               },
+  { TableColumnType::BLOB,     "bytea"              },
+  { TableColumnType::GEOMETRY, ""                   },
+  { TableColumnType::DATETIME, "timestamp"          },
+  { TableColumnType::DATE,     "date"               },
+};
+
 void baseToPostgres( TableSchema &tbl )
 {
-  static std::map<TableColumnType::BaseType, std::string> mapping =
-  {
-    { TableColumnType::INTEGER,  "integer"            },
-    { TableColumnType::DOUBLE,   "double precision"   },
-    { TableColumnType::BOOLEAN,  "boolean"            },
-    { TableColumnType::TEXT,     "text"               },
-    { TableColumnType::BLOB,     "bytea"              },
-    { TableColumnType::GEOMETRY, ""                   },
-    { TableColumnType::DATETIME, "timestamp"          },
-    { TableColumnType::DATE,     "date"               },
-  };
-
   for ( size_t i = 0; i < tbl.columns.size(); ++i )
   {
     TableColumnInfo &col = tbl.columns[i];
@@ -213,7 +213,7 @@ void baseToPostgres( TableSchema &tbl )
     }
     else
     {
-      col.type.dbType = mapping.at( col.type.baseType );
+      col.type.dbType = sPgMapping.at( col.type.baseType );
     }
 
     // When 'serial' data type is used, PostgreSQL creates SEQUENCE object

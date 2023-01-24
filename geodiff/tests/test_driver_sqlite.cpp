@@ -140,6 +140,38 @@ TEST( SqliteDriverTest, test_open )
   }
 }
 
+//
+
+TEST( SqliteDriverTest, test_composite_pk )
+{
+  testCreateChangeset( "test_composite_pk_A",
+                       pathjoin( testdir(), "sqlite_pks", "multi_primary_key.sqlite" ),
+                       pathjoin( testdir(), "sqlite_pks", "multi_primary_key_A.sqlite" ),
+                       pathjoin( testdir(), "sqlite_pks", "multi_primary_key_A.diff" )
+                     );
+
+  testCreateChangeset( "test_composite_pk_B",
+                       pathjoin( testdir(), "sqlite_pks", "multi_primary_key.sqlite" ),
+                       pathjoin( testdir(), "sqlite_pks", "multi_primary_key_B.sqlite" ),
+                       pathjoin( testdir(), "sqlite_pks", "multi_primary_key_B.diff" )
+                     );
+}
+
+//
+TEST( SqliteDriverTest, test_text_pk )
+{
+  testCreateChangeset( "test_text_pk_A",
+                       pathjoin( testdir(), "sqlite_pks", "text_pk.sqlite" ),
+                       pathjoin( testdir(), "sqlite_pks", "text_pk_A.sqlite" ),
+                       pathjoin( testdir(), "sqlite_pks", "text_pk_A.diff" )
+                     );
+
+  testCreateChangeset( "test_text_pk_B",
+                       pathjoin( testdir(), "sqlite_pks", "text_pk.sqlite" ),
+                       pathjoin( testdir(), "sqlite_pks", "text_pk_B.sqlite" ),
+                       pathjoin( testdir(), "sqlite_pks", "text_pk_B.diff" )
+                     );
+}
 
 //
 TEST( SqliteDriverApi, test_driver_sqlite_api )
@@ -185,6 +217,7 @@ TEST( SqliteDriverTest, create_changeset_delete )
                        pathjoin( testdir(), "2_deletes", "deleted_A.gpkg" ),
                        pathjoin( testdir(), "2_deletes", "base-deleted_A.diff" )
                      );
+
 }
 
 

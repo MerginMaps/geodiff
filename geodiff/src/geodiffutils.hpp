@@ -41,28 +41,17 @@ class Buffer
     Buffer();
     ~Buffer();
 
-    bool isEmpty() const;
-
     /**
      * Populates buffer from BINARY file on disk (e.g changeset file)
      * Frees the existing buffer if exists
      */
     void read( const std::string &filename );
 
-    /** Populates from stream. Takes ownership of stream */
-    void read( int size, void *stream );
-
     /**
      * Adds formatted text to the end of a buffer
      */
     void printf( const char *zFormat, ... );
 
-    /**
-     * Writes buffer to disk
-     */
-    void write( const std::string &filename );
-
-    void *v_buf() const;
     const char *c_buf() const;
     int size() const;
 
@@ -165,6 +154,7 @@ std::string randomString( size_t length );
 */
 std::string randomTmpFilename( );
 
+#ifdef WIN32
 /**
  *  Converts std::string to std::wstring
  *  throws GeoDiffException if conversion is not possible
@@ -176,6 +166,7 @@ std::wstring stringToWString( const std::string &str );
  *  throws GeoDiffException if conversion is not possible
  */
 std::string wstringToString( const std::wstring &wStr );
+#endif
 
 /**
  *  Opens file with specific function for windows

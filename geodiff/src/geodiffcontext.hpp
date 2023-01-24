@@ -20,9 +20,7 @@ class Context
     Logger &logger();
     const Logger &logger() const;
 
-    const std::vector<std::string> &tablesToSkip() const;
     void setTablesToSkip( const std::vector<std::string> &tablesToSkip );
-
     bool isTableSkipped( const std::string &tableName ) const;
 
   private:

@@ -133,6 +133,71 @@ bool _test(
   return equals( patchedAB_2, expected_patchedAB, ignore_timestamp_change );
 }
 
+bool _test_no_rebase_needed(
+  const std::string &base,
+  const std::string &modifiedA,
+  const std::string &modifiedB,
+  const std::string &testname,
+  int expected_changes_A,
+  bool expect_changeset_file_does_not_exist
+)
+{
+  makedir( pathjoin( tmpdir(), testname ) );
+
+  std::string changesetbaseA = pathjoin( tmpdir(), testname, "changeset_base_to_A.bin" );
+  std::string changesetAB = pathjoin( tmpdir(), testname, "changeset_A_to_B.bin" );
+  std::string conflictAB = pathjoin( tmpdir(), testname, "conflict_A_to_B.json" );
+
+  // create changeset base to A
+  if ( GEODIFF_createChangeset( testContext(), base.c_str(), modifiedA.c_str(), changesetbaseA.c_str() ) != GEODIFF_SUCCESS )
+  {
+    std::cout << "err GEODIFF_createChangeset A" << std::endl;
+    return false;
+  }
+
+  int nchanges = GEODIFF_changesCount( testContext(), changesetbaseA.c_str() );
+  if ( nchanges != expected_changes_A )
+  {
+    std::cout << "err GEODIFF_listChanges A: " << nchanges << std::endl;
+    return false;
+  }
+
+  // create changeset A to B
+  if ( GEODIFF_createRebasedChangeset( testContext(),  base.c_str(), modifiedB.c_str(), changesetbaseA.c_str(), changesetAB.c_str(), conflictAB.c_str() ) != GEODIFF_SUCCESS )
+  {
+    std::cout << "err GEODIFF_createRebasedChangeset AB" << std::endl;
+    return false;
+  }
+
+  if ( expect_changeset_file_does_not_exist )
+  {
+    return !fileexists( changesetAB );
+  }
+  else
+  {
+    if ( !fileexists( changesetAB ) )
+      return false;
+
+    int nchanges = GEODIFF_changesCount( testContext(), changesetbaseA.c_str() );
+    if ( nchanges != expected_changes_A )
+    {
+      std::string json = pathjoin( tmpdir(), testname, testname + ".json" );
+      std::string json_summary = pathjoin( tmpdir(), testname, testname + "_summary.json" );
+      printJSON( changesetAB, json, json_summary );
+      return false;
+    }
+  }
+
+  // There should not be any!
+  if ( fileexists( conflictAB ) )
+  {
+    std::cout << "non empty conflict file" << std::endl;
+    return false;
+  }
+
+  return true;
+}
+
 bool _test_createRebasedChangesetEx(
   const std::string &testName,
   const std::string &testBaseDb,
@@ -577,6 +642,41 @@ TEST( ConcurrentCommitsSqlite3Test, test_rebase_conflict )
               pathjoin( testdir(), "rebase_conflict", "case4a-rebased.diff" ),
               pathjoin( testdir(), "rebase_conflict", "case4a-rebased.conflicts" ) );
   ASSERT_TRUE( res4 );
+}
+
+TEST( ConcurrentCommitsSqlite3Test, test_no_rebase_needed )
+{
+  std::cout << "test when rebase is not needed" << std::endl;
+
+  std::cout << "expected result: BASE == OUR, no changeset created" << std::endl;
+  ASSERT_TRUE( _test_no_rebase_needed(
+                 pathjoin( testdir(), "base.gpkg" ),
+                 pathjoin( testdir(), "base.gpkg" ),
+                 pathjoin( testdir(), "2_updates", "updated_A.gpkg" ),
+                 "no_rebase_BASE_eq_OURS",
+                 0,
+                 true // no changeset created
+               ) );
+
+  std::cout << "expected result: BASE == THEIR, no changeset created" << std::endl;
+  ASSERT_TRUE( _test_no_rebase_needed(
+                 pathjoin( testdir(), "base.gpkg" ),
+                 pathjoin( testdir(), "2_updates", "updated_A.gpkg" ),
+                 pathjoin( testdir(), "base.gpkg" ),
+                 "no_rebase_BASE_eq_THEIRS",
+                 1,
+                 true // no changeset created
+               ) );
+
+  std::cout << "expected result: THEIR == OUR, empty changeset created" << std::endl;
+  ASSERT_TRUE( _test_no_rebase_needed(
+                 pathjoin( testdir(), "base.gpkg" ),
+                 pathjoin( testdir(), "2_updates", "updated_A.gpkg" ),
+                 pathjoin( testdir(), "2_updates", "updated_A.gpkg" ),
+                 "no_rebase_THEIR_eq_OURS",
+                 1,
+                 false // expecting empty changeset
+               ) );
 }
 
 int main( int argc, char **argv )

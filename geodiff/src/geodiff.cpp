@@ -421,7 +421,7 @@ int GEODIFF_hasChanges(
   const Context *context = static_cast<const Context *>( contextHandle );
   if ( !context )
   {
-    return GEODIFF_ERROR;
+    return -1;
   }
 
   if ( !changeset )
@@ -447,7 +447,7 @@ int GEODIFF_changesCount(
   const Context *context = static_cast<const Context *>( contextHandle );
   if ( !context )
   {
-    return GEODIFF_ERROR;
+    return -1;
   }
 
   if ( !changeset )
@@ -502,8 +502,7 @@ static int listChangesJSON( const Context *context, const char *changeset, const
 
   if ( !jsonfile )
   {
-    // print to terminal
-    std::cout << res.dump( 2 ) << std::endl;
+    context->logger().info( res.dump( 2 ) );
   }
   else
   {
@@ -1136,6 +1135,11 @@ GEODIFF_ChangesetReaderH GEODIFF_readChangeset( GEODIFF_ContextH contextHandle, 
 
 GEODIFF_ChangesetEntryH GEODIFF_CR_nextEntry( GEODIFF_ContextH contextHandle, GEODIFF_ChangesetReaderH readerHandle, bool *ok )
 {
+  if ( !ok )
+  {
+    return nullptr;
+  }
+
   const Context *context = static_cast<const Context *>( contextHandle );
   if ( !context )
   {
@@ -1145,6 +1149,12 @@ GEODIFF_ChangesetEntryH GEODIFF_CR_nextEntry( GEODIFF_ContextH contextHandle, GE
 
   *ok = true;
   ChangesetReader *reader = static_cast<ChangesetReader *>( readerHandle );
+  if ( !reader )
+  {
+    *ok = false;
+    return nullptr;
+  }
+
   std::unique_ptr<ChangesetEntry> entry( new ChangesetEntry );
   try
   {

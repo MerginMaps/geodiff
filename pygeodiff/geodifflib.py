@@ -55,6 +55,7 @@ def _parse_return_code(rc, msg):
 
 class GeoDiffLib:
     def __init__(self, name):
+        self.context = None
         if name is None:
             self.libname = self.package_libname()
             if not os.path.exists(self.libname):
@@ -70,7 +71,12 @@ class GeoDiffLib:
                 + " and geodiff on system."
             )
 
-        self.lib = ctypes.CDLL(self.libname, use_errno=True)
+        try:
+            self.lib = ctypes.CDLL(self.libname, use_errno=True)
+        except OSError:
+            raise GeoDiffLibVersionError(
+                "Unable to load geodiff library " + self.libname
+            )
         self.context = self.init()
         self.callbackLogger = None
         if self.context is None:

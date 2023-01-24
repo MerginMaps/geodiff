@@ -212,12 +212,12 @@ void printFileToStdout( const std::string &caption, const std::string &filepath 
 void printJSON( const std::string &changeset, const std::string &json, const std::string &json_summary )
 {
   // printout JSON summary
-  GEODIFF_listChangesSummary( testContext(), changeset.c_str(), json_summary.c_str() );
-  printFileToStdout( "JSON Summary", json_summary );
+  GEODIFF_listChangesSummary( testContext(), changeset.c_str(), nullptr ); // to stdout
+  GEODIFF_listChangesSummary( testContext(), changeset.c_str(), json_summary.c_str() ); // to file
 
   // printout JSON
-  GEODIFF_listChanges( testContext(),  changeset.c_str(), json.c_str() );
-  printFileToStdout( "JSON Full", json );
+  GEODIFF_listChanges( testContext(),  changeset.c_str(), nullptr ); // to stdout
+  GEODIFF_listChanges( testContext(),  changeset.c_str(), json.c_str() ); // to file
 }
 
 int fileContains( const std::string &filepath, const std::string key )
