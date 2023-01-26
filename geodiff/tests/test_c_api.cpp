@@ -138,6 +138,8 @@ TEST( CAPITest, test_copy )
                  pathjoin( testdir(), "gpkg_custom_triggers", "db-base.gpkg" ).c_str(),
                  fileOutput.c_str() ) );
   }
+
+  GEODIFF_CX_destroy( context );
 }
 
 TEST( CAPITest, test_rebases )
