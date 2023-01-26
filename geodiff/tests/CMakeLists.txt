@@ -68,15 +68,16 @@ MACRO (ADD_GEODIFF_TEST TESTSRC)
 ENDMACRO (ADD_GEODIFF_TEST)
 
 SET(TESTS
-    test_single_commit.cpp
-    test_concurrent_commits.cpp
-    test_modified_scheme.cpp
+    test_c_api.cpp
     test_changeset_reader.cpp
     test_changeset_utils.cpp
+    test_concurrent_commits.cpp
     test_driver_sqlite.cpp
-    test_utils.cpp
     test_geometry_utils.cpp
+    test_modified_scheme.cpp
+    test_single_commit.cpp
     test_skip_tables.cpp
+    test_utils.cpp
 )
 
 FOREACH(TESTSRC ${TESTS})

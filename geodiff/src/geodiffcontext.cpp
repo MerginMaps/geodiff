@@ -23,11 +23,6 @@ const Logger &Context::logger() const
   return mLogger;
 }
 
-const std::vector<std::string> &Context::tablesToSkip() const
-{
-  return mTablesToSkip;
-}
-
 void Context::setTablesToSkip( const std::vector<std::string> &tablesToSkip )
 {
   mTablesToSkip = tablesToSkip;

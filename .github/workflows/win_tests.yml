@@ -1,5 +1,10 @@
 name: Windows Tests
 on: [push]
+
+concurrency:
+  group: ci-${{github.ref}}-win-tests
+  cancel-in-progress: true
+  
 jobs:
   build_win_test:
     if: github.repository == 'MerginMaps/geodiff'

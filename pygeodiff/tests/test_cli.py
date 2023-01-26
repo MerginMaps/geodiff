@@ -24,6 +24,8 @@ class UnitTestsCliCalls(GeoDiffCliTests):
 
         print("-- dump")
         self.run_command(["dump"], expect_fail=True)
+        self.run_command(["dump", "--driver"], expect_fail=True)
+        self.run_command(["dump", "--driver", "sqlite"], expect_fail=True)
         self.run_command(["dump", geodiff_test_dir() + "/base.gpkg"], expect_fail=True)
         self.run_command(
             [
@@ -43,6 +45,10 @@ class UnitTestsCliCalls(GeoDiffCliTests):
         self.run_command(["as-json", "arg1", "extra_arg"], expect_fail=True)
         self.run_command(["as-json", outdir + "/dump.diff"], check_in_output="feature2")
         self.run_command(["as-json", outdir + "/dump.diff", outdir + "/dump.json"])
+        self.run_command(
+            ["as-json", outdir + "/dump.diff", outdir + "/dump.json", "extra_arg"],
+            expect_fail=True,
+        )
         file_contains(outdir + "/dump.json", "feature3")
 
         print("-- as-summary")
@@ -57,6 +63,7 @@ class UnitTestsCliCalls(GeoDiffCliTests):
         print("-- diff")
         self.run_command(["diff"], expect_fail=True)
         self.run_command(["diff", "--driver1"], expect_fail=True)
+        self.run_command(["diff", "--driver1", "sqlite"], expect_fail=True)
         self.run_command(["diff", "--skip-tables"], expect_fail=True)
         self.run_command(
             ["diff", geodiff_test_dir() + "/non-existent.gpkg"], expect_fail=True
@@ -356,6 +363,8 @@ class UnitTestsCliCalls(GeoDiffCliTests):
         )
 
         self.run_command(["rebase-diff"], expect_fail=True)
+        self.run_command(["rebase-diff", "--driver"], expect_fail=True)
+        self.run_command(["rebase-diff", "--driver", "sqlite"], expect_fail=True)
         self.run_command(["rebase-diff", outdir + "/copyF.gpkg"], expect_fail=True)
         self.run_command(
             [
@@ -427,6 +436,8 @@ class UnitTestsCliCalls(GeoDiffCliTests):
         )
 
         self.run_command(["rebase-db"], expect_fail=True)
+        self.run_command(["rebase-db", "--driver"], expect_fail=True)
+        self.run_command(["rebase-db", "--driver", "sqlite"], expect_fail=True)
         self.run_command(["rebase-db", "--bad_flag"], expect_fail=True)
         self.run_command(
             [

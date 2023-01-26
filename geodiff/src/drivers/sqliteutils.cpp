@@ -143,19 +143,7 @@ void Sqlite3Stmt::close()
   }
 }
 
-std::string Sqlite3Stmt::expandedSql() const
-{
-  char *str = sqlite3_expanded_sql( mStmt );
-  std::string sql( str );
-  sqlite3_free( str );
-  return sql;
-}
-
-
 ///
-
-
-Sqlite3Value::Sqlite3Value() = default;
 
 Sqlite3Value::Sqlite3Value( const sqlite3_value *ppValue )
 {
@@ -173,17 +161,13 @@ Sqlite3Value::~Sqlite3Value()
   }
 }
 
-bool Sqlite3Value::isValid() const
-{
-  return mVal != nullptr;
-}
-
 sqlite3_value *Sqlite3Value::value() const
 {
   return mVal;
 }
 
-std::string Sqlite3Value::toString( sqlite3_value *ppValue )
+/*
+std::string toString( sqlite3_value *ppValue )
 {
   if ( !ppValue )
     return "nil";
@@ -199,6 +183,7 @@ std::string Sqlite3Value::toString( sqlite3_value *ppValue )
     val = "blob " + std::to_string( sqlite3_value_bytes( ppValue ) ) + " bytes";
   return val;
 }
+*/
 
 bool Sqlite3Value::operator==( const Sqlite3Value &other ) const
 {

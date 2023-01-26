@@ -1,5 +1,10 @@
 name: MemCheck Tests
 on: [push]
+
+concurrency:
+  group: ci-${{github.ref}}-memcheck-tests
+  cancel-in-progress: true
+  
 jobs:
   memcheck_tests:
     if: github.repository == 'MerginMaps/geodiff'

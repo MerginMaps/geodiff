@@ -1,5 +1,10 @@
 name: Coverage CPP/Python Tests
 on: [push]
+
+concurrency:
+  group: ci-${{github.ref}}-coverage-py-tests
+  cancel-in-progress: true
+  
 jobs:
   coverage_tests:
     if: github.repository == 'MerginMaps/geodiff'

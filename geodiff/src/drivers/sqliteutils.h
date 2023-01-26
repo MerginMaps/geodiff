@@ -49,8 +49,6 @@ class Sqlite3Stmt
     void prepare( std::shared_ptr<Sqlite3Db> db, const char *zFormat, ... );
     sqlite3_stmt *get();
     void close();
-    //! Returns SQL statement with bound parameters expanded
-    std::string expandedSql() const;
   private:
     sqlite3_stmt *db_vprepare( sqlite3 *db, const char *zFormat, va_list ap );
     sqlite3_stmt *mStmt = nullptr;
@@ -70,19 +68,13 @@ class Sqlite3Value
      * and takes the ownership of the new instance
      */
     explicit Sqlite3Value( const sqlite3_value *ppValue );
-    Sqlite3Value();
     ~Sqlite3Value();
 
     Sqlite3Value( const Sqlite3Value & ) = delete;
     Sqlite3Value &operator=( Sqlite3Value const & ) = delete;
 
-    //! Returns if the stored value is valid pointer
-    bool isValid() const;
-
     //! Returns raw pointer to sqlite3 value
     sqlite3_value *value() const;
-
-    static std::string toString( sqlite3_value *ppValue );
 
     bool operator==( const Sqlite3Value &other ) const;
     bool operator!=( const Sqlite3Value &other ) const

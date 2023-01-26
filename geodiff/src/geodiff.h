@@ -182,7 +182,7 @@ GEODIFF_EXPORT int GEODIFF_invertChangeset(
  * \param base [input] BASE sqlite3/geopackage file
  * \param modified [input] MODIFIED sqlite3/geopackage file
  * \param changeset_their [input] changeset between BASE -> MODIFIED_THEIR
- * \param changeset [output] changeset between MODIFIED_THEIR -> MODIFIED_THEIR_PLUS_MINE
+ * \param changeset [output] changeset between MODIFIED_THEIR -> MODIFIED_THEIR_PLUS_MINE . If CHANGESET_THEIR is empty changeset, file is not created. If BASE == MODIFIED, file is not created
  * \param conflictfile [output] json file containing all the automaticly resolved conflicts. If there are no conflicts, file is not created
  * \returns GEODIFF_SUCCESS on success
  */
@@ -262,6 +262,7 @@ GEODIFF_EXPORT int GEODIFF_changesCount(
 
 /**
  * Expand changeset to JSON
+ * \param jsonfile [input] file to which output the summary. If nullptr, it is written to logger as LevelInfo messages
  * \returns GEODIFF_SUCCESS on success
  */
 GEODIFF_EXPORT int GEODIFF_listChanges(
@@ -303,6 +304,10 @@ GEODIFF_EXPORT int GEODIFF_concatChanges(
  * This will open the source dataset, get list of tables, their structure, dump data
  * to a temporary changeset file. Then it will create the destination dataset, create tables
  * and insert data from changeset file.
+ *
+ * This DROPS all triggers!
+ *
+ * For sqlite to sqlite copy, use GEODIFF_makeCopySqlite instead.
  *
  * Supported drivers:
  *

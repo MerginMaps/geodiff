@@ -1,5 +1,10 @@
 name: Build Tests
 on: [push]
+
+concurrency:
+  group: ci-${{github.ref}}-build-options-tests
+  cancel-in-progress: true
+  
 jobs:
   build_test:
     if: github.repository == 'MerginMaps/geodiff'

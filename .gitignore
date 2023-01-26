@@ -12,7 +12,10 @@ _skbuild/
 *egg-info/
 MANIFEST
 /pygeodiff/tests/tmp/
+*__pycache__/
 Pipfile
 .python-version
 .vs/*
 .vscode/*
+*.bin
+*sqlite-journal
