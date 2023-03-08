@@ -22,7 +22,7 @@ jobs:
           python-version: '3.8'
 
       - name: Build wheels
-        uses: pypa/cibuildwheel@v2.3.1
+        uses: pypa/cibuildwheel@v2.12.0
 
       - uses: actions/upload-artifact@v3
         with:
@@ -48,7 +48,7 @@ jobs:
           python-version: '3.8'
 
       - name: Build wheels
-        uses: pypa/cibuildwheel@v2.3.1
+        uses: pypa/cibuildwheel@v2.12.0
 
       - uses: actions/upload-artifact@v3
         with:
@@ -72,7 +72,7 @@ jobs:
           python-version: '3.8'
 
       - name: Build wheels
-        uses: pypa/cibuildwheel@v2.3.1
+        uses: pypa/cibuildwheel@v2.12.0
 
       - uses: actions/upload-artifact@v3
         with:
@@ -104,7 +104,7 @@ jobs:
           dir "C:/vcpkg/installed/x64-windows/bin"
 
       - name: Build wheels
-        uses: pypa/cibuildwheel@v2.3.1
+        uses: pypa/cibuildwheel@v2.12.0
 
       - uses: actions/upload-artifact@v3
         with:
@@ -138,7 +138,7 @@ jobs:
           dir "C:/vcpkg/installed/x86-windows/bin"
 
       - name: Build wheels
-        uses: pypa/cibuildwheel@v2.3.1
+        uses: pypa/cibuildwheel@v2.12.0
 
       - uses: actions/upload-artifact@v3
         with:
@@ -166,7 +166,7 @@ jobs:
           pip install setuptools scikit-build wheel cmake
 
       - name: Build wheels
-        uses: pypa/cibuildwheel@v2.3.1
+        uses: pypa/cibuildwheel@v2.12.0
 
       - uses: actions/upload-artifact@v3
         with:
