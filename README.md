@@ -133,6 +133,7 @@ SQLite3_LIBRARY=/opt/QGIS/qgis-deps-${QGIS_DEPS_VERSION}/stage/lib/libsqlite3.dy
 
 Compile geodiff:
 ```bash
+cd geodiff
 mkdir build
 cd build
 cmake .. -DWITH_POSTGRESQL=TRUE
