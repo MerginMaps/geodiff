@@ -144,7 +144,7 @@ cd build
 cmake \
   -DWITH_POSTGRESQL=TRUE \
   -DSQLite3_INCLUDE_DIR=../../sqlite-autoconf-3450000 \
-  -DSQLite3_LIBRARY=../../sqlite-autoconf-3450000/.libs/libsqlite3.dylib \
+  -DSQLite3_LIBRARY=../../sqlite-autoconf-3450000/.libs/libsqlite3.a \
 ../geodiff
 
 make
@@ -161,8 +161,7 @@ C++ tests: run `make test` or `ctest` to run all tests. Alternatively run just a
 
 Python tests: you need to setup GEODIFFLIB with path to .so/.dylib from build step
 ```bash
-cd pygeodiff
-GEODIFFLIB=`pwd`/../build/libgeodiff.dylib GEODIFFCLI=`pwd`/build/geodiff pytest
+GEODIFFLIB=`pwd`/build/libgeodiff.dylib GEODIFFCLI=`pwd`/build/geodiff pytest
 ```
 
 ### Releasing new version

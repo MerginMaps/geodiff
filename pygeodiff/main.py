@@ -26,6 +26,7 @@ class GeoDiff:
         self.libname = libname
         self.clib = None
         self.context = None
+        self.callbackLogger = None
 
     def __del__(self):
         self.shutdown()
@@ -36,7 +37,6 @@ class GeoDiff:
 
         if self.context is None:
             self.context = self.clib.create_context()
-            self.context.callbackLogger = None
 
     def shutdown(self):
         if self.context is not None:
@@ -46,6 +46,7 @@ class GeoDiff:
         if self.clib is not None:
             self.clib.shutdown()
         self.clib = None
+        self.callbackLogger = None
 
     def set_logger_callback(self, callback):
         """
@@ -55,7 +56,8 @@ class GeoDiff:
         Callback function has 2 arguments: (int) errorCode, (string) msg
         """
         self._lazy_load()
-        return self.clib.set_logger_callback(self.context, callback)
+        self.callbackLogger = self.clib.set_logger_callback(self.context, callback)
+        return None
 
     def set_tables_to_skip(self, tables):
         """
@@ -111,9 +113,9 @@ class GeoDiff:
 
         BASE --- CHANGESET ---> MODIFIED
 
-        \param base [input] BASE sqlite3/geopackage file
-        \param modified [input] MODIFIED sqlite3/geopackage file
-        \param changeset [output] changeset between BASE -> MODIFIED
+        :param base [input] BASE sqlite3/geopackage file
+        :param modified [input] MODIFIED sqlite3/geopackage file
+        :param changeset [output] changeset between BASE -> MODIFIED
 
         raises GeoDiffLibError on error
         """
@@ -126,10 +128,10 @@ class GeoDiff:
         if CHANGESET_INV is applied to MODIFIED by applyChangeset,
         BASE will be created
 
-        \param changeset [input] changeset between BASE -> MODIFIED
-        \param changeset_inv [output] changeset between MODIFIED -> BASE
+        :param changeset [input] changeset between BASE -> MODIFIED
+        :param changeset_inv [output] changeset between MODIFIED -> BASE
 
-        \returns number of conflics
+        :returns number of conflics
 
         raises GeoDiffLibError on error
         """
@@ -152,10 +154,10 @@ class GeoDiff:
         Note, when rebase is not successfull, modified could be in random state.
         This works in general, even when base==modified, or base==modified_theirs
 
-         \param base [input] BASE sqlite3/geopackage file
-         \param modified_their [input] MODIFIED sqlite3/geopackage file
-         \param modified [input] local copy of the changes to be rebased
-         \param conflict [output] file where the automatically resolved conflicts are stored. If there are no conflicts, file is not created
+         :param base [input] BASE sqlite3/geopackage file
+         :param modified_their [input] MODIFIED sqlite3/geopackage file
+         :param modified [input] local copy of the changes to be rebased
+         :param conflict [output] file where the automatically resolved conflicts are stored. If there are no conflicts, file is not created
 
          raises GeoDiffLibError on error
         """
@@ -175,11 +177,11 @@ class GeoDiff:
         BASE -|
                -----------------------> MODIFIED
 
-         \param base [input] BASE sqlite3/geopackage file
-         \param modified [input] MODIFIED sqlite3/geopackage file
-         \param changeset_their [input] changeset between BASE -> MODIFIED_THEIR
-         \param changeset [output] changeset between MODIFIED_THEIR -> MODIFIED_THEIR_PLUS_MINE
-         \param conflict [output] file where the automatically resolved conflicts are stored. If there are no conflicts, file is not created
+         :param base [input] BASE sqlite3/geopackage file
+         :param modified [input] MODIFIED sqlite3/geopackage file
+         :param changeset_their [input] changeset between BASE -> MODIFIED_THEIR
+         :param changeset [output] changeset between MODIFIED_THEIR -> MODIFIED_THEIR_PLUS_MINE
+         :param conflict [output] file where the automatically resolved conflicts are stored. If there are no conflicts, file is not created
 
          raises GeoDiffLibError on error
         """
@@ -192,9 +194,9 @@ class GeoDiff:
         """
         Applies changeset file (binary) to BASE
 
-        \param base [input/output] BASE sqlite3/geopackage file
-        \param changeset [input] changeset to apply to BASE
-        \returns number of conflicts
+        :param base [input/output] BASE sqlite3/geopackage file
+        :param changeset [input] changeset to apply to BASE
+        :returns number of conflicts
 
         raises GeoDiffLibError on error
         """
@@ -205,7 +207,7 @@ class GeoDiff:
         """
         Lists changeset content JSON file
         JSON contains all changes in human/machine readable name
-        \returns number of changes
+        :returns number of changes
 
          raises GeoDiffLibError on error
         """
@@ -216,7 +218,7 @@ class GeoDiff:
         """
         Lists changeset summary content JSON file
         JSON contains a list of how many inserts/edits/deletes is contained in changeset for each table
-        \returns number of changes
+        :returns number of changes
 
          raises GeoDiffLibError on error
         """
@@ -225,7 +227,7 @@ class GeoDiff:
 
     def has_changes(self, changeset):
         """
-        \returns whether changeset contains at least one change
+        :returns whether changeset contains at least one change
 
         raises GeoDiffLibError on error
         """
@@ -234,7 +236,7 @@ class GeoDiff:
 
     def changes_count(self, changeset):
         """
-        \returns number of changes
+        :returns number of changes
 
          raises GeoDiffLibError on error
         """
@@ -333,14 +335,14 @@ class GeoDiff:
 
         See documentation of create_changeset for more information about changeset.
 
-        \param driver_src [input] driver of base src
-        \param driver_src_info [input] connection string, leave empty for sqlite, for postgres pass a string of format:
+        :param driver_src [input] driver of base src
+        :param driver_src_info [input] connection string, leave empty for sqlite, for postgres pass a string of format:
         "host=<host> port=<port> user=<user> password=<password> dbname=<database name>"
-        \param src [input] BASE sqlite3/geopackage file for sqlite and schema name for postgres
-        \param driver_dst [input] driver of modified dst
-        \param driver_dst_info [input] connection string for destination driver
-        \param dst [input] MODIFIED sqlite3/geopackage file for sqlite and schema name for postgres
-        \param changeset [output] changeset between SRC -> DST
+        :param src [input] BASE sqlite3/geopackage file for sqlite and schema name for postgres
+        :param driver_dst [input] driver of modified dst
+        :param driver_dst_info [input] connection string for destination driver
+        :param dst [input] MODIFIED sqlite3/geopackage file for sqlite and schema name for postgres
+        :param changeset [output] changeset between SRC -> DST
 
         raises GeoDiffLibError on error
         """
