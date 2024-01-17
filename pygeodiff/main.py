@@ -36,7 +36,7 @@ class GeoDiff:
 
         if self.context is None:
             self.context = self.clib.create_context()
-            context.callbackLogger = None
+            self.context.callbackLogger = None
 
     def shutdown(self):
         if self.context is not None:
