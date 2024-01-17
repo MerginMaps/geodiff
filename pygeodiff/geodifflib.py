@@ -213,10 +213,11 @@ class GeoDiffLib:
         func.argtypes = [ctypes.c_void_p, cFuncType]
         if callback:
             # do not remove self, callback needs to be member
-            context.callbackLogger = cFuncType(callback)
+            callbackLogger = cFuncType(callback)
         else:
-            context.callbackLogger = cFuncType()
-        func(context, context.callbackLogger)
+            callbackLogger = cFuncType()
+        func(context, callbackLogger)
+        return callbackLogger
 
     def set_maximum_logger_level(self, context, maxLevel):
         func = self.lib.GEODIFF_CX_setMaximumLoggerLevel

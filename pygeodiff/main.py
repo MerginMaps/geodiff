@@ -26,6 +26,7 @@ class GeoDiff:
         self.libname = libname
         self.clib = None
         self.context = None
+        self.callbackLogger = None
 
     def __del__(self):
         self.shutdown()
@@ -36,7 +37,6 @@ class GeoDiff:
 
         if self.context is None:
             self.context = self.clib.create_context()
-            self.context.callbackLogger = None
 
     def shutdown(self):
         if self.context is not None:
@@ -46,6 +46,7 @@ class GeoDiff:
         if self.clib is not None:
             self.clib.shutdown()
         self.clib = None
+        self.callbackLogger = None
 
     def set_logger_callback(self, callback):
         """
@@ -55,7 +56,8 @@ class GeoDiff:
         Callback function has 2 arguments: (int) errorCode, (string) msg
         """
         self._lazy_load()
-        return self.clib.set_logger_callback(self.context, callback)
+        self.callbackLogger = self.clib.set_logger_callback(self.context, callback)
+        return None
 
     def set_tables_to_skip(self, tables):
         """
