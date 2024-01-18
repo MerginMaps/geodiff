@@ -65,12 +65,16 @@ class GeoDiffLib:
         self.check_version()
         self._register_functions()
 
-    def shutdown(self):
-        if platform.system() == "Windows":
-            from _ctypes import FreeLibrary
+    def __del__(self):
+        self.shutdown()
 
-            FreeLibrary(self.lib._handle)
-        self.lib = None
+    def shutdown(self):
+        if self.lib is not None:
+            if platform.system() == "Windows":
+                from _ctypes import FreeLibrary
+
+                FreeLibrary(self.lib._handle)
+            self.lib = None
 
     def _register_functions(self):
         self._readChangeset = self.lib.GEODIFF_readChangeset
