@@ -15,6 +15,28 @@ from .__about__ import __version__
 import copy
 
 
+clib_module = None
+
+
+def clib():
+    global clib_module
+    return clib_module
+
+
+def init_clib(libname):
+    global clib_module
+    if clib_module is None:
+        clib_module = GeoDiffLib(libname)
+    return clib_module
+
+
+def shutdown_clib():
+    global clib_module
+    if clib_module is not None:
+        clib_module.shutdown()
+        clib_module = None
+
+
 class GeoDiffLibError(Exception):
     pass
 
