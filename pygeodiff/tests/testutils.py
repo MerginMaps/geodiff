@@ -143,15 +143,17 @@ def dict_diff(a, b):
     return True
 
 
+def clib_libname():
+    lib = os.environ.get("GEODIFFLIB", None)
+    if lib is None:
+        print("missing GEODIFFLIB env variable, trying to use the geodiff from wheel")
+    return lib
+
+
 class GeoDiffTests(unittest.TestCase):
     def setUp(self):
         # load lib
-        lib = os.environ.get("GEODIFFLIB", None)
-        if lib is None:
-            print(
-                "missing GEODIFFLIB env variable, trying to use the geodiff from wheel"
-            )
-        self.geodiff = pygeodiff.GeoDiff(lib)
+        self.geodiff = pygeodiff.GeoDiff(clib_libname())
         self.geodiff.set_logger_callback(logger)
         self.geodiff.set_maximum_logger_level(pygeodiff.GeoDiff.LevelDebug)
 

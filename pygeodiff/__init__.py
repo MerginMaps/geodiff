@@ -7,7 +7,8 @@
     :license: MIT, see LICENSE for more details.
 """
 
-from .main import GeoDiff
+from .main import GeoDiff, shutdown
+
 from .geodifflib import (
     GeoDiffLibError,
     GeoDiffLibConflictError,
