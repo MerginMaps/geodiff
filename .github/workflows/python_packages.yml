@@ -22,7 +22,7 @@ jobs:
           python-version: '3.8'
 
       - name: Build wheels
-        uses: pypa/cibuildwheel@v2.16.2
+        uses: pypa/cibuildwheel@v2.17.0
 
       - uses: actions/upload-artifact@v3
         with:
@@ -48,7 +48,7 @@ jobs:
           python-version: '3.8'
 
       - name: Build wheels
-        uses: pypa/cibuildwheel@v2.16.2
+        uses: pypa/cibuildwheel@v2.17.0
 
       - uses: actions/upload-artifact@v3
         with:
@@ -72,7 +72,7 @@ jobs:
           python-version: '3.8'
 
       - name: Build wheels
-        uses: pypa/cibuildwheel@v2.16.2
+        uses: pypa/cibuildwheel@v2.17.0
 
       - uses: actions/upload-artifact@v3
         with:
@@ -104,7 +104,7 @@ jobs:
           dir "C:/vcpkg/installed/x64-windows/bin"
 
       - name: Build wheels
-        uses: pypa/cibuildwheel@v2.16.2
+        uses: pypa/cibuildwheel@v2.17.0
 
       - uses: actions/upload-artifact@v3
         with:
@@ -138,15 +138,15 @@ jobs:
           dir "C:/vcpkg/installed/x86-windows/bin"
 
       - name: Build wheels
-        uses: pypa/cibuildwheel@v2.16.2
+        uses: pypa/cibuildwheel@v2.17.0
 
       - uses: actions/upload-artifact@v3
         with:
           path: ./wheelhouse/*.whl
 
-  build_macos_wheels:
-    name: Build wheels on macos-latest
-    runs-on: macos-latest
+  build_macos_arm64_wheels:
+    name: Build wheels on macos-14 (arm64)
+    runs-on: macos-14
     env:
         SQLite3_ROOT: /usr/local/opt/sqlite
         CIBW_SKIP: cp27-* cp35-* cp36-*
@@ -166,7 +166,35 @@ jobs:
           pip install setuptools scikit-build wheel cmake
 
       - name: Build wheels
-        uses: pypa/cibuildwheel@v2.16.2
+        uses: pypa/cibuildwheel@v2.17.0
+
+      - uses: actions/upload-artifact@v3
+        with:
+          path: ./wheelhouse/*.whl
+
+  build_macos_wheels:
+    name: Build wheels on macos-13
+    runs-on: macos-13
+    env:
+        SQLite3_ROOT: /usr/local/opt/sqlite
+        CIBW_SKIP: cp27-* cp35-* cp36-*
+        CIBW_TEST_COMMAND: python -c "import pygeodiff; pygeodiff.GeoDiff().version()"
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - uses: actions/setup-python@v3
+        name: Install Python
+        with:
+          python-version: '3.8'
+
+      - name: Install Deps
+        run: |
+          brew install sqlite3
+          pip install setuptools scikit-build wheel cmake
+
+      - name: Build wheels
+        uses: pypa/cibuildwheel@v2.17.0
 
       - uses: actions/upload-artifact@v3
         with:
@@ -196,7 +224,7 @@ jobs:
           path: dist/*.tar.gz
 
   upload_pypi:
-    needs: [build_windows_wheels, build_linux_wheels_manylinux_2_28, build_linux_wheels_manylinux2014, build_linux_wheels_musllinux_x86_64, build_macos_wheels, build_sdist]
+    needs: [build_windows_wheels, build_linux_wheels_manylinux_2_28, build_linux_wheels_manylinux2014, build_linux_wheels_musllinux_x86_64, build_macos_wheels, build_macos_arm64_wheels, build_sdist]
     runs-on: ubuntu-latest
     if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags')
     steps:
