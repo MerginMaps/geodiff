@@ -148,7 +148,7 @@ jobs:
     name: Build wheels on macos-14 (arm64)
     runs-on: macos-14
     env:
-        SQLite3_ROOT: /usr/local/opt/sqlite
+        SQLite3_ROOT: /opt/homebrew/opt/sqlite
         CIBW_SKIP: cp27-* cp35-* cp36-*
         CIBW_TEST_COMMAND: python -c "import pygeodiff; pygeodiff.GeoDiff().version()"
 
@@ -164,6 +164,8 @@ jobs:
         run: |
           brew install sqlite3
           pip install setuptools scikit-build wheel cmake
+          
+          ls -la /opt/homebrew
 
       - name: Build wheels
         uses: pypa/cibuildwheel@v2.17.0
