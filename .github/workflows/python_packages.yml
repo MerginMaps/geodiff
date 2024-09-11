@@ -19,12 +19,12 @@ jobs:
       - uses: actions/setup-python@v3
         name: Install Python
         with:
-          python-version: '3.8'
+          python-version: '3.9'
 
       - name: Build wheels
-        uses: pypa/cibuildwheel@v2.17.0
+        uses: pypa/cibuildwheel@v2.20.0
 
-      - uses: actions/upload-artifact@v3
+      - uses: actions/upload-artifact@v4
         with:
           path: ./wheelhouse/*.whl
 
@@ -45,12 +45,12 @@ jobs:
       - uses: actions/setup-python@v3
         name: Install Python
         with:
-          python-version: '3.8'
+          python-version: '3.9'
 
       - name: Build wheels
-        uses: pypa/cibuildwheel@v2.17.0
+        uses: pypa/cibuildwheel@v2.20.0
 
-      - uses: actions/upload-artifact@v3
+      - uses: actions/upload-artifact@v4
         with:
           path: ./wheelhouse/*.whl
 
@@ -69,12 +69,12 @@ jobs:
       - uses: actions/setup-python@v3
         name: Install Python
         with:
-          python-version: '3.8'
+          python-version: '3.9'
 
       - name: Build wheels
-        uses: pypa/cibuildwheel@v2.17.0
+        uses: pypa/cibuildwheel@v2.20.0
 
-      - uses: actions/upload-artifact@v3
+      - uses: actions/upload-artifact@v4
         with:
           path: ./wheelhouse/*.whl
 
@@ -94,7 +94,7 @@ jobs:
       - uses: actions/setup-python@v3
         name: Install Python
         with:
-          python-version: '3.8'
+          python-version: '3.9'
 
       - name: Install Deps
         run: |
@@ -104,9 +104,9 @@ jobs:
           dir "C:/vcpkg/installed/x64-windows/bin"
 
       - name: Build wheels
-        uses: pypa/cibuildwheel@v2.17.0
+        uses: pypa/cibuildwheel@v2.20.0
 
-      - uses: actions/upload-artifact@v3
+      - uses: actions/upload-artifact@v4
         with:
           path: ./wheelhouse/*.whl
 
@@ -127,7 +127,7 @@ jobs:
       - uses: actions/setup-python@v3
         name: Install Python
         with:
-          python-version: '3.8'
+          python-version: '3.9'
           architecture: x86
 
       - name: Install Deps
@@ -138,9 +138,9 @@ jobs:
           dir "C:/vcpkg/installed/x86-windows/bin"
 
       - name: Build wheels
-        uses: pypa/cibuildwheel@v2.17.0
+        uses: pypa/cibuildwheel@v2.20.0
 
-      - uses: actions/upload-artifact@v3
+      - uses: actions/upload-artifact@v4
         with:
           path: ./wheelhouse/*.whl
 
@@ -158,7 +158,7 @@ jobs:
       - uses: actions/setup-python@v3
         name: Install Python
         with:
-          python-version: '3.8'
+          python-version: '3.9'
 
       - name: Install Deps
         run: |
@@ -168,9 +168,9 @@ jobs:
           ls -la /opt/homebrew
 
       - name: Build wheels
-        uses: pypa/cibuildwheel@v2.17.0
+        uses: pypa/cibuildwheel@v2.20.0
 
-      - uses: actions/upload-artifact@v3
+      - uses: actions/upload-artifact@v4
         with:
           path: ./wheelhouse/*.whl
 
@@ -188,7 +188,7 @@ jobs:
       - uses: actions/setup-python@v3
         name: Install Python
         with:
-          python-version: '3.8'
+          python-version: '3.9'
 
       - name: Install Deps
         run: |
@@ -196,9 +196,9 @@ jobs:
           pip install setuptools scikit-build wheel cmake
 
       - name: Build wheels
-        uses: pypa/cibuildwheel@v2.17.0
+        uses: pypa/cibuildwheel@v2.20.0
 
-      - uses: actions/upload-artifact@v3
+      - uses: actions/upload-artifact@v4
         with:
           path: ./wheelhouse/*.whl
 
@@ -211,7 +211,7 @@ jobs:
       - uses: actions/setup-python@v3
         name: Install Python
         with:
-          python-version: '3.8'
+          python-version: '3.9'
 
       - name: Install deps
         run: |
@@ -221,7 +221,7 @@ jobs:
       - name: Build sdist
         run: python setup.py sdist
 
-      - uses: actions/upload-artifact@v3
+      - uses: actions/upload-artifact@v4
         with:
           path: dist/*.tar.gz
 
