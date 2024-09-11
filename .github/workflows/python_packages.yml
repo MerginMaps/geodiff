@@ -27,6 +27,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           path: ./wheelhouse/*.whl
+          name: wheels-manylinux_2_28
 
   build_linux_wheels_manylinux2014:
     name: Build wheels for manylinux2014
@@ -53,6 +54,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           path: ./wheelhouse/*.whl
+          name: wheels-manylinux2014
 
   build_linux_wheels_musllinux_x86_64:
     name: Build wheels for musllinux_x86_64 (alpine)
@@ -77,6 +79,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           path: ./wheelhouse/*.whl
+          name: wheels-musllinux_x86_64
 
   build_windows_wheels:
     name: Build wheels on windows-latest
@@ -109,6 +112,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           path: ./wheelhouse/*.whl
+          name: wheels-windows
 
   build_windows_32_wheels:
     name: Build 32bit wheels on windows-latest
@@ -143,6 +147,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           path: ./wheelhouse/*.whl
+          name: wheels-windows_32
 
   build_macos_arm64_wheels:
     name: Build wheels on macos-14 (arm64)
@@ -173,6 +178,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           path: ./wheelhouse/*.whl
+          name: wheels-macos_arm64
 
   build_macos_wheels:
     name: Build wheels on macos-13
@@ -201,6 +207,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           path: ./wheelhouse/*.whl
+          name: dist-macos
 
   build_sdist:
     name: Build source distribution
@@ -224,6 +231,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           path: dist/*.tar.gz
+          name: dist-source
 
   upload_pypi:
     needs: [build_windows_wheels, build_linux_wheels_manylinux_2_28, build_linux_wheels_manylinux2014, build_linux_wheels_musllinux_x86_64, build_macos_wheels, build_macos_arm64_wheels, build_sdist]
@@ -233,6 +241,8 @@ jobs:
       - uses: actions/download-artifact@v4.1.7
         with:
           name: artifact
+          pattern: dist-*
+          merge-multiple: true
           path: dist
 
       - uses: pypa/gh-action-pypi-publish@release/v1
