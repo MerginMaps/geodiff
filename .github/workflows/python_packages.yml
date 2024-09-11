@@ -154,7 +154,7 @@ jobs:
     runs-on: macos-14
     env:
         SQLite3_ROOT: /opt/homebrew/opt/sqlite
-        MACOSX_DEPLOYMENT_TARGET: 14.0
+        MACOSX_DEPLOYMENT_TARGET: '14.0'
         CIBW_SKIP: cp27-* cp35-* cp36-*
         CIBW_TEST_COMMAND: python -c "import pygeodiff; pygeodiff.GeoDiff().version()"
 
@@ -186,7 +186,7 @@ jobs:
     runs-on: macos-13
     env:
         SQLite3_ROOT: /usr/local/opt/sqlite
-        MACOSX_DEPLOYMENT_TARGET: 13.0
+        MACOSX_DEPLOYMENT_TARGET: '13.0'
         CIBW_SKIP: cp27-* cp35-* cp36-*
         CIBW_TEST_COMMAND: python -c "import pygeodiff; pygeodiff.GeoDiff().version()"
 
