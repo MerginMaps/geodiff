@@ -153,10 +153,16 @@ jobs:
     name: Build wheels on macos-14 (arm64)
     runs-on: macos-14
     env:
-        SQLite3_ROOT: /opt/homebrew/opt/sqlite
+        SQLite3_ROOT: ${{ github.workspace }}/libs
         MACOSX_DEPLOYMENT_TARGET: '14.0'
         CIBW_SKIP: cp27-* cp35-* cp36-*
         CIBW_TEST_COMMAND: python -c "import pygeodiff; pygeodiff.GeoDiff().version()"
+        CIBW_BEFORE_ALL: >
+          wget https://www.sqlite.org/2024/sqlite-autoconf-3460100.tar.gz &&
+          tar -xzvf sqlite-autoconf-3460100.tar.gz &&
+          cd sqlite-autoconf-3460100 &&
+          CC=clang CFLAGS="-arch arm64 -O3 -DSQLITE_ENABLE_FTS4 -DSQLITE_ENABLE_RTREE -DSQLITE_ENABLE_COLUMN_METADATA" ./configure --enable-dynamic-extensions --prefix=${{ github.workspace }}/libs/ &&
+          make install
 
     steps:
       - uses: actions/checkout@v3
@@ -168,10 +174,7 @@ jobs:
 
       - name: Install Deps
         run: |
-          brew install sqlite3
           pip install setuptools scikit-build wheel cmake
-          
-          ls -la /opt/homebrew
 
       - name: Build wheels
         uses: pypa/cibuildwheel@v2.20.0
