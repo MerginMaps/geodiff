@@ -34,7 +34,7 @@
 // use scripts/update_version.py to update the version here and in other places at once
 const char *GEODIFF_version()
 {
-  return "2.0.3";
+  return "2.0.4";
 }
 
 int GEODIFF_driverCount( GEODIFF_ContextH /*contextHandle*/ )
