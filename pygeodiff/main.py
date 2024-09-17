@@ -18,11 +18,35 @@ class GeoDiff:
     def __init__(self, libname=None):
         """
         if libname is None, it tries to import c-extension from wheel
-        messages are shown in stdout/stderr.
+        messages are shown in stdout/stderr. C-Library and context is lazy-loaded.
+
         Use environment variable GEODIFF_LOGGER_LEVEL 0(Nothing)-4(Debug) to
         set level (Errors by default)
         """
-        self.clib = GeoDiffLib(libname)
+        self.libname = libname
+        self.clib = None
+        self.context = None
+        self.callbackLogger = None
+
+    def __del__(self):
+        self.shutdown()
+
+    def _lazy_load(self):
+        if self.clib is None:
+            self.clib = GeoDiffLib(self.libname)
+
+        if self.context is None:
+            self.context = self.clib.create_context()
+
+    def shutdown(self):
+        if self.context is not None:
+            self.clib.destroy_context(self.context)
+        self.context = None
+
+        if self.clib is not None:
+            self.clib.shutdown()
+        self.clib = None
+        self.callbackLogger = None
 
     def set_logger_callback(self, callback):
         """
@@ -31,7 +55,9 @@ class GeoDiff:
         When callback is None, no output is produced at all
         Callback function has 2 arguments: (int) errorCode, (string) msg
         """
-        return self.clib.set_logger_callback(callback)
+        self._lazy_load()
+        self.callbackLogger = self.clib.set_logger_callback(self.context, callback)
+        return None
 
     def set_tables_to_skip(self, tables):
         """
@@ -42,7 +68,8 @@ class GeoDiff:
 
         If empty list is passed, skip tables list will be reset.
         """
-        return self.clib.set_tables_to_skip(tables)
+        self._lazy_load()
+        return self.clib.set_tables_to_skip(self.context, tables)
 
     LevelError = 1
     LevelWarning = 2
@@ -59,7 +86,8 @@ class GeoDiff:
         maxLogLevel = 3 errors, warnings and infos are passed to logger callback
         maxLogLevel = 4 errors, warnings, infos, debug messages are passed to logger callback
         """
-        return self.clib.set_maximum_logger_level(maxLevel)
+        self._lazy_load()
+        return self.clib.set_maximum_logger_level(self.context, maxLevel)
 
     def drivers(self):
         """
@@ -67,13 +95,15 @@ class GeoDiff:
 
         raises GeoDiffLibError on error
         """
-        return self.clib.drivers()
+        self._lazy_load()
+        return self.clib.drivers(self.context)
 
     def driver_is_registered(self, name):
         """
         Returns whether dataset with given name is registered (e.g. "sqlite" or "postgresql")
         """
-        return self.clib.driver_is_registered(name)
+        self._lazy_load()
+        return self.clib.driver_is_registered(self.context, name)
 
     def create_changeset(self, base, modified, changeset):
         """
@@ -83,13 +113,14 @@ class GeoDiff:
 
         BASE --- CHANGESET ---> MODIFIED
 
-        \param base [input] BASE sqlite3/geopackage file
-        \param modified [input] MODIFIED sqlite3/geopackage file
-        \param changeset [output] changeset between BASE -> MODIFIED
+        :param base [input] BASE sqlite3/geopackage file
+        :param modified [input] MODIFIED sqlite3/geopackage file
+        :param changeset [output] changeset between BASE -> MODIFIED
 
         raises GeoDiffLibError on error
         """
-        return self.clib.create_changeset(base, modified, changeset)
+        self._lazy_load()
+        return self.clib.create_changeset(self.context, base, modified, changeset)
 
     def invert_changeset(self, changeset, changeset_inv):
         """
@@ -97,14 +128,15 @@ class GeoDiff:
         if CHANGESET_INV is applied to MODIFIED by applyChangeset,
         BASE will be created
 
-        \param changeset [input] changeset between BASE -> MODIFIED
-        \param changeset_inv [output] changeset between MODIFIED -> BASE
+        :param changeset [input] changeset between BASE -> MODIFIED
+        :param changeset_inv [output] changeset between MODIFIED -> BASE
 
-        \returns number of conflics
+        :returns number of conflics
 
         raises GeoDiffLibError on error
         """
-        return self.clib.invert_changeset(changeset, changeset_inv)
+        self._lazy_load()
+        return self.clib.invert_changeset(self.context, changeset, changeset_inv)
 
     def rebase(self, base, modified_their, modified, conflict):
         """
@@ -122,14 +154,15 @@ class GeoDiff:
         Note, when rebase is not successfull, modified could be in random state.
         This works in general, even when base==modified, or base==modified_theirs
 
-         \param base [input] BASE sqlite3/geopackage file
-         \param modified_their [input] MODIFIED sqlite3/geopackage file
-         \param modified [input] local copy of the changes to be rebased
-         \param conflict [output] file where the automatically resolved conflicts are stored. If there are no conflicts, file is not created
+         :param base [input] BASE sqlite3/geopackage file
+         :param modified_their [input] MODIFIED sqlite3/geopackage file
+         :param modified [input] local copy of the changes to be rebased
+         :param conflict [output] file where the automatically resolved conflicts are stored. If there are no conflicts, file is not created
 
          raises GeoDiffLibError on error
         """
-        return self.clib.rebase(base, modified_their, modified, conflict)
+        self._lazy_load()
+        return self.clib.rebase(self.context, base, modified_their, modified, conflict)
 
     def create_rebased_changeset(
         self, base, modified, changeset_their, changeset, conflict
@@ -144,65 +177,71 @@ class GeoDiff:
         BASE -|
                -----------------------> MODIFIED
 
-         \param base [input] BASE sqlite3/geopackage file
-         \param modified [input] MODIFIED sqlite3/geopackage file
-         \param changeset_their [input] changeset between BASE -> MODIFIED_THEIR
-         \param changeset [output] changeset between MODIFIED_THEIR -> MODIFIED_THEIR_PLUS_MINE
-         \param conflict [output] file where the automatically resolved conflicts are stored. If there are no conflicts, file is not created
+         :param base [input] BASE sqlite3/geopackage file
+         :param modified [input] MODIFIED sqlite3/geopackage file
+         :param changeset_their [input] changeset between BASE -> MODIFIED_THEIR
+         :param changeset [output] changeset between MODIFIED_THEIR -> MODIFIED_THEIR_PLUS_MINE
+         :param conflict [output] file where the automatically resolved conflicts are stored. If there are no conflicts, file is not created
 
          raises GeoDiffLibError on error
         """
+        self._lazy_load()
         return self.clib.create_rebased_changeset(
-            base, modified, changeset_their, changeset, conflict
+            self.context, base, modified, changeset_their, changeset, conflict
         )
 
     def apply_changeset(self, base, changeset):
         """
         Applies changeset file (binary) to BASE
 
-        \param base [input/output] BASE sqlite3/geopackage file
-        \param changeset [input] changeset to apply to BASE
-        \returns number of conflicts
+        :param base [input/output] BASE sqlite3/geopackage file
+        :param changeset [input] changeset to apply to BASE
+        :returns number of conflicts
 
         raises GeoDiffLibError on error
         """
-        return self.clib.apply_changeset(base, changeset)
+        self._lazy_load()
+        return self.clib.apply_changeset(self.context, base, changeset)
 
     def list_changes(self, changeset, json):
         """
         Lists changeset content JSON file
         JSON contains all changes in human/machine readable name
-        \returns number of changes
+        :returns number of changes
 
          raises GeoDiffLibError on error
         """
-        return self.clib.list_changes(changeset, json)
+        self._lazy_load()
+        return self.clib.list_changes(self.context, changeset, json)
 
     def list_changes_summary(self, changeset, json):
         """
         Lists changeset summary content JSON file
         JSON contains a list of how many inserts/edits/deletes is contained in changeset for each table
-        \returns number of changes
+        :returns number of changes
 
          raises GeoDiffLibError on error
         """
-        return self.clib.list_changes_summary(changeset, json)
+        self._lazy_load()
+        return self.clib.list_changes_summary(self.context, changeset, json)
 
     def has_changes(self, changeset):
         """
-        \returns whether changeset contains at least one change
+        :returns whether changeset contains at least one change
 
         raises GeoDiffLibError on error
         """
-        return self.clib.has_changes(changeset)
+        self._lazy_load()
+        return self.clib.has_changes(self.context, changeset)
 
     def changes_count(self, changeset):
         """
-        \returns number of changes
+        :returns number of changes
 
          raises GeoDiffLibError on error
         """
-        return self.clib.changes_count(changeset)
+        self._lazy_load()
+        return self.clib.changes_count(self.context, changeset)
 
     def concat_changes(self, list_changesets, output_changeset):
         """
@@ -215,7 +254,8 @@ class GeoDiff:
 
         raises GeoDiffLibError on error
         """
-        return self.clib.concat_changes(list_changesets, output_changeset)
+        self._lazy_load()
+        return self.clib.concat_changes(self.context, list_changesets, output_changeset)
 
     def make_copy(
         self, driver_src, driver_src_info, src, driver_dst, driver_dst_info, dst
@@ -238,8 +278,15 @@ class GeoDiff:
 
         raises GeoDiffLibError on error
         """
+        self._lazy_load()
         return self.clib.make_copy(
-            driver_src, driver_src_info, src, driver_dst, driver_dst_info, dst
+            self.context,
+            driver_src,
+            driver_src_info,
+            src,
+            driver_dst,
+            driver_dst_info,
+            dst,
         )
 
     def make_copy_sqlite(self, src, dst):
@@ -252,7 +299,8 @@ class GeoDiff:
 
         raises GeoDiffLibError on error
         """
-        return self.clib.make_copy_sqlite(src, dst)
+        self._lazy_load()
+        return self.clib.make_copy_sqlite(self.context, src, dst)
 
     def create_changeset_ex(self, driver, driver_info, base, modified, changeset):
         """
@@ -264,8 +312,9 @@ class GeoDiff:
 
         raises GeoDiffLibError on error
         """
+        self._lazy_load()
         return self.clib.create_changeset_ex(
-            driver, driver_info, base, modified, changeset
+            self.context, driver, driver_info, base, modified, changeset
         )
 
     def create_changeset_dr(
@@ -286,18 +335,20 @@ class GeoDiff:
 
         See documentation of create_changeset for more information about changeset.
 
-        \param driver_src [input] driver of base src
-        \param driver_src_info [input] connection string, leave empty for sqlite, for postgres pass a string of format:
+        :param driver_src [input] driver of base src
+        :param driver_src_info [input] connection string, leave empty for sqlite, for postgres pass a string of format:
         "host=<host> port=<port> user=<user> password=<password> dbname=<database name>"
-        \param src [input] BASE sqlite3/geopackage file for sqlite and schema name for postgres
-        \param driver_dst [input] driver of modified dst
-        \param driver_dst_info [input] connection string for destination driver
-        \param dst [input] MODIFIED sqlite3/geopackage file for sqlite and schema name for postgres
-        \param changeset [output] changeset between SRC -> DST
+        :param src [input] BASE sqlite3/geopackage file for sqlite and schema name for postgres
+        :param driver_dst [input] driver of modified dst
+        :param driver_dst_info [input] connection string for destination driver
+        :param dst [input] MODIFIED sqlite3/geopackage file for sqlite and schema name for postgres
+        :param changeset [output] changeset between SRC -> DST
 
         raises GeoDiffLibError on error
         """
+        self._lazy_load()
         return self.clib.create_changeset_dr(
+            self.context,
             driver_src,
             driver_src_info,
             src,
@@ -317,7 +368,10 @@ class GeoDiff:
 
         raises GeoDiffLibError on error
         """
-        return self.clib.apply_changeset_ex(driver, driver_info, base, changeset)
+        self._lazy_load()
+        return self.clib.apply_changeset_ex(
+            self.context, driver, driver_info, base, changeset
+        )
 
     def create_rebased_changeset_ex(
         self,
@@ -335,8 +389,16 @@ class GeoDiff:
 
         raises GeoDiffLibError on error
         """
+        self._lazy_load()
         return self.clib.create_rebased_changeset_ex(
-            driver, driver_info, base, base2modified, base2their, rebased, conflict_file
+            self.context,
+            driver,
+            driver_info,
+            base,
+            base2modified,
+            base2their,
+            rebased,
+            conflict_file,
         )
 
     def rebase_ex(self, driver, driver_info, base, modified, base2their, conflict_file):
@@ -346,8 +408,9 @@ class GeoDiff:
 
         raises GeoDiffLibError on error
         """
+        self._lazy_load()
         return self.clib.rebase_ex(
-            driver, driver_info, base, modified, base2their, conflict_file
+            self.context, driver, driver_info, base, modified, base2their, conflict_file
         )
 
     def dump_data(self, driver, driver_info, src, changeset):
@@ -356,7 +419,8 @@ class GeoDiff:
 
         raises GeoDiffLibError on error
         """
-        return self.clib.dump_data(driver, driver_info, src, changeset)
+        self._lazy_load()
+        return self.clib.dump_data(self.context, driver, driver_info, src, changeset)
 
     def schema(self, driver, driver_info, src, json):
         """
@@ -364,25 +428,29 @@ class GeoDiff:
 
         raises GeoDiffLibError on error
         """
-        return self.clib.schema(driver, driver_info, src, json)
+        self._lazy_load()
+        return self.clib.schema(self.context, driver, driver_info, src, json)
 
     def read_changeset(self, changeset):
         """
         Opens a changeset file and returns reader object or raises GeoDiffLibError on error.
         """
-        return self.clib.read_changeset(changeset)
+        self._lazy_load()
+        return self.clib.read_changeset(self.context, changeset)
 
     def version(self):
         """
         geodiff version
         """
+        self._lazy_load()
         return self.clib.version()
 
     def create_wkb_from_gpkg_header(self, geometry):
         """
         Extracts geometry in WKB format from the geometry encoded according to GeoPackage spec
         """
-        return self.clib.create_wkb_from_gpkg_header(geometry)
+        self._lazy_load()
+        return self.clib.create_wkb_from_gpkg_header(self.context, geometry)
 
 
 def main():
