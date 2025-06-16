@@ -83,9 +83,9 @@ jobs:
 
   build_windows_wheels:
     name: Build wheels on windows-latest
-    runs-on: windows-2019
+    runs-on: windows-2022
     env:
-      CMAKE_GENERATOR: "Visual Studio 16 2019"
+      CMAKE_GENERATOR: "Visual Studio 17 2022"
       SQLite3_ROOT: "C:/vcpkg/installed/x64-windows"
       CIBW_SKIP: cp27-* cp35-* cp36-* *-win32
       CIBW_TEST_COMMAND: python -c "import pygeodiff; pygeodiff.GeoDiff().version()"
@@ -116,9 +116,9 @@ jobs:
 
   build_windows_32_wheels:
     name: Build 32bit wheels on windows-latest
-    runs-on: windows-2019
+    runs-on: windows-2022
     env:
-      CMAKE_GENERATOR: "Visual Studio 16 2019"
+      CMAKE_GENERATOR: "Visual Studio 17 2022"
       CMAKE_GENERATOR_PLATFORM: "Win32"
       SQLite3_ROOT: "C:/vcpkg/installed/x86-windows"
       CIBW_SKIP: cp27-* cp35-* cp36-* pp* *-win_amd64
