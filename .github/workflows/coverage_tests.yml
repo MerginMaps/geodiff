@@ -18,12 +18,12 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y lcov
           sudo apt-get install libpq-dev
-          sudo apt-get install postgresql-14 postgresql-contrib-14 postgresql-14-postgis-3 postgresql-common postgis
+          sudo apt-get install postgresql-17 postgresql-contrib-17 postgresql-17-postgis-3 postgresql-common postgis
           sudo apt-get install -y python3 python3-pytest libsqlite3-dev cmake cmake-data
 
       - name: start PG database
         run: |
-          sudo pg_ctlcluster 14 main start
+          sudo pg_ctlcluster 17 main start
           sudo pg_lsclusters
 
       - name: create PG user
