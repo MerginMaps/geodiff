@@ -18,7 +18,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install libpq-dev
           sudo apt-get install libc6-dbg gdb
-          sudo apt-get install postgresql-14 postgresql-contrib-14 postgresql-14-postgis-3 postgresql-common postgis
+          sudo apt-get install postgresql-17 postgresql-contrib-17 postgresql-17-postgis-3 postgresql-common postgis
 
       - name: build geodiff static only
         run: |
