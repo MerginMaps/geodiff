@@ -93,7 +93,7 @@ geodiff = pygeodiff.GeoDiff()
 geodiff.create_changeset('data-a.gpkg', 'data-b.gpkg', 'a-to-b.diff')
 
 # apply changes from a-to-b.diff to the GeoPackage file data-a.gpkg
-geodiff.apply_changeset('data-a.gpkg, 'a-to-b.diff')
+geodiff.apply_changeset('data-a.gpkg', 'a-to-b.diff')
 
 # export changes from the binary diff format to JSON
 geodiff.list_changes('a-to-b.diff', 'a-to-b.json')
