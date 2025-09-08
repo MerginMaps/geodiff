@@ -6,7 +6,6 @@
 
 import os
 import shutil
-
 from .testutils import (
     GeoDiffTests,
     TestError,
