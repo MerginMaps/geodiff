@@ -4,9 +4,12 @@
     :license: MIT, see LICENSE for more details.
 """
 
-from .testutils import *
-import os
-import shutil
+from .testutils import (
+    GeoDiffCliTests,
+    create_dir,
+    file_contains,
+    geodiff_test_dir,
+)
 
 
 class UnitTestsCliCalls(GeoDiffCliTests):

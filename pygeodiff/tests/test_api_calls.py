@@ -4,9 +4,13 @@
     :license: MIT, see LICENSE for more details.
 """
 
-from .testutils import *
-import os
-import shutil
+from .testutils import (
+    GeoDiffTests,
+    TestError,
+    create_dir,
+    geodiff_test_dir,
+    logger,
+)
 
 
 class UnitTestsPythonApiCalls(GeoDiffTests):
