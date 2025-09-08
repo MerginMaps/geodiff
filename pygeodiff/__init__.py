@@ -17,3 +17,14 @@ from .geodifflib import (
     ChangesetReader,
     UndefinedValue,
 )
+
+__all__ = [
+    "GeoDiff",
+    "GeoDiffLibError",
+    "GeoDiffLibConflictError",
+    "GeoDiffLibUnsupportedChangeError",
+    "GeoDiffLibVersionError",
+    "ChangesetEntry",
+    "ChangesetReader",
+    "UndefinedValue",
+]
