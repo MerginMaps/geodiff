@@ -17,6 +17,8 @@ pygeodiff/tests/test_geodiff_rebase.py::test_geodiff_rebase_unresolved_conflict[
     (Expected to fail due to issue 210, when this xpasse...)
 pygeodiff/tests/test_geodiff_rebase.py::test_geodiff_rebase_unresolved_conflict[user_b_data_first] XFAIL
     (Expected to fail due to issue 210, when this xpasse...)
+pygeodiff/tests/test_geodiff_rebase.py::test_geodiff_rebase_no_conflict_unique[user_a_data_first] PASSED
+pygeodiff/tests/test_geodiff_rebase.py::test_geodiff_rebase_no_conflict_unique[user_b_data_first] PASSED
 pygeodiff/tests/test_geodiff_rebase.py::test_geodiff_rebase_resolved_conflict[user_a_data_first] PASSED
 pygeodiff/tests/test_geodiff_rebase.py::test_geodiff_rebase_resolved_conflict[user_b_data_first] PASSED
 pygeodiff/tests/test_geodiff_rebase.py::test_geodiff_rebase_no_conflict[user_a_data_first] PASSED
@@ -184,6 +186,43 @@ def test_geodiff_rebase_unresolved_conflict(user_a_data_first, tmp_path):
         # UNIQUE constraint on the user_id column causes geodiff.rebase to fail
         assert excinfo.args[0] == 'rebase'
         raise excinfo
+
+
+@pytest.mark.parametrize('user_a_data_first', [True, False], ids=['user_a_data_first', 'user_b_data_first'])
+def test_geodiff_rebase_no_conflict_unique(user_a_data_first, tmp_path):
+    """
+    This test is related to issue 210, but with a row in a column with the UNIQUE constraint
+    being changed to the same value by both users.
+
+    This should be unnaffected by any changes made to resolve issue 210.
+    """
+    # Arrange
+    geodiff = pygeodiff.GeoDiff(GEODIFFLIB)
+    conflict = tmp_path / "conflict.txt"
+    original, user_a, user_b = create_gpkg_files(CREATE_TABLE, tmp_path)
+    # Update a row with identical UNIQUE values
+    with sqlite3.connect(user_a) as conn_a, sqlite3.connect(user_b) as conn_b:
+        etl.execute("UPDATE trees SET user_id = 'user_x_001' WHERE user_id = 'original_002'", conn_a)
+        etl.execute("UPDATE trees SET user_id = 'user_x_001' WHERE user_id = 'original_002'", conn_b)
+
+    # Set the argument order, i.e. which gpkg should be the rebased result
+    if user_a_data_first:
+        older, newer = user_a, user_b
+    else:
+        older, newer = user_b, user_a
+
+    # The expected data following a successful rebase
+    expected = [
+        ("Maple", 25, "original_001"),
+        ("Oak", 30, "user_x_001"),  # user_id changed by both users to same value
+        ("Pine", 18, "original_003"),
+    ]
+
+    # Act & Assert
+    geodiff.rebase(str(original), str(older), str(newer), str(conflict))
+    # The rebased gpkg should contain all changes and no conflict file should be created
+    assert_gpkg(newer, expected)
+    assert not conflict.exists()
 
 
 @pytest.mark.parametrize('user_a_data_first', [True, False], ids=['user_a_data_first', 'user_b_data_first'])
