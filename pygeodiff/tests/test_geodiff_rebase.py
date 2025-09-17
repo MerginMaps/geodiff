@@ -19,6 +19,8 @@ pygeodiff/tests/test_geodiff_rebase.py::test_geodiff_rebase_unresolved_conflict[
     (Expected to fail due to issue 210, when this xpasse...)
 pygeodiff/tests/test_geodiff_rebase.py::test_geodiff_rebase_resolved_conflict[user_a_data_first] PASSED
 pygeodiff/tests/test_geodiff_rebase.py::test_geodiff_rebase_resolved_conflict[user_b_data_first] PASSED
+pygeodiff/tests/test_geodiff_rebase.py::test_geodiff_rebase_no_conflict[user_a_data_first] PASSED
+pygeodiff/tests/test_geodiff_rebase.py::test_geodiff_rebase_no_conflict[user_b_data_first] PASSED
 
 Once the issue is resolved the 'unique_constraint' tests should unexpectedly pass which will be treated
 as FAILED tests with the additional information:
@@ -225,6 +227,43 @@ def test_geodiff_rebase_resolved_conflict(user_a_data_first, tmp_path):
     assert conflict_json['geodiff'][0]['type'] == 'conflict'
     assert conflict_json['geodiff'][0]['changes'][0]['new'] == new_age
     assert conflict_json['geodiff'][0]['changes'][0]['old'] == old_age
+
+
+@pytest.mark.parametrize('user_a_data_first', [True, False], ids=['user_a_data_first', 'user_b_data_first'])
+def test_geodiff_rebase_no_conflict(user_a_data_first, tmp_path):
+    """
+    This test for a case with no conflict. user_a and user_b update the
+    different columns and rows. pygeodiff rebases using the both values
+    and no conflict file is created.
+
+    This should be unnaffected by any changes made to resolve issue 210.
+    """
+    # Arrange
+    geodiff = pygeodiff.GeoDiff(GEODIFFLIB)
+    conflict = tmp_path / "conflict.txt"
+    original, user_a, user_b = create_gpkg_files(CREATE_TABLE, tmp_path)
+    # Update a value in each user data table
+    with sqlite3.connect(user_a) as conn_a, sqlite3.connect(user_b) as conn_b:
+        etl.execute("UPDATE trees SET species = 'Pine' WHERE user_id = 'original_001'", conn_a)
+        etl.execute("UPDATE trees SET age = 35 WHERE user_id = 'original_002'", conn_b)
+
+    # Set the argument order, i.e. which gpkg should be the rebased result
+    if user_a_data_first:
+        older, newer = user_a, user_b
+    else:
+        older, newer = user_b, user_a
+
+    expected = [
+        ("Pine", 25, "original_001"),  # Updated species from user_a
+        ("Oak", 35, "original_002"),  # Updated age from user_b
+        ("Pine", 18, "original_003"),
+    ]
+
+    # Act & Assert
+    geodiff.rebase(str(original), str(older), str(newer), str(conflict))
+    # The rebased gpkg should contain all changes and no conflict file should be created
+    assert_gpkg(newer, expected)
+    assert not conflict.exists()
 
 
 def create_gpkg_files(create_table_ddl: str, tmp_path: Path) -> Tuple[Path]:
