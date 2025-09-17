@@ -1,7 +1,8 @@
 """
-With the issue as described in https://github.com/MerginMaps/geodiff/issues/210 the test:
+With the issue as described in https://github.com/MerginMaps/geodiff/issues/210 the tests:
 
 test_geodiff_rebase_unique - with id 'unique_constraint'
+test_geodiff_rebase_unresolved_conflict
 
 should fail *expectedly* while all others should pass.
 
@@ -12,19 +13,24 @@ pygeodiff/tests/test_geodiff_rebase.py::test_geodiff_rebase_unique[user_a_first-
 pygeodiff/tests/test_geodiff_rebase.py::test_geodiff_rebase_unique[user_b_first-no_constraint] PASSED
 pygeodiff/tests/test_geodiff_rebase.py::test_geodiff_rebase_unique[user_b_first-unique_constraint] XFAIL
     (Expected to fail due to issue 210, when this xpasses remove this decorator)
+pygeodiff/tests/test_geodiff_rebase.py::test_geodiff_rebase_unresolved_conflict[user_a_data_first] XFAIL
+    (Expected to fail due to issue 210, when this xpasse...)
+pygeodiff/tests/test_geodiff_rebase.py::test_geodiff_rebase_unresolved_conflict[user_b_data_first] XFAIL
+    (Expected to fail due to issue 210, when this xpasse...)
 
 Once the issue is resolved the 'unique_constraint' tests should unexpectedly pass which will be treated
 as FAILED tests with the additional information:
 
 [XPASS(strict)] Expected to fail due to issue 210, when this xpasses remove this decorator
 
-After removing the 'marks' parameter all tests should now pass.
+After removing the 'marks' parameter and xfail decorator all tests should now pass.
 
 Note: this test requires pytest and etlhelper to be installed. In a virtualenv, run:
 
 pip install -r requirements_dev.txt
 """
 
+import json
 import os
 from pathlib import Path
 import sqlite3
@@ -114,6 +120,62 @@ def test_geodiff_rebase_unique(create_table_ddl, user_a_data_first, tmp_path):
     except GeoDiffLibConflictError:
         # This error subclass SHOULD NOT be raised here
         pytest.fail("Incorrect exception raised")
+    except GeoDiffLibError as excinfo:
+        # UNIQUE constraint on the user_id column causes geodiff.rebase to fail
+        assert excinfo.args[0] == 'rebase'
+        raise excinfo
+
+
+# For a failing test to develop against or once the tests are XPASSing,
+# the xfail decorator should be removed
+@pytest.mark.xfail(
+    raises=GeoDiffLibError,
+    strict=True,
+    reason="Expected to fail due to issue 210, when this xpasses remove this decorator")
+@pytest.mark.parametrize('user_a_data_first', [True, False], ids=['user_a_data_first', 'user_b_data_first'])
+def test_geodiff_rebase_unresolved_conflict(user_a_data_first, tmp_path):
+    """
+    This test also exemplifies issue 210, but with conflicting data that cannot be resolved.
+
+    This is a real potential use case where a row is added by the same user on two different
+    devices without locally synchronising the first addition before making the second.
+
+    With the UNIQUE constraint on the `user_id` column, a conflict should be reported
+    with sufficient information for the conflict to be resolved manually. However,
+    this currently fails for the reason outlined in the issue.
+    """
+    # Arrange
+    geodiff = pygeodiff.GeoDiff(GEODIFFLIB)
+    conflict = tmp_path / "conflict.txt"
+    original, user_a, user_b = create_gpkg_files(CREATE_TABLE, tmp_path)
+    # Add rows with conflicting UNIQUE values
+    with sqlite3.connect(user_a) as conn_a, sqlite3.connect(user_b) as conn_b:
+        etl.execute("INSERT INTO trees VALUES (null, 'Fir', 12, 'user_x_001')", conn_a)
+        etl.execute("INSERT INTO trees VALUES (null, 'Elm', 22, 'user_x_001')", conn_b)
+
+    # Set the argument order, i.e. which gpkg should be the rebased result
+    if user_a_data_first:
+        older, newer = user_a, user_b
+    else:
+        older, newer = user_b, user_a
+
+    # A unresolved conflict implies the newer value not have changed
+    # and so the result will be the same as the original
+    with sqlite3.connect(newer) as conn:
+        expected = etl.fetchall("SELECT species, age, user_id FROM trees", conn, row_factory=tuple_row_factory)
+
+    # Act & Assert
+    try:
+        geodiff.rebase(str(original), str(older), str(newer), str(conflict))
+    except GeoDiffLibConflictError:
+        # Should this error be raised here?
+        # If so, then gpkg should contain no changes
+        assert_gpkg(newer, expected)
+        # Should a conflict file be created?
+        assert conflict.exists()
+        conflict_json = json.loads(conflict.read_text())
+        assert conflict_json['geodiff'][0]['type'] == 'conflict'
+        # What other information should it contain?
     except GeoDiffLibError as excinfo:
         # UNIQUE constraint on the user_id column causes geodiff.rebase to fail
         assert excinfo.args[0] == 'rebase'
