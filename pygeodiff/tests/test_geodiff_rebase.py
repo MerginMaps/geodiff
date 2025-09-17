@@ -17,6 +17,8 @@ pygeodiff/tests/test_geodiff_rebase.py::test_geodiff_rebase_unresolved_conflict[
     (Expected to fail due to issue 210, when this xpasse...)
 pygeodiff/tests/test_geodiff_rebase.py::test_geodiff_rebase_unresolved_conflict[user_b_data_first] XFAIL
     (Expected to fail due to issue 210, when this xpasse...)
+pygeodiff/tests/test_geodiff_rebase.py::test_geodiff_rebase_resolved_conflict[user_a_data_first] PASSED
+pygeodiff/tests/test_geodiff_rebase.py::test_geodiff_rebase_resolved_conflict[user_b_data_first] PASSED
 
 Once the issue is resolved the 'unique_constraint' tests should unexpectedly pass which will be treated
 as FAILED tests with the additional information:
@@ -180,6 +182,49 @@ def test_geodiff_rebase_unresolved_conflict(user_a_data_first, tmp_path):
         # UNIQUE constraint on the user_id column causes geodiff.rebase to fail
         assert excinfo.args[0] == 'rebase'
         raise excinfo
+
+
+@pytest.mark.parametrize('user_a_data_first', [True, False], ids=['user_a_data_first', 'user_b_data_first'])
+def test_geodiff_rebase_resolved_conflict(user_a_data_first, tmp_path):
+    """
+    This test for an expected resolved conflict. Both user_a and user_b update the
+    same column with different values. pygeodiff rebases using the newer value
+    and records the resolved conflict in the conflict file.
+
+    This should be unnaffected by any changes made to resolve issue 210.
+    """
+    # Arrange
+    geodiff = pygeodiff.GeoDiff(GEODIFFLIB)
+    conflict = tmp_path / "conflict.txt"
+    original, user_a, user_b = create_gpkg_files(CREATE_TABLE, tmp_path)
+    # Update a common value  in each user data table
+    with sqlite3.connect(user_a) as conn_a, sqlite3.connect(user_b) as conn_b:
+        etl.execute("UPDATE trees SET age = 25 WHERE user_id = 'original_002'", conn_a)
+        etl.execute("UPDATE trees SET age = 35 WHERE user_id = 'original_002'", conn_b)
+
+    # Set the argument order, i.e. which gpkg should be the rebased result,
+    # and the values expected to be found in the conflict file
+    if user_a_data_first:
+        older, newer = user_a, user_b
+        old_age, new_age = 25, 35
+    else:
+        older, newer = user_b, user_a
+        old_age, new_age = 35, 25
+
+    # A resolved conflict implies the newer value will be used
+    # and so the result will be the same as the original
+    with sqlite3.connect(newer) as conn:
+        expected = etl.fetchall("SELECT species, age, user_id FROM trees", conn, row_factory=tuple_row_factory)
+
+    # Act & Assert
+    geodiff.rebase(str(original), str(older), str(newer), str(conflict))
+    assert_gpkg(newer, expected)
+    # A conflict has been resolved with the newer value, new_age, being used
+    assert conflict.exists()
+    conflict_json = json.loads(conflict.read_text())
+    assert conflict_json['geodiff'][0]['type'] == 'conflict'
+    assert conflict_json['geodiff'][0]['changes'][0]['new'] == new_age
+    assert conflict_json['geodiff'][0]['changes'][0]['old'] == old_age
 
 
 def create_gpkg_files(create_table_ddl: str, tmp_path: Path) -> Tuple[Path]:
