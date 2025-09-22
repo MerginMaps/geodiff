@@ -30,10 +30,6 @@ as FAILED tests with the additional information:
 [XPASS(strict)] Expected to fail due to issue 210, when this xpasses remove this decorator
 
 After removing the 'marks' parameter and xfail decorator all tests should now pass.
-
-Note: this test requires pytest and etlhelper to be installed. In a virtualenv, run:
-
-pip install -r requirements_dev.txt
 """
 
 import json
@@ -42,8 +38,6 @@ from pathlib import Path
 import sqlite3
 from typing import List, Tuple
 
-import etlhelper as etl
-from etlhelper.row_factories import tuple_row_factory
 import pytest
 
 import pygeodiff
@@ -99,8 +93,8 @@ def test_geodiff_rebase_unique(create_table_ddl, user_a_data_first, tmp_path):
     original, user_a, user_b = create_gpkg_files(create_table_ddl, tmp_path)
     # Insert a new row in each user data table
     with sqlite3.connect(user_a) as conn_a, sqlite3.connect(user_b) as conn_b:
-        etl.execute("INSERT INTO trees VALUES (null, 'Fir', 12, 'user_a_001')", conn_a)
-        etl.execute("INSERT INTO trees VALUES (null, 'Elm', 22, 'user_b_001')", conn_b)
+        conn_a.execute("INSERT INTO trees VALUES (null, 'Fir', 12, 'user_a_001')")
+        conn_b.execute("INSERT INTO trees VALUES (null, 'Elm', 22, 'user_b_001')")
 
     # Set the argument order, i.e. which gpkg should be the rebased result
     if user_a_data_first:
@@ -156,8 +150,8 @@ def test_geodiff_rebase_unresolved_conflict(user_a_data_first, tmp_path):
     original, user_a, user_b = create_gpkg_files(CREATE_TABLE, tmp_path)
     # Add rows with conflicting UNIQUE values
     with sqlite3.connect(user_a) as conn_a, sqlite3.connect(user_b) as conn_b:
-        etl.execute("INSERT INTO trees VALUES (null, 'Fir', 12, 'user_x_001')", conn_a)
-        etl.execute("INSERT INTO trees VALUES (null, 'Elm', 22, 'user_x_001')", conn_b)
+        conn_a.execute("INSERT INTO trees VALUES (null, 'Fir', 12, 'user_x_001')")
+        conn_b.execute("INSERT INTO trees VALUES (null, 'Elm', 22, 'user_x_001')")
 
     # Set the argument order, i.e. which gpkg should be the rebased result
     if user_a_data_first:
@@ -168,7 +162,8 @@ def test_geodiff_rebase_unresolved_conflict(user_a_data_first, tmp_path):
     # A unresolved conflict implies the newer value not have changed
     # and so the result will be the same as the original
     with sqlite3.connect(newer) as conn:
-        expected = etl.fetchall("SELECT species, age, user_id FROM trees", conn, row_factory=tuple_row_factory)
+        cursor = conn.cursor()
+        expected = cursor.execute("SELECT species, age, user_id FROM trees").fetchall()
 
     # Act & Assert
     try:
@@ -202,8 +197,8 @@ def test_geodiff_rebase_no_conflict_unique(user_a_data_first, tmp_path):
     original, user_a, user_b = create_gpkg_files(CREATE_TABLE, tmp_path)
     # Update a row with identical UNIQUE values
     with sqlite3.connect(user_a) as conn_a, sqlite3.connect(user_b) as conn_b:
-        etl.execute("UPDATE trees SET user_id = 'user_x_001' WHERE user_id = 'original_002'", conn_a)
-        etl.execute("UPDATE trees SET user_id = 'user_x_001' WHERE user_id = 'original_002'", conn_b)
+        conn_a.execute("UPDATE trees SET user_id = 'user_x_001' WHERE user_id = 'original_002'")
+        conn_b.execute("UPDATE trees SET user_id = 'user_x_001' WHERE user_id = 'original_002'")
 
     # Set the argument order, i.e. which gpkg should be the rebased result
     if user_a_data_first:
@@ -240,8 +235,8 @@ def test_geodiff_rebase_resolved_conflict(user_a_data_first, tmp_path):
     original, user_a, user_b = create_gpkg_files(CREATE_TABLE, tmp_path)
     # Update a common value  in each user data table
     with sqlite3.connect(user_a) as conn_a, sqlite3.connect(user_b) as conn_b:
-        etl.execute("UPDATE trees SET age = 25 WHERE user_id = 'original_002'", conn_a)
-        etl.execute("UPDATE trees SET age = 35 WHERE user_id = 'original_002'", conn_b)
+        conn_a.execute("UPDATE trees SET age = 25 WHERE user_id = 'original_002'")
+        conn_b.execute("UPDATE trees SET age = 35 WHERE user_id = 'original_002'")
 
     # Set the argument order, i.e. which gpkg should be the rebased result,
     # and the values expected to be found in the conflict file
@@ -255,7 +250,8 @@ def test_geodiff_rebase_resolved_conflict(user_a_data_first, tmp_path):
     # A resolved conflict implies the newer value will be used
     # and so the result will be the same as the original
     with sqlite3.connect(newer) as conn:
-        expected = etl.fetchall("SELECT species, age, user_id FROM trees", conn, row_factory=tuple_row_factory)
+        cursor = conn.cursor()
+        expected = cursor.execute("SELECT species, age, user_id FROM trees").fetchall()
 
     # Act & Assert
     geodiff.rebase(str(original), str(older), str(newer), str(conflict))
@@ -283,8 +279,8 @@ def test_geodiff_rebase_no_conflict(user_a_data_first, tmp_path):
     original, user_a, user_b = create_gpkg_files(CREATE_TABLE, tmp_path)
     # Update a value in each user data table
     with sqlite3.connect(user_a) as conn_a, sqlite3.connect(user_b) as conn_b:
-        etl.execute("UPDATE trees SET species = 'Pine' WHERE user_id = 'original_001'", conn_a)
-        etl.execute("UPDATE trees SET age = 35 WHERE user_id = 'original_002'", conn_b)
+        conn_a.execute("UPDATE trees SET species = 'Pine' WHERE user_id = 'original_001'")
+        conn_b.execute("UPDATE trees SET age = 35 WHERE user_id = 'original_002'")
 
     # Set the argument order, i.e. which gpkg should be the rebased result
     if user_a_data_first:
@@ -305,7 +301,7 @@ def test_geodiff_rebase_no_conflict(user_a_data_first, tmp_path):
     assert not conflict.exists()
 
 
-def create_gpkg_files(create_table_ddl: str, tmp_path: Path) -> Tuple[Path]:
+def create_gpkg_files(create_table_ddl: str, tmp_path: Path) -> Tuple[Path, Path, Path]:
     """
     Create 3 GeoPackage files at the given filepaths, create the
     same table with the same original data in each of them.
@@ -316,8 +312,14 @@ def create_gpkg_files(create_table_ddl: str, tmp_path: Path) -> Tuple[Path]:
     for gpkg in [original, user_a, user_b]:
         with sqlite3.connect(gpkg) as conn:
             # Add an empty table and then populate with initial data
-            etl.execute(create_table_ddl, conn)
-            etl.load("trees", conn, ORIGINAL_DATA)
+            conn.execute(create_table_ddl)
+            conn.executemany(
+                """
+                INSERT INTO trees (species, age, user_id)
+                VALUES (?, ?, ?)
+                """,
+                (list(row.values()) for row in ORIGINAL_DATA)
+            )
 
     return original, user_a, user_b
 
@@ -328,5 +330,6 @@ def assert_gpkg(gpkg: Path, expected: List[tuple]):
     expected data, regardless of row order.
     """
     with sqlite3.connect(gpkg) as conn:
-        result = etl.fetchall("SELECT species, age, user_id FROM trees", conn, row_factory=tuple_row_factory)
+        cursor = conn.cursor()
+        result = cursor.execute("SELECT species, age, user_id FROM trees").fetchall()
         assert set(result) == set(expected)
