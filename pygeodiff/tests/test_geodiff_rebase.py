@@ -1,35 +1,42 @@
 """
-With the issue as described in https://github.com/MerginMaps/geodiff/issues/210 the tests:
+This module adds tests that address the issue in: https://github.com/MerginMaps/geodiff/issues/210
 
-test_geodiff_rebase_unique - with id 'unique_constraint'
-test_geodiff_rebase_unresolved_conflict
+The tests cover the rebase functionality when called via Python.  When the underlying
+database has a UNIQUE constraint, the geodiff library will fail.  The test suite describes
+the expected behaviour for once the issue has been resolved.  It uses parameterisation
+to cover scenarios when the UNIQUE constraint is and isn't present and when the databases
+are passed in different orders.
 
-should fail *expectedly* while all others should pass.
+Four of the tests have been marked with 'xfail'.  These fail now, but should pass once
+the issue with UNIQUE constraints has been resolved.  The other tests are
+included to prevent regressions.
+
+The expected test output is as follows:
+
 
 $ pytest pygeodiff/tests -vk geodiff_rebase
-pygeodiff/tests/test_geodiff_rebase.py::test_geodiff_rebase_unique[user_a_first-no_constraint] PASSED
-pygeodiff/tests/test_geodiff_rebase.py::test_geodiff_rebase_unique[user_a_first-unique_constraint] XFAIL
-    (Expected to fail due to issue 210, when this xpasses remove this decorator)
-pygeodiff/tests/test_geodiff_rebase.py::test_geodiff_rebase_unique[user_b_first-no_constraint] PASSED
-pygeodiff/tests/test_geodiff_rebase.py::test_geodiff_rebase_unique[user_b_first-unique_constraint] XFAIL
-    (Expected to fail due to issue 210, when this xpasses remove this decorator)
-pygeodiff/tests/test_geodiff_rebase.py::test_geodiff_rebase_unresolved_conflict[user_a_data_first] XFAIL
-    (Expected to fail due to issue 210, when this xpasse...)
-pygeodiff/tests/test_geodiff_rebase.py::test_geodiff_rebase_unresolved_conflict[user_b_data_first] XFAIL
-    (Expected to fail due to issue 210, when this xpasse...)
-pygeodiff/tests/test_geodiff_rebase.py::test_geodiff_rebase_no_conflict_unique[user_a_data_first] PASSED
-pygeodiff/tests/test_geodiff_rebase.py::test_geodiff_rebase_no_conflict_unique[user_b_data_first] PASSED
-pygeodiff/tests/test_geodiff_rebase.py::test_geodiff_rebase_resolved_conflict[user_a_data_first] PASSED
-pygeodiff/tests/test_geodiff_rebase.py::test_geodiff_rebase_resolved_conflict[user_b_data_first] PASSED
-pygeodiff/tests/test_geodiff_rebase.py::test_geodiff_rebase_no_conflict[user_a_data_first] PASSED
-pygeodiff/tests/test_geodiff_rebase.py::test_geodiff_rebase_no_conflict[user_b_data_first] PASSED
+pygeodiff/tests/test_geodiff_rebase.py::test_geodiff_rebase_no_conflict_insert[user_a_data_first-no_constraint] PASSED [  5%]
+pygeodiff/tests/test_geodiff_rebase.py::test_geodiff_rebase_no_conflict_insert[user_a_data_first-unique_constraint] XFAIL [ 11%]
+pygeodiff/tests/test_geodiff_rebase.py::test_geodiff_rebase_no_conflict_insert[user_b_data_first-no_constraint] PASSED [ 16%]
+pygeodiff/tests/test_geodiff_rebase.py::test_geodiff_rebase_no_conflict_insert[user_b_data_first-unique_constraint] XFAIL [ 22%]
+pygeodiff/tests/test_geodiff_rebase.py::test_geodiff_rebase_unique_constraint_violation[user_a_data_first] XFAIL [ 27%]
+pygeodiff/tests/test_geodiff_rebase.py::test_geodiff_rebase_unique_constraint_violation[user_b_data_first] XFAIL [ 33%]
+pygeodiff/tests/test_geodiff_rebase.py::test_geodiff_rebase_no_conflict_same_update[user_a_data_first-no_constraint] PASSED [ 38%]
+pygeodiff/tests/test_geodiff_rebase.py::test_geodiff_rebase_no_conflict_same_update[user_a_data_first-unique_constraint] PASSED [ 44%]
+pygeodiff/tests/test_geodiff_rebase.py::test_geodiff_rebase_no_conflict_same_update[user_b_data_first-no_constraint] PASSED [ 50%]
+pygeodiff/tests/test_geodiff_rebase.py::test_geodiff_rebase_no_conflict_same_update[user_b_data_first-unique_constraint] PASSED [ 55%]
+pygeodiff/tests/test_geodiff_rebase.py::test_geodiff_rebase_resolved_conflict_update[user_a_data_first-no_constraint] PASSED [ 61%]
+pygeodiff/tests/test_geodiff_rebase.py::test_geodiff_rebase_resolved_conflict_update[user_a_data_first-unique_constraint] PASSED [ 66%]
+pygeodiff/tests/test_geodiff_rebase.py::test_geodiff_rebase_resolved_conflict_update[user_b_data_first-no_constraint] PASSED [ 72%]
+pygeodiff/tests/test_geodiff_rebase.py::test_geodiff_rebase_resolved_conflict_update[user_b_data_first-unique_constraint] PASSED [ 77%]
+pygeodiff/tests/test_geodiff_rebase.py::test_geodiff_rebase_no_conflict_update[user_a_data_first-no_constraint] PASSED [ 83%]
+pygeodiff/tests/test_geodiff_rebase.py::test_geodiff_rebase_no_conflict_update[user_a_data_first-unique_constraint] PASSED [ 88%]
+pygeodiff/tests/test_geodiff_rebase.py::test_geodiff_rebase_no_conflict_update[user_b_data_first-no_constraint] PASSED [ 94%]
+pygeodiff/tests/test_geodiff_rebase.py::test_geodiff_rebase_no_conflict_update[user_b_data_first-unique_constraint] PASSED [100%]
 
-Once the issue is resolved the 'unique_constraint' tests should unexpectedly pass which will be treated
-as FAILED tests with the additional information:
-
-[XPASS(strict)] Expected to fail due to issue 210, when this xpasses remove this decorator
-
-After removing the 'marks' parameter and xfail decorator all tests should now pass.
+Once the UNIQUE constraint issue is resolved, the 'xfail' tests should pass
+with the label 'XPASS'.  At this point, the xfail configuration can be removed
+(see instructions on each test).
 """
 
 import json
@@ -118,7 +125,7 @@ def test_geodiff_rebase_unique(create_table_ddl, user_a_data_first, tmp_path):
         assert_gpkg(newer, expected)
         assert not conflict.exists()
     except GeoDiffLibConflictError:
-        # This error subclass SHOULD NOT be raised here
+        # This error subclass SHOULD NOT be raised here as there is no conflict
         pytest.fail("Incorrect exception raised")
     except GeoDiffLibError as excinfo:
         # UNIQUE constraint on the user_id column causes geodiff.rebase to fail
@@ -126,8 +133,7 @@ def test_geodiff_rebase_unique(create_table_ddl, user_a_data_first, tmp_path):
         raise excinfo
 
 
-# For a failing test to develop against or once the tests are XPASSing,
-# the xfail decorator should be removed
+# Once the tests are XPASSing, the xfail decorator should be removed
 @pytest.mark.xfail(
     raises=GeoDiffLibError,
     strict=True,
@@ -135,7 +141,7 @@ def test_geodiff_rebase_unique(create_table_ddl, user_a_data_first, tmp_path):
 @pytest.mark.parametrize('user_a_data_first', [True, False], ids=['user_a_data_first', 'user_b_data_first'])
 def test_geodiff_rebase_unresolved_conflict(user_a_data_first, tmp_path):
     """
-    This test also exemplifies issue 210, but with conflicting data that cannot be resolved.
+    This test also exemplifies issue 210, but with a genuine UNIQUE constraint violation.
 
     This is a real potential use case where a row is added by the same user on two different
     devices without locally synchronising the first addition before making the second.
@@ -143,6 +149,9 @@ def test_geodiff_rebase_unresolved_conflict(user_a_data_first, tmp_path):
     With the UNIQUE constraint on the `user_id` column, a conflict should be reported
     with sufficient information for the conflict to be resolved manually. However,
     this currently fails for the reason outlined in the issue.
+
+    This test doesn't parameterise create_table_ddl because the situation only
+    arises when the UNIQUE constraint exists.
     """
     # Arrange
     geodiff = pygeodiff.GeoDiff(GEODIFFLIB)
