@@ -68,24 +68,34 @@ ORIGINAL_DATA = [
 ]
 
 
-# For a failing test to develop against or once the tests are XPASSing,
-# the xfail decorator should be replaced with:
+# Once the tests are XPASSing, the xfail decorator should be replaced with:
 #
 # @pytest.mark.parametrize('create_table_ddl', [
 #     pytest.param(CREATE_TABLE.replace(' UNIQUE', ''), id='no_constraint'),
 #     pytest.param(CREATE_TABLE, id='unique_constraint')
 # ])
-@pytest.mark.parametrize('create_table_ddl', [
-    pytest.param(CREATE_TABLE.replace(' UNIQUE', ''), id='no_constraint'),
-    pytest.param(CREATE_TABLE,
-                 marks=pytest.mark.xfail(
-                    raises=GeoDiffLibError,
-                    strict=True,
-                    reason="Expected to fail due to issue 210, when this xpasses remove this decorator"),
-                 id='unique_constraint')
-])
-@pytest.mark.parametrize('user_a_data_first', [True, False], ids=['user_a_data_first', 'user_b_data_first'])
-def test_geodiff_rebase_unique(create_table_ddl, user_a_data_first, tmp_path):
+@pytest.mark.parametrize(
+    "create_table_ddl",
+    [
+        pytest.param(CREATE_TABLE.replace(" UNIQUE", ""), id="no_constraint"),
+        pytest.param(
+            CREATE_TABLE,
+            marks=pytest.mark.xfail(
+                raises=GeoDiffLibError,
+                reason="Expected to fail due to issue 210, when this xpasses remove this decorator",
+            ),
+            id="unique_constraint",
+        ),
+    ],
+)
+@pytest.mark.parametrize(
+    "user_a_data_first",
+    [True, False],
+    ids=["user_a_data_first", "user_b_data_first"]
+)
+def test_geodiff_rebase_no_conflict_insert(
+    create_table_ddl, user_a_data_first, tmp_path
+):
     """
     This test exemplifies issue 210. With the UNIQUE constraint on the `user_id` column,
     the data should be able to be rebased as there are no conflicting values, but this
@@ -136,10 +146,13 @@ def test_geodiff_rebase_unique(create_table_ddl, user_a_data_first, tmp_path):
 # Once the tests are XPASSing, the xfail decorator should be removed
 @pytest.mark.xfail(
     raises=GeoDiffLibError,
-    strict=True,
     reason="Expected to fail due to issue 210, when this xpasses remove this decorator")
-@pytest.mark.parametrize('user_a_data_first', [True, False], ids=['user_a_data_first', 'user_b_data_first'])
-def test_geodiff_rebase_unresolved_conflict(user_a_data_first, tmp_path):
+@pytest.mark.parametrize(
+    'user_a_data_first',
+    [True, False],
+    ids=['user_a_data_first', 'user_b_data_first']
+)
+def test_geodiff_rebase_unique_constraint_violation(user_a_data_first, tmp_path):
     """
     This test also exemplifies issue 210, but with a genuine UNIQUE constraint violation.
 
@@ -192,8 +205,19 @@ def test_geodiff_rebase_unresolved_conflict(user_a_data_first, tmp_path):
         raise excinfo
 
 
-@pytest.mark.parametrize('user_a_data_first', [True, False], ids=['user_a_data_first', 'user_b_data_first'])
-def test_geodiff_rebase_no_conflict_unique(user_a_data_first, tmp_path):
+@pytest.mark.parametrize(
+    "create_table_ddl",
+    [
+        pytest.param(CREATE_TABLE.replace(" UNIQUE", ""), id="no_constraint"),
+        pytest.param(CREATE_TABLE, id="unique_constraint"),
+    ],
+)
+@pytest.mark.parametrize(
+    "user_a_data_first",
+    [True, False],
+    ids=["user_a_data_first", "user_b_data_first"]
+)
+def test_geodiff_rebase_no_conflict_same_update(create_table_ddl, user_a_data_first, tmp_path):
     """
     This test is related to issue 210, but with a row in a column with the UNIQUE constraint
     being changed to the same value by both users.
@@ -203,7 +227,7 @@ def test_geodiff_rebase_no_conflict_unique(user_a_data_first, tmp_path):
     # Arrange
     geodiff = pygeodiff.GeoDiff(GEODIFFLIB)
     conflict = tmp_path / "conflict.txt"
-    original, user_a, user_b = create_gpkg_files(CREATE_TABLE, tmp_path)
+    original, user_a, user_b = create_gpkg_files(create_table_ddl, tmp_path)
     # Update a row with identical UNIQUE values
     with sqlite3.connect(user_a) as conn_a, sqlite3.connect(user_b) as conn_b:
         conn_a.execute("UPDATE trees SET user_id = 'user_x_001' WHERE user_id = 'original_002'")
@@ -229,8 +253,19 @@ def test_geodiff_rebase_no_conflict_unique(user_a_data_first, tmp_path):
     assert not conflict.exists()
 
 
-@pytest.mark.parametrize('user_a_data_first', [True, False], ids=['user_a_data_first', 'user_b_data_first'])
-def test_geodiff_rebase_resolved_conflict(user_a_data_first, tmp_path):
+@pytest.mark.parametrize(
+    "create_table_ddl",
+    [
+        pytest.param(CREATE_TABLE.replace(" UNIQUE", ""), id="no_constraint"),
+        pytest.param(CREATE_TABLE, id="unique_constraint"),
+    ],
+)
+@pytest.mark.parametrize(
+    "user_a_data_first",
+    [True, False],
+    ids=["user_a_data_first", "user_b_data_first"]
+)
+def test_geodiff_rebase_resolved_conflict_update(create_table_ddl, user_a_data_first, tmp_path):
     """
     This test for an expected resolved conflict. Both user_a and user_b update the
     same column with different values. pygeodiff rebases using the newer value
@@ -241,7 +276,7 @@ def test_geodiff_rebase_resolved_conflict(user_a_data_first, tmp_path):
     # Arrange
     geodiff = pygeodiff.GeoDiff(GEODIFFLIB)
     conflict = tmp_path / "conflict.txt"
-    original, user_a, user_b = create_gpkg_files(CREATE_TABLE, tmp_path)
+    original, user_a, user_b = create_gpkg_files(create_table_ddl, tmp_path)
     # Update a common value  in each user data table
     with sqlite3.connect(user_a) as conn_a, sqlite3.connect(user_b) as conn_b:
         conn_a.execute("UPDATE trees SET age = 25 WHERE user_id = 'original_002'")
@@ -273,8 +308,19 @@ def test_geodiff_rebase_resolved_conflict(user_a_data_first, tmp_path):
     assert conflict_json['geodiff'][0]['changes'][0]['old'] == old_age
 
 
-@pytest.mark.parametrize('user_a_data_first', [True, False], ids=['user_a_data_first', 'user_b_data_first'])
-def test_geodiff_rebase_no_conflict(user_a_data_first, tmp_path):
+@pytest.mark.parametrize(
+    "create_table_ddl",
+    [
+        pytest.param(CREATE_TABLE.replace(" UNIQUE", ""), id="no_constraint"),
+        pytest.param(CREATE_TABLE, id="unique_constraint"),
+    ],
+)
+@pytest.mark.parametrize(
+    "user_a_data_first",
+    [True, False],
+    ids=["user_a_data_first", "user_b_data_first"]
+)
+def test_geodiff_rebase_no_conflict_update(create_table_ddl, user_a_data_first, tmp_path):
     """
     This test for a case with no conflict. user_a and user_b update the
     different columns and rows. pygeodiff rebases using the both values
@@ -285,10 +331,12 @@ def test_geodiff_rebase_no_conflict(user_a_data_first, tmp_path):
     # Arrange
     geodiff = pygeodiff.GeoDiff(GEODIFFLIB)
     conflict = tmp_path / "conflict.txt"
-    original, user_a, user_b = create_gpkg_files(CREATE_TABLE, tmp_path)
+    original, user_a, user_b = create_gpkg_files(create_table_ddl, tmp_path)
     # Update a value in each user data table
     with sqlite3.connect(user_a) as conn_a, sqlite3.connect(user_b) as conn_b:
-        conn_a.execute("UPDATE trees SET species = 'Pine' WHERE user_id = 'original_001'")
+        conn_a.execute(
+            "UPDATE trees SET species = 'Pine' WHERE user_id = 'original_001'"
+        )
         conn_b.execute("UPDATE trees SET age = 35 WHERE user_id = 'original_002'")
 
     # Set the argument order, i.e. which gpkg should be the rebased result
