@@ -4,10 +4,17 @@
     :license: MIT, see LICENSE for more details.
 """
 
-from .testutils import *
 import os
 import shutil
-import pygeodiff
+from .testutils import (
+    GeoDiffTests,
+    check_nchanges,
+    compare_json,
+    create_dir,
+    geodiff_test_dir,
+    test_json,
+    tmpdir,
+)
 
 
 def basetest(

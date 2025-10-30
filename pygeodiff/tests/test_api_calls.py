@@ -4,9 +4,13 @@
     :license: MIT, see LICENSE for more details.
 """
 
-from .testutils import *
-import os
-import shutil
+from .testutils import (
+    GeoDiffTests,
+    TestError,
+    create_dir,
+    geodiff_test_dir,
+    logger,
+)
 
 
 class UnitTestsPythonApiCalls(GeoDiffTests):
@@ -49,8 +53,9 @@ class UnitTestsPythonApiCalls(GeoDiffTests):
             outdir + "/concat.diff",
         )
 
-        # This is not a valid concat - you delete feature and then update (deleted feature) and then insert it
-        # But it should not crash. Ideally update is ignored (invalid step) and insert is applied
+        # This is not a valid concat - you delete feature and then update (deleted feature) and
+        # then insert it.  But it should not crash.
+        # Ideally update is ignored (invalid step) and insert is applied
         # https://github.com/MerginMaps/geodiff/issues/174
         self.geodiff.concat_changes(
             [

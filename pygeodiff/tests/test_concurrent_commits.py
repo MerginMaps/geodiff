@@ -4,9 +4,16 @@
     :license: MIT, see LICENSE for more details.
 """
 
-from .testutils import *
 import os
 import shutil
+from .testutils import (
+    GeoDiffTests,
+    TestError,
+    check_nchanges,
+    create_dir,
+    geodiff_test_dir,
+    tmpdir,
+)
 
 
 class UnitTestsPythonConcurrentCommits(GeoDiffTests):

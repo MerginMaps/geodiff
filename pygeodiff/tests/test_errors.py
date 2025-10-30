@@ -4,10 +4,15 @@
     :license: MIT, see LICENSE for more details.
 """
 
-from .testutils import *
-import os
 import shutil
 import pygeodiff
+from .testutils import (
+    GeoDiffTests,
+    TestError,
+    create_dir,
+    geodiff_test_dir,
+    tmpdir,
+)
 
 
 class UnitTestsPythonErrors(GeoDiffTests):
