@@ -19,3 +19,4 @@ Pipfile
 .vscode/*
 *.bin
 *sqlite-journal
+.cache
