@@ -6,8 +6,41 @@
 #ifndef SQLITEDRIVER_H
 #define SQLITEDRIVER_H
 
+#include <unordered_map>
+
 #include "driver.h"
 #include "sqliteutils.h"
+
+/**
+ * Holds state that is useful to keep between entries when applying changeset.
+ */
+class SqliteChangeApplyState
+{
+  public:
+    struct TableState
+    {
+      TableSchema schema;
+      Sqlite3Stmt stmtInsert;
+      Sqlite3Stmt stmtUpdate;
+      Sqlite3Stmt stmtDelete;
+    };
+
+    std::unordered_map<std::string, TableState> tableState;
+};
+
+
+/**
+ * Result of applying a single ChangesetEntry. Other errors are handled by
+ * throwing an exception.
+ */
+enum class SqliteChangeApplyResult
+{
+  Applied, // Successfully applied
+  Skipped, // Skipped due to config
+  ConstraintConflict, // Ended due to constraint conflict
+  NoChange, // Ended due to no matching row
+};
+
 
 /**
  * Support for diffs between Sqlite-based files (including GeoPackage)
@@ -37,7 +70,8 @@ class SqliteDriver : public Driver
     void checkCompatibleForRebase( bool useModified = false ) override;
 
   private:
-    void logApplyConflict( const std::string &type, const ChangesetEntry &entry ) const;
+    void logApplyConflict( const std::string &type, const ChangesetEntry &entry, bool isDbErr = false ) const;
+    SqliteChangeApplyResult applyChange( SqliteChangeApplyState &state, const ChangesetEntry &entry );
     std::string databaseName( bool useModified = false );
 
     std::shared_ptr<Sqlite3Db> mDb;

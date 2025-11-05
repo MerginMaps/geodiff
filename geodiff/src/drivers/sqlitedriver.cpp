@@ -10,14 +10,19 @@
 #include "changesetutils.h"
 #include "geodiffcontext.hpp"
 #include "geodifflogger.hpp"
+#include "sqliteutils.h"
 
 #include <memory.h>
-#include <iostream>
+#include <sqlite3.h>
 
 
-void SqliteDriver::logApplyConflict( const std::string &type, const ChangesetEntry &entry ) const
+void SqliteDriver::logApplyConflict( const std::string &type, const ChangesetEntry &entry, bool isDbErr ) const
 {
-  context()->logger().warn( "CONFLICT: " + type + ":\n" + changesetEntryToJSON( entry ).dump( 2 ) );
+  std::string msg = "CONFLICT: " + type;
+  if ( isDbErr )
+    msg += " (" + std::string( sqlite3_errmsg( mDb->get() ) ) + ")";
+  msg += ":\n" + changesetEntryToJSON( entry ).dump( 2 );
+  context()->logger().warn( msg );
 }
 
 /**
@@ -239,7 +244,7 @@ bool tableExists( std::shared_ptr<Sqlite3Db> db, const std::string &tableName, c
 {
   Sqlite3Stmt stmtHasGeomColumnsInfo;
   stmtHasGeomColumnsInfo.prepare( db, "SELECT name FROM \"%w\".sqlite_master WHERE type='table' "
-                                  "AND name='%q'", dbName.c_str(), tableName.c_str() );
+                                      "AND name='%q'", dbName.c_str(), tableName.c_str() );
   return sqlite3_step( stmtHasGeomColumnsInfo.get() ) == SQLITE_ROW;
 }
 
@@ -740,6 +745,118 @@ static void bindValue( sqlite3_stmt *stmt, int index, const Value &v )
 }
 
 
+SqliteChangeApplyResult SqliteDriver::applyChange( SqliteChangeApplyState &state, const ChangesetEntry &entry )
+{
+  std::string tableName = entry.table->name;
+
+  if ( startsWith( tableName, "gpkg_" ) ) // skip any changes to GPKG meta tables
+    return SqliteChangeApplyResult::Skipped;
+
+  if ( context()->isTableSkipped( tableName ) ) // skip table if necessary
+    return SqliteChangeApplyResult::Skipped;
+
+  if ( state.tableState.count( tableName ) == 0 )
+  {
+    TableSchema schema = tableSchema( tableName );
+
+    if ( schema.columns.size() == 0 )
+      throw GeoDiffException( "No such table: " + tableName );
+
+    if ( schema.columns.size() != entry.table->columnCount() )
+      throw GeoDiffException( "Wrong number of columns for table: " + tableName );
+
+    for ( size_t i = 0; i < entry.table->columnCount(); ++i )
+    {
+      if ( schema.columns[i].isPrimaryKey != entry.table->primaryKeys[i] )
+        throw GeoDiffException( "Mismatch of primary keys in table: " + tableName );
+    }
+
+    SqliteChangeApplyState::TableState &tbl = state.tableState[tableName];
+    tbl.schema = schema;
+
+    tbl.stmtInsert.prepare( mDb, sqlForInsert( tableName, schema ) );
+    tbl.stmtUpdate.prepare( mDb, sqlForUpdate( tableName, schema ) );
+    tbl.stmtDelete.prepare( mDb, sqlForDelete( tableName, schema ) );
+  }
+  SqliteChangeApplyState::TableState &tbl = state.tableState[tableName];
+
+  if ( entry.op == SQLITE_INSERT )
+  {
+    sqlite3_reset( tbl.stmtInsert.get() );
+    for ( size_t i = 0; i < tbl.schema.columns.size(); ++i )
+    {
+      const Value &v = entry.newValues[i];
+      bindValue( tbl.stmtInsert.get(), static_cast<int>( i ) + 1, v );
+    }
+    int res = sqlite3_step( tbl.stmtInsert.get() );
+    if ( res == SQLITE_CONSTRAINT )
+      return SqliteChangeApplyResult::ConstraintConflict;
+    else if ( res != SQLITE_DONE )
+    {
+      logApplyConflict( "insert_failed", entry, true );
+      throw GeoDiffException( "SQLite error in INSERT" );
+    }
+    else if ( sqlite3_changes( mDb->get() ) != 1 )
+      throw GeoDiffException( "Nothing inserted (this should never happen)" );
+  }
+  else if ( entry.op == SQLITE_UPDATE )
+  {
+    sqlite3_reset( tbl.stmtUpdate.get() );
+    for ( size_t i = 0; i < tbl.schema.columns.size(); ++i )
+    {
+      const Value &vOld = entry.oldValues[i];
+      const Value &vNew = entry.newValues[i];
+      sqlite3_bind_int( tbl.stmtUpdate.get(), static_cast<int>( i ) * 3 + 2, vNew.type() != Value::TypeUndefined );
+      if ( vOld.type() != Value::TypeUndefined )
+        bindValue( tbl.stmtUpdate.get(), static_cast<int>( i ) * 3 + 1, vOld );
+      if ( vNew.type() != Value::TypeUndefined )
+        bindValue( tbl.stmtUpdate.get(), static_cast<int>( i ) * 3 + 3, vNew );
+    }
+    int res = sqlite3_step( tbl.stmtUpdate.get() );
+    if ( res == SQLITE_CONSTRAINT )
+      return SqliteChangeApplyResult::ConstraintConflict;
+    else if ( res != SQLITE_DONE )
+    {
+      logApplyConflict( "update_failed", entry, true );
+      throw GeoDiffException( "SQLite error in UPDATE" );
+    }
+    else if ( sqlite3_changes( mDb->get() ) == 0 )
+    {
+      // either the row with such pkey does not exist or its data have been modified
+      logApplyConflict( "update_nothing", entry );
+      return SqliteChangeApplyResult::NoChange;
+    }
+  }
+  else if ( entry.op == SQLITE_DELETE )
+  {
+    sqlite3_reset( tbl.stmtDelete.get() );
+    for ( size_t i = 0; i < tbl.schema.columns.size(); ++i )
+    {
+      const Value &v = entry.oldValues[i];
+      bindValue( tbl.stmtDelete.get(), static_cast<int>( i ) + 1, v );
+    }
+    int res = sqlite3_step( tbl.stmtDelete.get() );
+    if ( res == SQLITE_CONSTRAINT )
+      return SqliteChangeApplyResult::ConstraintConflict;
+    else if ( res != SQLITE_DONE )
+    {
+      logApplyConflict( "delete_failed", entry, true );
+      throw GeoDiffException( "SQLite error in DELETE" );
+    }
+    else if ( sqlite3_changes( mDb->get() ) == 0 )
+    {
+      // either the row with such pkey does not exist or its data have been modified
+      logApplyConflict( "delete_nothing", entry );
+      return SqliteChangeApplyResult::NoChange;
+    }
+  }
+  else
+    throw GeoDiffException( "Unexpected operation" );
+
+  return SqliteChangeApplyResult::Applied;
+}
+
+
 void SqliteDriver::applyChangeset( ChangesetReader &reader )
 {
   std::string lastTableName;
@@ -752,9 +869,14 @@ void SqliteDriver::applyChangeset( ChangesetReader &reader )
   // start transaction!
   Sqlite3SavepointTransaction savepointTransaction( context(), mDb );
 
-  // TODO: when we deal with foreign keys, it may be useful to temporarily set "PRAGMA defer_foreign_keys = 1"
-  // so that if a foreign key is violated, the constraint violation is tolerated until we commit the changes
-  // (and at that point the violation may have been fixed by some other commands). Sqlite3session does that.
+  // Defer verifying foreign key constraints until end of transaction. This
+  // only applies inside our transaction, so we don't need to reset it.
+  Sqlite3Stmt statement;
+  statement.prepare( mDb, "pragma defer_foreign_keys = 1" );
+  int rc = sqlite3_step( statement.get() );
+  if ( SQLITE_DONE != rc )
+    logSqliteError( context(), mDb, "Failed to defer foreign key checks" );
+  statement.close();
 
   // get all triggers sql commands
   // that we do not recognize (gpkg triggers are filtered)
@@ -762,146 +884,100 @@ void SqliteDriver::applyChangeset( ChangesetReader &reader )
   std::vector<std::string> triggerCmds;
   sqliteTriggers( context(), mDb, triggerNames, triggerCmds );
 
-  Sqlite3Stmt statament;
   for ( std::string name : triggerNames )
   {
-    statament.prepare( mDb, "drop trigger '%q'", name.c_str() );
-    int rc = sqlite3_step( statament.get() );
+    statement.prepare( mDb, "drop trigger '%q'", name.c_str() );
+    int rc = sqlite3_step( statement.get() );
     if ( SQLITE_DONE != rc )
     {
       logSqliteError( context(), mDb, "Failed to drop trigger " + name );
     }
-    statament.close();
+    statement.close();
   }
 
-  int conflictCount = 0;
+  int unrecoverableConflictCount = 0;
+  std::vector<ChangesetEntry> conflictingEntries;
   ChangesetEntry entry;
+  SqliteChangeApplyState state;
+  std::unordered_map<std::string, std::unique_ptr<ChangesetTable>> tableCopies;
   while ( reader.nextEntry( entry ) )
   {
-    std::string tableName = entry.table->name;
-
-    if ( startsWith( tableName, "gpkg_" ) )
-      continue;   // skip any changes to GPKG meta tables
-
-    // skip table if necessary
-    if ( context()->isTableSkipped( tableName ) )
+    SqliteChangeApplyResult res = applyChange( state, entry );
+    switch ( res )
     {
-      continue;
+      case SqliteChangeApplyResult::Applied:
+      case SqliteChangeApplyResult::Skipped:
+        break; // Applied correctly, continue onward.
+      case SqliteChangeApplyResult::ConstraintConflict:
+        // Ordering conflict found, handle later.
+        // Effectively copying the entry isn't simple, since ChangesetReader is
+        // happy to change entry.table under our feet. We need to copy the
+        // table object, ideally only keeping one per table.
+        if ( tableCopies.count( entry.table->name ) == 0 )
+          tableCopies[entry.table->name] = std::unique_ptr<ChangesetTable>( new ChangesetTable( *entry.table ) );
+        entry.table = tableCopies[entry.table->name].get();
+        conflictingEntries.push_back( entry );
+        break;
+      case SqliteChangeApplyResult::NoChange:
+        unrecoverableConflictCount++; // Other issue, will throw at the end.
+        break;
+    }
+  }
+
+  // Applying some entries may fail due to constraints, since they require the
+  // entries to be in some specific, unknown order. To work around this, we
+  // retry applying the conflicting entries until either we apply them all or we
+  // get stuck.
+  std::vector<ChangesetEntry> newConflictingEntries;
+  while ( conflictingEntries.size() > 0 )
+  {
+    for ( const ChangesetEntry &entry : conflictingEntries )
+    {
+      SqliteChangeApplyResult res = applyChange( state, entry );
+      switch ( res )
+      {
+        case SqliteChangeApplyResult::Applied:
+        case SqliteChangeApplyResult::Skipped:
+          break; // Applied correctly, don't put it in the new list.
+        case SqliteChangeApplyResult::ConstraintConflict:
+          newConflictingEntries.push_back( entry ); // Still conflicting, keep in list.
+          break;
+        case SqliteChangeApplyResult::NoChange:
+          unrecoverableConflictCount++; // Other issue, will throw at the end.
+          break;
+      }
     }
 
-    if ( tableName != lastTableName )
+    // If we haven't been able to apply any of the conflicting entries this
+    // loop, then these conflicts can't be resolved by reordering entries.
+    if ( newConflictingEntries.size() == conflictingEntries.size() )
     {
-      lastTableName = tableName;
-      tbl = tableSchema( tableName );
-
-      if ( tbl.columns.size() == 0 )
-        throw GeoDiffException( "No such table: " + tableName );
-
-      if ( tbl.columns.size() != entry.table->columnCount() )
-        throw GeoDiffException( "Wrong number of columns for table: " + tableName );
-
-      for ( size_t i = 0; i < entry.table->columnCount(); ++i )
-      {
-        if ( tbl.columns[i].isPrimaryKey != entry.table->primaryKeys[i] )
-          throw GeoDiffException( "Mismatch of primary keys in table: " + tableName );
-      }
-
-      stmtInsert.reset( new Sqlite3Stmt );
-      stmtInsert->prepare( mDb, sqlForInsert( tableName, tbl ) );
-
-      stmtUpdate.reset( new Sqlite3Stmt );
-      stmtUpdate->prepare( mDb, sqlForUpdate( tableName, tbl ) );
-
-      stmtDelete.reset( new Sqlite3Stmt );
-      stmtDelete->prepare( mDb, sqlForDelete( tableName, tbl ) );
+      for ( const ChangesetEntry &entry : conflictingEntries )
+        logApplyConflict( "unresolvable_conflict", entry );
+      throw GeoDiffException( "Could not resolve dependencies in constraint conflicts." );
     }
-
-    if ( entry.op == SQLITE_INSERT )
-    {
-      for ( size_t i = 0; i < tbl.columns.size(); ++i )
-      {
-        const Value &v = entry.newValues[i];
-        bindValue( stmtInsert->get(), static_cast<int>( i ) + 1, v );
-      }
-      if ( sqlite3_step( stmtInsert->get() ) != SQLITE_DONE )
-      {
-        // it could be that the primary key already exists or some constraint violation (e.g. not null, unique)
-        logApplyConflict( "insert_failed", entry );
-        ++conflictCount;
-      }
-      if ( sqlite3_changes( mDb->get() ) != 1 )
-        throw GeoDiffException( "Nothing inserted (this should never happen)" );
-      sqlite3_reset( stmtInsert->get() );
-    }
-    else if ( entry.op == SQLITE_UPDATE )
-    {
-      for ( size_t i = 0; i < tbl.columns.size(); ++i )
-      {
-        const Value &vOld = entry.oldValues[i];
-        const Value &vNew = entry.newValues[i];
-        sqlite3_bind_int( stmtUpdate->get(), static_cast<int>( i ) * 3 + 2, vNew.type() != Value::TypeUndefined );
-        if ( vOld.type() != Value::TypeUndefined )
-          bindValue( stmtUpdate->get(), static_cast<int>( i ) * 3 + 1, vOld );
-        if ( vNew.type() != Value::TypeUndefined )
-          bindValue( stmtUpdate->get(), static_cast<int>( i ) * 3 + 3, vNew );
-      }
-      if ( sqlite3_step( stmtUpdate->get() ) != SQLITE_DONE )
-      {
-        // a constraint must have been violated (e.g. foreign key, not null, unique)
-        logApplyConflict( "update_failed", entry );
-        ++conflictCount;
-      }
-      if ( sqlite3_changes( mDb->get() ) == 0 )
-      {
-        // either the row with such pkey does not exist or its data have been modified
-        logApplyConflict( "update_nothing", entry );
-        ++conflictCount;
-      }
-      sqlite3_reset( stmtUpdate->get() );
-    }
-    else if ( entry.op == SQLITE_DELETE )
-    {
-      for ( size_t i = 0; i < tbl.columns.size(); ++i )
-      {
-        const Value &v = entry.oldValues[i];
-        bindValue( stmtDelete->get(), static_cast<int>( i ) + 1, v );
-      }
-      if ( sqlite3_step( stmtDelete->get() ) != SQLITE_DONE )
-      {
-        // a foreign key constraint must have been violated
-        logApplyConflict( "delete_failed", entry );
-        ++conflictCount;
-      }
-      if ( sqlite3_changes( mDb->get() ) == 0 )
-      {
-        // either the row with such pkey does not exist or its data have been modified
-        logApplyConflict( "delete_nothing", entry );
-        ++conflictCount;
-      }
-      sqlite3_reset( stmtDelete->get() );
-    }
-    else
-      throw GeoDiffException( "Unexpected operation" );
+    conflictingEntries = newConflictingEntries;
+    newConflictingEntries.clear();
   }
 
   // recreate triggers
   for ( std::string cmd : triggerCmds )
   {
-    statament.prepare( mDb, "%s", cmd.c_str() );
-    if ( SQLITE_DONE != sqlite3_step( statament.get() ) )
+    statement.prepare( mDb, "%s", cmd.c_str() );
+    if ( SQLITE_DONE != sqlite3_step( statement.get() ) )
     {
       logSqliteError( context(), mDb, "Failed to recreate trigger using SQL \"" + cmd + "\"" );
     }
-    statament.close();
+    statement.close();
   }
 
-  if ( !conflictCount )
+  if ( !unrecoverableConflictCount )
   {
     savepointTransaction.commitChanges();
   }
   else
   {
-    throw GeoDiffException( "Conflicts encountered while applying changes! Total " + std::to_string( conflictCount ) );
+    throw GeoDiffException( "Conflicts encountered while applying changes! Total " + std::to_string( unrecoverableConflictCount ) );
   }
 }
 
@@ -957,7 +1033,7 @@ static void addGpkgSpatialTable( std::shared_ptr<Sqlite3Db> db, const TableSchem
 
   Sqlite3Stmt stmt;
   stmt.prepare( db, "INSERT INTO gpkg_contents (table_name, data_type, identifier, min_x, min_y, max_x, max_y, srs_id) "
-                "VALUES ('%q', 'features', '%q', %f, %f, %f, %f, %d)",
+                    "VALUES ('%q', 'features', '%q', %f, %f, %f, %f, %d)",
                 tbl.name.c_str(), tbl.name.c_str(), extent.minX, extent.minY, extent.maxX, extent.maxY, srsId );
   int res = sqlite3_step( stmt.get() );
   if ( res != SQLITE_DONE )
