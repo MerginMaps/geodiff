@@ -50,14 +50,7 @@ All should pass once issue 210 has been resolved.
     "db_constrained",
     [
         pytest.param(False, id="no_db_constraint"),
-        pytest.param(
-            True,
-            marks=pytest.mark.xfail(
-                raises=GeoDiffLibError,
-                reason="Expected to fail due to issue 210, when this xpasses remove this decorator",
-            ),
-            id="dbconstraint",
-        ),
+        pytest.param(True, id="db_constraint"),
     ],
 )
 @pytest.mark.parametrize(
@@ -136,14 +129,7 @@ def test_geodiff_rebase_happy_path_single_table(db_constrained, user_a_data_firs
     "db_constrained",
     [
         pytest.param(False, id="no_db_constraint"),
-        pytest.param(
-            True,
-            marks=pytest.mark.xfail(
-                raises=GeoDiffLibError,
-                reason="Expected to fail due to issue 210, when this xpasses remove this decorator",
-            ),
-            id="dbconstraint",
-        ),
+        pytest.param(True, id="db_constraint"),
     ],
 )
 @pytest.mark.parametrize(
