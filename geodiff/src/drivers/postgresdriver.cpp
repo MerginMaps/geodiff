@@ -1046,8 +1046,3 @@ void PostgresDriver::dumpData( ChangesetWriter &writer, bool useModified )
     }
   }
 }
-
-void PostgresDriver::checkCompatibleForRebase( bool )
-{
-  throw GeoDiffException( "Rebase with postgres not supported yet" );
-}

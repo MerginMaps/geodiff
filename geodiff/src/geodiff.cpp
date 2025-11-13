@@ -343,8 +343,6 @@ int GEODIFF_createRebasedChangeset(
       if ( !driver )
         throw GeoDiffException( "Unable to use driver: sqlite" );
       driver->open( conn );
-
-      driver->checkCompatibleForRebase();  // will throw GeoDiffException in case of problems
     }
 
     TmpFile changeset_BASE_MODIFIED( std::string( changeset ) + "_BASE_MODIFIED" );
@@ -385,8 +383,6 @@ int GEODIFF_createRebasedChangesetEx(
 
   // TODO: use driverName + driverExtraInfo + base when creating rebased
   // changeset (e.g. to check whether a newly created ID is actually free)
-
-  // TODO: call checkCompatibleForRebase()
 
   try
   {
