@@ -148,6 +148,11 @@ void SqliteDriver::open( const DriverParametersMap &conn )
   {
     register_gpkg_extensions( mDb );
   }
+
+  // Enable foreign key constraints (if the database has any)
+  Buffer sqlBuf;
+  sqlBuf.printf( "PRAGMA foreign_keys = 1" );
+  mDb->exec( sqlBuf );
 }
 
 void SqliteDriver::create( const DriverParametersMap &conn, bool overwrite )
