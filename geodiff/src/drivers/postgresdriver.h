@@ -28,7 +28,6 @@ class PostgresDriver : public Driver
     void applyChangeset( ChangesetReader &reader ) override;
     void createTables( const std::vector<TableSchema> &tables ) override;
     void dumpData( ChangesetWriter &writer, bool useModified = false ) override;
-    void checkCompatibleForRebase( bool useModified = false ) override;
 
   private:
     void logApplyConflict( const std::string &type, const ChangesetEntry &entry ) const;
