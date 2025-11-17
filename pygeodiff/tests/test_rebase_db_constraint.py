@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
-    :copyright: (c) 2025 Colin Blackburn, Leo Rudczenko, John Stevenson (British Geological Survey)
-    :license: MIT, see LICENSE for more details.
+:copyright: (c) 2025 Colin Blackburn, Leo Rudczenko, John Stevenson (British Geological Survey)
+:license: MIT, see LICENSE for more details.
 """
 
 # This module tests the behaviour of geodiff when there are database-level constraints
@@ -12,17 +12,6 @@
 # regression tests for existing geodiff behaviour.  Tests are parametrised with
 # `user_a_data_first` to show where rebase outcome depends on the order that
 # database files are passed to the rebase function.
-
-# Some of the tests are expected to fail until issue 210 has been resolved.
-# https://github.com/MerginMaps/geodiff/issues/210
-
-# Once database constraint handling has been implemented, the tests will pass and
-# the `xfail` decorators can be removed.
-
-# The behaviour of GeoDiff in scenarios where combining changes from two users will
-# cause a database constraint to fail is as-yet undefined.  Perhaps it should raise
-# a GeoDiffConstraintError that reports the error message from the database with
-# information about the constraint that was broken.
 
 import json
 import os
@@ -38,12 +27,8 @@ from pygeodiff import GeoDiffLibError
 
 GEODIFFLIB = os.environ.get("GEODIFFLIB", None)
 
-"""
-These tests cover simple rebase scenarios, with or without database constraints
-applied.
-
-All should pass once issue 210 has been resolved.
-"""
+# These tests cover simple rebase scenarios, with or without database constraints
+# applied.
 
 
 @pytest.mark.parametrize(
@@ -56,7 +41,9 @@ All should pass once issue 210 has been resolved.
 @pytest.mark.parametrize(
     "user_a_data_first", [True, False], ids=["user_a_data_first", "user_b_data_first"]
 )
-def test_geodiff_rebase_happy_path_single_table(db_constrained, user_a_data_first, tmp_path):
+def test_geodiff_rebase_happy_path_single_table(
+    db_constrained, user_a_data_first, tmp_path
+):
     """
     This test checks that rebase succeeds on changes to a single table with
     or without unique constraints.  This test applies INSERT, UPDATE and DELETE
@@ -107,6 +94,11 @@ def test_geodiff_rebase_happy_path_single_table(db_constrained, user_a_data_firs
         )
         conn_b.execute(
             """
+            DELETE FROM trees WHERE species_id IS 'PIN'
+            """
+        )
+        conn_b.execute(
+            """
             DELETE FROM species WHERE species_id IS 'PIN'
             """
         )
@@ -135,7 +127,9 @@ def test_geodiff_rebase_happy_path_single_table(db_constrained, user_a_data_firs
 @pytest.mark.parametrize(
     "user_a_data_first", [True, False], ids=["user_a_data_first", "user_b_data_first"]
 )
-def test_geodiff_rebase_happy_path_fk_tables(db_constrained, user_a_data_first, tmp_path):
+def test_geodiff_rebase_happy_path_fk_tables(
+    db_constrained, user_a_data_first, tmp_path
+):
     """
     This test checks that rebase succeeds on changes on multiple tables related
     by a foreign key constraint.  This test applies INSERT, UPDATE and DELETE
@@ -161,7 +155,7 @@ def test_geodiff_rebase_happy_path_fk_tables(db_constrained, user_a_data_first, 
             # 20241103003 deleted
             {"tree_id": 20251103004, "species_id": "SPC", "age": 29},  # inserted
             {"tree_id": 20251103005, "species_id": "BCH", "age": 46},  # inserted
-        ]
+        ],
     }
 
     with sqlite3.connect(user_a) as conn_a:
@@ -230,10 +224,8 @@ def test_geodiff_rebase_happy_path_fk_tables(db_constrained, user_a_data_first, 
     assert not conflict.exists()
 
 
-"""
-The next tests cover scenarios with conflicting changes or where changes result
-in constraint violations.
-"""
+# The next tests cover scenarios with conflicting changes or where changes
+# result in constraint violations.
 
 
 @pytest.mark.parametrize(
@@ -293,15 +285,10 @@ def test_geodiff_rebase_conflicting_edits(user_a_data_first, tmp_path):
     assert_data_as_expected(mine, expected)
     assert conflict.exists()
     conflict_json = json.loads(conflict.read_text())
-    assert conflict_json['geodiff'][0]['type'] == 'conflict'
-    assert conflict_json['geodiff'][0]['table'] == 'species'
+    assert conflict_json["geodiff"][0]["type"] == "conflict"
+    assert conflict_json["geodiff"][0]["table"] == "species"
 
 
-@pytest.mark.xfail(
-        raises=GeoDiffLibError,
-        reason=("Expected to fail due to issue 210. Unique constraint violation handling"
-                " not yet implemented")
-)
 @pytest.mark.parametrize(
     "user_a_data_first", [True, False], ids=["user_a_data_first", "user_b_data_first"]
 )
@@ -337,50 +324,14 @@ def test_geodiff_rebase_unique_constraint_violation(user_a_data_first, tmp_path)
     # Set the argument order. Rebased db has "their" changes before "mine".
     if user_a_data_first:
         theirs, mine = user_a, user_b
-        # user_a changes are preserved, because they went in first.
-        # user_b changes violate constraint.
-        expected = {
-            "species": [
-                {"species_id": "MPL", "name": "Maple"},
-                {"species_id": "OAK", "name": "Oak"},
-                {"species_id": "PIN", "name": "Pine"},
-                {"species_id": "BCH", "name": "Birch"},
-            ]
-        }
     else:
         theirs, mine = user_b, user_a
-        # user_b changes are preserved, because they went in first.
-        # user_a changes violate constraint.
-        expected = {
-            "species": [
-                {"species_id": "MPL", "name": "Maple"},
-                {"species_id": "OAK", "name": "Oak"},
-                {"species_id": "PIN", "name": "Pine"},
-                {"species_id": "BCH", "name": "Beech"},
-            ]
-        }
 
-    # Act
-    geodiff.rebase(str(original), str(theirs), str(mine), str(conflict))
-
-    # Assert that rebased database contains expected changes and conflict is recorded
-
-    # TODO: What is the correct behaviour here?  The assertions below are for
-    # the case where geodiff brings in all possible rows without raising an error
-    # and creates a conflict file containing any rows that failed.  The conflict file
-    # should report a UNIQUE constraint violation.
-    assert_data_as_expected(mine, expected)
-    assert conflict.exists()
-    conflict_json = json.loads(conflict.read_text())
-    assert conflict_json['geodiff'][0]['type'] == 'unique_constraint_violation'
-    assert conflict_json['geodiff'][0]['table'] == 'species'
+    # Assert that rebasing fails due to DB constraints on application of diffs
+    with pytest.raises(GeoDiffLibError):
+        geodiff.rebase(str(original), str(theirs), str(mine), str(conflict))
 
 
-@pytest.mark.xfail(
-        reason=("Expected to fail due to issue 210. Foreign key constraint violation handling"
-                " not yet implemented.  geodiff will make changes that violate constraint."
-                " Foreign Key enforcement must be explicitly activated for SQLite.")
-)
 @pytest.mark.parametrize(
     "user_a_data_first", [True, False], ids=["user_a_data_first", "user_b_data_first"]
 )
@@ -424,56 +375,15 @@ def test_geodiff_rebase_fkey_constraint_violation(user_a_data_first, tmp_path):
     # Set the argument order. Rebased db has "their" changes before "mine".
     if user_a_data_first:
         theirs, mine = user_a, user_b
-        # user_a changes are preserved, because they went in first.
-        # user_b changes violate constraint.
-        expected = {
-            "species": [
-                {"species_id": "MPL", "name": "Maple"},
-                {"species_id": "OAK", "name": "Oak"},
-                # 'PIN' deleted
-            ],
-            "trees": [
-                {"tree_id": 20251103001, "species_id": "MPL", "age": 25},
-                {"tree_id": 20251103002, "species_id": "OAK", "age": 30},
-                # 20241103003 deleted
-            ]
-        }
     else:
         theirs, mine = user_b, user_a
-        # user_b changes are preserved, because they went in first.
-        # user_a changes violate constraint.
-        expected = {
-            "species": [
-                {"species_id": "MPL", "name": "Maple"},
-                {"species_id": "OAK", "name": "Oak"},
-                {"species_id": "PIN", "name": "Pine"}
-            ],
-            "trees": [
-                {"tree_id": 20251103001, "species_id": "MPL", "age": 25},
-                {"tree_id": 20251103002, "species_id": "OAK", "age": 30},
-                {"tree_id": 20251103003, "species_id": "PIN", "age": 18},
-                {"tree_id": 20251103004, "species_id": "PIN", "age": 101},
-            ]
-        }
-    # Act
-    geodiff.rebase(str(original), str(theirs), str(mine), str(conflict))
 
-    # Assert that rebased database contains expected changes and conflict is recorded
-
-    # TODO: What is the correct behaviour here?  The assertions below are for
-    # the case where geodiff brings in all possible rows that don't raise an error
-    # and creates a conflict file containing any rows that failed.  The conflict
-    # file should report a FOREIGN KEY constraint violation.
-    assert_data_as_expected(mine, expected)
-    assert conflict.exists()
-    conflict_json = json.loads(conflict.read_text())
-    assert conflict_json['geodiff'][0]['type'] == 'foreign_key_constraint_violation'
-    assert conflict_json['geodiff'][0]['table'] == 'species'
+    # Assert that rebasing fails due to DB constraints on application of diffs
+    with pytest.raises(GeoDiffLibError):
+        geodiff.rebase(str(original), str(theirs), str(mine), str(conflict))
 
 
-"""
-Helper functions are defined below here.
-"""
+# Helper functions are defined below here.
 
 
 def assert_data_as_expected(db: Path, expected_data: dict[str, list[dict]]):
@@ -486,12 +396,14 @@ def assert_data_as_expected(db: Path, expected_data: dict[str, list[dict]]):
             column_names = rows[0].keys()
             results = conn.execute(
                 f"""SELECT {", ".join(column_names)} FROM {table}"""
-                ).fetchall()
+            ).fetchall()
 
             assert set(results) == set(tuple(row.values()) for row in rows)
 
 
-def create_db_files(tmp_path: Path, db_constrained: bool = True) -> Tuple[Path, Path, Path]:
+def create_db_files(
+    tmp_path: Path, db_constrained: bool = True
+) -> Tuple[Path, Path, Path]:
     """
     Create 3 SQLite files at the given filepaths, each with the same tables
     and data.
@@ -523,19 +435,21 @@ def create_db_files(tmp_path: Path, db_constrained: bool = True) -> Tuple[Path, 
         # Remove database constraints from table definitions
         create_species_sql = re.sub(r" UNIQUE", "", create_species_sql)
         create_trees_sql = re.sub(r" UNIQUE", "", create_trees_sql)
-        create_trees_sql = re.sub(r",.*FOREIGN.*REFERENCES.*\)", "", create_trees_sql)
+        create_trees_sql = re.sub(
+            r",\W*FOREIGN.*REFERENCES.*?\)", "", create_trees_sql, re.MULTILINE
+        )
 
     # Define initial data
     species_data = [
-            {"species_id": "MPL", "name": "Maple"},
-            {"species_id": "OAK", "name": "Oak"},
-            {"species_id": "PIN", "name": "Pine"},
-        ]
+        {"species_id": "MPL", "name": "Maple"},
+        {"species_id": "OAK", "name": "Oak"},
+        {"species_id": "PIN", "name": "Pine"},
+    ]
     trees_data = [
-            {"tree_id": 20251103001, "species_id": "MPL", "age": 25},
-            {"tree_id": 20251103002, "species_id": "OAK", "age": 30},
-            {"tree_id": 20251103003, "species_id": "PIN", "age": 18},
-        ]
+        {"tree_id": 20251103001, "species_id": "MPL", "age": 25},
+        {"tree_id": 20251103002, "species_id": "OAK", "age": 30},
+        {"tree_id": 20251103003, "species_id": "PIN", "age": 18},
+    ]
 
     # Create geopackages
     with sqlite3.connect(original) as conn:
@@ -546,14 +460,14 @@ def create_db_files(tmp_path: Path, db_constrained: bool = True) -> Tuple[Path, 
             INSERT INTO species (species_id, name)
             VALUES (:species_id, :name)
             """,
-            species_data
+            species_data,
         )
         conn.executemany(
             """
             INSERT INTO trees (tree_id, species_id, age)
             VALUES (:tree_id, :species_id, :age)
             """,
-            trees_data
+            trees_data,
         )
 
     user_a.write_bytes(original.read_bytes())

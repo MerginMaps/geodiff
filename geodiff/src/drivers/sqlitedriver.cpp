@@ -148,6 +148,11 @@ void SqliteDriver::open( const DriverParametersMap &conn )
   {
     register_gpkg_extensions( mDb );
   }
+
+  // Enable foreign key constraints (if the database has any)
+  Buffer sqlBuf;
+  sqlBuf.printf( "PRAGMA foreign_keys = 1" );
+  mDb->exec( sqlBuf );
 }
 
 void SqliteDriver::create( const DriverParametersMap &conn, bool overwrite )
@@ -1161,30 +1166,5 @@ void SqliteDriver::dumpData( ChangesetWriter &writer, bool useModified )
     {
       logSqliteError( context(), mDb, "Failure dumping changeset" );
     }
-  }
-}
-
-void SqliteDriver::checkCompatibleForRebase( bool useModified )
-{
-  std::string dbName = databaseName( useModified );
-
-  // get all triggers sql commands
-  // and make sure that there are only triggers we recognize
-  // we deny rebase changesets with unrecognized triggers
-  std::vector<std::string> triggerNames;
-  std::vector<std::string> triggerCmds;
-  sqliteTriggers( context(), mDb, triggerNames, triggerCmds );  // TODO: use dbName
-  if ( !triggerNames.empty() )
-  {
-    std::string msg = "Unable to perform rebase for database with unknown triggers:\n";
-    for ( size_t i = 0; i < triggerNames.size(); ++i )
-      msg += triggerNames[i] + "\n";
-    throw GeoDiffException( msg );
-  }
-
-  ForeignKeys fks = sqliteForeignKeys( context(), mDb, dbName );
-  if ( !fks.empty() )
-  {
-    throw GeoDiffException( "Unable to perform rebase for database with foreign keys" );
   }
 }

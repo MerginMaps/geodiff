@@ -126,15 +126,6 @@ class Driver
      */
     virtual void dumpData( ChangesetWriter &writer, bool useModified = false ) = 0;
 
-    /**
-     * Tests whether the table schemas are compatible with our rebase algorithm, i.e. no unsupported
-     * database features are used. Currently, for example, geodiff rebase does not deal with foreign
-     * keys or with user-defined triggers.
-     *
-     * If the check fails, GeoDiffException is thrown.
-     */
-    virtual void checkCompatibleForRebase( bool useModified = false ) = 0;
-
     static const std::string SQLITEDRIVERNAME;
     static const std::string POSTGRESDRIVERNAME;
 
