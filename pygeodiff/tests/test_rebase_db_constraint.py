@@ -23,7 +23,7 @@ from typing import Tuple
 import pytest
 
 import pygeodiff
-from pygeodiff import GeoDiffLibError
+from pygeodiff import GeoDiffLibConflictError
 
 GEODIFFLIB = os.environ.get("GEODIFFLIB", None)
 
@@ -328,7 +328,8 @@ def test_geodiff_rebase_unique_constraint_violation(user_a_data_first, tmp_path)
         theirs, mine = user_b, user_a
 
     # Assert that rebasing fails due to DB constraints on application of diffs
-    with pytest.raises(GeoDiffLibError):
+    # and that exception provides information on failed constraint.
+    with pytest.raises(GeoDiffLibConflictError, match="UNIQUE constraint failed: species.species_id"):
         geodiff.rebase(str(original), str(theirs), str(mine), str(conflict))
 
 
@@ -379,7 +380,8 @@ def test_geodiff_rebase_fkey_constraint_violation(user_a_data_first, tmp_path):
         theirs, mine = user_b, user_a
 
     # Assert that rebasing fails due to DB constraints on application of diffs
-    with pytest.raises(GeoDiffLibError):
+    # and that exception provides information on failed constraint.
+    with pytest.raises(GeoDiffLibConflictError, match="FOREIGN KEY constraint failed"):
         geodiff.rebase(str(original), str(theirs), str(mine), str(conflict))
 
 
