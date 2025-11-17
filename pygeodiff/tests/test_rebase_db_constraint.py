@@ -23,7 +23,7 @@ from typing import Tuple
 import pytest
 
 import pygeodiff
-from pygeodiff import GeoDiffLibConflictError
+from pygeodiff import GeoDiffLibError, GeoDiffLibConflictError
 
 GEODIFFLIB = os.environ.get("GEODIFFLIB", None)
 
@@ -385,6 +385,63 @@ def test_geodiff_rebase_fkey_constraint_violation(user_a_data_first, tmp_path):
         geodiff.rebase(str(original), str(theirs), str(mine), str(conflict))
 
 
+@pytest.mark.parametrize(
+    "user_a_data_first", [True, False], ids=["user_a_data_first", "user_b_data_first"]
+)
+def test_geodiff_rebase_db_connection_error(user_a_data_first, tmp_path):
+    """
+    This test covers a rebase where a database connection cannot be made.
+    """
+    # Arrange
+    geodiff = pygeodiff.GeoDiff(GEODIFFLIB)
+    conflict = tmp_path / "conflict.txt"
+    original, user_a, user_b = create_db_files(tmp_path, db_constrained=True)
+
+    # Delete database
+    original.unlink()
+
+    # Set the argument order. Rebased db has "their" changes before "mine".
+    if user_a_data_first:
+        theirs, mine = user_a, user_b
+    else:
+        theirs, mine = user_b, user_a
+
+    # Assert
+    with pytest.raises(GeoDiffLibError, match=""):
+        geodiff.rebase(str(original), str(theirs), str(mine), str(conflict))
+
+
+@pytest.mark.parametrize(
+    "user_a_data_first", [True, False], ids=["user_a_data_first", "user_b_data_first"]
+)
+def test_geodiff_rebase_missing_table_error(user_a_data_first, tmp_path):
+    """
+    This test covers a rebase where a table is missing from one of the databases.
+    """
+    # Arrange
+    geodiff = pygeodiff.GeoDiff(GEODIFFLIB)
+    conflict = tmp_path / "conflict.txt"
+    original, user_a, user_b = create_db_files(tmp_path, db_constrained=True)
+
+    # Apply changes to databases
+    with sqlite3.connect(original) as conn:
+        conn.execute(
+            """
+            DROP TABLE trees
+            """
+        )
+
+    # Set the argument order. Rebased db has "their" changes before "mine".
+    if user_a_data_first:
+        theirs, mine = user_a, user_b
+    else:
+        theirs, mine = user_b, user_a
+
+    # Assert
+    with pytest.raises(GeoDiffLibError, match=""):
+        geodiff.rebase(str(original), str(theirs), str(mine), str(conflict))
+
+
 # Helper functions are defined below here.
 
 
@@ -438,7 +495,7 @@ def create_db_files(
         create_species_sql = re.sub(r" UNIQUE", "", create_species_sql)
         create_trees_sql = re.sub(r" UNIQUE", "", create_trees_sql)
         create_trees_sql = re.sub(
-            r",\W*FOREIGN.*REFERENCES.*?\)", "", create_trees_sql, re.MULTILINE
+            r",\W*FOREIGN.*REFERENCES.*?\)", "", create_trees_sql, flags=re.MULTILINE
         )
 
     # Define initial data
