@@ -578,7 +578,11 @@ void logSqliteError( const Context *context, std::shared_ptr<Sqlite3Db> db, cons
 void throwSqliteError( sqlite3 *db, const std::string &description )
 {
   std::string errMsg = sqliteErrorMessage( db, description );
-  throw GeoDiffException( errMsg );
+  // Special-case errors caused by conflicts with DB constraints
+  if ( sqlite3_errcode( db ) == SQLITE_CONSTRAINT )
+    throw GeoDiffConflictsException( errMsg );
+  else
+    throw GeoDiffException( errMsg );
 }
 
 int parseGpkgbHeaderSize( const std::string &gpkgWkb )
