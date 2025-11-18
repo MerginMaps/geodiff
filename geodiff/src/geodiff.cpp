@@ -31,6 +31,26 @@
 
 #include "json.hpp"
 
+/**
+ * Logs message as error and sets error message for C API. To be used before
+ * returning public function.
+ */
+static void setAndLogError( Context *context, std::string msg )
+{
+  context->logger().error( msg );
+  context->setLastError( msg );
+}
+
+/**
+ * Logs error message, converts exception to error code and sets error message
+ * for C API.
+ */
+static int handleException( Context *context, const GeoDiffException &exc )
+{
+  setAndLogError( context, exc.what() );
+  return exc.errorCode();
+}
+
 // use scripts/update_version.py to update the version here and in other places at once
 const char *GEODIFF_version()
 {
@@ -45,7 +65,7 @@ int GEODIFF_driverCount( GEODIFF_ContextH /*contextHandle*/ )
 
 int GEODIFF_driverNameFromIndex( GEODIFF_ContextH contextHandle, int index, char *driverName )
 {
-  const Context *context = static_cast<const Context *>( contextHandle );
+  Context *context = static_cast<Context *>( contextHandle );
   if ( !context )
   {
     return GEODIFF_ERROR;
@@ -55,7 +75,7 @@ int GEODIFF_driverNameFromIndex( GEODIFF_ContextH contextHandle, int index, char
 
   if ( ( size_t ) index >= drivers.size() )
   {
-    context->logger().error( "Index out of range in GEODIFF_driverNameFromIndex" );
+    setAndLogError( context, "Index out of range in GEODIFF_driverNameFromIndex" );
     return GEODIFF_ERROR;
   }
 
@@ -69,7 +89,7 @@ int GEODIFF_driverNameFromIndex( GEODIFF_ContextH contextHandle, int index, char
 
 bool GEODIFF_driverIsRegistered( GEODIFF_ContextH contextHandle, const char *driverName )
 {
-  const Context *context = static_cast<const Context *>( contextHandle );
+  Context *context = static_cast<Context *>( contextHandle );
   if ( !context )
   {
     return GEODIFF_ERROR;
@@ -77,7 +97,7 @@ bool GEODIFF_driverIsRegistered( GEODIFF_ContextH contextHandle, const char *dri
 
   if ( !driverName )
   {
-    context->logger().error( "NULL arguments to GEODIFF_driverIsRegistered" );
+    setAndLogError( context, "NULL arguments to GEODIFF_driverIsRegistered" );
     return GEODIFF_ERROR;
   }
 
@@ -127,7 +147,7 @@ int GEODIFF_CX_setTablesToSkip( GEODIFF_ContextH contextHandle, int tablesCount,
 
   if ( tablesCount > 0 && !tablesToSkip )
   {
-    context->logger().error( "NULL arguments to GEODIFF_CX_setTablesToSkip" );
+    setAndLogError( context, "NULL arguments to GEODIFF_CX_setTablesToSkip" );
     return GEODIFF_ERROR;
   }
 
@@ -140,6 +160,14 @@ int GEODIFF_CX_setTablesToSkip( GEODIFF_ContextH contextHandle, int tablesCount,
 
   context->setTablesToSkip( tables );
   return GEODIFF_SUCCESS;
+}
+
+const char *GEODIFF_CX_lastError( GEODIFF_ContextH contextHandle )
+{
+  Context *context = static_cast<Context *>( contextHandle );
+  if ( !context )
+    return "";
+  return context->lastError().c_str();
 }
 
 void GEODIFF_CX_destroy( GEODIFF_ContextH contextHandle )
@@ -167,7 +195,7 @@ int GEODIFF_createChangesetEx( GEODIFF_ContextH contextHandle, const char *drive
                                const char *base, const char *modified,
                                const char *changeset )
 {
-  const Context *context = static_cast<const Context *>( contextHandle );
+  Context *context = static_cast<Context *>( contextHandle );
   if ( !context )
   {
     return GEODIFF_ERROR;
@@ -175,7 +203,7 @@ int GEODIFF_createChangesetEx( GEODIFF_ContextH contextHandle, const char *drive
 
   if ( !driverName || !base || !modified || !changeset )
   {
-    context->logger().error( "NULL arguments to GEODIFF_createChangesetEx" );
+    setAndLogError( context, "NULL arguments to GEODIFF_createChangesetEx" );
     return GEODIFF_ERROR;
   }
 
@@ -197,8 +225,7 @@ int GEODIFF_createChangesetEx( GEODIFF_ContextH contextHandle, const char *drive
   }
   catch ( const  GeoDiffException &exc )
   {
-    context->logger().error( exc );
-    return GEODIFF_ERROR;
+    return handleException( context, exc );
   }
 
   return GEODIFF_SUCCESS;
@@ -209,7 +236,7 @@ int GEODIFF_createChangesetDr( GEODIFF_ContextH contextHandle, const char *drive
                                const char *driverDstName, const char *driverDstExtraInfo, const char *dst,
                                const char *changeset )
 {
-  const Context *context = static_cast<const Context *>( contextHandle );
+  Context *context = static_cast<Context *>( contextHandle );
   if ( !context )
   {
     return GEODIFF_ERROR;
@@ -217,7 +244,7 @@ int GEODIFF_createChangesetDr( GEODIFF_ContextH contextHandle, const char *drive
 
   if ( !driverSrcName || !driverSrcExtraInfo || !driverDstName || !driverDstExtraInfo || !src || !dst || !changeset )
   {
-    context->logger().error( "NULL arguments to GEODIFF_createChangesetAcrossDrivers" );
+    setAndLogError( context, "NULL arguments to GEODIFF_createChangesetAcrossDrivers" );
     return GEODIFF_ERROR;
   }
 
@@ -237,7 +264,7 @@ int GEODIFF_createChangesetDr( GEODIFF_ContextH contextHandle, const char *drive
     tmpSrcGpkg.setPath( tmpdir( ) + "_gpkg-" + randomString( 6 ) );
     if ( GEODIFF_makeCopy( contextHandle, driverSrcName, driverSrcExtraInfo, src, Driver::SQLITEDRIVERNAME.c_str(), "", tmpSrcGpkg.c_path() ) != GEODIFF_SUCCESS )
     {
-      context->logger().error( "Failed to create a copy of base source for driver " + std::string( driverSrcName ) );
+      setAndLogError( context, "Failed to create a copy of base source for driver " + std::string( driverSrcName ) );
       return GEODIFF_ERROR;
     }
   }
@@ -247,7 +274,7 @@ int GEODIFF_createChangesetDr( GEODIFF_ContextH contextHandle, const char *drive
     tmpDstGpkg.setPath( tmpdir() + "_gpkg-" + randomString( 6 ) );
     if ( GEODIFF_makeCopy( contextHandle, driverDstName, driverDstExtraInfo, dst, Driver::SQLITEDRIVERNAME.c_str(), "", tmpDstGpkg.c_path() ) != GEODIFF_SUCCESS )
     {
-      context->logger().error( "Failed to create a copy of modified source for driver " + std::string( driverDstName ) );
+      setAndLogError( context, "Failed to create a copy of modified source for driver " + std::string( driverDstName ) );
       return GEODIFF_ERROR;
     }
   }
@@ -269,7 +296,7 @@ int GEODIFF_applyChangesetEx(
   const char *base,
   const char *changeset )
 {
-  const Context *context = static_cast<const Context *>( contextHandle );
+  Context *context = static_cast<Context *>( contextHandle );
   if ( !context )
   {
     return GEODIFF_ERROR;
@@ -277,7 +304,7 @@ int GEODIFF_applyChangesetEx(
 
   if ( !driverName || !base || !changeset )
   {
-    context->logger().error( "NULL arguments to GEODIFF_applyChangesetEx" );
+    setAndLogError( context, "NULL arguments to GEODIFF_applyChangesetEx" );
     return GEODIFF_ERROR;
   }
 
@@ -305,8 +332,7 @@ int GEODIFF_applyChangesetEx(
   }
   catch ( const  GeoDiffException &exc )
   {
-    context->logger().error( exc );
-    return GEODIFF_ERROR;
+    return handleException( context, exc );
   }
 
   return GEODIFF_SUCCESS;
@@ -320,7 +346,7 @@ int GEODIFF_createRebasedChangeset(
   const char *changeset,
   const char *conflictfile )
 {
-  const Context *context = static_cast<const Context *>( contextHandle );
+  Context *context = static_cast<Context *>( contextHandle );
   if ( !context )
   {
     return GEODIFF_ERROR;
@@ -328,7 +354,7 @@ int GEODIFF_createRebasedChangeset(
 
   if ( !conflictfile )
   {
-    context->logger().error( "NULL arguments to GEODIFF_createRebasedChangeset" );
+    setAndLogError( context, "NULL arguments to GEODIFF_createRebasedChangeset" );
     return GEODIFF_ERROR;
   }
   fileremove( conflictfile );
@@ -354,8 +380,7 @@ int GEODIFF_createRebasedChangeset(
   }
   catch ( const  GeoDiffException &exc )
   {
-    context->logger().error( exc );
-    return GEODIFF_ERROR;
+    return handleException( context, exc );
   }
 }
 
@@ -369,7 +394,7 @@ int GEODIFF_createRebasedChangesetEx(
   const char *rebased,
   const char *conflictfile )
 {
-  const Context *context = static_cast<const Context *>( contextHandle );
+  Context *context = static_cast<Context *>( contextHandle );
   if ( !context )
   {
     return GEODIFF_ERROR;
@@ -377,7 +402,7 @@ int GEODIFF_createRebasedChangesetEx(
 
   if ( !driverName || !base || !base2modified || !base2their || !rebased || !conflictfile )
   {
-    context->logger().error( "NULL arguments to GEODIFF_createRebasedChangesetEx" );
+    setAndLogError( context, "NULL arguments to GEODIFF_createRebasedChangesetEx" );
     return GEODIFF_ERROR;
   }
 
@@ -402,10 +427,9 @@ int GEODIFF_createRebasedChangesetEx(
 
     return GEODIFF_SUCCESS;
   }
-  catch ( const  GeoDiffException &exc )
+  catch ( const GeoDiffException &exc )
   {
-    context->logger().error( exc );
-    return GEODIFF_ERROR;
+    return handleException( context, exc );
   }
 }
 
@@ -414,7 +438,7 @@ int GEODIFF_hasChanges(
   GEODIFF_ContextH contextHandle,
   const char *changeset )
 {
-  const Context *context = static_cast<const Context *>( contextHandle );
+  Context *context = static_cast<Context *>( contextHandle );
   if ( !context )
   {
     return -1;
@@ -422,14 +446,14 @@ int GEODIFF_hasChanges(
 
   if ( !changeset )
   {
-    context->logger().error( "NULL arguments to GEODIFF_hasChanges" );
+    setAndLogError( context, "NULL arguments to GEODIFF_hasChanges" );
     return -1;
   }
 
   ChangesetReader reader;
   if ( !reader.open( changeset ) )
   {
-    context->logger().error( "Could not open changeset: " + std::string( changeset ) );
+    setAndLogError( context, "Could not open changeset: " + std::string( changeset ) );
     return -1;
   }
 
@@ -440,7 +464,7 @@ int GEODIFF_changesCount(
   GEODIFF_ContextH contextHandle,
   const char *changeset )
 {
-  const Context *context = static_cast<const Context *>( contextHandle );
+  Context *context = static_cast<Context *>( contextHandle );
   if ( !context )
   {
     return -1;
@@ -448,14 +472,14 @@ int GEODIFF_changesCount(
 
   if ( !changeset )
   {
-    context->logger().error( "NULL arguments to GEODIFF_changesCount" );
+    setAndLogError( context, "NULL arguments to GEODIFF_changesCount" );
     return -1;
   }
 
   ChangesetReader reader;
   if ( !reader.open( changeset ) )
   {
-    context->logger().error( "Could not open changeset: " + std::string( changeset ) );
+    setAndLogError( context, "Could not open changeset: " + std::string( changeset ) );
     return -1;
   }
 
@@ -467,18 +491,18 @@ int GEODIFF_changesCount(
   return changesCount;
 }
 
-static int listChangesJSON( const Context *context, const char *changeset, const char *jsonfile, bool onlySummary )
+static int listChangesJSON( Context *context, const char *changeset, const char *jsonfile, bool onlySummary )
 {
   if ( !changeset )
   {
-    context->logger().error( "Not provided changeset file to listChangeset" );
+    setAndLogError( context, "Not provided changeset file to listChangeset" );
     return GEODIFF_ERROR;
   }
 
   ChangesetReader reader;
   if ( !reader.open( changeset ) )
   {
-    context->logger().error( "Could not open changeset: " + std::string( changeset ) );
+    setAndLogError( context, "Could not open changeset: " + std::string( changeset ) );
     return GEODIFF_ERROR;
   }
 
@@ -490,10 +514,9 @@ static int listChangesJSON( const Context *context, const char *changeset, const
     else
       res = changesetToJSON( reader );
   }
-  catch ( const  GeoDiffException &exc )
+  catch ( const GeoDiffException &exc )
   {
-    context->logger().error( exc );
-    return GEODIFF_ERROR;
+    return handleException( context, exc );
   }
 
   if ( !jsonfile )
@@ -513,7 +536,7 @@ int GEODIFF_listChanges(
   const char *changeset,
   const char *jsonfile )
 {
-  const Context *context = static_cast<const Context *>( contextHandle );
+  Context *context = static_cast<Context *>( contextHandle );
   if ( !context )
   {
     return GEODIFF_ERROR;
@@ -523,7 +546,7 @@ int GEODIFF_listChanges(
 
 int GEODIFF_listChangesSummary( GEODIFF_ContextH contextHandle, const char *changeset, const char *jsonfile )
 {
-  const Context *context = static_cast<const Context *>( contextHandle );
+  Context *context = static_cast<Context *>( contextHandle );
   if ( !context )
   {
     return GEODIFF_ERROR;
@@ -534,7 +557,7 @@ int GEODIFF_listChangesSummary( GEODIFF_ContextH contextHandle, const char *chan
 
 int GEODIFF_invertChangeset( GEODIFF_ContextH contextHandle, const char *changeset, const char *changeset_inv )
 {
-  const Context *context = static_cast<const Context *>( contextHandle );
+  Context *context = static_cast<Context *>( contextHandle );
   if ( !context )
   {
     return GEODIFF_ERROR;
@@ -542,13 +565,13 @@ int GEODIFF_invertChangeset( GEODIFF_ContextH contextHandle, const char *changes
 
   if ( !changeset )
   {
-    context->logger().error( "NULL arguments to GEODIFF_invertChangeset" );
+    setAndLogError( context, "NULL arguments to GEODIFF_invertChangeset" );
     return GEODIFF_ERROR;
   }
 
   if ( !fileexists( changeset ) )
   {
-    context->logger().error( "Missing input files in GEODIFF_invertChangeset: " + std::string( changeset ) );
+    setAndLogError( context, "Missing input files in GEODIFF_invertChangeset: " + std::string( changeset ) );
     return GEODIFF_ERROR;
   }
 
@@ -558,7 +581,7 @@ int GEODIFF_invertChangeset( GEODIFF_ContextH contextHandle, const char *changes
     ChangesetReader reader;
     if ( !reader.open( changeset ) )
     {
-      context->logger().error( "Could not open changeset: " + std::string( changeset ) );
+      setAndLogError( context, "Could not open changeset: " + std::string( changeset ) );
       return GEODIFF_ERROR;
     }
 
@@ -567,10 +590,9 @@ int GEODIFF_invertChangeset( GEODIFF_ContextH contextHandle, const char *changes
 
     invertChangeset( reader, writer );
   }
-  catch ( const  GeoDiffException &exc )
+  catch ( const GeoDiffException &exc )
   {
-    context->logger().error( exc );
-    return GEODIFF_ERROR;
+    return handleException( context, exc );
   }
 
   return GEODIFF_SUCCESS;
@@ -583,7 +605,7 @@ int GEODIFF_concatChanges(
   const char **inputChangesets,
   const char *outputChangeset )
 {
-  const Context *context = static_cast<const Context *>( contextHandle );
+  Context *context = static_cast<Context *>( contextHandle );
   if ( !context )
   {
     return GEODIFF_ERROR;
@@ -591,13 +613,13 @@ int GEODIFF_concatChanges(
 
   if ( inputChangesetsCount < 2 )
   {
-    context->logger().error( "Need at least two input changesets in GEODIFF_concatChanges" );
+    setAndLogError( context, "Need at least two input changesets in GEODIFF_concatChanges" );
     return GEODIFF_ERROR;
   }
 
   if ( !inputChangesets || !outputChangeset )
   {
-    context->logger().error( "NULL arguments to GEODIFF_concatChanges" );
+    setAndLogError( context, "NULL arguments to GEODIFF_concatChanges" );
     return GEODIFF_ERROR;
   }
 
@@ -607,7 +629,7 @@ int GEODIFF_concatChanges(
     std::string filename = inputChangesets[i];
     if ( !fileexists( filename ) )
     {
-      context->logger().error( "Input file in GEODIFF_concatChanges does not exist: " + filename );
+      setAndLogError( context, "Input file in GEODIFF_concatChanges does not exist: " + filename );
       return GEODIFF_ERROR;
     }
     inputFiles.push_back( filename );
@@ -617,10 +639,9 @@ int GEODIFF_concatChanges(
   {
     concatChangesets( context, inputFiles, outputChangeset );
   }
-  catch ( const  GeoDiffException &exc )
+  catch ( const GeoDiffException &exc )
   {
-    context->logger().error( exc );
-    return GEODIFF_ERROR;
+    return handleException( context, exc );
   }
 
   return GEODIFF_SUCCESS;
@@ -634,7 +655,7 @@ int GEODIFF_rebase(
   const char *modified,
   const char *conflictfile )
 {
-  const Context *context = static_cast<const Context *>( contextHandle );
+  Context *context = static_cast<Context *>( contextHandle );
   if ( !context )
   {
     return GEODIFF_ERROR;
@@ -642,25 +663,25 @@ int GEODIFF_rebase(
 
   if ( !base || !modified_their || !modified || !conflictfile )
   {
-    context->logger().error( "NULL arguments to GEODIFF_rebase" );
+    setAndLogError( context, "NULL arguments to GEODIFF_rebase" );
     return GEODIFF_ERROR;
   }
 
   if ( !fileexists( base ) )
   {
-    context->logger().error( std::string( "Missing 'base' file in GEODIFF_rebase: " ) + base );
+    setAndLogError( context, std::string( "Missing 'base' file in GEODIFF_rebase: " ) + base );
     return GEODIFF_ERROR;
   }
 
   if ( !fileexists( modified_their ) )
   {
-    context->logger().error( std::string( "Missing 'modified_their' file in GEODIFF_rebase: " ) + modified_their );
+    setAndLogError( context, std::string( "Missing 'modified_their' file in GEODIFF_rebase: " ) + modified_their );
     return GEODIFF_ERROR;
   }
 
   if ( !fileexists( modified ) )
   {
-    context->logger().error( std::string( "Missing 'modified' file in GEODIFF_rebase: " ) + modified );
+    setAndLogError( context, std::string( "Missing 'modified' file in GEODIFF_rebase: " ) + modified );
     return GEODIFF_ERROR;
   }
 
@@ -669,7 +690,7 @@ int GEODIFF_rebase(
   TmpFile base2theirs( root + "_base2theirs.bin" );
   if ( GEODIFF_createChangeset( contextHandle, base, modified_their, base2theirs.c_path() ) != GEODIFF_SUCCESS )
   {
-    context->logger().error( "Unable to perform GEODIFF_createChangeset base2theirs" );
+    setAndLogError( context, "Unable to perform GEODIFF_createChangeset base2theirs" );
     return GEODIFF_ERROR;
   }
 
@@ -686,7 +707,7 @@ int GEODIFF_rebaseEx(
   const char *base2their,
   const char *conflictfile )
 {
-  const Context *context = static_cast<const Context *>( contextHandle );
+  Context *context = static_cast<Context *>( contextHandle );
   if ( !context )
   {
     return GEODIFF_ERROR;
@@ -694,7 +715,7 @@ int GEODIFF_rebaseEx(
 
   if ( !base || !modified || !base2their || !conflictfile )
   {
-    context->logger().error( "NULL arguments to GEODIFF_rebase" );
+    setAndLogError( context, "NULL arguments to GEODIFF_rebase" );
     return GEODIFF_ERROR;
   }
 
@@ -711,7 +732,7 @@ int GEODIFF_rebaseEx(
     TmpFile base2modified( root + "_base2modified.bin" );
     if ( GEODIFF_createChangesetEx( contextHandle, driverName, driverExtraInfo, base, modified, base2modified.c_path() ) != GEODIFF_SUCCESS )
     {
-      context->logger().error( "Unable to perform GEODIFF_createChangeset base2modified" );
+      setAndLogError( context, "Unable to perform GEODIFF_createChangeset base2modified" );
       return GEODIFF_ERROR;
     }
 
@@ -720,7 +741,7 @@ int GEODIFF_rebaseEx(
     {
       if ( GEODIFF_applyChangesetEx( contextHandle, driverName, driverExtraInfo, modified, base2their ) != GEODIFF_SUCCESS )
       {
-        context->logger().error( "Unable to perform GEODIFF_applyChangeset base2theirs" );
+        setAndLogError( context, "Unable to perform GEODIFF_applyChangeset base2theirs" );
         return GEODIFF_ERROR;
       }
 
@@ -736,14 +757,14 @@ int GEODIFF_rebaseEx(
                                            base2modified.c_path(), base2their,
                                            theirs2final.c_path(), conflictfile ) != GEODIFF_SUCCESS )
     {
-      context->logger().error( "Unable to perform GEODIFF_createChangeset theirs2final" );
+      setAndLogError( context, "Unable to perform GEODIFF_createChangeset theirs2final" );
       return GEODIFF_ERROR;
     }
 
     TmpFile modified2base( root + "_modified2base.bin" );
     if ( GEODIFF_invertChangeset( contextHandle, base2modified.c_path(), modified2base.c_path() ) != GEODIFF_SUCCESS )
     {
-      context->logger().error( "Unable to perform GEODIFF_invertChangeset modified2base" );
+      setAndLogError( context, "Unable to perform GEODIFF_invertChangeset modified2base" );
       return GEODIFF_ERROR;
     }
 
@@ -758,16 +779,15 @@ int GEODIFF_rebaseEx(
     // 3C) apply at once
     if ( GEODIFF_applyChangesetEx( contextHandle, driverName, driverExtraInfo, modified, modified2final.c_path() ) != GEODIFF_SUCCESS )
     {
-      context->logger().error( "Unable to perform GEODIFF_applyChangeset modified2final" );
+      setAndLogError( context, "Unable to perform GEODIFF_applyChangeset modified2final" );
       return GEODIFF_ERROR;
     }
 
     return GEODIFF_SUCCESS;
   }
-  catch ( const  GeoDiffException &exc )
+  catch ( const GeoDiffException &exc )
   {
-    context->logger().error( exc );
-    return GEODIFF_ERROR;
+    return handleException( context, exc );
   }
 }
 
@@ -780,7 +800,7 @@ int GEODIFF_makeCopy( GEODIFF_ContextH contextHandle,
                       const char *driverDstExtraInfo,
                       const char *dst )
 {
-  const Context *context = static_cast<const Context *>( contextHandle );
+  Context *context = static_cast<Context *>( contextHandle );
   if ( !context )
   {
     return GEODIFF_ERROR;
@@ -788,7 +808,7 @@ int GEODIFF_makeCopy( GEODIFF_ContextH contextHandle,
 
   if ( !driverSrcName || !driverSrcExtraInfo || !driverDstName || !driverDstExtraInfo || !src || !dst )
   {
-    context->logger().error( "NULL arguments to GEODIFF_makeCopy" );
+    setAndLogError( context, "NULL arguments to GEODIFF_makeCopy" );
     return GEODIFF_ERROR;
   }
 
@@ -797,14 +817,14 @@ int GEODIFF_makeCopy( GEODIFF_ContextH contextHandle,
   std::unique_ptr<Driver> driverSrc( Driver::createDriver( context, srcDriverName ) );
   if ( !driverSrc )
   {
-    context->logger().error( "Cannot create driver " + srcDriverName );
+    setAndLogError( context, "Cannot create driver " + srcDriverName );
     return GEODIFF_ERROR;
   }
 
   std::unique_ptr<Driver> driverDst( Driver::createDriver( context, dstDriverName ) );
   if ( !driverDst )
   {
-    context->logger().error( "Cannot create driver " + dstDriverName );
+    setAndLogError( context, "Cannot create driver " + dstDriverName );
     return GEODIFF_ERROR;
   }
 
@@ -863,10 +883,9 @@ int GEODIFF_makeCopy( GEODIFF_ContextH contextHandle,
       driverDst->applyChangeset( reader );
     }
   }
-  catch ( const  GeoDiffException &exc )
+  catch ( const GeoDiffException &exc )
   {
-    context->logger().error( exc );
-    return GEODIFF_ERROR;
+    return handleException( context, exc );
   }
 
   // TODO: add spatial index to tables with geometry columns?
@@ -876,7 +895,7 @@ int GEODIFF_makeCopy( GEODIFF_ContextH contextHandle,
 
 int GEODIFF_makeCopySqlite( GEODIFF_ContextH contextHandle, const char *src, const char *dst )
 {
-  const Context *context = static_cast<const Context *>( contextHandle );
+  Context *context = static_cast<Context *>( contextHandle );
   if ( !context )
   {
     return GEODIFF_ERROR;
@@ -884,13 +903,13 @@ int GEODIFF_makeCopySqlite( GEODIFF_ContextH contextHandle, const char *src, con
 
   if ( !src || !dst )
   {
-    context->logger().error( "NULL arguments to GEODIFF_makeCopySqlite" );
+    setAndLogError( context, "NULL arguments to GEODIFF_makeCopySqlite" );
     return GEODIFF_ERROR;
   }
 
   if ( !fileexists( src ) )
   {
-    context->logger().error( "MakeCopySqlite: Source database does not exist: " + std::string( src ) );
+    setAndLogError( context, "MakeCopySqlite: Source database does not exist: " + std::string( src ) );
     return GEODIFF_ERROR;
   }
 
@@ -915,20 +934,20 @@ int GEODIFF_makeCopySqlite( GEODIFF_ContextH contextHandle, const char *src, con
   {
     dbFrom.open( src );
   }
-  catch ( const  GeoDiffException &e )
+  catch ( const GeoDiffException &e )
   {
-    context->logger().error( "MakeCopySqlite: Unable to open source database: " + std::string( src ) + "\n" + e.what() );
-    return GEODIFF_ERROR;
+    setAndLogError( context, "MakeCopySqlite: Unable to open source database: " + std::string( src ) + "\n" + e.what() );
+    return e.errorCode();
   }
 
   try
   {
     dbTo.create( dst );
   }
-  catch ( const  GeoDiffException &e )
+  catch ( const GeoDiffException &e )
   {
-    context->logger().error( "MakeCopySqlite: Unable to open destination database: " + std::string( dst ) + "\n" + e.what() );
-    return GEODIFF_ERROR;
+    setAndLogError( context, "MakeCopySqlite: Unable to open destination database: " + std::string( dst ) + "\n" + e.what() );
+    return e.errorCode();
   }
 
   // Set up the backup procedure to copy from the "main" database of
@@ -956,7 +975,7 @@ int GEODIFF_makeCopySqlite( GEODIFF_ContextH contextHandle, const char *src, con
 
   if ( !errorMsg.empty() )
   {
-    context->logger().error( "MakeCopySqlite: backup failed: " + errorMsg );
+    setAndLogError( context, "MakeCopySqlite: backup failed: " + errorMsg );
     return GEODIFF_ERROR;
   }
 
@@ -966,7 +985,7 @@ int GEODIFF_makeCopySqlite( GEODIFF_ContextH contextHandle, const char *src, con
 
 int GEODIFF_dumpData( GEODIFF_ContextH contextHandle, const char *driverName, const char *driverExtraInfo, const char *src, const char *changeset )
 {
-  const Context *context = static_cast<const Context *>( contextHandle );
+  Context *context = static_cast<Context *>( contextHandle );
   if ( !context )
   {
     return GEODIFF_ERROR;
@@ -974,14 +993,14 @@ int GEODIFF_dumpData( GEODIFF_ContextH contextHandle, const char *driverName, co
 
   if ( !driverName || !src || !changeset )
   {
-    context->logger().error( "NULL arguments to GEODIFF_dumpData" );
+    setAndLogError( context, "NULL arguments to GEODIFF_dumpData" );
     return GEODIFF_ERROR;
   }
 
   std::unique_ptr<Driver> driver( Driver::createDriver( context,  std::string( driverName ) ) );
   if ( !driver )
   {
-    context->logger().error( "Cannot create driver " + std::string( driverName ) );
+    setAndLogError( context, "Cannot create driver " + std::string( driverName ) );
     return GEODIFF_ERROR;
   }
 
@@ -999,10 +1018,9 @@ int GEODIFF_dumpData( GEODIFF_ContextH contextHandle, const char *driverName, co
     writer.open( changeset );
     driver->dumpData( writer );
   }
-  catch ( const  GeoDiffException &exc )
+  catch ( const GeoDiffException &exc )
   {
-    context->logger().error( exc );
-    return GEODIFF_ERROR;
+    return handleException( context, exc );
   }
 
   return GEODIFF_SUCCESS;
@@ -1011,7 +1029,7 @@ int GEODIFF_dumpData( GEODIFF_ContextH contextHandle, const char *driverName, co
 
 int GEODIFF_schema( GEODIFF_ContextH contextHandle, const char *driverName, const char *driverExtraInfo, const char *src, const char *json )
 {
-  const Context *context = static_cast<const Context *>( contextHandle );
+  Context *context = static_cast<Context *>( contextHandle );
   if ( !context )
   {
     return GEODIFF_ERROR;
@@ -1019,14 +1037,14 @@ int GEODIFF_schema( GEODIFF_ContextH contextHandle, const char *driverName, cons
 
   if ( !driverName || !src || !json )
   {
-    context->logger().error( "NULL arguments to GEODIFF_schema" );
+    setAndLogError( context, "NULL arguments to GEODIFF_schema" );
     return GEODIFF_ERROR;
   }
 
   std::unique_ptr<Driver> driver( Driver::createDriver( context,  std::string( driverName ) ) );
   if ( !driver )
   {
-    context->logger().error( "Cannot create driver " + std::string( driverName ) );
+    setAndLogError( context, "Cannot create driver " + std::string( driverName ) );
     return GEODIFF_ERROR;
   }
 
@@ -1096,10 +1114,9 @@ int GEODIFF_schema( GEODIFF_ContextH contextHandle, const char *driverName, cons
     // write file content
     flushString( json, res.dump( 2 ) );
   }
-  catch ( const  GeoDiffException &exc )
+  catch ( const GeoDiffException &exc )
   {
-    context->logger().error( exc );
-    return GEODIFF_ERROR;
+    return handleException( context, exc );
   }
 
   return GEODIFF_SUCCESS;
@@ -1108,7 +1125,7 @@ int GEODIFF_schema( GEODIFF_ContextH contextHandle, const char *driverName, cons
 
 GEODIFF_ChangesetReaderH GEODIFF_readChangeset( GEODIFF_ContextH contextHandle, const char *changeset )
 {
-  const Context *context = static_cast<const Context *>( contextHandle );
+  Context *context = static_cast<Context *>( contextHandle );
   if ( !context )
   {
     return nullptr;
@@ -1116,7 +1133,7 @@ GEODIFF_ChangesetReaderH GEODIFF_readChangeset( GEODIFF_ContextH contextHandle, 
 
   if ( !changeset )
   {
-    context->logger().error( "NULL changeset argument to GEODIFF_readChangeset" );
+    setAndLogError( context, "NULL changeset argument to GEODIFF_readChangeset" );
     return nullptr;
   }
 
@@ -1136,7 +1153,7 @@ GEODIFF_ChangesetEntryH GEODIFF_CR_nextEntry( GEODIFF_ContextH contextHandle, GE
     return nullptr;
   }
 
-  const Context *context = static_cast<const Context *>( contextHandle );
+  Context *context = static_cast<Context *>( contextHandle );
   if ( !context )
   {
     *ok = false;
@@ -1160,9 +1177,9 @@ GEODIFF_ChangesetEntryH GEODIFF_CR_nextEntry( GEODIFF_ContextH contextHandle, GE
       return nullptr;
     }
   }
-  catch ( const  GeoDiffException &exc )
+  catch ( const GeoDiffException &exc )
   {
-    context->logger().error( exc );
+    setAndLogError( context, exc.what() );
     *ok = false;
     return nullptr;
   }

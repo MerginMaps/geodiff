@@ -113,6 +113,12 @@ GEODIFF_EXPORT int GEODIFF_CX_setMaximumLoggerLevel( GEODIFF_ContextH contextHan
  */
 GEODIFF_EXPORT int GEODIFF_CX_setTablesToSkip( GEODIFF_ContextH contextHandle, int tablesCount, const char **tablesToSkip );
 
+/**
+ * Return null-terminated message of last error that occurred using this context.
+ * Consider the pointer invalid after any call to the GeoDiff API.
+ */
+GEODIFF_EXPORT const char *GEODIFF_CX_lastError( GEODIFF_ContextH contextHandle );
+
 
 //! Returns version in format X.Y.Z where xyz are positive integers
 GEODIFF_EXPORT const char *GEODIFF_version();

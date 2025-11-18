@@ -22,10 +22,13 @@ class Context
 
     void setTablesToSkip( const std::vector<std::string> &tablesToSkip );
     bool isTableSkipped( const std::string &tableName ) const;
+    void setLastError( std::string &message );
+    const std::string &lastError() const;
 
   private:
     Logger mLogger;
     std::vector<std::string> mTablesToSkip;
+    std::string mLastError;
 };
 
 
