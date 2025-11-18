@@ -38,8 +38,13 @@
 
 #define GEODIFF_SUCCESS 0 //!< Success
 #define GEODIFF_ERROR 1 //!< General error
-#define GEODIFF_CONFICTS 2 //!< The changeset couldn't be applied directly
+#define GEODIFF_CONFLICTS 2 //!< The changeset couldn't be applied directly
 #define GEODIFF_UNSUPPORTED_CHANGE 3 //! The diff for such entry is unsupported/not-implemented
+
+/*
+ * \deprecated Typo alias for backwards-compatibility
+ */
+#define GEODIFF_CONFICTS GEODIFF_CONFLICTS
 
 /*
 ** Make sure we can call this stuff from C++.
@@ -244,7 +249,7 @@ GEODIFF_EXPORT int GEODIFF_rebase(
  * \param base [input/output] BASE sqlite3/geopackage file
  * \param changeset [input] changeset to apply to BASE
  * \returns GEODIFF_SUCCESS on success
- *          GEODIFF_CONFICTS if the changeset was applied but conflicts were found
+ *          GEODIFF_CONFLICTS if the changeset was applied but conflicts were found
  */
 GEODIFF_EXPORT int GEODIFF_applyChangeset(
   GEODIFF_ContextH contextHandle,

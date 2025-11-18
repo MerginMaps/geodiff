@@ -37,7 +37,7 @@ class GeoDiffException: public std::exception
 class GeoDiffConflictsException : public GeoDiffException {
   public:
     using GeoDiffException::GeoDiffException;
-    int errorCode() const override { return GEODIFF_CONFICTS; }
+    int errorCode() const override { return GEODIFF_CONFLICTS; }
 };
 
 
