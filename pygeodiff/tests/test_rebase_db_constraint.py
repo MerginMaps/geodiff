@@ -22,7 +22,7 @@ from typing import Tuple
 import pytest
 
 import pygeodiff
-from pygeodiff import GeoDiffLibError
+from pygeodiff import GeoDiffLibConflictError
 from pygeodiff.tests.testutils import GeoDiffTestSqlDb
 
 GEODIFFLIB = os.environ.get("GEODIFFLIB", None)
@@ -385,7 +385,7 @@ def test_geodiff_rebase_unique_constraint_violation(
         driver, original.driver_info, original.db, theirs.db, str(diff)
     )
     # Assert that rebasing fails due to DB constraints on application of diffs
-    with pytest.raises(GeoDiffLibError):
+    with pytest.raises(GeoDiffLibConflictError):
         geodiff.rebase_ex(
             driver, original.driver_info, original.db, mine.db, str(diff), str(conflict)
         )
@@ -443,7 +443,7 @@ def test_geodiff_rebase_fkey_constraint_violation(user_a_data_first, driver, tmp
         driver, original.driver_info, original.db, theirs.db, str(diff)
     )
     # Assert that rebasing fails due to DB constraints on application of diffs
-    with pytest.raises(GeoDiffLibError):
+    with pytest.raises(GeoDiffLibConflictError, match=".*FOREIGN KEY constraint failed.*"):
         geodiff.rebase_ex(
             driver, original.driver_info, original.db, mine.db, str(diff), str(conflict)
         )

@@ -190,6 +190,30 @@ int GEODIFF_applyChangeset( GEODIFF_ContextH contextHandle, const char *base, co
   return GEODIFF_applyChangesetEx( contextHandle, "sqlite", nullptr, base, changeset );
 }
 
+static void createChangesetEx( Context *context, const char *driverName, const char *driverExtraInfo,
+                               const char *base, const char *modified,
+                               const char *changeset )
+{
+  if ( !driverName || !base || !modified || !changeset )
+  {
+    throw GeoDiffException( "NULL arguments to GEODIFF_createChangesetEx" );
+  }
+
+  std::map<std::string, std::string> conn;
+  conn["base"] = std::string( base );
+  conn["modified"] = std::string( modified );
+  if ( driverExtraInfo )
+    conn["conninfo"] = std::string( driverExtraInfo );
+  std::unique_ptr<Driver> driver( Driver::createDriver( context, std::string( driverName ) ) );
+  if ( !driver )
+    throw GeoDiffException( "Unable to use driver: " + std::string( driverName ) );
+  driver->open( conn );
+
+  ChangesetWriter writer;
+  writer.open( changeset );
+  driver->createChangeset( writer );
+}
+
 
 int GEODIFF_createChangesetEx( GEODIFF_ContextH contextHandle, const char *driverName, const char *driverExtraInfo,
                                const char *base, const char *modified,
@@ -201,27 +225,9 @@ int GEODIFF_createChangesetEx( GEODIFF_ContextH contextHandle, const char *drive
     return GEODIFF_ERROR;
   }
 
-  if ( !driverName || !base || !modified || !changeset )
-  {
-    setAndLogError( context, "NULL arguments to GEODIFF_createChangesetEx" );
-    return GEODIFF_ERROR;
-  }
-
   try
   {
-    std::map<std::string, std::string> conn;
-    conn["base"] = std::string( base );
-    conn["modified"] = std::string( modified );
-    if ( driverExtraInfo )
-      conn["conninfo"] = std::string( driverExtraInfo );
-    std::unique_ptr<Driver> driver( Driver::createDriver( context, std::string( driverName ) ) );
-    if ( !driver )
-      throw GeoDiffException( "Unable to use driver: " + std::string( driverName ) );
-    driver->open( conn );
-
-    ChangesetWriter writer;
-    writer.open( changeset );
-    driver->createChangeset( writer );
+    createChangesetEx( context, driverName, driverExtraInfo, base, modified, changeset );
   }
   catch ( const  GeoDiffException &exc )
   {
@@ -229,6 +235,90 @@ int GEODIFF_createChangesetEx( GEODIFF_ContextH contextHandle, const char *drive
   }
 
   return GEODIFF_SUCCESS;
+}
+
+
+static void makeCopy( Context *context,
+                      const char *driverSrcName,
+                      const char *driverSrcExtraInfo,
+                      const char *src,
+                      const char *driverDstName,
+                      const char *driverDstExtraInfo,
+                      const char *dst )
+{
+  if ( !driverSrcName || !driverSrcExtraInfo || !driverDstName || !driverDstExtraInfo || !src || !dst )
+  {
+    throw GeoDiffException( "NULL arguments to GEODIFF_makeCopy" );
+  }
+
+  std::string srcDriverName( driverSrcName );
+  std::string dstDriverName( driverDstName );
+  std::unique_ptr<Driver> driverSrc( Driver::createDriver( context, srcDriverName ) );
+  if ( !driverSrc )
+  {
+    throw GeoDiffException( "Cannot create driver " + srcDriverName );
+  }
+
+  std::unique_ptr<Driver> driverDst( Driver::createDriver( context, dstDriverName ) );
+  if ( !driverDst )
+  {
+    throw GeoDiffException( "Cannot create driver " + dstDriverName );
+  }
+
+  TmpFile tmpFileChangeset( tmpdir( ) + "geodiff_changeset" + std::to_string( rand() ) );
+
+  // open source
+  std::map<std::string, std::string> connSrc;
+  connSrc["base"] = std::string( src );
+  connSrc["conninfo"] = std::string( driverSrcExtraInfo );
+  driverSrc->open( connSrc );
+
+  // get source tables
+  std::vector<TableSchema> tables;
+  std::vector<std::string> tableNames = driverSrc->listTables();
+
+  if ( srcDriverName != dstDriverName )
+  {
+    for ( const std::string &tableName : tableNames )
+    {
+      TableSchema tbl = driverSrc->tableSchema( tableName );
+      tableSchemaConvert( driverDstName, tbl );
+      tables.push_back( tbl );
+    }
+  }
+  else
+  {
+    for ( const std::string &tableName : tableNames )
+    {
+      TableSchema tbl = driverSrc->tableSchema( tableName );
+      tables.push_back( tbl );
+    }
+  }
+
+  // get source data
+  {
+    ChangesetWriter writer;
+    writer.open( tmpFileChangeset.c_path() );
+    driverSrc->dumpData( writer );
+  }
+
+  // create destination
+  std::map<std::string, std::string> connDst;
+  connDst["base"] = dst;
+  connDst["conninfo"] = std::string( driverDstExtraInfo );
+  driverDst->create( connDst, true );
+
+  // create tables in destination
+  driverDst->createTables( tables );
+
+  // insert data to destination
+  {
+    ChangesetReader reader;
+    reader.open( tmpFileChangeset.c_path() );
+    driverDst->applyChangeset( reader );
+  }
+
+  // TODO: add spatial index to tables with geometry columns?
 }
 
 
@@ -262,20 +352,29 @@ int GEODIFF_createChangesetDr( GEODIFF_ContextH contextHandle, const char *drive
   if ( strcmp( driverSrcName, Driver::SQLITEDRIVERNAME.c_str() ) != 0 )
   {
     tmpSrcGpkg.setPath( tmpdir( ) + "_gpkg-" + randomString( 6 ) );
-    if ( GEODIFF_makeCopy( contextHandle, driverSrcName, driverSrcExtraInfo, src, Driver::SQLITEDRIVERNAME.c_str(), "", tmpSrcGpkg.c_path() ) != GEODIFF_SUCCESS )
+    try
     {
-      setAndLogError( context, "Failed to create a copy of base source for driver " + std::string( driverSrcName ) );
-      return GEODIFF_ERROR;
+      makeCopy( context, driverSrcName, driverSrcExtraInfo, src, Driver::SQLITEDRIVERNAME.c_str(), "", tmpSrcGpkg.c_path() );
+    }
+    catch ( GeoDiffException &exc )
+    {
+
+      exc.addContext( "Failed to create a copy of base source for driver " + std::string( driverSrcName ) );
+      return handleException( context, exc );
     }
   }
 
   if ( strcmp( driverDstName, Driver::SQLITEDRIVERNAME.c_str() ) != 0 )
   {
     tmpDstGpkg.setPath( tmpdir() + "_gpkg-" + randomString( 6 ) );
-    if ( GEODIFF_makeCopy( contextHandle, driverDstName, driverDstExtraInfo, dst, Driver::SQLITEDRIVERNAME.c_str(), "", tmpDstGpkg.c_path() ) != GEODIFF_SUCCESS )
+    try
     {
-      setAndLogError( context, "Failed to create a copy of modified source for driver " + std::string( driverDstName ) );
-      return GEODIFF_ERROR;
+      makeCopy( context, driverDstName, driverDstExtraInfo, dst, Driver::SQLITEDRIVERNAME.c_str(), "", tmpDstGpkg.c_path() );
+    }
+    catch ( GeoDiffException &exc )
+    {
+      exc.addContext( "Failed to create a copy of modified source for driver " + std::string( driverDstName ) );
+      return handleException( context, exc );
     }
   }
 
@@ -288,6 +387,39 @@ int GEODIFF_createChangesetDr( GEODIFF_ContextH contextHandle, const char *drive
            changeset );
 }
 
+
+static void applyChangesetEx(
+  Context *context,
+  const char *driverName,
+  const char *driverExtraInfo,
+  const char *base,
+  const char *changeset )
+{
+  if ( !driverName || !base || !changeset )
+  {
+    throw GeoDiffException( "NULL arguments to GEODIFF_applyChangesetEx" );
+  }
+
+  std::map<std::string, std::string> conn;
+  conn["base"] = std::string( base );
+  if ( driverExtraInfo )
+    conn["conninfo"] = std::string( driverExtraInfo );
+  std::unique_ptr<Driver> driver( Driver::createDriver( context,  std::string( driverName ) ) );
+  if ( !driver )
+    throw GeoDiffException( "Unable to use driver: " + std::string( driverName ) );
+  driver->open( conn );
+
+  ChangesetReader reader;
+  if ( !reader.open( changeset ) )
+    throw GeoDiffException( "Unable to open changeset file for reading: " + std::string( changeset ) );
+  if ( reader.isEmpty() )
+  {
+    context->logger().debug( "--- no changes ---" );
+    return;
+  }
+
+  driver->applyChangeset( reader );
+}
 
 int GEODIFF_applyChangesetEx(
   GEODIFF_ContextH contextHandle,
@@ -302,33 +434,9 @@ int GEODIFF_applyChangesetEx(
     return GEODIFF_ERROR;
   }
 
-  if ( !driverName || !base || !changeset )
-  {
-    setAndLogError( context, "NULL arguments to GEODIFF_applyChangesetEx" );
-    return GEODIFF_ERROR;
-  }
-
   try
   {
-    std::map<std::string, std::string> conn;
-    conn["base"] = std::string( base );
-    if ( driverExtraInfo )
-      conn["conninfo"] = std::string( driverExtraInfo );
-    std::unique_ptr<Driver> driver( Driver::createDriver( context,  std::string( driverName ) ) );
-    if ( !driver )
-      throw GeoDiffException( "Unable to use driver: " + std::string( driverName ) );
-    driver->open( conn );
-
-    ChangesetReader reader;
-    if ( !reader.open( changeset ) )
-      throw GeoDiffException( "Unable to open changeset file for reading: " + std::string( changeset ) );
-    if ( reader.isEmpty() )
-    {
-      context->logger().debug( "--- no changes ---" );
-      return GEODIFF_SUCCESS;
-    }
-
-    driver->applyChangeset( reader );
+    applyChangesetEx( context, driverName, driverExtraInfo, base, changeset );
   }
   catch ( const  GeoDiffException &exc )
   {
@@ -384,10 +492,43 @@ int GEODIFF_createRebasedChangeset(
   }
 }
 
+static void createRebasedChangesetEx(
+  Context *context,
+  const char *driverName,
+  const char * /* driverExtraInfo */,
+  const char *base,
+  const char *base2modified,
+  const char *base2their,
+  const char *rebased,
+  const char *conflictfile )
+{
+  if ( !driverName || !base || !base2modified || !base2their || !rebased || !conflictfile )
+  {
+    throw GeoDiffException( "NULL arguments to GEODIFF_createRebasedChangesetEx" );
+  }
+
+  // TODO: use driverName + driverExtraInfo + base when creating rebased
+  // changeset (e.g. to check whether a newly created ID is actually free)
+
+  std::vector<ConflictFeature> conflicts;
+  rebase( context, base2their, rebased, base2modified, conflicts );
+
+  // output conflicts
+  if ( conflicts.empty() )
+  {
+    context->logger().debug( "No conflicts present" );
+  }
+  else
+  {
+    nlohmann::json res = conflictsToJSON( conflicts );
+    flushString( conflictfile, res.dump( 2 ) );
+  }
+}
+
 int GEODIFF_createRebasedChangesetEx(
   GEODIFF_ContextH contextHandle,
   const char *driverName,
-  const char * /* driverExtraInfo */,
+  const char *driverExtraInfo,
   const char *base,
   const char *base2modified,
   const char *base2their,
@@ -400,31 +541,9 @@ int GEODIFF_createRebasedChangesetEx(
     return GEODIFF_ERROR;
   }
 
-  if ( !driverName || !base || !base2modified || !base2their || !rebased || !conflictfile )
-  {
-    setAndLogError( context, "NULL arguments to GEODIFF_createRebasedChangesetEx" );
-    return GEODIFF_ERROR;
-  }
-
-  // TODO: use driverName + driverExtraInfo + base when creating rebased
-  // changeset (e.g. to check whether a newly created ID is actually free)
-
   try
   {
-    std::vector<ConflictFeature> conflicts;
-    rebase( context, base2their, rebased, base2modified, conflicts );
-
-    // output conflicts
-    if ( conflicts.empty() )
-    {
-      context->logger().debug( "No conflicts present" );
-    }
-    else
-    {
-      nlohmann::json res = conflictsToJSON( conflicts );
-      flushString( conflictfile, res.dump( 2 ) );
-    }
-
+    createRebasedChangesetEx( context, driverName, driverExtraInfo, base, base2modified, base2their, rebased, conflictfile );
     return GEODIFF_SUCCESS;
   }
   catch ( const GeoDiffException &exc )
@@ -555,6 +674,30 @@ int GEODIFF_listChangesSummary( GEODIFF_ContextH contextHandle, const char *chan
   return listChangesJSON( context, changeset, jsonfile, true );
 }
 
+static void invertChangesetByPath( const char *changeset, const char *changeset_inv )
+{
+  if ( !changeset )
+  {
+    throw GeoDiffException( "NULL arguments to GEODIFF_invertChangeset" );
+  }
+
+  if ( !fileexists( changeset ) )
+  {
+    throw GeoDiffException( "Missing input files in GEODIFF_invertChangeset: " + std::string( changeset ) );
+  }
+
+  ChangesetReader reader;
+  if ( !reader.open( changeset ) )
+  {
+    throw GeoDiffException( "Could not open changeset: " + std::string( changeset ) );
+  }
+
+  ChangesetWriter writer;
+  writer.open( changeset_inv );
+
+  invertChangeset( reader, writer );
+}
+
 int GEODIFF_invertChangeset( GEODIFF_ContextH contextHandle, const char *changeset, const char *changeset_inv )
 {
   Context *context = static_cast<Context *>( contextHandle );
@@ -563,32 +706,9 @@ int GEODIFF_invertChangeset( GEODIFF_ContextH contextHandle, const char *changes
     return GEODIFF_ERROR;
   }
 
-  if ( !changeset )
-  {
-    setAndLogError( context, "NULL arguments to GEODIFF_invertChangeset" );
-    return GEODIFF_ERROR;
-  }
-
-  if ( !fileexists( changeset ) )
-  {
-    setAndLogError( context, "Missing input files in GEODIFF_invertChangeset: " + std::string( changeset ) );
-    return GEODIFF_ERROR;
-  }
-
   try
   {
-
-    ChangesetReader reader;
-    if ( !reader.open( changeset ) )
-    {
-      setAndLogError( context, "Could not open changeset: " + std::string( changeset ) );
-      return GEODIFF_ERROR;
-    }
-
-    ChangesetWriter writer;
-    writer.open( changeset_inv );
-
-    invertChangeset( reader, writer );
+    invertChangesetByPath( changeset, changeset_inv );
   }
   catch ( const GeoDiffException &exc )
   {
@@ -688,10 +808,14 @@ int GEODIFF_rebase(
   std::string root = std::string( modified );
 
   TmpFile base2theirs( root + "_base2theirs.bin" );
-  if ( GEODIFF_createChangeset( contextHandle, base, modified_their, base2theirs.c_path() ) != GEODIFF_SUCCESS )
+  try
   {
-    setAndLogError( context, "Unable to perform GEODIFF_createChangeset base2theirs" );
-    return GEODIFF_ERROR;
+    createChangesetEx( context, "sqlite", nullptr, base, modified_their, base2theirs.c_path() );
+  }
+  catch ( GeoDiffException &exc )
+  {
+    exc.addContext( "Unable to perform GEODIFF_createChangeset base2theirs" );
+    return handleException( context, exc );
   }
 
   return GEODIFF_rebaseEx( contextHandle, "sqlite", "", base, modified, base2theirs.c_path(), conflictfile );
@@ -730,19 +854,27 @@ int GEODIFF_rebaseEx(
     }
 
     TmpFile base2modified( root + "_base2modified.bin" );
-    if ( GEODIFF_createChangesetEx( contextHandle, driverName, driverExtraInfo, base, modified, base2modified.c_path() ) != GEODIFF_SUCCESS )
+    try
     {
-      setAndLogError( context, "Unable to perform GEODIFF_createChangeset base2modified" );
-      return GEODIFF_ERROR;
+      createChangesetEx( context, driverName, driverExtraInfo, base, modified, base2modified.c_path() );
+    }
+    catch ( GeoDiffException &exc )
+    {
+      exc.addContext( "Unable to perform GEODIFF_createChangeset base2modified" );
+      return handleException( context, exc );
     }
 
     // situation 2: we do not have changes (modified == base), so result is modified_theirs
     if ( !GEODIFF_hasChanges( contextHandle, base2modified.c_path() ) )
     {
-      if ( GEODIFF_applyChangesetEx( contextHandle, driverName, driverExtraInfo, modified, base2their ) != GEODIFF_SUCCESS )
+      try
       {
-        setAndLogError( context, "Unable to perform GEODIFF_applyChangeset base2theirs" );
-        return GEODIFF_ERROR;
+        applyChangesetEx( context, driverName, driverExtraInfo, modified, base2their );
+      }
+      catch ( GeoDiffException &exc )
+      {
+        exc.addContext( "Unable to perform GEODIFF_applyChangeset base2theirs" );
+        return handleException( context, exc );
       }
 
       return GEODIFF_SUCCESS;
@@ -752,20 +884,27 @@ int GEODIFF_rebaseEx(
 
     // 3A) Create all changesets
     TmpFile theirs2final( root + "_theirs2final.bin" );
-    if ( GEODIFF_createRebasedChangesetEx( contextHandle,
-                                           driverName, driverExtraInfo, base,
-                                           base2modified.c_path(), base2their,
-                                           theirs2final.c_path(), conflictfile ) != GEODIFF_SUCCESS )
+    try
     {
-      setAndLogError( context, "Unable to perform GEODIFF_createChangeset theirs2final" );
-      return GEODIFF_ERROR;
+      createRebasedChangesetEx( context, driverName, driverExtraInfo, base,
+                                base2modified.c_path(), base2their,
+                                theirs2final.c_path(), conflictfile );
+    }
+    catch ( GeoDiffException &exc )
+    {
+      exc.addContext( "Unable to perform GEODIFF_createChangeset theirs2final" );
+      return handleException( context, exc );
     }
 
     TmpFile modified2base( root + "_modified2base.bin" );
-    if ( GEODIFF_invertChangeset( contextHandle, base2modified.c_path(), modified2base.c_path() ) != GEODIFF_SUCCESS )
+    try
     {
-      setAndLogError( context, "Unable to perform GEODIFF_invertChangeset modified2base" );
-      return GEODIFF_ERROR;
+      invertChangesetByPath( base2modified.c_path(), modified2base.c_path() );
+    }
+    catch ( GeoDiffException &exc )
+    {
+      exc.addContext( "Unable to perform GEODIFF_invertChangeset modified2base" );
+      return handleException( context, exc );
     }
 
     // 3B) concat to single changeset
@@ -777,10 +916,14 @@ int GEODIFF_rebaseEx(
     concatChangesets( context, concatInput, modified2final.path() );  // throws GeoDiffException exception on error
 
     // 3C) apply at once
-    if ( GEODIFF_applyChangesetEx( contextHandle, driverName, driverExtraInfo, modified, modified2final.c_path() ) != GEODIFF_SUCCESS )
+    try
     {
-      setAndLogError( context, "Unable to perform GEODIFF_applyChangeset modified2final" );
-      return GEODIFF_ERROR;
+      applyChangesetEx( context, driverName, driverExtraInfo, modified, modified2final.c_path() );
+    }
+    catch ( GeoDiffException &exc )
+    {
+      exc.addContext( "Unable to perform GEODIFF_applyChangeset modified2final" );
+      return handleException( context, exc );
     }
 
     return GEODIFF_SUCCESS;
@@ -806,89 +949,20 @@ int GEODIFF_makeCopy( GEODIFF_ContextH contextHandle,
     return GEODIFF_ERROR;
   }
 
-  if ( !driverSrcName || !driverSrcExtraInfo || !driverDstName || !driverDstExtraInfo || !src || !dst )
-  {
-    setAndLogError( context, "NULL arguments to GEODIFF_makeCopy" );
-    return GEODIFF_ERROR;
-  }
-
-  std::string srcDriverName( driverSrcName );
-  std::string dstDriverName( driverDstName );
-  std::unique_ptr<Driver> driverSrc( Driver::createDriver( context, srcDriverName ) );
-  if ( !driverSrc )
-  {
-    setAndLogError( context, "Cannot create driver " + srcDriverName );
-    return GEODIFF_ERROR;
-  }
-
-  std::unique_ptr<Driver> driverDst( Driver::createDriver( context, dstDriverName ) );
-  if ( !driverDst )
-  {
-    setAndLogError( context, "Cannot create driver " + dstDriverName );
-    return GEODIFF_ERROR;
-  }
-
-  TmpFile tmpFileChangeset( tmpdir( ) + "geodiff_changeset" + std::to_string( rand() ) );
-
   try
   {
-    // open source
-    std::map<std::string, std::string> connSrc;
-    connSrc["base"] = std::string( src );
-    connSrc["conninfo"] = std::string( driverSrcExtraInfo );
-    driverSrc->open( connSrc );
-
-    // get source tables
-    std::vector<TableSchema> tables;
-    std::vector<std::string> tableNames = driverSrc->listTables();
-
-    if ( srcDriverName != dstDriverName )
-    {
-      for ( const std::string &tableName : tableNames )
-      {
-        TableSchema tbl = driverSrc->tableSchema( tableName );
-        tableSchemaConvert( driverDstName, tbl );
-        tables.push_back( tbl );
-      }
-    }
-    else
-    {
-      for ( const std::string &tableName : tableNames )
-      {
-        TableSchema tbl = driverSrc->tableSchema( tableName );
-        tables.push_back( tbl );
-      }
-    }
-
-    // get source data
-    {
-      ChangesetWriter writer;
-      writer.open( tmpFileChangeset.c_path() );
-      driverSrc->dumpData( writer );
-    }
-
-    // create destination
-    std::map<std::string, std::string> connDst;
-    connDst["base"] = dst;
-    connDst["conninfo"] = std::string( driverDstExtraInfo );
-    driverDst->create( connDst, true );
-
-    // create tables in destination
-    driverDst->createTables( tables );
-
-    // insert data to destination
-    {
-      ChangesetReader reader;
-      reader.open( tmpFileChangeset.c_path() );
-      driverDst->applyChangeset( reader );
-    }
+    makeCopy( context,
+              driverSrcName,
+              driverSrcExtraInfo,
+              src,
+              driverDstName,
+              driverDstExtraInfo,
+              dst );
   }
   catch ( const GeoDiffException &exc )
   {
     return handleException( context, exc );
   }
-
-  // TODO: add spatial index to tables with geometry columns?
 
   return GEODIFF_SUCCESS;
 }
