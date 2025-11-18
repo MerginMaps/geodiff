@@ -26,7 +26,7 @@ class GeoDiffException: public std::exception
 {
   public:
     explicit GeoDiffException( const std::string &msg );
-    virtual const char *what() const throw();
+    const char *what() const noexcept override;
     virtual int errorCode() const { return GEODIFF_ERROR; }
   private:
     std::string mMsg;

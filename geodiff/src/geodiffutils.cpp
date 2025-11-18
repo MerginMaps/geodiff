@@ -50,7 +50,7 @@ GeoDiffException::GeoDiffException( const std::string &msg )
 {
 }
 
-const char *GeoDiffException::what() const throw()
+const char *GeoDiffException::what() const noexcept
 {
   return mMsg.c_str();
 }
