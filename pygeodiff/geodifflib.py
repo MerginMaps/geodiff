@@ -38,21 +38,6 @@ CONFLICT = 2
 UNSUPPORTED_CHANGE = 3
 
 
-def _parse_return_code(rc, msg):
-    if rc == SUCCESS:
-        return
-    elif rc == ERROR:
-        raise GeoDiffLibError(msg)
-    elif rc == CONFLICT:
-        raise GeoDiffLibConflictError(msg)
-    elif rc == UNSUPPORTED_CHANGE:
-        raise GeoDiffLibUnsupportedChangeError(msg)
-    else:
-        raise GeoDiffLibVersionError(
-            "Internal error (enum " + str(rc) + " not handled)"
-        )
-
-
 class GeoDiffLib:
     def __init__(self, name):
         self.context = None
@@ -173,6 +158,27 @@ class GeoDiffLib:
         self._V_destroy = self.lib.GEODIFF_V_destroy
         self._V_destroy.argtypes = [ctypes.c_void_p, ctypes.c_void_p]
 
+    def _parse_return_code(self, rc, ctx):
+        if rc == SUCCESS:
+            return
+
+        get_error = self.lib.GEODIFF_CX_lastError
+        get_error.restype = ctypes.c_char_p
+        get_error.argtypes = [ctypes.c_void_p]
+        err = get_error(self.context).decode("utf-8")
+
+        msg = "Error in " + ctx + ":\n" + err
+        if rc == ERROR:
+            raise GeoDiffLibError(msg)
+        elif rc == CONFLICT:
+            raise GeoDiffLibConflictError(msg)
+        elif rc == UNSUPPORTED_CHANGE:
+            raise GeoDiffLibUnsupportedChangeError(msg)
+        else:
+            raise GeoDiffLibVersionError(
+                "Internal error (enum " + str(rc) + " not handled)"
+            )
+
     def package_libname(self):
         # assume that the package is installed through PIP
         if platform.system() == "Windows":
@@ -256,7 +262,7 @@ class GeoDiffLib:
             name_raw = 256 * ""
             b_string1 = name_raw.encode("utf-8")
             res = _driver_name_from_index_f(self.context, index, b_string1)
-            _parse_return_code(res, "drivers")
+            self._parse_return_code(res, "drivers")
             name = b_string1.decode("utf-8")
             drivers_list.append(name)
 
@@ -286,7 +292,7 @@ class GeoDiffLib:
         b_string3 = changeset.encode("utf-8")
 
         res = func(self.context, b_string1, b_string2, b_string3)
-        _parse_return_code(res, "createChangeset")
+        self._parse_return_code(res, "createChangeset")
 
     def invert_changeset(self, changeset, changeset_inv):
         func = self.lib.GEODIFF_invertChangeset
@@ -298,7 +304,7 @@ class GeoDiffLib:
         b_string2 = changeset_inv.encode("utf-8")
 
         res = func(self.context, b_string1, b_string2)
-        _parse_return_code(res, "invert_changeset")
+        self._parse_return_code(res, "invert_changeset")
 
     def create_rebased_changeset(
         self, base, modified, changeset_their, changeset, conflict
@@ -322,7 +328,7 @@ class GeoDiffLib:
         b_string5 = conflict.encode("utf-8")
 
         res = func(self.context, b_string1, b_string2, b_string3, b_string4, b_string5)
-        _parse_return_code(res, "createRebasedChangeset")
+        self._parse_return_code(res, "createRebasedChangeset")
 
     def rebase(self, base, modified_their, modified, conflict):
         func = self.lib.GEODIFF_rebase
@@ -341,7 +347,7 @@ class GeoDiffLib:
         b_string3 = modified.encode("utf-8")
         b_string4 = conflict.encode("utf-8")
         res = func(self.context, b_string1, b_string2, b_string3, b_string4)
-        _parse_return_code(res, "rebase")
+        self._parse_return_code(res, "rebase")
 
     def apply_changeset(self, base, changeset):
         func = self.lib.GEODIFF_applyChangeset
@@ -353,7 +359,7 @@ class GeoDiffLib:
         b_string2 = changeset.encode("utf-8")
 
         res = func(self.context, b_string1, b_string2)
-        _parse_return_code(res, "apply_changeset")
+        self._parse_return_code(res, "apply_changeset")
 
     def list_changes(self, changeset, result):
         func = self.lib.GEODIFF_listChanges
@@ -364,7 +370,7 @@ class GeoDiffLib:
         b_string1 = changeset.encode("utf-8")
         b_string2 = result.encode("utf-8")
         res = func(self.context, b_string1, b_string2)
-        _parse_return_code(res, "list_changes")
+        self._parse_return_code(res, "list_changes")
 
     def list_changes_summary(self, changeset, result):
         func = self.lib.GEODIFF_listChangesSummary
@@ -375,7 +381,7 @@ class GeoDiffLib:
         b_string1 = changeset.encode("utf-8")
         b_string2 = result.encode("utf-8")
         res = func(self.context, b_string1, b_string2)
-        _parse_return_code(res, "list_changes_summary")
+        self._parse_return_code(res, "list_changes_summary")
 
     def has_changes(self, changeset):
         func = self.lib.GEODIFF_hasChanges
@@ -415,7 +421,7 @@ class GeoDiffLib:
             arr,
             ctypes.c_char_p(output_changeset.encode("utf-8")),
         )
-        _parse_return_code(res, "concat_changes")
+        self._parse_return_code(res, "concat_changes")
 
     def make_copy(
         self, driver_src, driver_src_info, src, driver_dst, driver_dst_info, dst
@@ -429,7 +435,7 @@ class GeoDiffLib:
             ctypes.c_char_p(driver_dst_info.encode("utf-8")),
             ctypes.c_char_p(dst.encode("utf-8")),
         )
-        _parse_return_code(res, "make_copy")
+        self._parse_return_code(res, "make_copy")
 
     def make_copy_sqlite(self, src, dst):
         res = self.lib.GEODIFF_makeCopySqlite(
@@ -437,7 +443,7 @@ class GeoDiffLib:
             ctypes.c_char_p(src.encode("utf-8")),
             ctypes.c_char_p(dst.encode("utf-8")),
         )
-        _parse_return_code(res, "make_copy_sqlite")
+        self._parse_return_code(res, "make_copy_sqlite")
 
     def create_changeset_ex(self, driver, driver_info, base, modified, changeset):
         res = self.lib.GEODIFF_createChangesetEx(
@@ -448,7 +454,7 @@ class GeoDiffLib:
             ctypes.c_char_p(modified.encode("utf-8")),
             ctypes.c_char_p(changeset.encode("utf-8")),
         )
-        _parse_return_code(res, "create_changeset_ex")
+        self._parse_return_code(res, "create_changeset_ex")
 
     def create_changeset_dr(
         self,
@@ -491,7 +497,7 @@ class GeoDiffLib:
             b_string6,
             b_string7,
         )
-        _parse_return_code(res, "CreateChangesetDr")
+        self._parse_return_code(res, "CreateChangesetDr")
 
     def apply_changeset_ex(self, driver, driver_info, base, changeset):
         res = self.lib.GEODIFF_applyChangesetEx(
@@ -501,7 +507,7 @@ class GeoDiffLib:
             ctypes.c_char_p(base.encode("utf-8")),
             ctypes.c_char_p(changeset.encode("utf-8")),
         )
-        _parse_return_code(res, "apply_changeset_ex")
+        self._parse_return_code(res, "apply_changeset_ex")
 
     def create_rebased_changeset_ex(
         self,
@@ -523,7 +529,7 @@ class GeoDiffLib:
             ctypes.c_char_p(rebased.encode("utf-8")),
             ctypes.c_char_p(conflict_file.encode("utf-8")),
         )
-        _parse_return_code(res, "create_rebased_changeset_ex")
+        self._parse_return_code(res, "create_rebased_changeset_ex")
 
     def rebase_ex(self, driver, driver_info, base, modified, base2their, conflict_file):
         res = self.lib.GEODIFF_rebaseEx(
@@ -535,7 +541,7 @@ class GeoDiffLib:
             ctypes.c_char_p(base2their.encode("utf-8")),
             ctypes.c_char_p(conflict_file.encode("utf-8")),
         )
-        _parse_return_code(res, "rebase_ex")
+        self._parse_return_code(res, "rebase_ex")
 
     def dump_data(self, driver, driver_info, src, changeset):
         res = self.lib.GEODIFF_dumpData(
@@ -545,7 +551,7 @@ class GeoDiffLib:
             ctypes.c_char_p(src.encode("utf-8")),
             ctypes.c_char_p(changeset.encode("utf-8")),
         )
-        _parse_return_code(res, "dump_data")
+        self._parse_return_code(res, "dump_data")
 
     def schema(self, driver, driver_info, src, json):
         res = self.lib.GEODIFF_schema(
@@ -555,7 +561,7 @@ class GeoDiffLib:
             ctypes.c_char_p(src.encode("utf-8")),
             ctypes.c_char_p(json.encode("utf-8")),
         )
-        _parse_return_code(res, "schema")
+        self._parse_return_code(res, "schema")
 
     def read_changeset(self, changeset):
 
@@ -586,7 +592,7 @@ class GeoDiffLib:
             ctypes.byref(out),
             ctypes.byref(out_size),
         )
-        _parse_return_code(res, "create_wkb_from_gpkg_header")
+        self._parse_return_code(res, "create_wkb_from_gpkg_header")
         wkb = copy.deepcopy(out[: out_size.value])
         return wkb
 
