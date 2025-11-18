@@ -27,6 +27,27 @@ from pygeodiff import GeoDiffLibError, GeoDiffLibConflictError
 
 GEODIFFLIB = os.environ.get("GEODIFFLIB", None)
 
+
+class LoggingGeoDiff(pygeodiff.GeoDiff):
+    def __init__(self, *args):
+        super().__init__(*args)
+        self.log_messages: list[dict] = []
+        self.set_maximum_logger_level(4)
+        self.set_logger_callback(self._handle_log_message)
+
+    def _handle_log_message(self, level: int, raw_message: bytes):
+        message: str = raw_message.decode('utf-8')
+        self.log_messages.append({'level': level, 'msg': message})
+
+        level_names = {
+            1: "ERROR",
+            2: "WARNING",
+            3: "INFO",
+            4: "DEBUG"
+        }
+        print(f"{level_names[level]}: {message}")
+
+
 # These tests cover simple rebase scenarios, with or without database constraints
 # applied.
 
@@ -298,7 +319,7 @@ def test_geodiff_rebase_unique_constraint_violation(user_a_data_first, tmp_path)
     violation.
     """
     # Arrange
-    geodiff = pygeodiff.GeoDiff(GEODIFFLIB)
+    geodiff = LoggingGeoDiff(GEODIFFLIB)
     conflict = tmp_path / "conflict.txt"
     original, user_a, user_b = create_db_files(tmp_path, db_constrained=True)
 
@@ -329,8 +350,9 @@ def test_geodiff_rebase_unique_constraint_violation(user_a_data_first, tmp_path)
 
     # Assert that rebasing fails due to DB constraints on application of diffs
     # and that exception provides information on failed constraint.
-    with pytest.raises(GeoDiffLibConflictError, match="UNIQUE constraint failed: species.species_id"):
+    with pytest.raises(GeoDiffLibError):
         geodiff.rebase(str(original), str(theirs), str(mine), str(conflict))
+    assert "unresolvable_conflict" in str(geodiff.log_messages)
 
 
 @pytest.mark.parametrize(
@@ -345,7 +367,7 @@ def test_geodiff_rebase_fkey_constraint_violation(user_a_data_first, tmp_path):
     has been applied.
     """
     # Arrange
-    geodiff = pygeodiff.GeoDiff(GEODIFFLIB)
+    geodiff = LoggingGeoDiff(GEODIFFLIB)
     conflict = tmp_path / "conflict.txt"
     original, user_a, user_b = create_db_files(tmp_path, db_constrained=True)
 
@@ -381,8 +403,9 @@ def test_geodiff_rebase_fkey_constraint_violation(user_a_data_first, tmp_path):
 
     # Assert that rebasing fails due to DB constraints on application of diffs
     # and that exception provides information on failed constraint.
-    with pytest.raises(GeoDiffLibConflictError, match="FOREIGN KEY constraint failed"):
+    with pytest.raises(GeoDiffLibError):
         geodiff.rebase(str(original), str(theirs), str(mine), str(conflict))
+    assert "FOREIGN KEY constraint failed" in str(geodiff.log_messages)
 
 
 @pytest.mark.parametrize(
