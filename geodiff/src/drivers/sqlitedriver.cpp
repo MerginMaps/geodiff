@@ -10,6 +10,7 @@
 #include "changesetutils.h"
 #include "geodiffcontext.hpp"
 #include "geodifflogger.hpp"
+#include "geodiffutils.hpp"
 #include "sqliteutils.h"
 
 #include <memory.h>
@@ -958,7 +959,7 @@ void SqliteDriver::applyChangeset( ChangesetReader &reader )
     {
       for ( const ChangesetEntry &centry : conflictingEntries )
         logApplyConflict( "unresolvable_conflict", centry );
-      throw GeoDiffException( "Could not resolve dependencies in constraint conflicts." );
+      throw GeoDiffConflictsException( "Could not resolve dependencies in constraint conflicts." );
     }
     conflictingEntries = newConflictingEntries;
     newConflictingEntries.clear();
@@ -981,7 +982,7 @@ void SqliteDriver::applyChangeset( ChangesetReader &reader )
   }
   else
   {
-    throw GeoDiffException( "Conflicts encountered while applying changes! Total " + std::to_string( unrecoverableConflictCount ) );
+    throw GeoDiffConflictsException( "Conflicts encountered while applying changes! Total " + std::to_string( unrecoverableConflictCount ) );
   }
 }
 
