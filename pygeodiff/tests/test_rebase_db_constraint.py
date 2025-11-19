@@ -252,6 +252,48 @@ def test_geodiff_rebase_happy_path_fk_tables(
     assert not conflict.exists()
 
 
+@pytest.mark.parametrize(
+    "user_a_data_first", [True, False], ids=["user_a_data_first", "user_b_data_first"]
+)
+def test_geodiff_rebase_happy_path_no_changes(
+    user_a_data_first, tmp_path
+):
+    """
+    This test checks that rebase does nothing when no changes have been made.
+    """
+    # Arrange
+    geodiff = pygeodiff.GeoDiff(GEODIFFLIB)
+    conflict = tmp_path / "conflict.txt"
+    original, user_a, user_b = create_db_files(tmp_path, db_constrained=True)
+
+    # Apply changes to databases to give the following expected values
+    expected = {
+        "species": [
+            {"species_id": "MPL", "name": "Maple"},
+            {"species_id": "OAK", "name": "Oak"},
+            {"species_id": "PIN", "name": "Pine"},
+        ],
+        "trees": [
+            {"tree_id": 20251103001, "species_id": "MPL", "age": 25},
+            {"tree_id": 20251103002, "species_id": "OAK", "age": 30},
+            {"tree_id": 20251103003, "species_id": "PIN", "age": 18},
+        ],
+    }
+
+    # Set the argument order. Rebased db has "their" changes before "mine".
+    if user_a_data_first:
+        theirs, mine = user_a, user_b
+    else:
+        theirs, mine = user_b, user_a
+
+    # Act
+    geodiff.rebase(str(original), str(theirs), str(mine), str(conflict))
+
+    # Assert that rebased database contains expected changes and no conflict exists
+    assert_data_as_expected(mine, expected)
+    assert not conflict.exists()
+
+
 # The next tests cover scenarios with conflicting changes or where changes
 # result in constraint violations.
 
@@ -410,6 +452,59 @@ def test_geodiff_rebase_fkey_constraint_violation(user_a_data_first, tmp_path):
     # Assert that rebasing fails due to DB constraints on application of diffs
     # and that exception provides information on failed constraint.
     with pytest.raises(GeoDiffLibConflictError, match=".*FOREIGN KEY constraint failed."):
+        geodiff.rebase(str(original), str(theirs), str(mine), str(conflict))
+
+
+@pytest.mark.parametrize(
+    "user_a_data_first", [True, False], ids=["user_a_data_first", "user_b_data_first"]
+)
+def test_geodiff_rebase_fail_on_insert(user_a_data_first, tmp_path):
+    """
+    This test covers a rebase where insert fails for a non-constraint reason. A
+    trigger is used to force the failure.
+    """
+    # Arrange
+    geodiff = pygeodiff.GeoDiff(GEODIFFLIB)
+    conflict = tmp_path / "conflict.txt"
+    original, user_a, user_b = create_db_files(tmp_path, db_constrained=True)
+
+    # Apply changes to databases
+    with sqlite3.connect(user_a) as conn_a:
+        conn_a.execute(
+            """
+            INSERT INTO species (species_id, name) VALUES ('BCH', 'Birch')
+            """
+        )
+
+    with sqlite3.connect(user_b) as conn_b:
+        conn_b.execute(
+            """
+            INSERT INTO species (species_id, name) VALUES ('SPC', 'Spruce')
+            """
+        )
+
+    for db in user_a, user_b:
+        # Add a trigger to prevent further inserts
+        with sqlite3.connect(db) as conn:
+            conn.execute(
+                """
+                CREATE TRIGGER "fail_on_insert"
+                    BEFORE INSERT ON "species"
+                    BEGIN
+                        SELECT RAISE(FAIL, "Cannot add more species");
+                    END;
+                """
+            )
+
+    # Set the argument order. Rebased db has "their" changes before "mine".
+    if user_a_data_first:
+        theirs, mine = user_a, user_b
+    else:
+        theirs, mine = user_b, user_a
+
+    # Assert that rebasing fails due to DB constraints on application of diffs
+    # and that exception provides information on failed constraint.
+    with pytest.raises(GeoDiffLibConflictError, match="Cannot add more species"):
         geodiff.rebase(str(original), str(theirs), str(mine), str(conflict))
 
 
