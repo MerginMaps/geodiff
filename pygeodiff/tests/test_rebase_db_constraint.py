@@ -29,6 +29,13 @@ GEODIFFLIB = os.environ.get("GEODIFFLIB", None)
 
 
 class LoggingGeoDiff(pygeodiff.GeoDiff):
+    """
+    Custom version of GeoDiff that captures log messages from the underlying
+    C++ library and prints them for viewing with `pytest -vs`.  It can be used
+    in place of pygeodiff.GeoDiff.  The log messages can be tested with:
+
+    assert "value" in str(geodiff.log_messages)
+    """
     def __init__(self, *args):
         super().__init__(*args)
         self.log_messages: list[dict] = []
@@ -319,7 +326,7 @@ def test_geodiff_rebase_unique_constraint_violation(user_a_data_first, tmp_path)
     violation.
     """
     # Arrange
-    geodiff = LoggingGeoDiff(GEODIFFLIB)
+    geodiff = pygeodiff.GeoDiff(GEODIFFLIB)
     conflict = tmp_path / "conflict.txt"
     original, user_a, user_b = create_db_files(tmp_path, db_constrained=True)
 
@@ -350,9 +357,8 @@ def test_geodiff_rebase_unique_constraint_violation(user_a_data_first, tmp_path)
 
     # Assert that rebasing fails due to DB constraints on application of diffs
     # and that exception provides information on failed constraint.
-    with pytest.raises(GeoDiffLibError):
+    with pytest.raises(GeoDiffLibConflictError, match=".*constraint conflict.*"):
         geodiff.rebase(str(original), str(theirs), str(mine), str(conflict))
-    assert "unresolvable_conflict" in str(geodiff.log_messages)
 
 
 @pytest.mark.parametrize(
@@ -367,7 +373,7 @@ def test_geodiff_rebase_fkey_constraint_violation(user_a_data_first, tmp_path):
     has been applied.
     """
     # Arrange
-    geodiff = LoggingGeoDiff(GEODIFFLIB)
+    geodiff = pygeodiff.GeoDiff(GEODIFFLIB)
     conflict = tmp_path / "conflict.txt"
     original, user_a, user_b = create_db_files(tmp_path, db_constrained=True)
 
@@ -403,9 +409,8 @@ def test_geodiff_rebase_fkey_constraint_violation(user_a_data_first, tmp_path):
 
     # Assert that rebasing fails due to DB constraints on application of diffs
     # and that exception provides information on failed constraint.
-    with pytest.raises(GeoDiffLibError):
+    with pytest.raises(GeoDiffLibConflictError, match=".*FOREIGN KEY constraint failed."):
         geodiff.rebase(str(original), str(theirs), str(mine), str(conflict))
-    assert "FOREIGN KEY constraint failed" in str(geodiff.log_messages)
 
 
 @pytest.mark.parametrize(
