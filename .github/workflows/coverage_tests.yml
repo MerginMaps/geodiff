@@ -1,5 +1,5 @@
 name: Coverage CPP/Python Tests
-on: [push]
+on: [push, pull_request]
 
 concurrency:
   group: ci-${{github.ref}}-coverage-py-tests

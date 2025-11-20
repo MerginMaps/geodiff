@@ -1,5 +1,5 @@
 name: Code Layout
-on: [push]
+on: [push, pull_request]
 jobs:
   code_style:
     runs-on: ubuntu-latest
