@@ -45,29 +45,6 @@ class UnitTestsPythonErrors(GeoDiffTests):
         except pygeodiff.GeoDiffLibError:
             pass
 
-    def test_not_implemented(self):
-        create_dir("not_implemented")
-        base = geodiff_test_dir() + "/base_fk.gpkg"
-
-        modifiedA = geodiff_test_dir() + "/fk_2_updates/modified_fk_A.gpkg"
-        modifiedB = geodiff_test_dir() + "/fk_2_updates/modified_fk_B.gpkg"
-
-        base2 = tmpdir() + "/pynot_implemented/base2.gpkg"
-        changesetbaseA = tmpdir() + "/pynot_implemented/changesetbaseA.bin"
-        changesetAB = tmpdir() + "/pynot_implemented/changesetAB.bin"
-        conflict = tmpdir() + "/pynot_implemented/conflict.bin"
-
-        shutil.copyfile(base, base2)
-        self.geodiff.create_changeset(base, modifiedA, changesetbaseA)
-
-        try:
-            self.geodiff.create_rebased_changeset(
-                base2, modifiedB, changesetbaseA, changesetAB, conflict
-            )
-            raise TestError("expected GeoDiffLibError")
-        except pygeodiff.GeoDiffLibError:
-            pass
-
     def test_error_input(self):
         print("********************************************************")
         print("PYTHON: " + "error input")

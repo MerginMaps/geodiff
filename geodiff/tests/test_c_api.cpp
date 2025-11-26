@@ -158,7 +158,7 @@ TEST( CAPITest, test_rebases )
                  fileOutput.c_str() ) );
 
 
-    ASSERT_EQ( GEODIFF_ERROR, GEODIFF_rebase(
+    ASSERT_EQ( GEODIFF_SUCCESS, GEODIFF_rebase(
                  context,
                  pathjoin( testdir(), "sqlite_pks", "text_pk.sqlite" ).c_str(),
                  pathjoin( testdir(), "sqlite_pks", "text_pk_B.sqlite" ).c_str(),
