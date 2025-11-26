@@ -125,8 +125,8 @@ nlohmann::json changesetEntryToJSON( const ChangesetEntry &entry )
   if ( ( ( entry.op == ChangesetEntry::OpUpdate || entry.op == ChangesetEntry::OpInsert )
          && entry.table->columnCount() != entry.newValues.size() )
        || ( ( entry.op == ChangesetEntry::OpUpdate || entry.op == ChangesetEntry::OpDelete )
-          && entry.table->columnCount() != entry.oldValues.size()) )
-    throw GeoDiffException("Table column count doesn't match value list size");
+            && entry.table->columnCount() != entry.oldValues.size() ) )
+    throw GeoDiffException( "Table column count doesn't match value list size" );
 
   nlohmann::json res;
   res[ "table" ] = entry.table->name;
