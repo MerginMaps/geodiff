@@ -435,7 +435,9 @@ def create_db_files(
         # Remove database constraints from table definitions
         create_species_sql = re.sub(r" UNIQUE", "", create_species_sql)
         create_trees_sql = re.sub(r" UNIQUE", "", create_trees_sql)
-        create_trees_sql = re.sub(r",\W*FOREIGN.*REFERENCES.*?\)", "", create_trees_sql, re.MULTILINE)
+        create_trees_sql = re.sub(
+            r",\W*FOREIGN.*REFERENCES.*?\)", "", create_trees_sql, re.MULTILINE
+        )
 
     # Define initial data
     species_data = [
