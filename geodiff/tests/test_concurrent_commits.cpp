@@ -520,34 +520,46 @@ TEST( ConcurrentCommitsSqlite3Test, test_fk_2_updates )
   std::cout << "new tree specie & tree is added on both A and B" << std::endl;
   std::cout << "https://github.com/merginmaps/geodiff/issues/39" << std::endl;
 
-  bool ret = _test_expect_not_implemented(
+  bool ret = _test(
                "base_fk.gpkg",
                "fk_2_updates",
                "modified_fk_A.gpkg",
                "modified_fk_B.gpkg",
-               2
+               "modified_fk_AB.gpkg",
+               2,
+               2,
+               4,
+               0
              );
   ASSERT_TRUE( ret );
 
   std::cout << "new tree specie & tree is added on A and just new tree on B" << std::endl;
   std::cout << "https://github.com/merginmaps/geodiff/issues/39" << std::endl;
-  ret = _test_expect_not_implemented(
+  ret = _test(
           "base_fk.gpkg",
           "fk_2_updates",
           "modified_fk_A.gpkg",
           "modified_fk_only_new_tree.gpkg",
-          2
+          "modified_fk_A_plus_new_tree.gpkg",
+          2,
+          6,
+          8,
+          0
         );
   ASSERT_TRUE( ret );
 
   std::cout << "new tree specie & tree is added on B and just new tree on A" << std::endl;
   std::cout << "https://github.com/merginmaps/geodiff/issues/39" << std::endl;
-  ret = _test_expect_not_implemented(
+  ret = _test(
           "base_fk.gpkg",
           "fk_2_updates",
           "modified_fk_only_new_tree.gpkg",
           "modified_fk_A.gpkg",
-          6
+          "modified_fk_new_tree_plus_A.gpkg",
+          6,
+          2,
+          8,
+          0
         );
   ASSERT_TRUE( ret );
 }
