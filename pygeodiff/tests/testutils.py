@@ -1,16 +1,18 @@
 # -*- coding: utf-8 -*-
 """
-    :copyright: (c) 2019 Peter Petrik
-    :license: MIT, see LICENSE for more details.
+:copyright: (c) 2019 Peter Petrik
+:license: MIT, see LICENSE for more details.
 """
 
 import unittest
+import re
 import os
 import tempfile
 import pygeodiff
 import json
 import shutil
 import subprocess
+import sqlite3
 
 
 class TestError(Exception):
@@ -141,6 +143,72 @@ def dict_diff(a, b):
             if a[key] != b[key]:
                 return False
     return True
+
+
+class GeoDiffTestSqlDb:
+    class PostgresConnection:
+        def __init__(self, connstr, schema):
+            self.connstr = connstr
+            self.schema = schema
+
+        def __enter__(self):
+            import psycopg
+
+            self.conn = psycopg.connect(self.connstr)
+            self.cursor = self.conn.cursor()
+            self.cursor.execute(f"CREATE SCHEMA IF NOT EXISTS {self.schema}")
+            self.cursor.execute(f"SET search_path = {self.schema}, public")
+            return self
+
+        def __exit__(self, exc_type, exc_value, tb):
+            self.cursor.__exit__(exc_type, exc_value, tb)
+            return self.conn.__exit__(exc_type, exc_value, tb)
+
+        def execute(self, sql, params=None):
+            # Go from SQLite-style "?" to psycopg "%s" params with some
+            # very rudimentary escaping
+            sql = sql.replace("%", "%%").replace("?", "%s")
+            # and from :ident to %(ident)s
+            sql = re.sub(r":([a-zA-Z0-9_]+)", lambda m: f"%({m.group(1)})s", sql)
+            self.cursor.execute(sql, params)
+            return self.cursor
+
+        def executemany(self, sql, params):
+            for row in params:
+                self.execute(sql, row)
+
+    def __init__(self, driver, db, driver_info="", destroy_existing=False):
+        """
+        For driver sqlite, leave driver_info empty and put DB path in db.
+        For driver postgres, put connection string in driver_info and schema
+        name in db. When driver_info is None, environment variable
+        GEODIFF_PG_CONNINFO is used instead.
+
+        If destroy_existing is True, the exising DB file / PG schema is deleted.
+        """
+        assert driver in ["sqlite", "postgres"]
+        self.driver = driver
+        self.db = str(db)
+        self.driver_info = driver_info
+
+        if self.driver == "sqlite" and destroy_existing:
+            try:
+                os.remove(db)
+            except OSError:
+                pass
+        elif self.driver == "postgres":
+            if not self.driver_info:
+                self.driver_info = os.environ.get("GEODIFF_PG_CONNINFO")
+            if destroy_existing:
+                with self.open() as c:
+                    c.execute(f"DROP SCHEMA IF EXISTS {self.db} CASCADE")
+
+    def open(self):
+        if self.driver == "sqlite":
+            return sqlite3.connect(self.db)
+        elif self.driver == "postgres":
+            # For Postgres, we try to emulate the SQLite interface
+            return GeoDiffTestSqlDb.PostgresConnection(self.driver_info, self.db)
 
 
 class GeoDiffTests(unittest.TestCase):
