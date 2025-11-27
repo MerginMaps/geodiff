@@ -136,4 +136,16 @@ class Driver
 };
 
 
+/**
+ * Result of applying a single ChangesetEntry. Other errors are handled by
+ * throwing an exception.
+ */
+enum class ChangeApplyResult
+{
+  Applied, // Successfully applied
+  Skipped, // Skipped due to config
+  ConstraintConflict, // Ended due to constraint conflict
+  NoChange, // Ended due to no matching row
+};
+
 #endif // DRIVER_H

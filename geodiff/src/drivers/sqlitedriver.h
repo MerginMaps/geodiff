@@ -30,19 +30,6 @@ class SqliteChangeApplyState
 
 
 /**
- * Result of applying a single ChangesetEntry. Other errors are handled by
- * throwing an exception.
- */
-enum class SqliteChangeApplyResult
-{
-  Applied, // Successfully applied
-  Skipped, // Skipped due to config
-  ConstraintConflict, // Ended due to constraint conflict
-  NoChange, // Ended due to no matching row
-};
-
-
-/**
  * Support for diffs between Sqlite-based files (including GeoPackage)
  *
  * Connection configuration:
@@ -70,7 +57,7 @@ class SqliteDriver : public Driver
 
   private:
     void logApplyConflict( const std::string &type, const ChangesetEntry &entry, bool isDbErr = false ) const;
-    SqliteChangeApplyResult applyChange( SqliteChangeApplyState &state, const ChangesetEntry &entry );
+    ChangeApplyResult applyChange( SqliteChangeApplyState &state, const ChangesetEntry &entry );
     std::string databaseName( bool useModified = false );
 
     std::shared_ptr<Sqlite3Db> mDb;
