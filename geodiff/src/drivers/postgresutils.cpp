@@ -4,9 +4,21 @@
 */
 
 #include "postgresutils.h"
-
 #include "geodiffutils.hpp"
 
+GeoDiffPostgresException::GeoDiffPostgresException( PGresult *res, const std::string &sql )
+  : GeoDiffPostgresException( PostgresResult( res ), sql ) {}
+
+GeoDiffPostgresException::GeoDiffPostgresException( PostgresResult res, const std::string &sql )
+  : GeoDiffException( "postgres cmd error(" + res.sqlState() +
+                      "): " + res.statusErrorMessage() +
+                      ( sql.size() ? "\n\nSQL:\n" + sql : "" ) ),
+    mSql( sql ), mRes( std::move( res ) ) {}
+
+const PostgresResult &GeoDiffPostgresException::result() const
+{
+  return mRes;
+}
 
 PGresult *execSql( PGconn *c, const std::string &sql )
 {
@@ -17,9 +29,7 @@ PGresult *execSql( PGconn *c, const std::string &sql )
     int errorStatus = PQresultStatus( res );
     if ( errorStatus != PGRES_COMMAND_OK && errorStatus != PGRES_TUPLES_OK )
     {
-      std::string err( PQresultErrorMessage( res ) );
-      PQclear( res );
-      throw GeoDiffException( "postgres cmd error: " + err + "\n\nSQL:\n" + sql );
+      throw GeoDiffPostgresException( res, sql );
     }
 
     return res;

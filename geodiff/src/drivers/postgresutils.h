@@ -7,6 +7,7 @@
 #define POSTGRESUTILS_H
 
 #include <assert.h>
+#include <iostream>
 #include <string>
 
 extern "C"
@@ -14,11 +15,20 @@ extern "C"
 #include <libpq-fe.h>
 }
 
+#include "geodiffutils.hpp"
+
 
 class PostgresResult
 {
   public:
-    explicit PostgresResult( PGresult *result ) : mResult( result ) {}
+    explicit PostgresResult( PGresult *result ) : mResult( result ) { }
+    // Delete copy constructor, since then we'd PGclear(mResult) multiple times
+    PostgresResult( PostgresResult & ) = delete;
+    // and create move constructor
+    PostgresResult( PostgresResult &&other ) : mResult( other.mResult )
+    {
+      other.mResult = nullptr;
+    }
     ~PostgresResult()
     {
       if ( mResult )
@@ -35,6 +45,12 @@ class PostgresResult
     {
       assert( mResult );
       return ::PQresultErrorMessage( mResult );
+    }
+
+    std::string sqlState() const
+    {
+      assert( mResult );
+      return ::PQresultErrorField( mResult, PG_DIAG_SQLSTATE );
     }
 
     int rowCount() const
@@ -66,6 +82,18 @@ class PostgresResult
   private:
     PGresult *mResult = nullptr;
 
+};
+
+class GeoDiffPostgresException: public GeoDiffException
+{
+  public:
+    // Takes ownership of PGresult
+    explicit GeoDiffPostgresException( PGresult *res, const std::string &sql );
+    explicit GeoDiffPostgresException( PostgresResult res, const std::string &sql );
+    const PostgresResult &result() const;
+  private:
+    std::string mSql;
+    PostgresResult mRes;
 };
 
 PGresult *execSql( PGconn *c, const std::string &sql );

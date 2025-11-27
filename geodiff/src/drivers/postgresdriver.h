@@ -13,6 +13,29 @@ extern "C"
 #include <libpq-fe.h>
 }
 
+struct PostgresChangeApplyState
+{
+  struct TableState
+  {
+    TableSchema schema;
+    // name of its pkey's sequence object (or "" if it doesn't exist)
+    std::string sequenceName;
+    int autoIncrementPkeyIndex;
+    // max. value in changeset
+    int64_t autoIncrementMax = 0;
+  };
+  // key = table name,
+  std::map<std::string, TableState> tableState;
+};
+
+enum class PostgresChangeApplyResult
+{
+  Applied, // Successfully applied
+  Skipped, // Skipped due to config
+  ConstraintConflict, // Ended due to constraint conflict
+  NoChange, // Ended due to no matching row
+};
+
 // TODO: add docs!
 class PostgresDriver : public Driver
 {
@@ -35,6 +58,7 @@ class PostgresDriver : public Driver
     void close();
     std::string getSequenceObjectName( const TableSchema &tbl, int &autoIncrementPkeyIndex );
     void updateSequenceObject( const std::string &seqName, int64_t maxValue );
+    ChangeApplyResult applyChange( PostgresChangeApplyState &state, const ChangesetEntry &entry );
 
     PGconn *mConn = nullptr;
     std::string mBaseSchema;

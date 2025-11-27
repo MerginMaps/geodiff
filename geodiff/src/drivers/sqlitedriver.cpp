@@ -750,15 +750,15 @@ static void bindValue( sqlite3_stmt *stmt, int index, const Value &v )
 }
 
 
-SqliteChangeApplyResult SqliteDriver::applyChange( SqliteChangeApplyState &state, const ChangesetEntry &entry )
+ChangeApplyResult SqliteDriver::applyChange( SqliteChangeApplyState &state, const ChangesetEntry &entry )
 {
   std::string tableName = entry.table->name;
 
   if ( startsWith( tableName, "gpkg_" ) ) // skip any changes to GPKG meta tables
-    return SqliteChangeApplyResult::Skipped;
+    return ChangeApplyResult::Skipped;
 
   if ( context()->isTableSkipped( tableName ) ) // skip table if necessary
-    return SqliteChangeApplyResult::Skipped;
+    return ChangeApplyResult::Skipped;
 
   if ( state.tableState.count( tableName ) == 0 )
   {
@@ -795,7 +795,7 @@ SqliteChangeApplyResult SqliteDriver::applyChange( SqliteChangeApplyState &state
     }
     int res = sqlite3_step( tbl.stmtInsert.get() );
     if ( res == SQLITE_CONSTRAINT )
-      return SqliteChangeApplyResult::ConstraintConflict;
+      return ChangeApplyResult::ConstraintConflict;
     else if ( res != SQLITE_DONE )
     {
       logApplyConflict( "insert_failed", entry, true );
@@ -819,7 +819,7 @@ SqliteChangeApplyResult SqliteDriver::applyChange( SqliteChangeApplyState &state
     }
     int res = sqlite3_step( tbl.stmtUpdate.get() );
     if ( res == SQLITE_CONSTRAINT )
-      return SqliteChangeApplyResult::ConstraintConflict;
+      return ChangeApplyResult::ConstraintConflict;
     else if ( res != SQLITE_DONE )
     {
       logApplyConflict( "update_failed", entry, true );
@@ -829,7 +829,7 @@ SqliteChangeApplyResult SqliteDriver::applyChange( SqliteChangeApplyState &state
     {
       // either the row with such pkey does not exist or its data have been modified
       logApplyConflict( "update_nothing", entry );
-      return SqliteChangeApplyResult::NoChange;
+      return ChangeApplyResult::NoChange;
     }
   }
   else if ( entry.op == SQLITE_DELETE )
@@ -842,7 +842,7 @@ SqliteChangeApplyResult SqliteDriver::applyChange( SqliteChangeApplyState &state
     }
     int res = sqlite3_step( tbl.stmtDelete.get() );
     if ( res == SQLITE_CONSTRAINT )
-      return SqliteChangeApplyResult::ConstraintConflict;
+      return ChangeApplyResult::ConstraintConflict;
     else if ( res != SQLITE_DONE )
     {
       logApplyConflict( "delete_failed", entry, true );
@@ -852,13 +852,13 @@ SqliteChangeApplyResult SqliteDriver::applyChange( SqliteChangeApplyState &state
     {
       // either the row with such pkey does not exist or its data have been modified
       logApplyConflict( "delete_nothing", entry );
-      return SqliteChangeApplyResult::NoChange;
+      return ChangeApplyResult::NoChange;
     }
   }
   else
     throw GeoDiffException( "Unexpected operation" );
 
-  return SqliteChangeApplyResult::Applied;
+  return ChangeApplyResult::Applied;
 }
 
 
@@ -905,13 +905,13 @@ void SqliteDriver::applyChangeset( ChangesetReader &reader )
   std::unordered_map<std::string, std::unique_ptr<ChangesetTable>> tableCopies;
   while ( reader.nextEntry( entry ) )
   {
-    SqliteChangeApplyResult res = applyChange( state, entry );
+    ChangeApplyResult res = applyChange( state, entry );
     switch ( res )
     {
-      case SqliteChangeApplyResult::Applied:
-      case SqliteChangeApplyResult::Skipped:
+      case ChangeApplyResult::Applied:
+      case ChangeApplyResult::Skipped:
         break; // Applied correctly, continue onward.
-      case SqliteChangeApplyResult::ConstraintConflict:
+      case ChangeApplyResult::ConstraintConflict:
         // Ordering conflict found, handle later.
         // Effectively copying the entry isn't simple, since ChangesetReader is
         // happy to change entry.table under our feet. We need to copy the
@@ -922,7 +922,7 @@ void SqliteDriver::applyChangeset( ChangesetReader &reader )
         entry.table = tableCopies[entry.table->name].get();
         conflictingEntries.push_back( entry );
         break;
-      case SqliteChangeApplyResult::NoChange:
+      case ChangeApplyResult::NoChange:
         unrecoverableConflictCount++; // Other issue, will throw at the end.
         break;
     }
@@ -937,16 +937,16 @@ void SqliteDriver::applyChangeset( ChangesetReader &reader )
   {
     for ( const ChangesetEntry &centry : conflictingEntries )
     {
-      SqliteChangeApplyResult res = applyChange( state, centry );
+      ChangeApplyResult res = applyChange( state, centry );
       switch ( res )
       {
-        case SqliteChangeApplyResult::Applied:
-        case SqliteChangeApplyResult::Skipped:
+        case ChangeApplyResult::Applied:
+        case ChangeApplyResult::Skipped:
           break; // Applied correctly, don't put it in the new list.
-        case SqliteChangeApplyResult::ConstraintConflict:
+        case ChangeApplyResult::ConstraintConflict:
           newConflictingEntries.push_back( centry ); // Still conflicting, keep in list.
           break;
-        case SqliteChangeApplyResult::NoChange:
+        case ChangeApplyResult::NoChange:
           unrecoverableConflictCount++; // Other issue, will throw at the end.
           break;
       }

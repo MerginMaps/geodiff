@@ -5,6 +5,7 @@
 
 #include "postgresdriver.h"
 
+#include "driver.h"
 #include "geodifflogger.hpp"
 #include "geodiffutils.hpp"
 #include "changeset.h"
@@ -799,133 +800,185 @@ static std::string sqlForDelete( const std::string &schemaName, const std::strin
   return sql;
 }
 
+static bool isIntegrityError( const PostgresResult &res )
+{
+  return res.sqlState().substr( 0, 2 ) == "23";
+}
+
+ChangeApplyResult PostgresDriver::applyChange( PostgresChangeApplyState &state, const ChangesetEntry &entry )
+{
+  std::string tableName = entry.table->name;
+
+  // skip any changes to GPKG meta tables
+  if ( startsWith( tableName, "gpkg_" ) )
+    return ChangeApplyResult::Skipped;
+
+  // skip table if asked to
+  if ( context()->isTableSkipped( tableName ) )
+    return ChangeApplyResult::Skipped;
+
+  if ( state.tableState.count( tableName ) == 0 )
+  {
+    TableSchema schema = tableSchema( tableName );
+
+    if ( schema.columns.size() == 0 )
+      throw GeoDiffException( "No such table: " + tableName );
+
+    if ( schema.columns.size() != entry.table->columnCount() )
+      throw GeoDiffException( "Wrong number of columns for table: " + tableName );
+
+    for ( size_t i = 0; i < entry.table->columnCount(); ++i )
+    {
+      if ( schema.columns[i].isPrimaryKey != entry.table->primaryKeys[i] )
+        throw GeoDiffException( "Mismatch of primary keys in table: " + tableName );
+    }
+
+    PostgresChangeApplyState::TableState &tbl = state.tableState[tableName];
+    tbl.schema = schema;
+    // if a table has auto-incrementing pkey (using SEQUENCE object), we may need
+    // to update the sequence value after doing some inserts (or subsequent INSERTs would fail)
+    std::string seqName = getSequenceObjectName( tbl.schema, tbl.autoIncrementPkeyIndex );
+    if ( tbl.autoIncrementPkeyIndex != -1 )
+      tbl.sequenceName = seqName;
+  }
+  PostgresChangeApplyState::TableState &tbl = state.tableState[tableName];
+
+  // Create savepoint so we have somewhere to rollback to if the command fails
+  execSql( mConn, "SAVEPOINT geodiff_apply" );
+
+  try
+  {
+    if ( entry.op == ChangesetEntry::OpInsert )
+    {
+      std::string sql = sqlForInsert( mBaseSchema, tableName, tbl.schema, entry.newValues );
+      PostgresResult res( execSql( mConn, sql ) );
+      if ( res.affectedRows() != "1" )
+        throw GeoDiffException( "Wrong number of affected rows! Expected 1, got: " + res.affectedRows() );
+
+      if ( tbl.autoIncrementPkeyIndex != -1 )
+      {
+        int64_t pkey = entry.newValues[tbl.autoIncrementPkeyIndex].getInt();
+        tbl.autoIncrementMax = std::max( tbl.autoIncrementMax, pkey );
+      }
+    }
+    else if ( entry.op == ChangesetEntry::OpUpdate )
+    {
+      std::string sql = sqlForUpdate( mBaseSchema, tableName, tbl.schema, entry.oldValues, entry.newValues );
+      PostgresResult res( execSql( mConn, sql ) );
+      if ( res.affectedRows() != "1" )
+      {
+        logApplyConflict( "update_nothing", entry );
+        context()->logger().warn( "Wrong number of affected rows! Expected 1, got: " + res.affectedRows() + "\nSQL: " + sql );
+        return ChangeApplyResult::NoChange;
+      }
+    }
+    else if ( entry.op == ChangesetEntry::OpDelete )
+    {
+      std::string sql = sqlForDelete( mBaseSchema, tableName, tbl.schema, entry.oldValues );
+      PostgresResult res( execSql( mConn, sql ) );
+      if ( res.affectedRows() != "1" )
+      {
+        logApplyConflict( "delete_nothing", entry );
+        context()->logger().warn( "Wrong number of affected rows! Expected 1, got: " + res.affectedRows() );
+        return ChangeApplyResult::NoChange;
+      }
+    }
+    else
+      throw GeoDiffException( "Unexpected operation" );
+  }
+  catch ( GeoDiffPostgresException &ex )
+  {
+    if ( isIntegrityError( ex.result() ) )
+    {
+      execSql( mConn, "ROLLBACK TO SAVEPOINT geodiff_apply" );
+      return ChangeApplyResult::ConstraintConflict;
+    }
+    throw;
+  }
+
+  execSql( mConn, "RELEASE SAVEPOINT geodiff_apply" );
+  return ChangeApplyResult::Applied;
+}
+
 
 void PostgresDriver::applyChangeset( ChangesetReader &reader )
 {
   if ( !mConn )
     throw GeoDiffException( "Not connected to a database" );
 
-  std::string lastTableName;
-  TableSchema tbl;
-
-  int autoIncrementPkeyIndex = -1;
-  std::map<std::string, int64_t> autoIncrementTablesToFix;  // key = table name, value = max. value in changeset
-  std::map<std::string, std::string> tableNameToSequenceName;  // key = table name, value = name of its pkey's sequence object
-
   // start a transaction, so that all changes get committed at once (or nothing get committed)
   PostgresTransaction transaction( mConn );
+  execSql( mConn, "SET CONSTRAINTS ALL DEFERRED" );
 
-  int conflictCount = 0;
+  // See sqlitedriver.cpp for why and how we're trying to apply changes
+  // multiple times
+  int unrecoverableConflictCount = 0;
+  std::vector<ChangesetEntry> conflictingEntries;
   ChangesetEntry entry;
+  PostgresChangeApplyState state;
+  std::unordered_map<std::string, std::unique_ptr<ChangesetTable>> tableCopies;
   while ( reader.nextEntry( entry ) )
   {
-    std::string tableName = entry.table->name;
-
-    if ( startsWith( tableName, "gpkg_" ) )
-      continue;   // skip any changes to GPKG meta tables
-
-    // skip table if necessary
-    if ( context()->isTableSkipped( tableName ) )
+    ChangeApplyResult res = applyChange( state, entry );
+    switch ( res )
     {
-      continue;
+      case ChangeApplyResult::Applied:
+      case ChangeApplyResult::Skipped:
+        break;
+      case ChangeApplyResult::ConstraintConflict:
+        if ( tableCopies.count( entry.table->name ) == 0 )
+          tableCopies[entry.table->name] = std::unique_ptr<ChangesetTable>( new ChangesetTable( *entry.table ) );
+        entry.table = tableCopies[entry.table->name].get();
+        conflictingEntries.push_back( entry );
+        break;
+      case ChangeApplyResult::NoChange:
+        unrecoverableConflictCount++;
+        break;
+    }
+  }
+
+  std::vector<ChangesetEntry> newConflictingEntries;
+  while ( conflictingEntries.size() > 0 )
+  {
+    for ( const ChangesetEntry &centry : conflictingEntries )
+    {
+      ChangeApplyResult res = applyChange( state, centry );
+      switch ( res )
+      {
+        case ChangeApplyResult::Applied:
+        case ChangeApplyResult::Skipped:
+          break;
+        case ChangeApplyResult::ConstraintConflict:
+          newConflictingEntries.push_back( centry );
+          break;
+        case ChangeApplyResult::NoChange:
+          unrecoverableConflictCount++;
+          break;
+      }
     }
 
-    if ( tableName != lastTableName )
+    if ( newConflictingEntries.size() == conflictingEntries.size() )
     {
-      lastTableName = tableName;
-      tbl = tableSchema( tableName );
-
-      if ( tbl.columns.size() == 0 )
-        throw GeoDiffException( "No such table: " + tableName );
-
-      if ( tbl.columns.size() != entry.table->columnCount() )
-        throw GeoDiffException( "Wrong number of columns for table: " + tableName );
-
-      for ( size_t i = 0; i < entry.table->columnCount(); ++i )
-      {
-        if ( tbl.columns[i].isPrimaryKey != entry.table->primaryKeys[i] )
-          throw GeoDiffException( "Mismatch of primary keys in table: " + tableName );
-      }
-
-      // if a table has auto-incrementing pkey (using SEQUENCE object), we may need
-      // to update the sequence value after doing some inserts (or subsequent INSERTs would fail)
-      std::string seqName = getSequenceObjectName( tbl, autoIncrementPkeyIndex );
-      if ( autoIncrementPkeyIndex != -1 )
-        tableNameToSequenceName[tableName] = seqName;
+      for ( const ChangesetEntry &centry : conflictingEntries )
+        logApplyConflict( "unresolvable_conflict", centry );
+      throw GeoDiffException( "Could not resolve dependencies in constraint conflicts." );
     }
-
-    if ( entry.op == ChangesetEntry::OpInsert )
-    {
-      std::string sql = sqlForInsert( mBaseSchema, tableName, tbl, entry.newValues );
-      PostgresResult res( execSql( mConn, sql ) );
-      if ( res.status() != PGRES_COMMAND_OK )
-      {
-        logApplyConflict( "insert_failed", entry );
-        ++conflictCount;
-        context()->logger().warn( "Failure doing INSERT: " + res.statusErrorMessage() );
-      }
-      if ( res.affectedRows() != "1" )
-      {
-        throw GeoDiffException( "Wrong number of affected rows! Expected 1, got: " + res.affectedRows() );
-      }
-
-      if ( autoIncrementPkeyIndex != -1 )
-      {
-        int64_t pkey = entry.newValues[autoIncrementPkeyIndex].getInt();
-        if ( autoIncrementTablesToFix.find( tableName ) == autoIncrementTablesToFix.end() )
-          autoIncrementTablesToFix[tableName] = pkey;
-        else
-          autoIncrementTablesToFix[tableName] = std::max( autoIncrementTablesToFix[tableName], pkey );
-      }
-    }
-    else if ( entry.op == ChangesetEntry::OpUpdate )
-    {
-      std::string sql = sqlForUpdate( mBaseSchema, tableName, tbl, entry.oldValues, entry.newValues );
-      PostgresResult res( execSql( mConn, sql ) );
-      if ( res.status() != PGRES_COMMAND_OK )
-      {
-        logApplyConflict( "update_failed", entry );
-        ++conflictCount;
-        context()->logger().warn( "Failure doing UPDATE: " + res.statusErrorMessage() );
-      }
-      if ( res.affectedRows() != "1" )
-      {
-        logApplyConflict( "update_nothing", entry );
-        ++conflictCount;
-        context()->logger().warn( "Wrong number of affected rows! Expected 1, got: " + res.affectedRows() + "\nSQL: " + sql );
-      }
-    }
-    else if ( entry.op == ChangesetEntry::OpDelete )
-    {
-      std::string sql = sqlForDelete( mBaseSchema, tableName, tbl, entry.oldValues );
-      PostgresResult res( execSql( mConn, sql ) );
-      if ( res.status() != PGRES_COMMAND_OK )
-      {
-        logApplyConflict( "delete_failed", entry );
-        ++conflictCount;
-        context()->logger().warn( "Failure doing DELETE: " + res.statusErrorMessage() );
-      }
-      if ( res.affectedRows() != "1" )
-      {
-        logApplyConflict( "delete_nothing", entry );
-        context()->logger().warn( "Wrong number of affected rows! Expected 1, got: " + res.affectedRows() );
-      }
-    }
-    else
-      throw GeoDiffException( "Unexpected operation" );
+    conflictingEntries = newConflictingEntries;
+    newConflictingEntries.clear();
   }
 
   // at the end, update any SEQUENCE objects if needed
-  for ( const auto &it : autoIncrementTablesToFix )
-    updateSequenceObject( tableNameToSequenceName[it.first], it.second );
+  for ( const auto &it : state.tableState )
+    if ( it.second.autoIncrementMax )
+      updateSequenceObject( it.second.sequenceName, it.second.autoIncrementMax );
 
-  if ( !conflictCount )
+  if ( !unrecoverableConflictCount )
   {
     transaction.commitChanges();
   }
   else
   {
-    throw GeoDiffException( "Conflicts encountered while applying changes! Total " + std::to_string( conflictCount ) );
+    throw GeoDiffException( "Conflicts encountered while applying changes! Total " + std::to_string( unrecoverableConflictCount ) );
   }
 }
 
