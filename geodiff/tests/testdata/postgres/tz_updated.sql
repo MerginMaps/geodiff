@@ -3,8 +3,9 @@ DROP SCHEMA IF EXISTS gd_tz_updated CASCADE;
 
 CREATE SCHEMA gd_tz_updated;
 
-CREATE TABLE gd_tz_updated.simple ( "fid" SERIAL PRIMARY KEY, "geometry" GEOMETRY(POINT, 4326), "created" TIMESTAMP WITHOUT TIME ZONE);
+CREATE TABLE gd_tz_updated.simple ( "fid" SERIAL PRIMARY KEY, note TEXT, "created" TIMESTAMP WITHOUT TIME ZONE);
 
-INSERT INTO gd_tz_updated.simple VALUES (1, ST_GeomFromText('Point (-1.08891928864569065 0.46101231190150482)', 4326), '2021-10-28 18:34:19.472');
-INSERT INTO gd_tz_updated.simple VALUES (2, ST_GeomFromText('Point (-0.36388508891928861 0.56224350205198359)', 4326), '2021-10-28 18:34:19');
-INSERT INTO gd_tz_updated.simple VALUES (3, ST_GeomFromText('Point (-0.73050615595075241 0.04240766073871405)', 4326), '2021-10-28 18:34:19.53');
+INSERT INTO gd_tz_updated.simple VALUES (1, 'row 1', '2021-10-28 18:34:19.472');
+INSERT INTO gd_tz_updated.simple VALUES (2, 'row 2', '2021-10-28 18:34:19');
+INSERT INTO gd_tz_updated.simple VALUES (3, 'row 3', '2021-10-28 18:34:19.53');
+INSERT INTO gd_tz_updated.simple VALUES (4, 'row 4 updated', '2025-12-03 17:21:23.130895');

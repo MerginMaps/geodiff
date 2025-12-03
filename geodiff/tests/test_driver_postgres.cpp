@@ -1090,6 +1090,9 @@ TEST( PostgresDriverTest, test_timestamp_miliseconds )
   EXPECT_EQ( resTimeStamp2.value( 0, 0 ), "2021-10-28 18:34:19" );
   PostgresResult resTimeStamp3( execSql( c, "select created from gd_tz_base.simple where fid = 3" ) );
   EXPECT_EQ( resTimeStamp3.value( 0, 0 ), "2021-10-28 18:34:19.53" );
+  // Check that rows with microsecond-precision timestamps get updated properly
+  PostgresResult resNote4( execSql( c, "select note from gd_tz_base.simple where fid = 4" ) );
+  EXPECT_EQ( resNote4.value( 0, 0 ), "row 4 updated" );
 
   PQfinish( c );
 }
