@@ -28,13 +28,14 @@ class GeoDiffException: public std::exception
     explicit GeoDiffException( const std::string &msg );
     const char *what() const noexcept override;
     virtual int errorCode() const { return GEODIFF_ERROR; }
-	// Prepend context to message
-	void addContext( const std::string &msg );
+    // Prepend context to message
+    void addContext( const std::string &msg );
   private:
     std::string mMsg;
 };
 
-class GeoDiffConflictsException : public GeoDiffException {
+class GeoDiffConflictsException : public GeoDiffException
+{
   public:
     using GeoDiffException::GeoDiffException;
     int errorCode() const override { return GEODIFF_CONFLICTS; }
