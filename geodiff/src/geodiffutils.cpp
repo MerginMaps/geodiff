@@ -3,6 +3,11 @@
  Copyright (C) 2019 Peter Petrik
 */
 
+#ifdef WIN32
+// codecvt is deprecated, but no replacement API is available.
+#define _SILENCE_CXX17_CODECVT_HEADER_DEPRECATION_WARNING
+#endif
+
 #include "geodiff.h"
 #include "geodiffutils.hpp"
 #include "changeset.h"
@@ -25,14 +30,14 @@
 #include <cctype>
 #include <gpkg.h>
 #include <locale>
-#include <codecvt>
 #include <limits>
 
-#ifdef _WIN32
+#ifdef WIN32
 #define UNICODE
 #include <windows.h>
 #include <tchar.h>
 #include <Shlwapi.h>
+#include <codecvt>
 #else
 #include <unistd.h>
 #include <errno.h>
