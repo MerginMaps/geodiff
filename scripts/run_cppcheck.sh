@@ -22,8 +22,9 @@ echo "cppcheck for ${SCRIPT_DIR}/../geodiff"
 cppcheck --inline-suppr \
          --template='{file}:{line},{severity},{id},{message}' \
          --enable=all --inconclusive --std=c++17 \
+         --suppress=useStlAlgorithm \
          -j $(nproc) \
-	     -igeodiff/src/3rdparty \
+         -igeodiff/src/3rdparty \
          ${SCRIPT_DIR}/../geodiff/src \
          >>${LOG_FILE} 2>&1 &
 

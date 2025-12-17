@@ -181,7 +181,7 @@ class TmpFile
     explicit TmpFile( const std::string &path );
     ~TmpFile();
 
-    std::string path() const;
+    const std::string &path() const;
 
     const char *c_path() const;
 
@@ -218,9 +218,9 @@ class ConflictFeature
     ConflictFeature( int pk, const std::string &tableName );
     bool isValid() const;
     void addItem( const ConflictItem &item );
-    std::string tableName() const;
+    const std::string &tableName() const;
     int pk() const;
-    std::vector<ConflictItem> items() const;
+    const std::vector<ConflictItem> &items() const;
   private:
     int mPk;
     std::string mTableName;
