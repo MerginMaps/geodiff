@@ -42,8 +42,8 @@ std::vector<std::string> Driver::drivers()
 
 bool Driver::driverIsRegistered( const std::string &driverName )
 {
-  const std::vector<std::string> drivers = Driver::drivers();
-  return std::find( drivers.begin(), drivers.end(), driverName ) != drivers.end();
+  const std::vector<std::string> driverList = Driver::drivers();
+  return std::find( driverList.begin(), driverList.end(), driverName ) != driverList.end();
 }
 
 std::unique_ptr<Driver> Driver::createDriver( const Context *context, const std::string &driverName )

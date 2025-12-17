@@ -201,7 +201,7 @@ std::vector<std::string> SqliteDriver::listTables( bool useModified )
   int rc;
   while ( SQLITE_ROW == ( rc = sqlite3_step( statement.get() ) ) )
   {
-    const char *name = ( const char * )sqlite3_column_text( statement.get(), 0 );
+    const char *name = reinterpret_cast<const char *>( sqlite3_column_text( statement.get(), 0 ) );
     if ( !name )
       continue;
 
@@ -275,10 +275,10 @@ TableSchema SqliteDriver::tableSchema( const std::string &tableName,
       throw GeoDiffException( "NULL column name in table schema: " + tableName );
 
     TableColumnInfo columnInfo;
-    columnInfo.name = ( const char * )zName;
+    columnInfo.name = reinterpret_cast<const char *>( zName );
     columnInfo.isNotNull = sqlite3_column_int( statement.get(), 3 );
     columnInfo.isPrimaryKey = sqlite3_column_int( statement.get(), 5 );
-    columnTypes[columnInfo.name] = ( const char * ) sqlite3_column_text( statement.get(), 2 );
+    columnTypes[columnInfo.name] = reinterpret_cast<const char *>( sqlite3_column_text( statement.get(), 2 ) );
 
     tbl.columns.push_back( columnInfo );
   }
@@ -306,8 +306,8 @@ TableSchema SqliteDriver::tableSchema( const std::string &tableName,
       if ( chrTypeName == nullptr )
         throw GeoDiffException( "NULL type name in gpkg_geometry_columns: " + tableName );
 
-      std::string geomColName = ( const char * ) chrColumnName;
-      std::string geomTypeName = ( const char * ) chrTypeName;
+      std::string geomColName = reinterpret_cast<const char *>( chrColumnName );
+      std::string geomTypeName = reinterpret_cast<const char *>( chrTypeName );
       srsId = sqlite3_column_int( stmtGeomCol.get(), 3 );
       bool hasZ = sqlite3_column_int( stmtGeomCol.get(), 4 );
       bool hasM = sqlite3_column_int( stmtGeomCol.get(), 5 );
@@ -345,9 +345,9 @@ TableSchema SqliteDriver::tableSchema( const std::string &tableName,
         throw GeoDiffException( "NULL definition in gpkg_spatial_ref_sys: " + tableName );
 
       tbl.crs.srsId = srsId;
-      tbl.crs.authName = ( const char * ) chrAuthName;
+      tbl.crs.authName = reinterpret_cast<const char *>( chrAuthName );
       tbl.crs.authCode = sqlite3_column_int( stmtCrs.get(), 3 );
-      tbl.crs.wkt = ( const char * ) chrWkt;
+      tbl.crs.wkt = reinterpret_cast<const char *>( chrWkt );
     }
   }
 
@@ -383,7 +383,7 @@ static std::string sqlitePrintf( const char *zFormat, ... )
   {
     throw GeoDiffException( "out of memory" );
   }
-  std::string res = ( const char * )zSql;
+  std::string res = reinterpret_cast<const char *>( zSql );
   sqlite3_free( zSql );
   return res;
 }
@@ -460,9 +460,9 @@ static Value changesetValue( sqlite3_value *v )
   else if ( type == SQLITE_FLOAT )
     x.setDouble( sqlite3_value_double( v ) );
   else if ( type == SQLITE_TEXT )
-    x.setString( Value::TypeText, ( const char * )sqlite3_value_text( v ), sqlite3_value_bytes( v ) );
+    x.setString( Value::TypeText, reinterpret_cast<const char *>( sqlite3_value_text( v ) ), sqlite3_value_bytes( v ) );
   else if ( type == SQLITE_BLOB )
-    x.setString( Value::TypeBlob, ( const char * )sqlite3_value_blob( v ), sqlite3_value_bytes( v ) );
+    x.setString( Value::TypeBlob, reinterpret_cast<const char *>( sqlite3_value_blob( v ) ), sqlite3_value_bytes( v ) );
   else
     throw GeoDiffException( "Unexpected value type" );
 
@@ -864,8 +864,6 @@ SqliteChangeApplyResult SqliteDriver::applyChange( SqliteChangeApplyState &state
 
 void SqliteDriver::applyChangeset( ChangesetReader &reader )
 {
-  std::string lastTableName;
-  std::unique_ptr<Sqlite3Stmt> stmtInsert, stmtUpdate, stmtDelete;
   TableSchema tbl;
 
   // this will acquire DB mutex and release it when the function ends (or when an exception is thrown)
@@ -889,7 +887,7 @@ void SqliteDriver::applyChangeset( ChangesetReader &reader )
   std::vector<std::string> triggerCmds;
   sqliteTriggers( context(), mDb, triggerNames, triggerCmds );
 
-  for ( std::string name : triggerNames )
+  for ( const std::string &name : triggerNames )
   {
     statement.prepare( mDb, "drop trigger '%q'", name.c_str() );
     rc = sqlite3_step( statement.get() );
@@ -919,6 +917,7 @@ void SqliteDriver::applyChangeset( ChangesetReader &reader )
         // happy to change entry.table under our feet. We need to copy the
         // table object, ideally only keeping one per table.
         if ( tableCopies.count( entry.table->name ) == 0 )
+          // cppcheck-suppress stlFindInsert
           tableCopies[entry.table->name] = std::unique_ptr<ChangesetTable>( new ChangesetTable( *entry.table ) );
         entry.table = tableCopies[entry.table->name].get();
         conflictingEntries.push_back( entry );
@@ -966,7 +965,7 @@ void SqliteDriver::applyChangeset( ChangesetReader &reader )
   }
 
   // recreate triggers
-  for ( std::string cmd : triggerCmds )
+  for ( const std::string &cmd : triggerCmds )
   {
     statement.prepare( mDb, "%s", cmd.c_str() );
     if ( SQLITE_DONE != sqlite3_step( statement.get() ) )

@@ -116,7 +116,7 @@ void Buffer::read( const std::string &filename )
   }
 
   /* Allocate a buffer to hold the whole file */
-  mZ = ( char * ) sqlite3_malloc( mAlloc );
+  mZ = reinterpret_cast<char *>( sqlite3_malloc( mAlloc ) );
   if ( mZ == nullptr )
   {
     fclose( fp );
@@ -163,7 +163,7 @@ void Buffer::printf( const char *zFormat, ... )
       break;
     }
     mAlloc = mAlloc * 2 + 1000;
-    mZ = ( char * ) sqlite3_realloc( mZ, mAlloc );
+    mZ = reinterpret_cast<char *>( sqlite3_realloc( mZ, mAlloc ) );
     if ( mZ == nullptr )
     {
       throw GeoDiffException( "out of memory in Buffer::printf" );

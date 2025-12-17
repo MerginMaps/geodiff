@@ -86,7 +86,7 @@ Sqlite3Stmt::~Sqlite3Stmt()
   close();
 }
 
-sqlite3_stmt *Sqlite3Stmt::db_vprepare( sqlite3 *db, const char *zFormat, va_list ap )
+static sqlite3_stmt *db_vprepare( sqlite3 *db, const char *zFormat, va_list ap )
 {
   char *zSql;
   int rc;
@@ -203,7 +203,9 @@ bool Sqlite3Value::operator==( const Sqlite3Value &other ) const
     return sqlite3_value_double( v1 ) == sqlite3_value_double( v2 );
   else if ( type1 == SQLITE_TEXT )
   {
-    return strcmp( ( const char * ) sqlite3_value_text( v1 ), ( const char * ) sqlite3_value_text( v2 ) ) == 0;
+    return strcmp(
+             reinterpret_cast<const char *>( sqlite3_value_text( v1 ) ),
+             reinterpret_cast<const char *>( sqlite3_value_text( v2 ) ) ) == 0;
   }
   else if ( type1 == SQLITE_BLOB )
   {
@@ -262,8 +264,8 @@ void sqliteTriggers( const Context *context, std::shared_ptr<Sqlite3Db> db, std:
   int rc;
   while ( SQLITE_ROW == ( rc = sqlite3_step( statament.get() ) ) )
   {
-    const char *name = ( char * ) sqlite3_column_text( statament.get(), 0 );
-    const char *sql = ( char * ) sqlite3_column_text( statament.get(), 1 );
+    const char *name = reinterpret_cast<const char *>( sqlite3_column_text( statament.get(), 0 ) );
+    const char *sql = reinterpret_cast<const char *>( sqlite3_column_text( statament.get(), 1 ) );
 
     if ( !name || !sql )
       continue;
@@ -334,9 +336,9 @@ ForeignKeys sqliteForeignKeys( const Context *context, std::shared_ptr<Sqlite3Db
       int rc;
       while ( SQLITE_ROW == ( rc = sqlite3_step( pStmt.get() ) ) )
       {
-        const char *fk_to_table = ( const char * )sqlite3_column_text( pStmt.get(), 2 );
-        const char *fk_from = ( const char * )sqlite3_column_text( pStmt.get(), 3 );
-        const char *fk_to = ( const char * )sqlite3_column_text( pStmt.get(), 4 );
+        const char *fk_to_table = reinterpret_cast<const char *>( sqlite3_column_text( pStmt.get(), 2 ) );
+        const char *fk_from = reinterpret_cast<const char *>( sqlite3_column_text( pStmt.get(), 3 ) );
+        const char *fk_to = reinterpret_cast<const char *>( sqlite3_column_text( pStmt.get(), 4 ) );
 
         if ( fk_to_table && fk_from && fk_to )
         {
@@ -384,7 +386,7 @@ void sqliteTables( const Context *context,
   int rc;
   while ( SQLITE_ROW == ( rc = sqlite3_step( statament.get() ) ) )
   {
-    const char *name = ( const char * )sqlite3_column_text( statament.get(), 0 );
+    const char *name = reinterpret_cast<const char *>( sqlite3_column_text( statament.get(), 0 ) );
     if ( !name )
       continue;
 
@@ -454,9 +456,9 @@ std::vector<std::string> sqliteColumnNames(
   int rc;
   while ( SQLITE_ROW == ( rc = sqlite3_step( pStmt.get() ) ) )
   {
-    if ( sqlite3_stricmp( ( const char * )sqlite3_column_text( pStmt.get(), 3 ), "pk" ) == 0 )
+    if ( sqlite3_stricmp( reinterpret_cast<const char *>( sqlite3_column_text( pStmt.get(), 3 ) ), "pk" ) == 0 )
     {
-      zPkIdxName = ( const char * ) sqlite3_column_text( pStmt.get(), 1 );
+      zPkIdxName = reinterpret_cast<const char *>( sqlite3_column_text( pStmt.get(), 1 ) );
       break;
     }
   }
@@ -506,7 +508,7 @@ std::vector<std::string> sqliteColumnNames(
   while ( SQLITE_ROW == ( rc = sqlite3_step( pStmt.get() ) ) )
   {
     int iPKey;
-    std::string name = ( char * )sqlite3_column_text( pStmt.get(), 1 );
+    std::string name = reinterpret_cast<const char *>( sqlite3_column_text( pStmt.get(), 1 ) );
     if ( truePk && ( iPKey = sqlite3_column_int( pStmt.get(), 5 ) ) > 0 )
     {
       az[iPKey - 1] = name;
