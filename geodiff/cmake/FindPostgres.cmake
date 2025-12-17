@@ -21,9 +21,9 @@ ENDIF(ANDROID)
 
 IF(WIN32 AND NOT ANDROID)
   IF (NOT POSTGRES_INCLUDE_DIR)
-    FIND_PATH(POSTGRES_INCLUDE_DIR libpq-fe.h 
-      /usr/local/include 
-      /usr/include 
+    FIND_PATH(POSTGRES_INCLUDE_DIR libpq-fe.h
+      /usr/local/include
+      /usr/include
       c:/msys/local/include
       "$ENV{LIB_DIR}/include/postgresql"
       "$ENV{LIB_DIR}/include"
@@ -31,16 +31,16 @@ IF(WIN32 AND NOT ANDROID)
   ENDIF (NOT POSTGRES_INCLUDE_DIR)
 
   IF (NOT POSTGRES_LIBRARY)
-    FIND_LIBRARY(POSTGRES_LIBRARY NAMES pq libpq libpqdll PATHS 
-      /usr/local/lib 
-      /usr/lib 
+    FIND_LIBRARY(POSTGRES_LIBRARY NAMES pq libpq libpqdll PATHS
+      /usr/local/lib
+      /usr/lib
       c:/msys/local/lib
       "$ENV{LIB_DIR}/lib"
       )
   ENDIF (NOT POSTGRES_LIBRARY)
 
 ELSE(WIN32)
-  IF(UNIX) 
+  IF(UNIX)
 
     SET(POSTGRES_CONFIG_PREFER_PATH "$ENV{POSTGRES_HOME}/bin" CACHE STRING "preferred path to PG (pg_config)")
     FIND_PROGRAM(POSTGRES_CONFIG pg_config
@@ -50,8 +50,8 @@ ELSE(WIN32)
       /usr/bin/
       )
     # MESSAGE("DBG POSTGRES_CONFIG ${POSTGRES_CONFIG}")
-    
-    IF (POSTGRES_CONFIG) 
+
+    IF (POSTGRES_CONFIG)
       # set INCLUDE_DIR
       EXEC_PROGRAM(${POSTGRES_CONFIG}
         ARGS --includedir
@@ -87,11 +87,11 @@ ELSE(WIN32)
         ENDFOREACH(_LIB ${_LDIRS})
 
         FOREACH(_LIBNAME ${_LIBS})
-	  UNSET(PG_LIB CACHE)
+          UNSET(PG_LIB CACHE)
           FIND_LIBRARY(PG_LIB NAMES ${_LIBNAME} PATHS ${_DIRS} /usr/lib /usr/local/lib)
-	  IF(NOT PG_LIB)
-	    MESSAGE(FATAL "PostgreSQL dependency library ${_LIBNAME} not found")
-	  ENDIF(NOT PG_LIB)
+          IF(NOT PG_LIB)
+            MESSAGE(FATAL "PostgreSQL dependency library ${_LIBNAME} not found")
+          ENDIF(NOT PG_LIB)
           SET(POSTGRES_LIBRARY ${POSTGRES_LIBRARY} ${PG_LIB})
         ENDFOREACH(_LIBNAME ${_LIBS})
 
