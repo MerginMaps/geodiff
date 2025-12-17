@@ -50,7 +50,6 @@ class Sqlite3Stmt
     sqlite3_stmt *get();
     void close();
   private:
-    sqlite3_stmt *db_vprepare( sqlite3 *db, const char *zFormat, va_list ap );
     sqlite3_stmt *mStmt = nullptr;
 };
 

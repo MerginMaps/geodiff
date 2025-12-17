@@ -261,7 +261,7 @@ void concatChangesets(
   // output all we have captured
   for ( auto it = result.begin(); it != result.end(); ++it )
   {
-    TableChanges &t = it->second;
+    const TableChanges &t = it->second;
     if ( t.entries.size() == 0 )
       continue;
 

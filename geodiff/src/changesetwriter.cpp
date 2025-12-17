@@ -58,7 +58,7 @@ void ChangesetWriter::writeVarint( int n )
 {
   unsigned char output[9];  // 1-9 bytes
   int numBytes = putVarint32( output, n );
-  mFile.write( ( char * )output, numBytes );
+  mFile.write( reinterpret_cast<char *>( output ), numBytes );
 }
 
 void ChangesetWriter::writeNullTerminatedString( const std::string &str )
@@ -82,7 +82,7 @@ void ChangesetWriter::writeRowValues( const std::vector<Value> &values )
       int64_t v = values[i].getInt();
       memcpy( &x, &v, 8 );
       x = htobe64( x ); // convert host to big endian
-      mFile.write( ( char * )&x, 8 );
+      mFile.write( reinterpret_cast<char *>( &x ), 8 );
     }
     else if ( type == Value::TypeDouble ) // 0x02
     {
@@ -91,12 +91,12 @@ void ChangesetWriter::writeRowValues( const std::vector<Value> &values )
       double v = values[i].getDouble();
       memcpy( &x, &v, 8 );
       x = htobe64( x ); // convert host to big endian
-      mFile.write( ( char * )&x, 8 );
+      mFile.write( reinterpret_cast<char *>( &x ), 8 );
     }
     else if ( type == Value::TypeText || type == Value::TypeBlob ) // 0x03 or 0x04
     {
       const std::string &str = values[i].getString();
-      writeVarint( ( int ) str.size() );
+      writeVarint( static_cast<int>( str.size() ) );
       mFile.write( str.c_str(), str.size() );
     }
     else if ( type == Value::TypeNull ) // 0x05

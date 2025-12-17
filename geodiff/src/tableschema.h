@@ -94,7 +94,7 @@ struct TableColumnInfo
   //! Whether the geometry column includes M coordinates
   bool geomHasM = false;
 
-  bool compareWithBaseTypes( TableColumnInfo other ) const
+  bool compareWithBaseTypes( const TableColumnInfo &other ) const
   {
     return name == other.name && type == other.type.baseType && isPrimaryKey == other.isPrimaryKey &&
            isNotNull == other.isNotNull && isAutoIncrement == other.isAutoIncrement &&
@@ -173,7 +173,7 @@ struct CrsDefinition
 /** Information about table's spatial extent */
 struct Extent
 {
-  Extent( double _minX = 0, double _minY = 0, double _maxX = 0, double _maxY = 0 )
+  explicit Extent( double _minX = 0, double _minY = 0, double _maxX = 0, double _maxY = 0 )
     : minX( _minX ), minY( _minY ), maxX( _maxX ), maxY( _maxY ) {}
 
   double minX = 0, minY = 0, maxX = 0, maxY = 0;

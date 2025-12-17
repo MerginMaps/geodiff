@@ -96,7 +96,9 @@ nlohmann::json valueToJSON( const Value &value )
     {
       // this used to either show "blob N bytes" or would be converted to WKT
       // but this is better - it preserves content of any type + can be decoded back
-      std::string base64 = base64_encode( ( const unsigned char * ) value.getString().data(), ( unsigned int ) value.getString().size() );
+      std::string base64 = base64_encode(
+                             reinterpret_cast<const unsigned char *>( value.getString().data() ),
+                             static_cast<unsigned int>( value.getString().size() ) );
       j = base64;
       break;
     }

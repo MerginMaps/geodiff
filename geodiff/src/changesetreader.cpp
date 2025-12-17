@@ -95,7 +95,7 @@ char ChangesetReader::readByte()
 int ChangesetReader::readVarint()
 {
   u32 value;
-  const unsigned char *ptr = ( const unsigned char * )mBuffer->c_buf() + mOffset;
+  const unsigned char *ptr = reinterpret_cast<const unsigned char *>( mBuffer->c_buf() ) + mOffset;
   int nBytes = getVarint32( ptr, value );
   mOffset += nBytes;
   return value;
