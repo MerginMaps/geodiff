@@ -464,7 +464,6 @@ std::string tmpdir()
   wchar_t arr[MAX_PATH];
   DWORD dwRetVal = GetTempPathW( MAX_PATH, arr );
 
-  std::wstring tempDirPath( arr );
   if ( dwRetVal > MAX_PATH || ( dwRetVal == 0 ) )
   {
     return std::string( "C:/temp/" );
@@ -472,6 +471,7 @@ std::string tmpdir()
 
   try
   {
+    std::wstring tempDirPath( arr );
     return wstringToString( tempDirPath );
   }
   catch ( GeoDiffException & )
@@ -536,7 +536,7 @@ TmpFile::~TmpFile()
   }
 }
 
-std::string TmpFile::path() const
+const std::string &TmpFile::path() const
 {
   return mPath;
 }
@@ -568,7 +568,7 @@ void ConflictFeature::addItem( const ConflictItem &item )
   mItems.push_back( item );
 }
 
-std::string ConflictFeature::tableName() const
+const std::string &ConflictFeature::tableName() const
 {
   return mTableName;
 }
@@ -578,7 +578,7 @@ int ConflictFeature::pk() const
   return mPk;
 }
 
-std::vector<ConflictItem> ConflictFeature::items() const
+const std::vector<ConflictItem> &ConflictFeature::items() const
 {
   return mItems;
 }
