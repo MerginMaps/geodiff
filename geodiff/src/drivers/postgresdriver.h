@@ -28,14 +28,6 @@ struct PostgresChangeApplyState
   std::map<std::string, TableState> tableState;
 };
 
-enum class PostgresChangeApplyResult
-{
-  Applied, // Successfully applied
-  Skipped, // Skipped due to config
-  ConstraintConflict, // Ended due to constraint conflict
-  NoChange, // Ended due to no matching row
-};
-
 // TODO: add docs!
 class PostgresDriver : public Driver
 {
