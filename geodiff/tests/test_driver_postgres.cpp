@@ -24,8 +24,11 @@ extern "C"
 void execSqlCommandsFromString( const std::string &conninfo, const std::string &sql )
 {
   PGconn *c = PQconnectdb( conninfo.c_str() );
-
-  ASSERT_EQ( PQstatus( c ), CONNECTION_OK );
+  if ( PQstatus( c ) != CONNECTION_OK )
+  {
+    PQfinish( c );
+    FAIL() << "Failed to connect to Postgres!";
+  }
 
   PGresult *res = PQexec( c, sql.c_str() );
   ASSERT_TRUE( res );
