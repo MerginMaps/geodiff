@@ -4,6 +4,7 @@
 */
 
 #include "postgresutils.h"
+#include "geodiff.h"
 #include "geodiffutils.hpp"
 
 GeoDiffPostgresException::GeoDiffPostgresException( PGresult *res, const std::string &sql )
@@ -18,6 +19,14 @@ GeoDiffPostgresException::GeoDiffPostgresException( PostgresResult res, const st
 const PostgresResult &GeoDiffPostgresException::result() const
 {
   return mRes;
+}
+
+int GeoDiffPostgresException::errorCode() const
+{
+  if ( mRes.isIntegrityError() )
+    return GEODIFF_CONFLICTS;
+  else
+    return GEODIFF_ERROR;
 }
 
 PostgresResult execSql( PGconn *c, const std::string &sql )

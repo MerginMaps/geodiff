@@ -53,6 +53,11 @@ class PostgresResult
       return ::PQresultErrorField( mResult, PG_DIAG_SQLSTATE );
     }
 
+    bool isIntegrityError() const
+    {
+      return sqlState().substr( 0, 2 ) == "23";
+    }
+
     int rowCount() const
     {
       assert( mResult );
@@ -91,6 +96,7 @@ class GeoDiffPostgresException: public GeoDiffException
     explicit GeoDiffPostgresException( PGresult *res, const std::string &sql );
     explicit GeoDiffPostgresException( PostgresResult res, const std::string &sql );
     const PostgresResult &result() const;
+    int errorCode() const override;
   private:
     std::string mSql;
     PostgresResult mRes;
