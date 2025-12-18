@@ -444,7 +444,12 @@ def test_geodiff_rebase_fkey_constraint_violation(user_a_data_first, driver, tmp
     )
     # Assert that rebasing fails due to DB constraints on application of diffs
     with pytest.raises(
-        GeoDiffLibConflictError, match=".*FOREIGN KEY constraint failed.*"
+        GeoDiffLibConflictError,
+        match=(
+            ".*FOREIGN KEY constraint failed.*"
+            if driver == "sqlite"
+            else ".*violates foreign key constraint.*"
+        ),
     ):
         geodiff.rebase_ex(
             driver, original.driver_info, original.db, mine.db, str(diff), str(conflict)

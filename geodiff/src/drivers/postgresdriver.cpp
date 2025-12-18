@@ -794,11 +794,6 @@ static std::string sqlForDelete( const std::string &schemaName, const std::strin
   return sql;
 }
 
-static bool isIntegrityError( const PostgresResult &res )
-{
-  return res.sqlState().substr( 0, 2 ) == "23";
-}
-
 ChangeApplyResult PostgresDriver::applyChange( PostgresChangeApplyState &state, const ChangesetEntry &entry )
 {
   std::string tableName = entry.table->name;
@@ -881,7 +876,7 @@ ChangeApplyResult PostgresDriver::applyChange( PostgresChangeApplyState &state, 
   }
   catch ( GeoDiffPostgresException &ex )
   {
-    if ( isIntegrityError( ex.result() ) )
+    if ( ex.result().isIntegrityError() )
     {
       execSql( mConn, "ROLLBACK TO SAVEPOINT geodiff_apply" );
       return ChangeApplyResult::ConstraintConflict;
@@ -955,7 +950,7 @@ void PostgresDriver::applyChangeset( ChangesetReader &reader )
     {
       for ( const ChangesetEntry &centry : conflictingEntries )
         logApplyConflict( "unresolvable_conflict", centry );
-      throw GeoDiffException( "Could not resolve dependencies in constraint conflicts." );
+      throw GeoDiffConflictsException( "Could not resolve dependencies in constraint conflicts." );
     }
     conflictingEntries = newConflictingEntries;
     newConflictingEntries.clear();
@@ -972,7 +967,7 @@ void PostgresDriver::applyChangeset( ChangesetReader &reader )
   }
   else
   {
-    throw GeoDiffException( "Conflicts encountered while applying changes! Total " + std::to_string( unrecoverableConflictCount ) );
+    throw GeoDiffConflictsException( "Conflicts encountered while applying changes! Total " + std::to_string( unrecoverableConflictCount ) );
   }
 }
 
