@@ -98,7 +98,9 @@ void PostgresDriver::openPrivate( const DriverParametersMap &conn )
 
   if ( PQstatus( c ) != CONNECTION_OK )
   {
-    throw GeoDiffException( "Cannot connect to PostgreSQL database: " + std::string( PQerrorMessage( c ) ) );
+    std::string msg( PQerrorMessage( c ) );
+    PQfinish( c );
+    throw GeoDiffException( "Cannot connect to PostgreSQL database: " + msg );
   }
 
   mConn = c;
