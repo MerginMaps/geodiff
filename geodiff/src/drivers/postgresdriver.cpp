@@ -841,13 +841,12 @@ ChangeApplyResult PostgresDriver::applyChange( PostgresChangeApplyState &state, 
     if ( tbl.autoIncrementPkeyIndex != -1 )
       tbl.sequenceName = seqName;
   }
-  PostgresChangeApplyState::TableState &tbl = state.tableState[tableName];
-
   // Create savepoint so we have somewhere to rollback to if the command fails
   execSql( mConn, "SAVEPOINT geodiff_apply" );
 
   try
   {
+    PostgresChangeApplyState::TableState &tbl = state.tableState[tableName];
     if ( entry.op == ChangesetEntry::OpInsert )
     {
       std::string sql = sqlForInsert( mBaseSchema, tableName, tbl.schema, entry.newValues );
@@ -927,6 +926,7 @@ void PostgresDriver::applyChangeset( ChangesetReader &reader )
         break;
       case ChangeApplyResult::ConstraintConflict:
         if ( tableCopies.count( entry.table->name ) == 0 )
+          // cppcheck-suppress stlFindInsert
           tableCopies[entry.table->name] = std::unique_ptr<ChangesetTable>( new ChangesetTable( *entry.table ) );
         entry.table = tableCopies[entry.table->name].get();
         conflictingEntries.push_back( entry );
