@@ -96,7 +96,7 @@ class GeoDiffPostgresException: public GeoDiffException
     PostgresResult mRes;
 };
 
-PGresult *execSql( PGconn *c, const std::string &sql );
+PostgresResult execSql( PGconn *c, const std::string &sql );
 
 std::string quotedIdentifier( const std::string &ident );
 std::string quotedString( const std::string &value );
