@@ -38,7 +38,7 @@ bool Context::isTableSkipped( const std::string &tableName ) const
   return std::any_of( mTablesToSkip.begin(), mTablesToSkip.end(), std::bind( std::equal_to< std::string >(), std::placeholders::_1, tableName ) );
 }
 
-void Context::setLastError( std::string &message )
+void Context::setLastError( const std::string &message )
 {
   mLastError = message;
 }

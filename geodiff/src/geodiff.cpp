@@ -35,7 +35,7 @@
  * Logs message as error and sets error message for C API. To be used before
  * returning public function.
  */
-static void setAndLogError( Context *context, std::string msg )
+static void setAndLogError( Context *context, const std::string &msg )
 {
   context->logger().error( msg );
   context->setLastError( msg );
@@ -164,7 +164,7 @@ int GEODIFF_CX_setTablesToSkip( GEODIFF_ContextH contextHandle, int tablesCount,
 
 const char *GEODIFF_CX_lastError( GEODIFF_ContextH contextHandle )
 {
-  Context *context = static_cast<Context *>( contextHandle );
+  const Context *context = static_cast<const Context *>( contextHandle );
   if ( !context )
     return "";
   return context->lastError().c_str();
@@ -190,7 +190,7 @@ int GEODIFF_applyChangeset( GEODIFF_ContextH contextHandle, const char *base, co
   return GEODIFF_applyChangesetEx( contextHandle, "sqlite", nullptr, base, changeset );
 }
 
-static void createChangesetEx( Context *context, const char *driverName, const char *driverExtraInfo,
+static void createChangesetEx( const Context *context, const char *driverName, const char *driverExtraInfo,
                                const char *base, const char *modified,
                                const char *changeset )
 {
@@ -238,7 +238,7 @@ int GEODIFF_createChangesetEx( GEODIFF_ContextH contextHandle, const char *drive
 }
 
 
-static void makeCopy( Context *context,
+static void makeCopy( const Context *context,
                       const char *driverSrcName,
                       const char *driverSrcExtraInfo,
                       const char *src,
