@@ -20,7 +20,7 @@ const PostgresResult &GeoDiffPostgresException::result() const
   return mRes;
 }
 
-PGresult *execSql( PGconn *c, const std::string &sql )
+PostgresResult execSql( PGconn *c, const std::string &sql )
 {
   PGresult *res = ::PQexec( c, sql.c_str() );
 
@@ -32,7 +32,7 @@ PGresult *execSql( PGconn *c, const std::string &sql )
       throw GeoDiffPostgresException( res, sql );
     }
 
-    return res;
+    return PostgresResult( res );
   }
   if ( PQstatus( c ) != CONNECTION_OK )
   {
@@ -45,7 +45,7 @@ PGresult *execSql( PGconn *c, const std::string &sql )
     throw GeoDiffException( "postgres error: out of memory" );
   }
 
-  return nullptr;
+  return PostgresResult( nullptr );
 }
 
 std::string quotedIdentifier( const std::string &ident )

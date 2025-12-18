@@ -34,9 +34,7 @@ class PostgresTransaction
     explicit PostgresTransaction( PGconn *conn )
       : mConn( conn )
     {
-      PostgresResult res( execSql( mConn, "BEGIN" ) );
-      if ( res.status() != PGRES_COMMAND_OK )
-        throw GeoDiffException( "Unable to start transaction" );
+      execSql( mConn, "BEGIN" );
     }
 
     ~PostgresTransaction()
@@ -44,16 +42,14 @@ class PostgresTransaction
       if ( mConn )
       {
         // we had some problems - roll back any pending changes
-        PostgresResult res( execSql( mConn, "ROLLBACK" ) );
+        execSql( mConn, "ROLLBACK" );
       }
     }
 
     void commitChanges()
     {
       assert( mConn );
-      PostgresResult res( execSql( mConn, "COMMIT" ) );
-      if ( res.status() != PGRES_COMMAND_OK )
-        throw GeoDiffException( "Unable to commit transaction" );
+      execSql( mConn, "COMMIT" );
 
       // reset handler to the database so that the destructor does nothing
       mConn = nullptr;
@@ -110,9 +106,7 @@ void PostgresDriver::openPrivate( const DriverParametersMap &conn )
   // Make sure we are using enough digits for floating point numbers to make sure that we are
   // not loosing any digits when querying data.
   // https://www.postgresql.org/docs/12/runtime-config-client.html#GUC-EXTRA-FLOAT-DIGITS
-  PostgresResult res( execSql( mConn, "SET extra_float_digits = 2;" ) );
-  if ( res.status() != PGRES_COMMAND_OK )
-    throw GeoDiffException( "Failed to set extra_float_digits" );
+  execSql( mConn, "SET extra_float_digits = 2;" );
 }
 
 void PostgresDriver::close()
@@ -129,7 +123,7 @@ void PostgresDriver::open( const DriverParametersMap &conn )
   openPrivate( conn );
 
   {
-    PostgresResult resBase( execSql( mConn, "SELECT 1 FROM pg_namespace WHERE nspname = " + quotedString( mBaseSchema ) ) );
+    PostgresResult resBase = execSql( mConn, "SELECT 1 FROM pg_namespace WHERE nspname = " + quotedString( mBaseSchema ) );
     if ( resBase.rowCount() == 0 )
     {
       std::string baseSchema = mBaseSchema;  // close() will erase mBaseSchema...
@@ -140,7 +134,7 @@ void PostgresDriver::open( const DriverParametersMap &conn )
 
   if ( !mModifiedSchema.empty() )
   {
-    PostgresResult resBase( execSql( mConn, "SELECT 1 FROM pg_namespace WHERE nspname = " + quotedString( mModifiedSchema ) ) );
+    PostgresResult resBase = execSql( mConn, "SELECT 1 FROM pg_namespace WHERE nspname = " + quotedString( mModifiedSchema ) );
     if ( resBase.rowCount() == 0 )
     {
       std::string modifiedSchema = mModifiedSchema;  // close() will erase mModifiedSchema...
@@ -159,9 +153,7 @@ void PostgresDriver::create( const DriverParametersMap &conn, bool overwrite )
     sql += "DROP SCHEMA IF EXISTS " + quotedIdentifier( mBaseSchema ) + " CASCADE; ";
   sql += "CREATE SCHEMA " + quotedIdentifier( mBaseSchema ) + ";";
 
-  PostgresResult res( execSql( mConn, sql ) );
-  if ( res.status() != PGRES_COMMAND_OK )
-    throw GeoDiffException( "Failure creating table: " + res.statusErrorMessage() );
+  execSql( mConn, sql );
 }
 
 
@@ -174,7 +166,7 @@ std::vector<std::string> PostgresDriver::listTables( bool useModified )
 
   std::string schemaName = useModified ? mModifiedSchema : mBaseSchema;
   std::string sql = "select tablename from pg_tables where schemaname=" + quotedString( schemaName );
-  PostgresResult res( execSql( mConn, sql ) );
+  PostgresResult res = execSql( mConn, sql );
 
   std::vector<std::string> tables;
   for ( int i = 0; i < res.rowCount(); ++i )
@@ -284,7 +276,7 @@ TableSchema PostgresDriver::tableSchema( const std::string &tableName, bool useM
                                quotedString( schemaName ) + " AND f_table_name = " + quotedString( tableName );
   std::map<std::string, std::pair<std::string, std::string>> geomTypes;
   std::map<std::string, int> geomSrids;
-  PostgresResult resGeomDetails( execSql( mConn, sqlGeomDetails ) );
+  PostgresResult resGeomDetails = execSql( mConn, sqlGeomDetails );
   for ( int i = 0; i < resGeomDetails.rowCount(); ++i )
   {
     std::string name = resGeomDetails.value( i, 0 );
@@ -321,7 +313,7 @@ TableSchema PostgresDriver::tableSchema( const std::string &tableName, bool useM
     "   )"
     "  ORDER BY a.attnum";
 
-  PostgresResult res( execSql( mConn, sqlColumns ) );
+  PostgresResult res = execSql( mConn, sqlColumns );
 
   int srsId = -1;
   TableSchema schema;
@@ -360,9 +352,9 @@ TableSchema PostgresDriver::tableSchema( const std::string &tableName, bool useM
 
   if ( srsId != -1 )
   {
-    PostgresResult resCrs( execSql( mConn,
-                                    "SELECT auth_name, auth_srid, srtext "
-                                    "FROM spatial_ref_sys WHERE srid = " + std::to_string( srsId ) ) );
+    PostgresResult resCrs = execSql( mConn,
+                                     "SELECT auth_name, auth_srid, srtext "
+                                     "FROM spatial_ref_sys WHERE srid = " + std::to_string( srsId ) );
 
     if ( resCrs.rowCount() == 0 )
       throw GeoDiffException( "Unknown CRS in table " + tableName );
@@ -600,7 +592,7 @@ static std::string valueToSql( const Value &v, const TableColumnInfo &col )
 static void handleInserted( const std::string &schemaNameBase, const std::string &schemaNameModified, const std::string &tableName, const TableSchema &tbl, bool reverse, PGconn *conn, ChangesetWriter &writer, bool &first )
 {
   std::string sqlInserted = sqlFindInserted( schemaNameBase, schemaNameModified, tableName, tbl, reverse );
-  PostgresResult res( execSql( conn, sqlInserted ) );
+  PostgresResult res = execSql( conn, sqlInserted );
 
   int rows = res.rowCount();
   for ( int r = 0; r < rows; ++r )
@@ -633,7 +625,7 @@ static void handleInserted( const std::string &schemaNameBase, const std::string
 static void handleUpdated( const std::string &schemaNameBase, const std::string &schemaNameModified, const std::string &tableName, const TableSchema &tbl, PGconn *conn, ChangesetWriter &writer, bool &first )
 {
   std::string sqlModified = sqlFindModified( schemaNameBase, schemaNameModified, tableName, tbl );
-  PostgresResult res( execSql( conn, sqlModified ) );
+  PostgresResult res = execSql( conn, sqlModified );
 
   int rows = res.rowCount();
   for ( int r = 0; r < rows; ++r )
@@ -850,7 +842,7 @@ ChangeApplyResult PostgresDriver::applyChange( PostgresChangeApplyState &state, 
     if ( entry.op == ChangesetEntry::OpInsert )
     {
       std::string sql = sqlForInsert( mBaseSchema, tableName, tbl.schema, entry.newValues );
-      PostgresResult res( execSql( mConn, sql ) );
+      PostgresResult res = execSql( mConn, sql );
       if ( res.affectedRows() != "1" )
         throw GeoDiffException( "Wrong number of affected rows! Expected 1, got: " + res.affectedRows() );
 
@@ -863,7 +855,7 @@ ChangeApplyResult PostgresDriver::applyChange( PostgresChangeApplyState &state, 
     else if ( entry.op == ChangesetEntry::OpUpdate )
     {
       std::string sql = sqlForUpdate( mBaseSchema, tableName, tbl.schema, entry.oldValues, entry.newValues );
-      PostgresResult res( execSql( mConn, sql ) );
+      PostgresResult res = execSql( mConn, sql );
       if ( res.affectedRows() != "1" )
       {
         logApplyConflict( "update_nothing", entry );
@@ -874,7 +866,7 @@ ChangeApplyResult PostgresDriver::applyChange( PostgresChangeApplyState &state, 
     else if ( entry.op == ChangesetEntry::OpDelete )
     {
       std::string sql = sqlForDelete( mBaseSchema, tableName, tbl.schema, entry.oldValues );
-      PostgresResult res( execSql( mConn, sql ) );
+      PostgresResult res = execSql( mConn, sql );
       if ( res.affectedRows() != "1" )
       {
         logApplyConflict( "delete_nothing", entry );
@@ -1001,7 +993,7 @@ std::string PostgresDriver::getSequenceObjectName( const TableSchema &tbl, int &
 
   std::string tableNameString = quotedIdentifier( mBaseSchema ) + "." + quotedIdentifier( tbl.name );
   std::string sql = "select pg_get_serial_sequence(" + quotedString( tableNameString ) + ", " + quotedString( colName ) + ")";
-  PostgresResult resBase( execSql( mConn, sql ) );
+  PostgresResult resBase = execSql( mConn, sql );
   if ( resBase.rowCount() != 1 )
     throw GeoDiffException( "Unable to find sequence object for auto-incrementing pkey for table " + tbl.name );
 
@@ -1010,7 +1002,7 @@ std::string PostgresDriver::getSequenceObjectName( const TableSchema &tbl, int &
 
 void PostgresDriver::updateSequenceObject( const std::string &seqName, int64_t maxValue )
 {
-  PostgresResult resCurrVal( execSql( mConn, "SELECT last_value FROM " + seqName ) );
+  PostgresResult resCurrVal = execSql( mConn, "SELECT last_value FROM " + seqName );
   std::string currValueStr = resCurrVal.value( 0, 0 );
   int currValue = std::stoi( currValueStr );
 
@@ -1019,7 +1011,7 @@ void PostgresDriver::updateSequenceObject( const std::string &seqName, int64_t m
     context()->logger().info( "Updating sequence " + seqName + " from " + std::to_string( currValue ) + " to " + std::to_string( maxValue ) );
 
     std::string sql = "SELECT setval(" + quotedString( seqName ) + ", " + std::to_string( maxValue ) + ")";
-    PostgresResult resSetVal( execSql( mConn, sql ) );
+    execSql( mConn, sql );
     // the SQL just returns the new value we set
   }
 }
@@ -1058,7 +1050,7 @@ void PostgresDriver::createTables( const std::vector<TableSchema> &tables )
     sql += ", PRIMARY KEY (" + pkeyCols + ")";
     sql += ");";
 
-    PostgresResult res( execSql( mConn, sql ) );
+    PostgresResult res = execSql( mConn, sql );
     if ( res.status() != PGRES_COMMAND_OK )
       throw GeoDiffException( "Failure creating table: " + res.statusErrorMessage() );
   }
@@ -1080,7 +1072,7 @@ void PostgresDriver::dumpData( ChangesetWriter &writer, bool useModified )
     std::string sql = "SELECT " + allColumnNames( tbl ) + " FROM " +
                       quotedIdentifier( useModified ? mModifiedSchema : mBaseSchema ) + "." + quotedIdentifier( tableName );
 
-    PostgresResult res( execSql( mConn, sql ) );
+    PostgresResult res = execSql( mConn, sql );
     int rows = res.rowCount();
     for ( int r = 0; r < rows; ++r )
     {
