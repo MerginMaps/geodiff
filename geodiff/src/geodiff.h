@@ -42,11 +42,6 @@
 #define GEODIFF_UNSUPPORTED_CHANGE 3 //! The diff for such entry is unsupported/not-implemented
 
 /*
- * \deprecated Typo alias for backwards-compatibility
- */
-#define GEODIFF_CONFICTS GEODIFF_CONFLICTS
-
-/*
 ** Make sure we can call this stuff from C++.
 */
 #ifdef __cplusplus
