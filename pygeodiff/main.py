@@ -7,6 +7,7 @@
     :license: MIT, see LICENSE for more details.
 """
 
+import weakref
 from .geodifflib import GeoDiffLib
 
 
@@ -14,6 +15,9 @@ class GeoDiff:
     """
     geodiff is a module to create and apply changesets to GIS files (geopackage)
     """
+
+    # Dictionary of libname to instance of GeoDiffLib
+    _clib_cache = weakref.WeakValueDictionary()
 
     def __init__(self, libname=None):
         """
@@ -33,7 +37,12 @@ class GeoDiff:
 
     def _lazy_load(self):
         if self.clib is None:
-            self.clib = GeoDiffLib(self.libname)
+            clib = GeoDiff._clib_cache.get(self.libname)
+            if clib:
+                self.clib = clib
+            else:
+                self.clib = GeoDiffLib(self.libname)
+                GeoDiff._clib_cache[self.libname] = self.clib
 
         if self.context is None:
             self.context = self.clib.create_context()
@@ -43,8 +52,6 @@ class GeoDiff:
             self.clib.destroy_context(self.context)
         self.context = None
 
-        if self.clib is not None:
-            self.clib.shutdown()
         self.clib = None
         self.callbackLogger = None
 
