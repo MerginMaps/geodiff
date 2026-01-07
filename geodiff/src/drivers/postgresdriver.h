@@ -45,12 +45,12 @@ class PostgresDriver : public Driver
     void dumpData( ChangesetWriter &writer, bool useModified = false ) override;
 
   private:
-    void logApplyConflict( const std::string &type, const ChangesetEntry &entry ) const;
+    void logApplyConflict( const std::string &type, const ChangesetDataEntry &entry ) const;
     void openPrivate( const DriverParametersMap &conn );
     void close();
     std::string getSequenceObjectName( const TableSchema &tbl, int &autoIncrementPkeyIndex );
     void updateSequenceObject( const std::string &seqName, int64_t maxValue );
-    ChangeApplyResult applyChange( PostgresChangeApplyState &state, const ChangesetEntry &entry );
+    ChangeApplyResult applyChange( PostgresChangeApplyState &state, const ChangesetDataEntry &entry );
 
     PGconn *mConn = nullptr;
     std::string mBaseSchema;

@@ -20,7 +20,7 @@
 #include "geodiffcontext.hpp"
 
 class Buffer;
-struct ChangesetEntry;
+struct ChangesetDataEntry;
 
 class GeoDiffException: public std::exception
 {
@@ -138,7 +138,7 @@ int indexOf( const std::vector<std::string> &arr, const std::string &val );
 
 std::string concatNames( const std::vector<std::string> &names );
 
-void get_primary_key( const ChangesetEntry &entry, int &fid, int &nColumn );
+void get_primary_key( const ChangesetDataEntry &entry, int &fid, int &nColumn );
 
 
 //! Returns value of an environment variable - or returns default value if it is not set

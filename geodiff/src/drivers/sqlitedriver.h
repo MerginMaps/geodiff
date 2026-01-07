@@ -56,8 +56,8 @@ class SqliteDriver : public Driver
     void dumpData( ChangesetWriter &writer, bool useModified = false ) override;
 
   private:
-    void logApplyConflict( const std::string &type, const ChangesetEntry &entry, bool isDbErr = false ) const;
-    ChangeApplyResult applyChange( SqliteChangeApplyState &state, const ChangesetEntry &entry );
+    void logApplyConflict( const std::string &type, const ChangesetDataEntry &entry, bool isDbErr = false ) const;
+    ChangeApplyResult applyDataChange( SqliteChangeApplyState &state, const ChangesetDataEntry &entry );
     std::string databaseName( bool useModified = false );
 
     std::shared_ptr<Sqlite3Db> mDb;

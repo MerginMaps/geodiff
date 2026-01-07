@@ -61,9 +61,9 @@ class PostgresTransaction
 
 /////
 
-void PostgresDriver::logApplyConflict( const std::string &type, const ChangesetEntry &entry ) const
+void PostgresDriver::logApplyConflict( const std::string &type, const ChangesetDataEntry &entry ) const
 {
-  context()->logger().warn( "CONFLICT: " + type + ":\n" + changesetEntryToJSON( entry ).dump( 2 ) );
+  context()->logger().warn( "CONFLICT: " + type + ":\n" + changesetDataEntryToJSON( entry ).dump( 2 ) );
 }
 
 PostgresDriver::PostgresDriver( const Context *context )
@@ -606,8 +606,8 @@ static void handleInserted( const std::string &schemaNameBase, const std::string
       first = false;
     }
 
-    ChangesetEntry e;
-    e.op = reverse ? ChangesetEntry::OpDelete : ChangesetEntry::OpInsert;
+    ChangesetDataEntry e;
+    e.op = reverse ? ChangesetDataEntry::OpDelete : ChangesetDataEntry::OpInsert;
 
     int numColumns = static_cast<int>( tbl.columns.size() );
     for ( int i = 0; i < numColumns; ++i )
@@ -650,8 +650,8 @@ static void handleUpdated( const std::string &schemaNameBase, const std::string 
     ** are set to "undefined".
     */
 
-    ChangesetEntry e;
-    e.op = ChangesetEntry::OpUpdate;
+    ChangesetDataEntry e;
+    e.op = ChangesetDataEntry::OpUpdate;
 
     int numColumns = static_cast<int>( tbl.columns.size() );
     for ( int i = 0; i < numColumns; ++i )
@@ -794,7 +794,7 @@ static std::string sqlForDelete( const std::string &schemaName, const std::strin
   return sql;
 }
 
-ChangeApplyResult PostgresDriver::applyChange( PostgresChangeApplyState &state, const ChangesetEntry &entry )
+ChangeApplyResult PostgresDriver::applyChange( PostgresChangeApplyState &state, const ChangesetDataEntry &entry )
 {
   std::string tableName = entry.table->name;
 
@@ -836,7 +836,7 @@ ChangeApplyResult PostgresDriver::applyChange( PostgresChangeApplyState &state, 
   try
   {
     PostgresChangeApplyState::TableState &tbl = state.tableState[tableName];
-    if ( entry.op == ChangesetEntry::OpInsert )
+    if ( entry.op == ChangesetDataEntry::OpInsert )
     {
       std::string sql = sqlForInsert( mBaseSchema, tableName, tbl.schema, entry.newValues );
       PostgresResult res = execSql( mConn, sql );
@@ -849,7 +849,7 @@ ChangeApplyResult PostgresDriver::applyChange( PostgresChangeApplyState &state, 
         tbl.autoIncrementMax = std::max( tbl.autoIncrementMax, pkey );
       }
     }
-    else if ( entry.op == ChangesetEntry::OpUpdate )
+    else if ( entry.op == ChangesetDataEntry::OpUpdate )
     {
       std::string sql = sqlForUpdate( mBaseSchema, tableName, tbl.schema, entry.oldValues, entry.newValues );
       PostgresResult res = execSql( mConn, sql );
@@ -860,7 +860,7 @@ ChangeApplyResult PostgresDriver::applyChange( PostgresChangeApplyState &state, 
         return ChangeApplyResult::NoChange;
       }
     }
-    else if ( entry.op == ChangesetEntry::OpDelete )
+    else if ( entry.op == ChangesetDataEntry::OpDelete )
     {
       std::string sql = sqlForDelete( mBaseSchema, tableName, tbl.schema, entry.oldValues );
       PostgresResult res = execSql( mConn, sql );
@@ -901,35 +901,38 @@ void PostgresDriver::applyChangeset( ChangesetReader &reader )
   // See sqlitedriver.cpp for why and how we're trying to apply changes
   // multiple times
   int unrecoverableConflictCount = 0;
-  std::vector<ChangesetEntry> conflictingEntries;
+  std::vector<ChangesetDataEntry> conflictingEntries;
   ChangesetEntry entry;
   PostgresChangeApplyState state;
   std::unordered_map<std::string, std::unique_ptr<ChangesetTable>> tableCopies;
   while ( reader.nextEntry( entry ) )
   {
-    ChangeApplyResult res = applyChange( state, entry );
-    switch ( res )
+    if ( ChangesetDataEntry *dataEntry = std::get_if<ChangesetDataEntry>( &entry ) )
     {
-      case ChangeApplyResult::Applied:
-      case ChangeApplyResult::Skipped:
-        break;
-      case ChangeApplyResult::ConstraintConflict:
-        if ( tableCopies.count( entry.table->name ) == 0 )
-          // cppcheck-suppress stlFindInsert
-          tableCopies[entry.table->name] = std::unique_ptr<ChangesetTable>( new ChangesetTable( *entry.table ) );
-        entry.table = tableCopies[entry.table->name].get();
-        conflictingEntries.push_back( entry );
-        break;
-      case ChangeApplyResult::NoChange:
-        unrecoverableConflictCount++;
-        break;
+      ChangeApplyResult res = applyChange( state, *dataEntry );
+      switch ( res )
+      {
+        case ChangeApplyResult::Applied:
+        case ChangeApplyResult::Skipped:
+          break;
+        case ChangeApplyResult::ConstraintConflict:
+          if ( tableCopies.count( dataEntry->table->name ) == 0 )
+            // cppcheck-suppress stlFindInsert
+            tableCopies[dataEntry->table->name] = std::unique_ptr<ChangesetTable>( new ChangesetTable( *dataEntry->table ) );
+          dataEntry->table = tableCopies[dataEntry->table->name].get();
+          conflictingEntries.push_back( *dataEntry );
+          break;
+        case ChangeApplyResult::NoChange:
+          unrecoverableConflictCount++;
+          break;
+      }
     }
   }
 
-  std::vector<ChangesetEntry> newConflictingEntries;
+  std::vector<ChangesetDataEntry> newConflictingEntries;
   while ( conflictingEntries.size() > 0 )
   {
-    for ( const ChangesetEntry &centry : conflictingEntries )
+    for ( const ChangesetDataEntry &centry : conflictingEntries )
     {
       ChangeApplyResult res = applyChange( state, centry );
       switch ( res )
@@ -948,7 +951,7 @@ void PostgresDriver::applyChangeset( ChangesetReader &reader )
 
     if ( newConflictingEntries.size() == conflictingEntries.size() )
     {
-      for ( const ChangesetEntry &centry : conflictingEntries )
+      for ( const ChangesetDataEntry &centry : conflictingEntries )
         logApplyConflict( "unresolvable_conflict", centry );
       throw GeoDiffConflictsException( "Could not resolve dependencies in constraint conflicts." );
     }
@@ -1078,8 +1081,8 @@ void PostgresDriver::dumpData( ChangesetWriter &writer, bool useModified )
         writer.beginTable( schemaToChangesetTable( tableName, tbl ) );
       }
 
-      ChangesetEntry e;
-      e.op = ChangesetEntry::OpInsert;
+      ChangesetDataEntry e;
+      e.op = ChangesetDataEntry::OpInsert;
       int numColumns = static_cast<int>( tbl.columns.size() );
       for ( int i = 0; i < numColumns; ++i )
       {

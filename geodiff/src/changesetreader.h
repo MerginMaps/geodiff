@@ -45,6 +45,12 @@ class ChangesetReader
     std::string readNullTerminatedString();
     void readRowValues( std::vector<Value> &values );
     void readTableRecord();
+    ChangesetDataEntry readDataEntry( ChangesetEntryType type );
+    ChangesetDdlColumn readDdlColumn();
+    ChangesetCreateTableEntry readCreateTableEntry();
+    ChangesetDropTableEntry readDropTableEntry();
+    ChangesetAddColumnEntry readAddColumnEntry();
+    ChangesetDropColumnEntry readDropColumnEntry();
 
     void throwReaderError( const std::string &message ) const;
 
