@@ -9,6 +9,7 @@
 #include <assert.h>
 #include <memory>
 #include <string>
+#include <variant>
 #include <vector>
 
 
@@ -200,9 +201,23 @@ struct ChangesetTable
   size_t columnCount() const { return primaryKeys.size(); }
 };
 
+/**
+ * Types of supported changeset records.
+ */
+enum class ChangesetEntryType
+{
+  OpTableRecord = 'T', //!< corresponds to ChangesetTable
+  OpInsert = 18,  //!< corresponds to ChangesetDataEntry
+  OpUpdate = 23,  //!< corresponds to ChangesetDataEntry
+  OpDelete = 9,   //!< corresponds to ChangesetDataEntry
+  OpCreateTable = 'a', //!< corresponds to ChangesetTable
+  OpDropTable = 'A',
+  OpAddColumn = 'c',
+  OpDropColumn = 'C',
+};
 
 /**
- * Details of a single change within a changeset
+ * Details of a single data change within a changeset
  *
  * Contents of old/new values array based on operation type:
  * - INSERT - new values contain data of the row to be inserted, old values array is invalid
@@ -212,7 +227,7 @@ struct ChangesetTable
  *            columns of old value are always present (but new value of pkey columns is undefined
  *            if the primary key is not being changed).
  */
-struct ChangesetEntry
+struct ChangesetDataEntry
 {
   enum OperationType
   {
@@ -239,15 +254,61 @@ struct ChangesetEntry
   ChangesetTable *table = nullptr;
 
   //! a quick way for tests to create a changeset entry
-  static ChangesetEntry make( ChangesetTable *t, OperationType o, const std::vector<Value> &oldV, const std::vector<Value> &newV )
+  static ChangesetDataEntry make( ChangesetTable *t, OperationType o, const std::vector<Value> &oldV, const std::vector<Value> &newV )
   {
-    ChangesetEntry e;
+    ChangesetDataEntry e;
     e.op = o;
     e.oldValues = oldV;
     e.newValues = newV;
     e.table = t;
     return e;
   }
+};
+
+//! Description of column used by DDL entries
+struct ChangesetDdlColumn
+{
+  std::string name;
+  std::string type;
+  bool isNotNull;
+  bool isUnique;
+};
+
+//! Entry for CREATE TABLE command
+struct ChangesetCreateTableEntry
+{
+  std::string tableName;
+  std::vector<ChangesetDdlColumn> columns;
+};
+
+//! Entry for DROP TABLE command
+struct ChangesetDropTableEntry
+{
+  std::string tableName;
+};
+
+//! Entry for ALTER TABLE ... ADD COLUMN command
+struct ChangesetAddColumnEntry
+{
+  std::string tableName;
+  ChangesetDdlColumn column;
+};
+
+//! Entry for ALTER TABLE ... DROP COLUMN command
+struct ChangesetDropColumnEntry
+{
+  std::string tableName;
+  std::string columnName;
+};
+
+struct ChangesetEntry : public std::variant <
+  ChangesetDataEntry,
+  ChangesetCreateTableEntry,
+  ChangesetDropTableEntry,
+  ChangesetAddColumnEntry,
+  ChangesetDropColumnEntry >
+{
+  using variant::variant; // Use std::variant's constructor
 };
 
 #endif // CHANGESET_H

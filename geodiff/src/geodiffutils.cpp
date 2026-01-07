@@ -346,7 +346,7 @@ bool isLayerTable( const std::string &tableName )
 
 ////
 
-void get_primary_key( const ChangesetEntry &entry, int &fid, int &nColumn )
+void get_primary_key( const ChangesetDataEntry &entry, int &fid, int &nColumn )
 {
   const std::vector<bool> &tablePkeys = entry.table->primaryKeys;
 
@@ -375,11 +375,11 @@ void get_primary_key( const ChangesetEntry &entry, int &fid, int &nColumn )
 
   // now get the value
   Value pkeyValue;
-  if ( entry.op == ChangesetEntry::OpInsert )
+  if ( entry.op == ChangesetDataEntry::OpInsert )
   {
     pkeyValue = entry.newValues[pk_column_number];
   }
-  else if ( entry.op == ChangesetEntry::OpDelete || entry.op == ChangesetEntry::OpUpdate )
+  else if ( entry.op == ChangesetDataEntry::OpDelete || entry.op == ChangesetDataEntry::OpUpdate )
   {
     pkeyValue = entry.oldValues[pk_column_number];
   }

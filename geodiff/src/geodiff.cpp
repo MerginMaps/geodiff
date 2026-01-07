@@ -27,6 +27,7 @@
 #include <fcntl.h>
 #include <iostream>
 #include <string>
+#include <variant>
 #include <vector>
 
 #include "json.hpp"
@@ -643,7 +644,8 @@ int GEODIFF_changesCount(
   int changesCount = 0;
   ChangesetEntry entry;
   while ( reader.nextEntry( entry ) )
-    ++changesCount;
+    if ( std::holds_alternative<ChangesetDataEntry>( entry ) )
+      ++changesCount;
 
   return changesCount;
 }
@@ -1305,35 +1307,35 @@ void GEODIFF_CR_destroy( GEODIFF_ContextH /*contextHandle*/, GEODIFF_ChangesetRe
 
 int GEODIFF_CE_operation( GEODIFF_ContextH /*contextHandle*/, GEODIFF_ChangesetEntryH entryHandle )
 {
-  return static_cast<ChangesetEntry *>( entryHandle )->op;
+  return static_cast<ChangesetDataEntry *>( entryHandle )->op;
 }
 
 GEODIFF_ChangesetTableH GEODIFF_CE_table( GEODIFF_ContextH /*contextHandle*/, GEODIFF_ChangesetEntryH entryHandle )
 {
-  ChangesetTable *table = static_cast<ChangesetEntry *>( entryHandle )->table;
+  ChangesetTable *table = static_cast<ChangesetDataEntry *>( entryHandle )->table;
   return table;
 }
 
 int GEODIFF_CE_countValues( GEODIFF_ContextH /*contextHandle*/, GEODIFF_ChangesetEntryH entryHandle )
 {
-  ChangesetEntry *entry = static_cast<ChangesetEntry *>( entryHandle );
-  size_t ret = entry->op == ChangesetEntry::OpDelete ? entry->oldValues.size() : entry->newValues.size();
+  ChangesetDataEntry *entry = static_cast<ChangesetDataEntry *>( entryHandle );
+  size_t ret = entry->op == ChangesetDataEntry::OpDelete ? entry->oldValues.size() : entry->newValues.size();
   return ( int ) ret;
 }
 
 GEODIFF_ValueH GEODIFF_CE_oldValue( GEODIFF_ContextH /*contextHandle*/, GEODIFF_ChangesetEntryH entryHandle, int i )
 {
-  return new Value( static_cast<ChangesetEntry *>( entryHandle )->oldValues[i] );
+  return new Value( static_cast<ChangesetDataEntry *>( entryHandle )->oldValues[i] );
 }
 
 GEODIFF_ValueH GEODIFF_CE_newValue( GEODIFF_ContextH /*contextHandle*/, GEODIFF_ChangesetEntryH entryHandle, int i )
 {
-  return new Value( static_cast<ChangesetEntry *>( entryHandle )->newValues[i] );
+  return new Value( static_cast<ChangesetDataEntry *>( entryHandle )->newValues[i] );
 }
 
 void GEODIFF_CE_destroy( GEODIFF_ContextH /*contextHandle*/, GEODIFF_ChangesetEntryH entryHandle )
 {
-  delete static_cast<ChangesetEntry *>( entryHandle );
+  delete static_cast<ChangesetDataEntry *>( entryHandle );
 }
 
 int GEODIFF_V_type( GEODIFF_ContextH /*contextHandle*/, GEODIFF_ValueH valueHandle )

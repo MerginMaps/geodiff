@@ -15,14 +15,15 @@
 
 #include <memory.h>
 #include <sqlite3.h>
+#include <variant>
 
 
-void SqliteDriver::logApplyConflict( const std::string &type, const ChangesetEntry &entry, bool isDbErr ) const
+void SqliteDriver::logApplyConflict( const std::string &type, const ChangesetDataEntry &entry, bool isDbErr ) const
 {
   std::string msg = "CONFLICT: " + type;
   if ( isDbErr )
     msg += " (" + std::string( sqlite3_errmsg( mDb->get() ) ) + ")";
-  msg += ":\n" + changesetEntryToJSON( entry ).dump( 2 );
+  msg += ":\n" + changesetDataEntryToJSON( entry ).dump( 2 );
   context()->logger().warn( msg );
 }
 
@@ -485,8 +486,8 @@ static void handleInserted( const Context *context, const std::string &tableName
       first = false;
     }
 
-    ChangesetEntry e;
-    e.op = reverse ? ChangesetEntry::OpDelete : ChangesetEntry::OpInsert;
+    ChangesetDataEntry e;
+    e.op = reverse ? ChangesetDataEntry::OpDelete : ChangesetDataEntry::OpInsert;
 
     size_t numColumns = tbl.columns.size();
     for ( size_t i = 0; i < numColumns; ++i )
@@ -526,8 +527,8 @@ static void handleUpdated( const Context *context, const std::string &tableName,
     ** are set to "undefined".
     */
 
-    ChangesetEntry e;
-    e.op = ChangesetEntry::OpUpdate;
+    ChangesetDataEntry e;
+    e.op = ChangesetDataEntry::OpUpdate;
 
     bool hasUpdates = false;
     size_t numColumns = tbl.columns.size();
@@ -751,7 +752,7 @@ static void bindValue( sqlite3_stmt *stmt, int index, const Value &v )
 }
 
 
-ChangeApplyResult SqliteDriver::applyChange( SqliteChangeApplyState &state, const ChangesetEntry &entry )
+ChangeApplyResult SqliteDriver::applyDataChange( SqliteChangeApplyState &state, const ChangesetDataEntry &entry )
 {
   std::string tableName = entry.table->name;
 
@@ -900,45 +901,49 @@ void SqliteDriver::applyChangeset( ChangesetReader &reader )
   }
 
   int unrecoverableConflictCount = 0;
-  std::vector<ChangesetEntry> conflictingEntries;
+  std::vector<ChangesetDataEntry> conflictingEntries;
   ChangesetEntry entry;
   SqliteChangeApplyState state;
   std::unordered_map<std::string, std::unique_ptr<ChangesetTable>> tableCopies;
   while ( reader.nextEntry( entry ) )
   {
-    ChangeApplyResult res = applyChange( state, entry );
-    switch ( res )
+    if ( ChangesetDataEntry *dataEntry = std::get_if<ChangesetDataEntry>( &entry ) )
     {
-      case ChangeApplyResult::Applied:
-      case ChangeApplyResult::Skipped:
-        break; // Applied correctly, continue onward.
-      case ChangeApplyResult::ConstraintConflict:
-        // Ordering conflict found, handle later.
-        // Effectively copying the entry isn't simple, since ChangesetReader is
-        // happy to change entry.table under our feet. We need to copy the
-        // table object, ideally only keeping one per table.
-        if ( tableCopies.count( entry.table->name ) == 0 )
-          // cppcheck-suppress stlFindInsert
-          tableCopies[entry.table->name] = std::unique_ptr<ChangesetTable>( new ChangesetTable( *entry.table ) );
-        entry.table = tableCopies[entry.table->name].get();
-        conflictingEntries.push_back( entry );
-        break;
-      case ChangeApplyResult::NoChange:
-        unrecoverableConflictCount++; // Other issue, will throw at the end.
-        break;
+      ChangeApplyResult res = applyDataChange( state, *dataEntry );
+      switch ( res )
+      {
+        case ChangeApplyResult::Applied:
+        case ChangeApplyResult::Skipped:
+          break; // Applied correctly, continue onward.
+        case ChangeApplyResult::ConstraintConflict:
+          // Ordering conflict found, handle later.
+          // Effectively copying the entry isn't simple, since ChangesetReader is
+          // happy to change entry.table under our feet. We need to copy the
+          // table object, ideally only keeping one per table.
+          if ( tableCopies.count( dataEntry->table->name ) == 0 )
+            // cppcheck-suppress stlFindInsert
+            tableCopies[dataEntry->table->name] = std::unique_ptr<ChangesetTable>( new ChangesetTable( *dataEntry->table ) );
+          dataEntry->table = tableCopies[dataEntry->table->name].get();
+          conflictingEntries.push_back( *dataEntry );
+          break;
+        case ChangeApplyResult::NoChange:
+          unrecoverableConflictCount++; // Other issue, will throw at the end.
+          break;
+      }
     }
+    // TODO(dvdkon): Handle DDL entries
   }
 
   // Applying some entries may fail due to constraints, since they require the
   // entries to be in some specific, unknown order. To work around this, we
   // retry applying the conflicting entries until either we apply them all or we
   // get stuck.
-  std::vector<ChangesetEntry> newConflictingEntries;
+  std::vector<ChangesetDataEntry> newConflictingEntries;
   while ( conflictingEntries.size() > 0 )
   {
-    for ( const ChangesetEntry &centry : conflictingEntries )
+    for ( const ChangesetDataEntry &centry : conflictingEntries )
     {
-      ChangeApplyResult res = applyChange( state, centry );
+      ChangeApplyResult res = applyDataChange( state, centry );
       switch ( res )
       {
         case ChangeApplyResult::Applied:
@@ -957,7 +962,7 @@ void SqliteDriver::applyChangeset( ChangesetReader &reader )
     // loop, then these conflicts can't be resolved by reordering entries.
     if ( newConflictingEntries.size() == conflictingEntries.size() )
     {
-      for ( const ChangesetEntry &centry : conflictingEntries )
+      for ( const ChangesetDataEntry &centry : conflictingEntries )
         logApplyConflict( "unresolvable_conflict", centry );
       throw GeoDiffConflictsException( "Could not resolve dependencies in constraint conflicts." );
     }
@@ -1152,8 +1157,8 @@ void SqliteDriver::dumpData( ChangesetWriter &writer, bool useModified )
         first = false;
       }
 
-      ChangesetEntry e;
-      e.op = ChangesetEntry::OpInsert;
+      ChangesetDataEntry e;
+      e.op = ChangesetDataEntry::OpInsert;
       size_t numColumns = tbl.columns.size();
       for ( size_t i = 0; i < numColumns; ++i )
       {

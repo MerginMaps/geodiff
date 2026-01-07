@@ -1,9 +1,10 @@
-﻿/*
+/*
  GEODIFF - MIT License
  Copyright (C) 2019 Peter Petrik
 */
 
 #include "geodiffrebase.hpp"
+#include "changeset.h"
 #include "geodiffutils.hpp"
 #include "geodiff.h"
 #include "geodifflogger.hpp"
@@ -22,6 +23,7 @@
 #include <functional>
 #include <iostream>
 #include <string>
+#include <variant>
 #include <vector>
 #include <map>
 #include <set>
@@ -191,7 +193,7 @@ struct RebaseMapping
 ///////////////////////////////////////
 
 
-int _get_primary_key( const ChangesetEntry &entry )
+int _get_primary_key( const ChangesetDataEntry &entry )
 {
   int fid;
   int nFidColumn;
@@ -208,7 +210,11 @@ int _parse_old_changeset(
   ChangesetEntry entry;
   while ( reader_BASE_THEIRS.nextEntry( entry ) )
   {
-    std::string tableName = entry.table->name;
+    if ( !std::holds_alternative<ChangesetDataEntry>( entry ) )
+      continue;
+    ChangesetDataEntry &dataEntry = std::get<ChangesetDataEntry>( entry );
+
+    std::string tableName = dataEntry.table->name;
 
     // skip table if necessary
     if ( context->isTableSkipped( tableName ) )
@@ -216,21 +222,21 @@ int _parse_old_changeset(
       continue;
     }
 
-    int pk = _get_primary_key( entry );
+    int pk = _get_primary_key( dataEntry );
 
     TableRebaseInfo &tableInfo = dbInfo.tables[tableName];
 
-    if ( entry.op == ChangesetEntry::OpInsert )
+    if ( dataEntry.op == ChangesetDataEntry::OpInsert )
     {
       tableInfo.inserted.insert( pk );
     }
-    if ( entry.op == ChangesetEntry::OpDelete )
+    if ( dataEntry.op == ChangesetDataEntry::OpDelete )
     {
       tableInfo.deleted.insert( pk );
     }
-    if ( entry.op == ChangesetEntry::OpUpdate )
+    if ( dataEntry.op == ChangesetDataEntry::OpUpdate )
     {
-      tableInfo.updated[pk] = entry.newValues;
+      tableInfo.updated[pk] = dataEntry.newValues;
     }
   }
 
@@ -260,7 +266,11 @@ int _find_mapping_for_new_changeset(
   ChangesetEntry entry;
   while ( reader.nextEntry( entry ) )
   {
-    std::string tableName = entry.table->name;
+    if ( !std::holds_alternative<ChangesetDataEntry>( entry ) )
+      continue;
+    ChangesetDataEntry &dataEntry = std::get<ChangesetDataEntry>( entry );
+
+    std::string tableName = dataEntry.table->name;
 
     // skip table if necessary
     if ( context->isTableSkipped( tableName ) )
@@ -274,9 +284,9 @@ int _find_mapping_for_new_changeset(
 
     const TableRebaseInfo &tableInfo = tableIt->second;
 
-    if ( entry.op == ChangesetEntry::OpInsert )
+    if ( dataEntry.op == ChangesetDataEntry::OpInsert )
     {
-      int pk = _get_primary_key( entry );
+      int pk = _get_primary_key( dataEntry );
 
       if ( tableInfo.inserted.find( pk ) != tableInfo.inserted.end() )
       {
@@ -296,9 +306,9 @@ int _find_mapping_for_new_changeset(
         mapping.unmappedInsertIds[tableName].insert( pk );
       }
     }
-    else if ( entry.op == ChangesetEntry::OpUpdate )
+    else if ( dataEntry.op == ChangesetDataEntry::OpUpdate )
     {
-      int pk = _get_primary_key( entry );
+      int pk = _get_primary_key( dataEntry );
 
       if ( tableInfo.deleted.find( pk ) != tableInfo.deleted.end() )
       {
@@ -306,9 +316,9 @@ int _find_mapping_for_new_changeset(
         mapping.addPkeyMapping( tableName, pk, RebaseMapping::INVALID_FID );
       }
     }
-    else if ( entry.op == ChangesetEntry::OpDelete )
+    else if ( dataEntry.op == ChangesetDataEntry::OpDelete )
     {
-      int pk = _get_primary_key( entry );
+      int pk = _get_primary_key( dataEntry );
 
       if ( tableInfo.deleted.find( pk ) != tableInfo.deleted.end() )
       {
@@ -355,11 +365,11 @@ int _find_mapping_for_new_changeset(
 }
 
 
-bool _handle_insert( const ChangesetEntry &entry, const RebaseMapping &mapping, ChangesetEntry &outEntry )
+bool _handle_insert( const ChangesetDataEntry &entry, const RebaseMapping &mapping, ChangesetDataEntry &outEntry )
 {
   size_t numColumns = entry.table->columnCount();
 
-  outEntry.op = ChangesetEntry::OpInsert;
+  outEntry.op = ChangesetDataEntry::OpInsert;
   outEntry.newValues.resize( numColumns );
 
   // resolve primary key and patched primary key
@@ -386,12 +396,12 @@ bool _handle_insert( const ChangesetEntry &entry, const RebaseMapping &mapping, 
   return true;
 }
 
-bool _handle_delete( const ChangesetEntry &entry, const RebaseMapping &mapping,
-                     const TableRebaseInfo &tableInfo, ChangesetEntry &outEntry )
+bool _handle_delete( const ChangesetDataEntry &entry, const RebaseMapping &mapping,
+                     const TableRebaseInfo &tableInfo, ChangesetDataEntry &outEntry )
 {
   size_t numColumns = entry.table->columnCount();
 
-  outEntry.op = ChangesetEntry::OpDelete;
+  outEntry.op = ChangesetDataEntry::OpDelete;
   outEntry.oldValues.resize( numColumns );
 
   // resolve primary key and patched primary key
@@ -455,13 +465,13 @@ void _addConflictItem( ConflictFeature &conflictFeature, int i,
   conflictFeature.addItem( item );
 }
 
-bool _handle_update( const ChangesetEntry &entry, const RebaseMapping &mapping,
-                     const TableRebaseInfo &tableInfo, ChangesetEntry &outEntry,
+bool _handle_update( const ChangesetDataEntry &entry, const RebaseMapping &mapping,
+                     const TableRebaseInfo &tableInfo, ChangesetDataEntry &outEntry,
                      std::vector<ConflictFeature> &conflicts )
 {
   size_t numColumns = entry.table->columnCount();
 
-  outEntry.op = ChangesetEntry::OpUpdate;
+  outEntry.op = ChangesetDataEntry::OpUpdate;
   outEntry.oldValues.resize( numColumns );
   outEntry.newValues.resize( numColumns );
 
@@ -551,7 +561,11 @@ void _prepare_new_changeset( const Context *context,
 
   while ( reader.nextEntry( entry ) )
   {
-    std::string tableName = entry.table->name;
+    if ( !std::holds_alternative<ChangesetDataEntry>( entry ) )
+      continue;
+    ChangesetDataEntry &dataEntry = std::get<ChangesetDataEntry>( entry );
+
+    std::string tableName = dataEntry.table->name;
 
     // skip table if necessary
     if ( context->isTableSkipped( tableName ) )
@@ -560,7 +574,7 @@ void _prepare_new_changeset( const Context *context,
     }
 
     // Inserts table into the definitions, if it doesn't already contain it
-    tableDefinitions.insert( {tableName, *entry.table} );
+    tableDefinitions.insert( {tableName, *dataEntry.table} );
 
     auto tablesIt = dbInfo.tables.find( tableName );
     if ( tablesIt == dbInfo.tables.end() )
@@ -572,21 +586,21 @@ void _prepare_new_changeset( const Context *context,
     }
 
     bool writeEntry = false;
-    ChangesetEntry outEntry;
+    ChangesetDataEntry outEntry;
 
     // commits to same table -> now save the change to changeset
-    switch ( entry.op )
+    switch ( dataEntry.op )
     {
-      case ChangesetEntry::OpUpdate:
-        writeEntry = _handle_update( entry, mapping, tablesIt->second, outEntry, conflicts );
+      case ChangesetDataEntry::OpUpdate:
+        writeEntry = _handle_update( dataEntry, mapping, tablesIt->second, outEntry, conflicts );
         break;
 
-      case ChangesetEntry::OpInsert:
-        writeEntry = _handle_insert( entry, mapping, outEntry );
+      case ChangesetDataEntry::OpInsert:
+        writeEntry = _handle_insert( dataEntry, mapping, outEntry );
         break;
 
-      case ChangesetEntry::OpDelete:
-        writeEntry = _handle_delete( entry, mapping, tablesIt->second, outEntry );
+      case ChangesetDataEntry::OpDelete:
+        writeEntry = _handle_delete( dataEntry, mapping, tablesIt->second, outEntry );
         break;
     }
 

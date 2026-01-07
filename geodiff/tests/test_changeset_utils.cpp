@@ -48,12 +48,14 @@ TEST( ChangesetUtils, test_invert_insert )
 
   ChangesetEntry entry;
   EXPECT_TRUE( readerInv.nextEntry( entry ) );
-  EXPECT_EQ( entry.op, ChangesetEntry::OpDelete );
-  EXPECT_EQ( entry.table->name, "simple" );
-  EXPECT_EQ( entry.oldValues.size(), 4 );
-  EXPECT_EQ( entry.oldValues[0].getInt(), 4 );
-  EXPECT_EQ( entry.oldValues[2].getString(), "my new point A" );
-  EXPECT_EQ( entry.oldValues[3].getInt(), 1 );
+  EXPECT_TRUE( std::holds_alternative<ChangesetDataEntry>( entry ) );
+  ChangesetDataEntry &dataEntry = std::get<ChangesetDataEntry>( entry );
+  EXPECT_EQ( dataEntry.op, ChangesetDataEntry::OpDelete );
+  EXPECT_EQ( dataEntry.table->name, "simple" );
+  EXPECT_EQ( dataEntry.oldValues.size(), 4 );
+  EXPECT_EQ( dataEntry.oldValues[0].getInt(), 4 );
+  EXPECT_EQ( dataEntry.oldValues[2].getString(), "my new point A" );
+  EXPECT_EQ( dataEntry.oldValues[3].getInt(), 1 );
 
   EXPECT_FALSE( readerInv.nextEntry( entry ) );
 }
@@ -69,12 +71,14 @@ TEST( ChangesetUtils, test_invert_delete )
 
   ChangesetEntry entry;
   EXPECT_TRUE( readerInv.nextEntry( entry ) );
-  EXPECT_EQ( entry.op, ChangesetEntry::OpInsert );
-  EXPECT_EQ( entry.table->name, "simple" );
-  EXPECT_EQ( entry.newValues.size(), 4 );
-  EXPECT_EQ( entry.newValues[0].getInt(), 2 );
-  EXPECT_EQ( entry.newValues[2].getString(), "feature2" );
-  EXPECT_EQ( entry.newValues[3].getInt(), 2 );
+  EXPECT_TRUE( std::holds_alternative<ChangesetDataEntry>( entry ) );
+  ChangesetDataEntry &dataEntry = std::get<ChangesetDataEntry>( entry );
+  EXPECT_EQ( dataEntry.op, ChangesetDataEntry::OpInsert );
+  EXPECT_EQ( dataEntry.table->name, "simple" );
+  EXPECT_EQ( dataEntry.newValues.size(), 4 );
+  EXPECT_EQ( dataEntry.newValues[0].getInt(), 2 );
+  EXPECT_EQ( dataEntry.newValues[2].getString(), "feature2" );
+  EXPECT_EQ( dataEntry.newValues[3].getInt(), 2 );
 
   EXPECT_FALSE( readerInv.nextEntry( entry ) );
 }
@@ -90,17 +94,19 @@ TEST( ChangesetUtils, test_invert_update )
 
   ChangesetEntry entry;
   EXPECT_TRUE( readerInv.nextEntry( entry ) );
-  EXPECT_EQ( entry.op, ChangesetEntry::OpUpdate );
-  EXPECT_EQ( entry.table->name, "simple" );
-  EXPECT_EQ( entry.oldValues.size(), 4 );
-  EXPECT_EQ( entry.oldValues[0].type(), Value::TypeInt );
-  EXPECT_EQ( entry.oldValues[0].getInt(), 2 );
-  EXPECT_EQ( entry.oldValues[2].type(), Value::TypeUndefined );
-  EXPECT_EQ( entry.oldValues[3].getInt(), 9999 );
-  EXPECT_EQ( entry.newValues.size(), 4 );
-  EXPECT_EQ( entry.newValues[0].type(), Value::TypeUndefined );
-  EXPECT_EQ( entry.newValues[2].type(), Value::TypeUndefined );
-  EXPECT_EQ( entry.newValues[3].getInt(), 2 );
+  EXPECT_TRUE( std::holds_alternative<ChangesetDataEntry>( entry ) );
+  ChangesetDataEntry &dataEntry = std::get<ChangesetDataEntry>( entry );
+  EXPECT_EQ( dataEntry.op, ChangesetDataEntry::OpUpdate );
+  EXPECT_EQ( dataEntry.table->name, "simple" );
+  EXPECT_EQ( dataEntry.oldValues.size(), 4 );
+  EXPECT_EQ( dataEntry.oldValues[0].type(), Value::TypeInt );
+  EXPECT_EQ( dataEntry.oldValues[0].getInt(), 2 );
+  EXPECT_EQ( dataEntry.oldValues[2].type(), Value::TypeUndefined );
+  EXPECT_EQ( dataEntry.oldValues[3].getInt(), 9999 );
+  EXPECT_EQ( dataEntry.newValues.size(), 4 );
+  EXPECT_EQ( dataEntry.newValues[0].type(), Value::TypeUndefined );
+  EXPECT_EQ( dataEntry.newValues[2].type(), Value::TypeUndefined );
+  EXPECT_EQ( dataEntry.newValues[3].getInt(), 2 );
 
   EXPECT_FALSE( readerInv.nextEntry( entry ) );
 }
@@ -197,40 +203,40 @@ TEST( ChangesetUtils, test_concat_changesets_simple_table )
   tableFoo.primaryKeys.push_back( false ); // name
   tableFoo.primaryKeys.push_back( false ); // rating
 
-  ChangesetEntry fooInsert123 = ChangesetEntry::make(
-  &tableFoo, ChangesetEntry::OpInsert, {},
+  ChangesetDataEntry fooInsert123 = ChangesetDataEntry::make(
+  &tableFoo, ChangesetDataEntry::OpInsert, {},
   { Value::makeInt( 123 ), Value::makeText( "hello" ), Value::makeInt( 5 ) } );
 
-  ChangesetEntry fooDelete123 = ChangesetEntry::make(
-                                  &tableFoo, ChangesetEntry::OpDelete,
+  ChangesetDataEntry fooDelete123 = ChangesetDataEntry::make(
+                                      &tableFoo, ChangesetDataEntry::OpDelete,
   { Value::makeInt( 123 ), Value::makeText( "hello" ), Value::makeInt( 5 ) }, {} );
 
-  ChangesetEntry fooUpdate123 = ChangesetEntry::make(
-                                  &tableFoo, ChangesetEntry::OpUpdate,
+  ChangesetDataEntry fooUpdate123 = ChangesetDataEntry::make(
+                                      &tableFoo, ChangesetDataEntry::OpUpdate,
   { Value::makeInt( 123 ), Value::makeText( "hello" ), Value::makeInt( 5 ) },
   { Value(), Value::makeText( "world" ), Value::makeInt( 4 ) } );
 
-  ChangesetEntry fooDelete123_2 = ChangesetEntry::make(
-                                    &tableFoo, ChangesetEntry::OpDelete,
+  ChangesetDataEntry fooDelete123_2 = ChangesetDataEntry::make(
+                                        &tableFoo, ChangesetDataEntry::OpDelete,
   { Value::makeInt( 123 ), Value::makeText( "world" ), Value::makeInt( 4 ) }, {} );
 
-  ChangesetEntry fooUpdate123_2 = ChangesetEntry::make(
-                                    &tableFoo, ChangesetEntry::OpUpdate,
+  ChangesetDataEntry fooUpdate123_2 = ChangesetDataEntry::make(
+                                        &tableFoo, ChangesetDataEntry::OpUpdate,
   { Value::makeInt( 123 ), Value(), Value::makeInt( 4 ) },
   { Value(), Value(), Value::makeInt( 1 ) } );
 
-  ChangesetEntry fooUpdate123_inverse = ChangesetEntry::make(
-                                          &tableFoo, ChangesetEntry::OpUpdate,
+  ChangesetDataEntry fooUpdate123_inverse = ChangesetDataEntry::make(
+      &tableFoo, ChangesetDataEntry::OpUpdate,
   { Value::makeInt( 123 ), Value::makeText( "world" ), Value::makeInt( 4 ) },
   { Value(), Value::makeText( "hello" ), Value::makeInt( 5 ) } );
 
-  ChangesetEntry fooUpdate123_pkey = ChangesetEntry::make(
-                                       &tableFoo, ChangesetEntry::OpUpdate,
+  ChangesetDataEntry fooUpdate123_pkey = ChangesetDataEntry::make(
+      &tableFoo, ChangesetDataEntry::OpUpdate,
   { Value::makeInt( 123 ), Value(), Value() },
   { Value::makeInt( 124 ), Value(), Value() } );
 
-  ChangesetEntry fooUpdate456 = ChangesetEntry::make(
-                                  &tableFoo, ChangesetEntry::OpUpdate,
+  ChangesetDataEntry fooUpdate456 = ChangesetDataEntry::make(
+                                      &tableFoo, ChangesetDataEntry::OpUpdate,
   { Value::makeInt( 456 ), Value(), Value::makeInt( 1 ) },
   { Value(), Value(), Value::makeInt( 2 ) } );
 
@@ -238,37 +244,37 @@ TEST( ChangesetUtils, test_concat_changesets_simple_table )
 
   testConcatOneTable( "foo-insert-update", tableFoo, { fooInsert123 }, { fooUpdate123 },
   {
-    ChangesetEntry::make( &tableFoo, ChangesetEntry::OpInsert, {},
+    ChangesetDataEntry::make( &tableFoo, ChangesetDataEntry::OpInsert, {},
     { Value::makeInt( 123 ), Value::makeText( "world" ), Value::makeInt( 4 ) }
-                        )
+                            )
   } );
 
   testConcatOneTable( "foo-insert-delete", tableFoo, { fooInsert123 }, { fooDelete123 }, {} );
 
   testConcatOneTable( "foo-update-update", tableFoo, { fooUpdate123 }, { fooUpdate123_2 },
   {
-    ChangesetEntry::make( &tableFoo, ChangesetEntry::OpUpdate,
+    ChangesetDataEntry::make( &tableFoo, ChangesetDataEntry::OpUpdate,
     { Value::makeInt( 123 ), Value::makeText( "hello" ), Value::makeInt( 5 ) },
     { Value(), Value::makeText( "world" ), Value::makeInt( 1 ) }
-                        )
+                            )
   } );
 
   testConcatOneTable( "foo-update-inv-update", tableFoo, { fooUpdate123 }, { fooUpdate123_inverse }, { } );
 
   testConcatOneTable( "foo-update-delete", tableFoo, { fooUpdate123 }, { fooDelete123_2 },
   {
-    ChangesetEntry::make( &tableFoo, ChangesetEntry::OpDelete,
+    ChangesetDataEntry::make( &tableFoo, ChangesetDataEntry::OpDelete,
     { Value::makeInt( 123 ), Value::makeText( "hello" ), Value::makeInt( 5 ) },
     {}
-                        )
+                            )
   } );
 
   testConcatOneTable( "foo-delete-insert", tableFoo, { fooDelete123_2 }, { fooInsert123 },
   {
-    ChangesetEntry::make( &tableFoo, ChangesetEntry::OpUpdate,
+    ChangesetDataEntry::make( &tableFoo, ChangesetDataEntry::OpUpdate,
     { Value::makeInt( 123 ), Value::makeText( "world" ), Value::makeInt( 4 ) },
     { Value(), Value::makeText( "hello" ), Value::makeInt( 5 ) }
-                        )
+                            )
   } );
 
   testConcatOneTable( "foo-delete-inv-insert", tableFoo, { fooDelete123 }, { fooInsert123 }, { } );
@@ -294,12 +300,12 @@ TEST( ChangesetUtils, test_concat_changesets_no_pkey_table )
   tableNoPkey.primaryKeys.push_back( false );
   tableNoPkey.primaryKeys.push_back( false );
 
-  ChangesetEntry noPkeyInsert1 = ChangesetEntry::make(
-  &tableNoPkey, ChangesetEntry::OpInsert, {},
+  ChangesetDataEntry noPkeyInsert1 = ChangesetDataEntry::make(
+  &tableNoPkey, ChangesetDataEntry::OpInsert, {},
   { Value::makeInt( 1 ), Value::makeText( "hey" ) } );
 
-  ChangesetEntry noPkeyUpdate2 = ChangesetEntry::make(
-                                   &tableNoPkey, ChangesetEntry::OpUpdate,
+  ChangesetDataEntry noPkeyUpdate2 = ChangesetDataEntry::make(
+                                       &tableNoPkey, ChangesetDataEntry::OpUpdate,
   { Value::makeInt( 2 ), Value::makeText( "huh" ) },
   { Value(), Value::makeText( "ho!" ) } );
 
@@ -321,16 +327,16 @@ TEST( ChangesetUtils, test_concat_changesets_multiple_tables )
   tableBar.primaryKeys.push_back( true ); // fid (pkey)
   tableBar.primaryKeys.push_back( false ); // name
 
-  ChangesetEntry fooInsert123 = ChangesetEntry::make(
-  &tableFoo, ChangesetEntry::OpInsert, {},
+  ChangesetDataEntry fooInsert123 = ChangesetDataEntry::make(
+  &tableFoo, ChangesetDataEntry::OpInsert, {},
   { Value::makeInt( 123 ), Value::makeText( "hello" ), Value::makeInt( 5 ) } );
 
-  ChangesetEntry barInsert123 = ChangesetEntry::make(
-  &tableBar, ChangesetEntry::OpInsert, {},
+  ChangesetDataEntry barInsert123 = ChangesetDataEntry::make(
+  &tableBar, ChangesetDataEntry::OpInsert, {},
   { Value::makeInt( 123 ), Value::makeText( "ha!" ) } );
 
-  ChangesetEntry barUpdate123 = ChangesetEntry::make(
-                                  &tableFoo, ChangesetEntry::OpUpdate,
+  ChangesetDataEntry barUpdate123 = ChangesetDataEntry::make(
+                                      &tableFoo, ChangesetDataEntry::OpUpdate,
   { Value::makeInt( 123 ), Value::makeText( "ha!" ) },
   { Value(), Value::makeText( ":-)" ) } );
 
@@ -346,13 +352,13 @@ TEST( ChangesetUtils, test_concat_changesets_multiple_tables )
   // expected result
   {
     std::make_pair( "foo", std::vector<ChangesetEntry>( {
-      ChangesetEntry::make( &tableFoo, ChangesetEntry::OpInsert, {},
+      ChangesetDataEntry::make( &tableFoo, ChangesetDataEntry::OpInsert, {},
       { Value::makeInt( 123 ), Value::makeText( "hello" ), Value::makeInt( 5 ) }
-                          ) } ) ),
+                                                        ) } ) ),
     std::make_pair( "bar", std::vector<ChangesetEntry>( {
-      ChangesetEntry::make( &tableBar, ChangesetEntry::OpInsert, {},
+      ChangesetDataEntry::make( &tableBar, ChangesetDataEntry::OpInsert, {},
       { Value::makeInt( 123 ), Value::makeText( ":-)" ) }
-                          ) } ) )
+                                                        ) } ) )
   } );
 
   testConcat( "multi-unrelated-insert-update",
@@ -364,14 +370,14 @@ TEST( ChangesetUtils, test_concat_changesets_multiple_tables )
   // expected result
   {
     std::make_pair( "foo", std::vector<ChangesetEntry>( {
-      ChangesetEntry::make( &tableFoo, ChangesetEntry::OpInsert, {},
+      ChangesetDataEntry::make( &tableFoo, ChangesetDataEntry::OpInsert, {},
       { Value::makeInt( 123 ), Value::makeText( "hello" ), Value::makeInt( 5 ) }
-                          ) } ) ),
+                                                        ) } ) ),
     std::make_pair( "bar", std::vector<ChangesetEntry>( {
-      ChangesetEntry::make( &tableBar, ChangesetEntry::OpUpdate,
+      ChangesetDataEntry::make( &tableBar, ChangesetDataEntry::OpUpdate,
       { Value::makeInt( 123 ), Value::makeText( "ha!" ) },
       { Value(), Value::makeText( ":-)" ) }
-                          ) } ) )
+                                                        ) } ) )
   } );
 }
 

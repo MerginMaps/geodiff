@@ -7,6 +7,7 @@
 #define CHANGESETUTILS_H
 
 #include "geodiff.h"
+#include "changeset.h"
 #include <string>
 #include <vector>
 
@@ -15,7 +16,7 @@
 class ConflictFeature;
 class ChangesetReader;
 class ChangesetWriter;
-struct ChangesetEntry;
+struct ChangesetDataEntry;
 struct ChangesetTable;
 struct TableSchema;
 struct Value;
@@ -26,6 +27,8 @@ ChangesetTable schemaToChangesetTable( const std::string &tableName, const Table
 void invertChangeset( ChangesetReader &reader, ChangesetWriter &writer );
 
 void concatChangesets( const Context *context, const std::vector<std::string> &filenames, const std::string &outputChangeset );
+
+nlohmann::json changesetDataEntryToJSON( const ChangesetDataEntry &entry );
 
 nlohmann::json changesetEntryToJSON( const ChangesetEntry &entry );
 

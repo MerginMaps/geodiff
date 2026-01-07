@@ -17,6 +17,7 @@
 #include <locale>
 #include <codecvt>
 
+#include "changeset.h"
 #include "changesetreader.h"
 #include "changesetwriter.h"
 #include "geodiffutils.hpp"
@@ -299,15 +300,15 @@ void writeSingleTableChangeset( std::string filename, const ChangesetTable &tabl
 }
 
 
-static bool testAllEntriesInOtherVector( const std::vector<ChangesetEntry> &tableEntriesA, const std::vector<ChangesetEntry> &tableEntriesB )
+static bool testAllEntriesInOtherVector( const std::vector<ChangesetDataEntry> &tableEntriesA, const std::vector<ChangesetDataEntry> &tableEntriesB )
 {
   for ( size_t i = 0; i < tableEntriesA.size(); ++i )
   {
-    const ChangesetEntry &entryI = tableEntriesA[i];
+    const ChangesetDataEntry &entryI = tableEntriesA[i];
     bool found = false;
     for ( size_t j = 0; j < tableEntriesB.size(); ++j )
     {
-      const ChangesetEntry &entryJ = tableEntriesB[j];
+      const ChangesetDataEntry &entryJ = tableEntriesB[j];
       if ( entryI.op == entryJ.op && entryI.oldValues == entryJ.oldValues && entryI.newValues == entryJ.newValues )
       {
         found = true;
@@ -331,20 +332,28 @@ bool compareDiffsByContent( std::string diffA, std::string diffB )
     return false;
 
   std::unordered_map<std::string, std::vector<bool> > tablesA, tablesB;
-  std::unordered_map<std::string, std::vector<ChangesetEntry> > entriesA, entriesB;
+  std::unordered_map<std::string, std::vector<ChangesetDataEntry> > dataEntriesA, dataEntriesB;
   ChangesetEntry entryA, entryB;
   while ( readerA.nextEntry( entryA ) )
   {
-    if ( tablesA.find( entryA.table->name ) == tablesA.end() )
-      tablesA[entryA.table->name] = entryA.table->primaryKeys;
-    entriesA[entryA.table->name].push_back( entryA );
+    if ( ChangesetDataEntry *dataEntryA = std::get_if<ChangesetDataEntry>( &entryA ) )
+    {
+      if ( tablesA.find( dataEntryA->table->name ) == tablesA.end() )
+        tablesA[dataEntryA->table->name] = dataEntryA->table->primaryKeys;
+      dataEntriesA[dataEntryA->table->name].push_back( *dataEntryA );
+    }
+    // TODO(dvdkon): Handle other entries?
   }
 
   while ( readerB.nextEntry( entryB ) )
   {
-    if ( tablesB.find( entryB.table->name ) == tablesB.end() )
-      tablesB[entryB.table->name] = entryB.table->primaryKeys;
-    entriesB[entryB.table->name].push_back( entryB );
+    if ( ChangesetDataEntry *dataEntryB = std::get_if<ChangesetDataEntry>( &entryB ) )
+    {
+      if ( tablesB.find( dataEntryB->table->name ) == tablesB.end() )
+        tablesB[dataEntryB->table->name] = dataEntryB->table->primaryKeys;
+      dataEntriesB[dataEntryB->table->name].push_back( *dataEntryB );
+    }
+    // TODO(dvdkon): Handle other entries?
   }
 
   if ( tablesA != tablesB )
@@ -353,11 +362,11 @@ bool compareDiffsByContent( std::string diffA, std::string diffB )
   for ( auto tableIt = tablesA.begin(); tableIt != tablesA.end(); ++tableIt )
   {
     std::string tableName = tableIt->first;
-    if ( entriesA[tableName].size() != entriesB[tableName].size() )
+    if ( dataEntriesA[tableName].size() != dataEntriesB[tableName].size() )
       return false;
-    if ( !testAllEntriesInOtherVector( entriesA[tableName], entriesB[tableName] ) )
+    if ( !testAllEntriesInOtherVector( dataEntriesA[tableName], dataEntriesB[tableName] ) )
       return false;
-    if ( !testAllEntriesInOtherVector( entriesB[tableName], entriesA[tableName] ) )
+    if ( !testAllEntriesInOtherVector( dataEntriesB[tableName], dataEntriesA[tableName] ) )
       return false;
   }
   return true;

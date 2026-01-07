@@ -10,6 +10,7 @@
 #include <vector>
 #include <unordered_map>
 
+#include "changeset.h"
 #include "geodiff.h"
 
 #include "geodiff_config.hpp"
@@ -53,7 +54,7 @@ bool fileContentEquals( const std::string &file1, const std::string &file2 );
 bool isFileEmpty( const std::string &filepath );
 
 struct ChangesetTable;
-struct ChangesetEntry;
+struct ChangesetDataEntry;
 
 //! Helper function to write a diff file for a couple of tables
 void writeChangeset( std::string filename, const std::unordered_map<std::string, ChangesetTable> &tables,

@@ -5,6 +5,7 @@
 
 #include "changesetreader.h"
 
+#include "changeset.h"
 #include "geodiffutils.hpp"
 #include "changesetgetvarint.h"
 #include "portableendian.h"
@@ -42,31 +43,40 @@ bool ChangesetReader::nextEntry( ChangesetEntry &entry )
     if ( mOffset >= mBuffer->size() )
       break;   // EOF
 
-    int type = readByte();
-    if ( type == 'T' )
+    ChangesetEntryType type = static_cast<ChangesetEntryType>( readByte() );
+    if ( type == ChangesetEntryType::OpTableRecord )
     {
       readTableRecord();
       // and now continue reading, we want an entry
     }
-    else if ( type == ChangesetEntry::OpInsert || type == ChangesetEntry::OpUpdate || type == ChangesetEntry::OpDelete )
+    else if ( type == ChangesetEntryType::OpInsert || type == ChangesetEntryType::OpUpdate || type == ChangesetEntryType::OpDelete )
     {
-      readByte();
-      if ( type != ChangesetEntry::OpInsert )
-        readRowValues( entry.oldValues );
-      else
-        entry.oldValues.erase( entry.oldValues.begin(), entry.oldValues.end() );
-      if ( type != ChangesetEntry::OpDelete )
-        readRowValues( entry.newValues );
-      else
-        entry.newValues.erase( entry.newValues.begin(), entry.newValues.end() );
-
-      entry.op = static_cast<ChangesetEntry::OperationType>( type );
-      entry.table = &mCurrentTable;
+      entry = readDataEntry( type );
       return true;  // we're done!
+    }
+    else if ( type == ChangesetEntryType::OpCreateTable )
+    {
+      entry = readCreateTableEntry();
+      return true;
+    }
+    else if ( type == ChangesetEntryType::OpDropTable )
+    {
+      entry = readDropTableEntry();
+      return true;
+    }
+    else if ( type == ChangesetEntryType::OpAddColumn )
+    {
+      entry = readAddColumnEntry();
+      return true;
+    }
+    else if ( type == ChangesetEntryType::OpDropColumn )
+    {
+      entry = readDropColumnEntry();
+      return true;
     }
     else
     {
-      throwReaderError( "Unknown entry type " + std::to_string( type ) );
+      throwReaderError( "Unknown entry type " + std::to_string( static_cast<int>( type ) ) );
     }
   }
   return false;
@@ -195,6 +205,70 @@ void ChangesetReader::readTableRecord()
   mCurrentTable.name = readNullTerminatedString();
 }
 
+ChangesetDataEntry ChangesetReader::readDataEntry( ChangesetEntryType type )
+{
+  ChangesetDataEntry entry;
+  readByte();
+  if ( type != ChangesetEntryType::OpInsert )
+    readRowValues( entry.oldValues );
+  else
+    entry.oldValues.erase( entry.oldValues.begin(), entry.oldValues.end() );
+  if ( type != ChangesetEntryType::OpDelete )
+    readRowValues( entry.newValues );
+  else
+    entry.newValues.erase( entry.newValues.begin(), entry.newValues.end() );
+
+  entry.op = static_cast<ChangesetDataEntry::OperationType>( type );
+  entry.table = &mCurrentTable;
+  return entry;
+}
+
+ChangesetDdlColumn ChangesetReader::readDdlColumn()
+{
+  ChangesetDdlColumn column;
+  column.name = readNullTerminatedString();
+  column.type = readNullTerminatedString();
+  char flags = readByte();
+  column.isNotNull = flags & 0x1;
+  column.isUnique = flags & 0x2;
+  return column;
+}
+
+ChangesetCreateTableEntry ChangesetReader::readCreateTableEntry()
+{
+  ChangesetCreateTableEntry entry;
+  entry.tableName = readNullTerminatedString();
+  int columnCount = readVarint();
+  entry.columns.resize( columnCount );
+  for ( size_t i = 0; i < entry.columns.size(); i++ )
+  {
+    entry.columns[i] = readDdlColumn();
+  }
+  return entry;
+}
+
+ChangesetDropTableEntry ChangesetReader::readDropTableEntry()
+{
+  ChangesetDropTableEntry entry;
+  entry.tableName = readNullTerminatedString();
+  return entry;
+}
+
+ChangesetAddColumnEntry ChangesetReader::readAddColumnEntry()
+{
+  ChangesetAddColumnEntry entry;
+  entry.tableName = readNullTerminatedString();
+  entry.column = readDdlColumn();
+  return entry;
+}
+
+ChangesetDropColumnEntry ChangesetReader::readDropColumnEntry()
+{
+  ChangesetDropColumnEntry entry;
+  entry.tableName = readNullTerminatedString();
+  entry.columnName = readNullTerminatedString();
+  return entry;
+}
 
 void ChangesetReader::throwReaderError( const std::string &message ) const
 {
