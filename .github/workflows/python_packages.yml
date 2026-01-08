@@ -152,8 +152,8 @@ jobs:
           name: dist-windows_32
 
   build_macos_arm64_wheels:
-    name: Build wheels on macos-14 (arm64)
-    runs-on: macos-14
+    name: Build wheels on macos-15 (arm64)
+    runs-on: macos-15
     env:
         SQLite3_ROOT: ${{ github.workspace }}/libs
         MACOSX_DEPLOYMENT_TARGET: '14.0'
@@ -187,8 +187,8 @@ jobs:
           name: dist-macos_arm64
 
   build_macos_wheels:
-    name: Build wheels on macos-13
-    runs-on: macos-13
+    name: Build wheels on macos-15 (Intel)
+    runs-on: macos-15-intel
     env:
         SQLite3_ROOT: ${{ github.workspace }}/libs
         MACOSX_DEPLOYMENT_TARGET: '10.9'
