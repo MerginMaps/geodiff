@@ -36,7 +36,9 @@ jobs:
       CIBW_SKIP: pp* cp27-* cp35-* cp36-* *-i686 *musllinux*
       CIBW_MANYLINUX_X86_64_IMAGE: manylinux2014
       CIBW_MANYLINUX_I686_IMAGE: manylinux2014
-      CIBW_BEFORE_ALL_LINUX: yum install -y sqlite-devel
+      # libatomic is for i686 build, see
+      # https://github.com/scikit-build/cmake-python-distributions/issues/674
+      CIBW_BEFORE_ALL_LINUX: yum install -y libatomic sqlite-devel
       CIBW_BEFORE_BUILD: pip install setuptools scikit-build wheel cmake
       CIBW_TEST_COMMAND: python -c "import pygeodiff; pygeodiff.GeoDiff().version()"
 
@@ -198,7 +200,7 @@ jobs:
           cd sqlite-autoconf-3460100 &&
           CC=clang CFLAGS="-arch x86_64 -O3 -DSQLITE_ENABLE_FTS4 -DSQLITE_ENABLE_RTREE -DSQLITE_ENABLE_COLUMN_METADATA" ./configure --enable-dynamic-extensions --prefix=${{ github.workspace }}/libs/ &&
           make install
-          
+
     steps:
       - uses: actions/checkout@v3
 
@@ -234,7 +236,7 @@ jobs:
         run: |
           pip install --upgrade pip
           pip install setuptools twine scikit-build wheel cmake
-        
+
       - name: Build sdist
         run: python setup.py sdist
 
