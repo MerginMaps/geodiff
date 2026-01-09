@@ -8,6 +8,7 @@
 
 #include "geodiffcontext.hpp"
 #include "geodifflogger.hpp"
+#include "geodiffutils.hpp"
 
 #include <algorithm>
 

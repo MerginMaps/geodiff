@@ -10,7 +10,7 @@
 #include <vector>
 #include <algorithm>
 
-#include "geodiffutils.hpp"
+#include "geodiffcontext.hpp"
 
 /* Information about column type, converted to base type */
 struct TableColumnType

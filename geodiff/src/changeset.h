@@ -12,6 +12,8 @@
 #include <variant>
 #include <vector>
 
+#include "tableschema.h"
+
 
 /**
  * Representation of a single value stored in a column.
@@ -265,20 +267,11 @@ struct ChangesetDataEntry
   }
 };
 
-//! Description of column used by DDL entries
-struct ChangesetDdlColumn
-{
-  std::string name;
-  std::string type;
-  bool isNotNull;
-  bool isUnique;
-};
-
 //! Entry for CREATE TABLE command
 struct ChangesetCreateTableEntry
 {
   std::string tableName;
-  std::vector<ChangesetDdlColumn> columns;
+  std::vector<TableColumnInfo> columns;
 };
 
 //! Entry for DROP TABLE command
@@ -291,7 +284,7 @@ struct ChangesetDropTableEntry
 struct ChangesetAddColumnEntry
 {
   std::string tableName;
-  ChangesetDdlColumn column;
+  TableColumnInfo column;
 };
 
 //! Entry for ALTER TABLE ... DROP COLUMN command

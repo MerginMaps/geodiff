@@ -9,6 +9,8 @@
 #include "geodiffutils.hpp"
 #include "changesetgetvarint.h"
 #include "portableendian.h"
+#include "sqliteutils.h"
+#include "tableschema.h"
 
 #include <assert.h>
 #include <memory.h>
@@ -223,14 +225,21 @@ ChangesetDataEntry ChangesetReader::readDataEntry( ChangesetEntryType type )
   return entry;
 }
 
-ChangesetDdlColumn ChangesetReader::readDdlColumn()
+TableColumnInfo ChangesetReader::readColumnInfo()
 {
-  ChangesetDdlColumn column;
+  TableColumnInfo column;
   column.name = readNullTerminatedString();
-  column.type = readNullTerminatedString();
+  column.type.baseType = static_cast<TableColumnType::BaseType>( readByte() );
+  column.type.dbType = column.type.baseTypeToString( column.type.baseType );
   char flags = readByte();
-  column.isNotNull = flags & 0x1;
-  column.isUnique = flags & 0x2;
+  column.isPrimaryKey = flags & 1;
+  column.isNotNull = flags & ( 1 << 1 );
+  column.isAutoIncrement = flags & ( 1 << 2 );
+  column.isGeometry = flags & ( 1 << 3 );
+  column.geomHasZ = flags & ( 1 << 4 );
+  column.geomHasM = flags & ( 1 << 5 );
+  column.geomType = readNullTerminatedString();
+  column.geomSrsId = readVarint();
   return column;
 }
 
@@ -242,7 +251,7 @@ ChangesetCreateTableEntry ChangesetReader::readCreateTableEntry()
   entry.columns.resize( columnCount );
   for ( size_t i = 0; i < entry.columns.size(); i++ )
   {
-    entry.columns[i] = readDdlColumn();
+    entry.columns[i] = readColumnInfo();
   }
   return entry;
 }
@@ -258,7 +267,7 @@ ChangesetAddColumnEntry ChangesetReader::readAddColumnEntry()
 {
   ChangesetAddColumnEntry entry;
   entry.tableName = readNullTerminatedString();
-  entry.column = readDdlColumn();
+  entry.column = readColumnInfo();
   return entry;
 }
 

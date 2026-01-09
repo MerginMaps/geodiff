@@ -196,13 +196,19 @@ nlohmann::json changesetDataEntryToJSON( const ChangesetDataEntry &entry )
   return res;
 }
 
-static nlohmann::json changesetColumnToJSON( const ChangesetDdlColumn &column )
+static nlohmann::json columnInfoToJSON( const TableColumnInfo &column )
 {
   nlohmann::json res;
   res["name"] = column.name;
-  res["type"] = column.type;
+  res["type"] = column.type.dbType;
+  res["isPrimaryKey"] = column.isPrimaryKey;
   res["isNotNull"] = column.isNotNull;
-  res["isUnique"] = column.isUnique;
+  res["isAutoIncrement"] = column.isAutoIncrement;
+  res["isGeometry"] = column.isGeometry;
+  res["geomType"] = column.geomType;
+  res["geomSrsId"] = column.geomSrsId;
+  res["geomHasZ"] = column.geomHasZ;
+  res["geomHasM"] = column.geomHasM;
   return res;
 }
 
@@ -218,9 +224,9 @@ nlohmann::json changesetEntryToJSON( const ChangesetEntry &entry )
     res["type"] = "create_table";
     res["tableName"] = ctEntry->tableName;
     res["columns"] = nlohmann::json::array();
-    for ( const ChangesetDdlColumn &column : ctEntry->columns )
+    for ( const TableColumnInfo &column : ctEntry->columns )
     {
-      res["columns"].push_back( changesetColumnToJSON( column ) );
+      res["columns"].push_back( columnInfoToJSON( column ) );
     }
     return res;
   }
@@ -236,7 +242,7 @@ nlohmann::json changesetEntryToJSON( const ChangesetEntry &entry )
     nlohmann::json res;
     res["type"] = "add_column";
     res["tableName"] = acEntry->tableName;
-    res["column"] = changesetColumnToJSON( acEntry->column );
+    res["column"] = columnInfoToJSON( acEntry->column );
     return res;
   }
   else if ( const ChangesetDropColumnEntry *dcEntry = std::get_if<ChangesetDropColumnEntry>( &entry ) )

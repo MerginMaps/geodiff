@@ -42,13 +42,13 @@ void ChangesetWriter::writeEntry( const ChangesetEntry &entry )
 {
   if ( const ChangesetDataEntry *dataEntry = std::get_if<ChangesetDataEntry>( &entry ) )
     writeDataEntry( *dataEntry );
-  if ( const ChangesetCreateTableEntry *ctEntry = std::get_if<ChangesetCreateTableEntry>( &entry ) )
+  else if ( const ChangesetCreateTableEntry *ctEntry = std::get_if<ChangesetCreateTableEntry>( &entry ) )
     writeCreateTableEntry( *ctEntry );
-  if ( const ChangesetDropTableEntry *dtEntry = std::get_if<ChangesetDropTableEntry>( &entry ) )
+  else if ( const ChangesetDropTableEntry *dtEntry = std::get_if<ChangesetDropTableEntry>( &entry ) )
     writeDropTableEntry( *dtEntry );
-  if ( const ChangesetAddColumnEntry *acEntry = std::get_if<ChangesetAddColumnEntry>( &entry ) )
+  else if ( const ChangesetAddColumnEntry *acEntry = std::get_if<ChangesetAddColumnEntry>( &entry ) )
     writeAddColumnEntry( *acEntry );
-  if ( const ChangesetDropColumnEntry *dcEntry = std::get_if<ChangesetDropColumnEntry>( &entry ) )
+  else if ( const ChangesetDropColumnEntry *dcEntry = std::get_if<ChangesetDropColumnEntry>( &entry ) )
     writeDropColumnEntry( *dcEntry );
   else
     throw GeoDiffException( "Tried to write unhandled changeset entry type! " +
@@ -120,11 +120,18 @@ void ChangesetWriter::writeRowValues( const std::vector<Value> &values )
   }
 }
 
-void ChangesetWriter::writeDdlColumn( const ChangesetDdlColumn &column )
+void ChangesetWriter::writeColumnInfo( const TableColumnInfo &column )
 {
   writeNullTerminatedString( column.name );
-  writeNullTerminatedString( column.type );
-  writeByte( column.isNotNull | ( column.isUnique << 1 ) );
+  writeByte( column.type.baseType );
+  writeByte( column.isPrimaryKey
+             | ( column.isNotNull << 1 )
+             | ( column.isAutoIncrement << 2 )
+             | ( column.isGeometry << 3 )
+             | ( column.geomHasZ << 4 )
+             | ( column.geomHasM << 5 ) );
+  writeNullTerminatedString( column.geomType );
+  writeVarint( column.geomSrsId );
 }
 
 
@@ -143,27 +150,31 @@ void ChangesetWriter::writeDataEntry( const ChangesetDataEntry &entry )
 
 void ChangesetWriter::writeCreateTableEntry( const ChangesetCreateTableEntry &entry )
 {
+  writeByte( static_cast<char>( ChangesetEntryType::OpCreateTable ) );
   writeNullTerminatedString( entry.tableName );
   writeVarint( entry.columns.size() );
-  for ( const ChangesetDdlColumn &column : entry.columns )
+  for ( const TableColumnInfo &column : entry.columns )
   {
-    writeDdlColumn( column );
+    writeColumnInfo( column );
   }
 }
 
 void ChangesetWriter::writeDropTableEntry( const ChangesetDropTableEntry &entry )
 {
+  writeByte( static_cast<char>( ChangesetEntryType::OpDropTable ) );
   writeNullTerminatedString( entry.tableName );
 }
 
 void ChangesetWriter::writeAddColumnEntry( const ChangesetAddColumnEntry &entry )
 {
+  writeByte( static_cast<char>( ChangesetEntryType::OpAddColumn ) );
   writeNullTerminatedString( entry.tableName );
-  writeDdlColumn( entry.column );
+  writeColumnInfo( entry.column );
 }
 
 void ChangesetWriter::writeDropColumnEntry( const ChangesetDropColumnEntry &entry )
 {
+  writeByte( static_cast<char>( ChangesetEntryType::OpDropColumn ) );
   writeNullTerminatedString( entry.tableName );
   writeNullTerminatedString( entry.columnName );
 }
