@@ -43,7 +43,7 @@ class ChangesetWriter
     void writeNullTerminatedString( const std::string &str );
 
     void writeRowValues( const std::vector<Value> &values );
-    void writeDdlColumn( const ChangesetDdlColumn &column );
+    void writeColumnInfo( const TableColumnInfo &column );
 
     void writeDataEntry( const ChangesetDataEntry &entry );
     void writeCreateTableEntry( const ChangesetCreateTableEntry &entry );

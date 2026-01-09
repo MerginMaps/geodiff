@@ -10,6 +10,7 @@
 
 #include "driver.h"
 #include "sqliteutils.h"
+#include "changeset.h"
 
 /**
  * Holds state that is useful to keep between entries when applying changeset.

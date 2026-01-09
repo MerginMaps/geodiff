@@ -7,6 +7,7 @@
 #define POSTGRESDRIVER_H
 
 #include "driver.h"
+#include "changeset.h"
 
 extern "C"
 {
