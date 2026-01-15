@@ -1,0 +1,31 @@
+name: Windows geodiff.exe build
+on: [push, pull_request]
+
+jobs:
+  win_cli_build:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout Geodiff
+        uses: actions/checkout@v3
+
+      - name: Build Geodiff
+        shell: pwsh
+        run: |
+          # Github runners have two installations of vcpkg, one from Visual
+          # Studio and one extra. Use the second one explicitly to avoid mixups.
+          $env:VCPKG_ROOT = "C:\vcpkg"
+          & $env:VCPKG_ROOT/vcpkg install --triplet x64-windows-static sqlite3
+          & $env:VCPKG_ROOT/vcpkg install --triplet x64-windows-static libpq[openssl]
+          cd $env:GITHUB_WORKSPACE/geodiff
+          mkdir build
+          cd build
+          cmake .. -DCMAKE_TOOLCHAIN_FILE="$env:VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake" -DWITH_POSTGRESQL=TRUE -DVCPKG_TARGET_TRIPLET=x64-windows-static
+          cmake --build . --config Release
+          echo "geodiff_exe=$(pwd)/Release/geodiff.exe" >> $env:GITHUB_ENV
+
+      - name: Upload geodiff.exe artifact
+        uses: actions/upload-artifact@v6
+        with:
+          name: geodiff.exe
+          path: ${{ env.geodiff_exe }}
+          if-no-files-found: error
