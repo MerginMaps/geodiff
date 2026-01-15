@@ -3,7 +3,7 @@ on: [push, pull_request]
 
 jobs:
   win_cli_build:
-    runs-on: windows-latest
+    runs-on: windows-2025
     steps:
       - name: Checkout Geodiff
         uses: actions/checkout@v3

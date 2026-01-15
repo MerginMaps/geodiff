@@ -56,8 +56,8 @@ jobs:
           name: dist-musllinux_x86_64
 
   build_windows_wheels:
-    name: Build wheels on windows-latest
-    runs-on: windows-2022
+    name: Build wheels on Windows
+    runs-on: windows-2025
     env:
       CMAKE_GENERATOR: "Visual Studio 17 2022"
       SQLite3_ROOT: "C:/vcpkg/installed/x64-windows"
@@ -89,8 +89,8 @@ jobs:
           name: dist-windows
 
   build_windows_32_wheels:
-    name: Build 32bit wheels on windows-latest
-    runs-on: windows-2022
+    name: Build 32bit wheels on Windows
+    runs-on: windows-2025
     env:
       CMAKE_GENERATOR: "Visual Studio 17 2022"
       CMAKE_GENERATOR_PLATFORM: "Win32"
