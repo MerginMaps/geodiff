@@ -99,13 +99,9 @@ class GeoDiffPostgresException: public GeoDiffException
     int errorCode() const override;
   private:
     std::string mSql;
-// MSVC doesn't allow non-copyable exceptions, so we wrap non-copyable
-// PostgresResult in a refcounting smart pointer.
-#ifdef _MSC_VER
+    // MSVC doesn't allow non-copyable exceptions, so we wrap non-copyable
+    // PostgresResult in a refcounting smart pointer.
     std::shared_ptr<PostgresResult> mRes;
-#else
-    PostgresResult mRes;
-#endif
 };
 
 PostgresResult execSql( PGconn *c, const std::string &sql );
