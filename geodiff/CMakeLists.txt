@@ -61,6 +61,12 @@ IF (WITH_POSTGRESQL)
   FIND_PACKAGE(Postgres REQUIRED)
   IF (POSTGRES_FOUND)
     SET(HAVE_POSTGRES TRUE)   # used in geodiff_config.hpp
+    IF (VCPKG_TARGET_TRIPLET)
+      # When using vcpkg, we have a proper CMake package for libpq,
+      # which handles transitive dependencies.
+      FIND_PACKAGE(PostgreSQL REQUIRED)
+      link_libraries(PostgreSQL::PostgreSQL)
+    ENDIF()
   ENDIF()
 ENDIF()
 
