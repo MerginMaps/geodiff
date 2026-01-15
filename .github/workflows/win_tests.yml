@@ -4,11 +4,11 @@ on: [push, pull_request]
 concurrency:
   group: ci-${{github.ref}}-win-tests
   cancel-in-progress: true
-  
+
 jobs:
   build_win_test:
     if: github.repository == 'MerginMaps/geodiff'
-    runs-on: windows-latest
+    runs-on: windows-2025
     steps:
       - name: Checkout Geodiff
         uses: actions/checkout@v3
@@ -18,12 +18,12 @@ jobs:
           C:/vcpkg/vcpkg install sqlite3[rtree,fts3,json1] --triplet x64-windows
           C:/vcpkg/vcpkg integrate install
           dir "C:/vcpkg/installed/x64-windows/bin"
-      
+
       - name: set compiler environment
         shell: cmd
         run: |
             CALL "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\Common7\Tools\VsDevCmd.bat" -arch=x86
-    
+
       - name: build geodiff
         shell: pwsh
         run: |
