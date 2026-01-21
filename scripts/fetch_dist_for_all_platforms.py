@@ -26,6 +26,7 @@ source = "pygeodiff-" + VERSION + ".tar.gz"
 plats = ["win32",
          "win_amd64",
          "macosx_10_9_x86_64",
+         "macosx_14_0_arm64",
          "manylinux_2_24_x86_64"
          ]
 
@@ -47,6 +48,7 @@ if ((not os.path.exists(FINALDIR)) or
     (not os.path.exists(FINALDIR + "/pygeodiff-" + VERSION + "-python.pyd")) or
     (not os.path.exists(FINALDIR + "/pygeodiff-" + VERSION + "-python-win32.pyd")) or
     (not os.path.exists(FINALDIR + "/libpygeodiff-" + VERSION + "-python.dylib")) or
+    (not os.path.exists(FINALDIR + "/libpygeodiff-" + VERSION + "-python-arm64.dylib")) or
     (not os.path.exists(FINALDIR + "/libpygeodiff-" + VERSION + "-python.so"))
    ):
     print ("ERROR")
