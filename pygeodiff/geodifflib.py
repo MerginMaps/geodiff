@@ -190,7 +190,10 @@ class GeoDiffLib:
                 suffix = ".pyd"
         elif platform.system() == "Darwin":
             prefix = "lib"
-            suffix = ".dylib"
+            if platform.machine() == "arm64":
+                suffix = "-arm64.dylib"
+            else:
+                suffix = ".dylib"
         else:
             prefix = "lib"
             suffix = ".so"
