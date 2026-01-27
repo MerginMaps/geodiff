@@ -142,7 +142,7 @@ class GeoDiffLib:
 
         self._V_get_int = self.lib.GEODIFF_V_getInt
         self._V_get_int.argtypes = [ctypes.c_void_p, ctypes.c_void_p]
-        self._V_get_int.restype = ctypes.c_int
+        self._V_get_int.restype = ctypes.c_int64
 
         self._V_get_double = self.lib.GEODIFF_V_getDouble
         self._V_get_double.argtypes = [ctypes.c_void_p, ctypes.c_void_p]
@@ -366,7 +366,7 @@ class GeoDiffLib:
 
     def list_changes(self, changeset, result):
         func = self.lib.GEODIFF_listChanges
-        func.argtypes = [ctypes.c_void_p, ctypes.c_char_p]
+        func.argtypes = [ctypes.c_void_p, ctypes.c_char_p, ctypes.c_char_p]
         func.restype = ctypes.c_int
 
         # create byte objects from the strings
@@ -377,7 +377,7 @@ class GeoDiffLib:
 
     def list_changes_summary(self, changeset, result):
         func = self.lib.GEODIFF_listChangesSummary
-        func.argtypes = [ctypes.c_void_p, ctypes.c_char_p]
+        func.argtypes = [ctypes.c_void_p, ctypes.c_char_p, ctypes.c_char_p]
         func.restype = ctypes.c_int
 
         # create byte objects from the strings
