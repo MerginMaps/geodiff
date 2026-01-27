@@ -14,16 +14,16 @@ GeoDiffPostgresException::GeoDiffPostgresException( PostgresResult res, const st
   : GeoDiffException( "postgres cmd error(" + res.sqlState() +
                       "): " + res.statusErrorMessage() +
                       ( sql.size() ? "\n\nSQL:\n" + sql : "" ) ),
-    mSql( sql ), mRes( std::move( res ) ) {}
+    mSql( sql ), mRes( new PostgresResult( std::move( res ) ) ) { }
 
 const PostgresResult &GeoDiffPostgresException::result() const
 {
-  return mRes;
+  return *mRes;
 }
 
 int GeoDiffPostgresException::errorCode() const
 {
-  if ( mRes.isIntegrityError() )
+  if ( result().isIntegrityError() )
     return GEODIFF_CONFLICTS;
   else
     return GEODIFF_ERROR;

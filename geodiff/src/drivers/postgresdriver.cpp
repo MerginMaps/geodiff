@@ -488,7 +488,7 @@ static bool isColumnGeometry( const TableColumnInfo &col )
   return col.isGeometry;
 }
 
-static Value resultToValue( const PostgresResult &res, int r, size_t i, const TableColumnInfo &col )
+static Value resultToValue( const PostgresResult &res, int r, int i, const TableColumnInfo &col )
 {
   Value v;
   if ( res.isNull( r, i ) )
@@ -609,8 +609,8 @@ static void handleInserted( const std::string &schemaNameBase, const std::string
     ChangesetEntry e;
     e.op = reverse ? ChangesetEntry::OpDelete : ChangesetEntry::OpInsert;
 
-    size_t numColumns = tbl.columns.size();
-    for ( size_t i = 0; i < numColumns; ++i )
+    int numColumns = static_cast<int>( tbl.columns.size() );
+    for ( int i = 0; i < numColumns; ++i )
     {
       Value v( resultToValue( res, r, i, tbl.columns[i] ) );
       if ( reverse )
@@ -653,8 +653,8 @@ static void handleUpdated( const std::string &schemaNameBase, const std::string 
     ChangesetEntry e;
     e.op = ChangesetEntry::OpUpdate;
 
-    size_t numColumns = tbl.columns.size();
-    for ( size_t i = 0; i < numColumns; ++i )
+    int numColumns = static_cast<int>( tbl.columns.size() );
+    for ( int i = 0; i < numColumns; ++i )
     {
       Value v1( resultToValue( res, r, i + numColumns, tbl.columns[i] ) );
       Value v2( resultToValue( res, r, i, tbl.columns[i] ) );
@@ -975,7 +975,7 @@ std::string PostgresDriver::getSequenceObjectName( const TableSchema &tbl, int &
 {
   std::string colName;
   autoIncrementPkeyIndex = -1;
-  for ( size_t i = 0; i < tbl.columns.size(); ++i )
+  for ( int i = 0; i < static_cast<int>( tbl.columns.size() ); ++i )
   {
     if ( tbl.columns[i].isPrimaryKey && tbl.columns[i].isAutoIncrement )
     {
@@ -1080,8 +1080,8 @@ void PostgresDriver::dumpData( ChangesetWriter &writer, bool useModified )
 
       ChangesetEntry e;
       e.op = ChangesetEntry::OpInsert;
-      size_t numColumns = tbl.columns.size();
-      for ( size_t i = 0; i < numColumns; ++i )
+      int numColumns = static_cast<int>( tbl.columns.size() );
+      for ( int i = 0; i < numColumns; ++i )
       {
         e.newValues.push_back( Value( resultToValue( res, r, i, tbl.columns[i] ) ) );
       }

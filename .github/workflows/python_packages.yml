@@ -6,7 +6,8 @@ jobs:
     name: Build wheels for manylinux_2_28
     runs-on: ubuntu-latest
     env:
-      CIBW_SKIP: pp* cp27-* cp35-* cp36-* *-i686 *musllinux*
+      # pp* skips PyPy
+      CIBW_SKIP: pp* *musllinux*
       CIBW_MANYLINUX_X86_64_IMAGE: manylinux_2_28
       CIBW_ARCHS: x86_64
       CIBW_BEFORE_ALL_LINUX: dnf makecache && dnf install --assumeyes sqlite-devel
@@ -22,39 +23,12 @@ jobs:
           python-version: '3.9'
 
       - name: Build wheels
-        uses: pypa/cibuildwheel@v2.20.0
+        uses: pypa/cibuildwheel@v3.3.1
 
       - uses: actions/upload-artifact@v4
         with:
           path: ./wheelhouse/*.whl
           name: dist-manylinux_2_28
-
-  build_linux_wheels_manylinux2014:
-    name: Build wheels for manylinux2014
-    runs-on: ubuntu-latest
-    env:
-      CIBW_SKIP: pp* cp27-* cp35-* cp36-* *-i686 *musllinux*
-      CIBW_MANYLINUX_X86_64_IMAGE: manylinux2014
-      CIBW_MANYLINUX_I686_IMAGE: manylinux2014
-      CIBW_BEFORE_ALL_LINUX: yum install -y sqlite-devel
-      CIBW_BEFORE_BUILD: pip install setuptools scikit-build wheel cmake
-      CIBW_TEST_COMMAND: python -c "import pygeodiff; pygeodiff.GeoDiff().version()"
-
-    steps:
-      - uses: actions/checkout@v3
-
-      - uses: actions/setup-python@v3
-        name: Install Python
-        with:
-          python-version: '3.9'
-
-      - name: Build wheels
-        uses: pypa/cibuildwheel@v2.20.0
-
-      - uses: actions/upload-artifact@v4
-        with:
-          path: ./wheelhouse/*.whl
-          name: dist-manylinux2014
 
   build_linux_wheels_musllinux_x86_64:
     name: Build wheels for musllinux_x86_64 (alpine)
@@ -74,7 +48,7 @@ jobs:
           python-version: '3.9'
 
       - name: Build wheels
-        uses: pypa/cibuildwheel@v2.20.0
+        uses: pypa/cibuildwheel@v3.3.1
 
       - uses: actions/upload-artifact@v4
         with:
@@ -82,12 +56,12 @@ jobs:
           name: dist-musllinux_x86_64
 
   build_windows_wheels:
-    name: Build wheels on windows-latest
-    runs-on: windows-2022
+    name: Build wheels on Windows
+    runs-on: windows-2025
     env:
       CMAKE_GENERATOR: "Visual Studio 17 2022"
       SQLite3_ROOT: "C:/vcpkg/installed/x64-windows"
-      CIBW_SKIP: cp27-* cp35-* cp36-* *-win32
+      CIBW_SKIP: "*-win32"
       CIBW_TEST_COMMAND: python -c "import pygeodiff; pygeodiff.GeoDiff().version()"
       CIBW_REPAIR_WHEEL_COMMAND_WINDOWS: "delvewheel repair --add-path C:/vcpkg/installed/x64-windows/bin --no-mangle-all -v -w {dest_dir} {wheel}"
 
@@ -107,7 +81,7 @@ jobs:
           dir "C:/vcpkg/installed/x64-windows/bin"
 
       - name: Build wheels
-        uses: pypa/cibuildwheel@v2.20.0
+        uses: pypa/cibuildwheel@v3.3.1
 
       - uses: actions/upload-artifact@v4
         with:
@@ -115,13 +89,13 @@ jobs:
           name: dist-windows
 
   build_windows_32_wheels:
-    name: Build 32bit wheels on windows-latest
-    runs-on: windows-2022
+    name: Build 32bit wheels on Windows
+    runs-on: windows-2025
     env:
       CMAKE_GENERATOR: "Visual Studio 17 2022"
       CMAKE_GENERATOR_PLATFORM: "Win32"
       SQLite3_ROOT: "C:/vcpkg/installed/x86-windows"
-      CIBW_SKIP: cp27-* cp35-* cp36-* pp* *-win_amd64
+      CIBW_SKIP: pp* *-win_amd64
       CIBW_TEST_COMMAND: python -c "import pygeodiff; pygeodiff.GeoDiff().version()"
       CIBW_REPAIR_WHEEL_COMMAND_WINDOWS: "delvewheel repair --add-path C:/vcpkg/installed/x86-windows/bin --no-mangle-all -v -w {dest_dir} {wheel}"
 
@@ -142,7 +116,7 @@ jobs:
           dir "C:/vcpkg/installed/x86-windows/bin"
 
       - name: Build wheels
-        uses: pypa/cibuildwheel@v2.20.0
+        uses: pypa/cibuildwheel@v3.3.1
 
       - uses: actions/upload-artifact@v4
         with:
@@ -150,12 +124,12 @@ jobs:
           name: dist-windows_32
 
   build_macos_arm64_wheels:
-    name: Build wheels on macos-14 (arm64)
-    runs-on: macos-14
+    name: Build wheels on macos-15 (arm64)
+    runs-on: macos-15
     env:
         SQLite3_ROOT: ${{ github.workspace }}/libs
         MACOSX_DEPLOYMENT_TARGET: '14.0'
-        CIBW_SKIP: cp27-* cp35-* cp36-*
+        CIBW_SKIP: ""
         CIBW_TEST_COMMAND: python -c "import pygeodiff; pygeodiff.GeoDiff().version()"
         CIBW_BEFORE_ALL: >
           wget https://www.sqlite.org/2024/sqlite-autoconf-3460100.tar.gz &&
@@ -177,7 +151,7 @@ jobs:
           pip install setuptools scikit-build wheel cmake
 
       - name: Build wheels
-        uses: pypa/cibuildwheel@v2.20.0
+        uses: pypa/cibuildwheel@v3.3.1
 
       - uses: actions/upload-artifact@v4
         with:
@@ -185,12 +159,12 @@ jobs:
           name: dist-macos_arm64
 
   build_macos_wheels:
-    name: Build wheels on macos-13
-    runs-on: macos-13
+    name: Build wheels on macos-15 (Intel)
+    runs-on: macos-15-intel
     env:
         SQLite3_ROOT: ${{ github.workspace }}/libs
         MACOSX_DEPLOYMENT_TARGET: '10.9'
-        CIBW_SKIP: cp27-* cp35-* cp36-*
+        CIBW_SKIP: ""
         CIBW_TEST_COMMAND: python -c "import pygeodiff; pygeodiff.GeoDiff().version()"
         CIBW_BEFORE_ALL: >
           wget https://www.sqlite.org/2024/sqlite-autoconf-3460100.tar.gz &&
@@ -198,7 +172,7 @@ jobs:
           cd sqlite-autoconf-3460100 &&
           CC=clang CFLAGS="-arch x86_64 -O3 -DSQLITE_ENABLE_FTS4 -DSQLITE_ENABLE_RTREE -DSQLITE_ENABLE_COLUMN_METADATA" ./configure --enable-dynamic-extensions --prefix=${{ github.workspace }}/libs/ &&
           make install
-          
+
     steps:
       - uses: actions/checkout@v3
 
@@ -212,7 +186,7 @@ jobs:
           pip install setuptools scikit-build wheel cmake
 
       - name: Build wheels
-        uses: pypa/cibuildwheel@v2.20.0
+        uses: pypa/cibuildwheel@v3.3.1
 
       - uses: actions/upload-artifact@v4
         with:
@@ -234,7 +208,7 @@ jobs:
         run: |
           pip install --upgrade pip
           pip install setuptools twine scikit-build wheel cmake
-        
+
       - name: Build sdist
         run: python setup.py sdist
 
@@ -244,7 +218,7 @@ jobs:
           name: dist-source
 
   upload_pypi:
-    needs: [build_windows_wheels, build_linux_wheels_manylinux_2_28, build_linux_wheels_manylinux2014, build_linux_wheels_musllinux_x86_64, build_macos_wheels, build_macos_arm64_wheels, build_sdist]
+    needs: [build_windows_wheels, build_linux_wheels_manylinux_2_28, build_linux_wheels_musllinux_x86_64, build_macos_wheels, build_macos_arm64_wheels, build_sdist]
     runs-on: ubuntu-latest
     if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags')
     steps:
