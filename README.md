@@ -120,15 +120,19 @@ Changes between datasets are read from and written to a [binary changeset format
 
 # Building geodiff
 
+## Deps
 Install postgresql client and sqlite3 library, e.g. for Linux
 ```bash
 sudo apt-get install libsqlite3-dev libpq-dev
 ```
-or MacOS (using SQLite from [QGIS deps](https://qgis.org/downloads/macos/deps/)) by defining SQLite variables in
-a cmake configuration as following:
-```bash
-SQLite3_INCLUDE_DIR=/opt/QGIS/qgis-deps-${QGIS_DEPS_VERSION}/stage/include
-SQLite3_LIBRARY=/opt/QGIS/qgis-deps-${QGIS_DEPS_VERSION}/stage/lib/libsqlite3.dylib
+
+alternatively you can build libraries yourself:
+for sqlite
+- download [autoconf version](https://www.sqlite.org/download.html)
+- extract 
+```
+  ./configure --enable-dynamic-extensions
+  make
 ```
 
 Compile geodiff:
@@ -136,9 +140,18 @@ Compile geodiff:
 cd geodiff
 mkdir build
 cd build
-cmake .. -DWITH_POSTGRESQL=TRUE
+
+cmake \
+  -DWITH_POSTGRESQL=TRUE \
+  -DSQLite3_INCLUDE_DIR=../../sqlite-autoconf-3450000 \
+  -DSQLite3_LIBRARY=../../sqlite-autoconf-3450000/.libs/libsqlite3.a \
+../geodiff
+
 make
 ```
+
+if you get ```error: use of undeclared identifier 'sqlite3_enable_load_extension'``` make sure 
+you use sqlite with enabled dynamic extension.
 
 ## Development of geodiff
 
@@ -148,7 +161,7 @@ C++ tests: run `make test` or `ctest` to run all tests. Alternatively run just a
 
 Python tests: you need to setup GEODIFFLIB with path to .so/.dylib from build step
 ```bash
-GEODIFFLIB=`pwd`/../build/libgeodiff.dylib GEODIFFCLI=`pwd`/build/geodiff pytest
+GEODIFFLIB=`pwd`/build/libgeodiff.dylib GEODIFFCLI=`pwd`/build/geodiff pytest
 ```
 
 ### Releasing new version
