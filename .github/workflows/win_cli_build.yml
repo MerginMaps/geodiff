@@ -12,7 +12,7 @@ jobs:
     runs-on: windows-2025
     steps:
       - name: Checkout Geodiff
-        uses: actions/checkout@v3
+        uses: actions/checkout@v6
 
       - name: Build Geodiff
         shell: pwsh
