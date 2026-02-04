@@ -7,6 +7,8 @@ on:
 
 jobs:
   win_cli_build:
+    permissions:
+      contents: write
     runs-on: windows-2025
     steps:
       - name: Checkout Geodiff
