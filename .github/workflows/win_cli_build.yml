@@ -1,5 +1,9 @@
 name: Windows geodiff.exe build
-on: [push, pull_request]
+on:
+  push:
+  pull_request:
+  release:
+    types: [created]
 
 jobs:
   win_cli_build:
