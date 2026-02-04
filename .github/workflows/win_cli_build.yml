@@ -35,3 +35,9 @@ jobs:
           name: geodiff.exe
           path: ${{ env.geodiff_exe }}
           if-no-files-found: error
+
+      - name: Release
+        uses: softprops/action-gh-release@v2
+        if: github.event_name == 'release' && github.event.action == 'created'
+        with:
+          files: ${{ env.geodiff_exe }}
