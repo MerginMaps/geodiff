@@ -469,8 +469,3 @@ class GeoDiff:
         """
         self._lazy_load()
         return self.clib.create_wkb_from_gpkg_header(self.context, geometry)
-
-
-def main():
-    diff_lib = GeoDiff()
-    print("pygeodiff " + diff_lib.version())
