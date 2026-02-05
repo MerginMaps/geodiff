@@ -20,7 +20,7 @@ jobs:
           # Github runners have two installations of vcpkg, one from Visual
           # Studio and one extra. Use the second one explicitly to avoid mixups.
           $env:VCPKG_ROOT = "C:\vcpkg"
-          & $env:VCPKG_ROOT/vcpkg install --triplet x64-windows-static sqlite3
+          & $env:VCPKG_ROOT/vcpkg install --triplet x64-windows-static sqlite3[rtree]
           & $env:VCPKG_ROOT/vcpkg install --triplet x64-windows-static libpq[openssl]
           cd $env:GITHUB_WORKSPACE/geodiff
           mkdir build
