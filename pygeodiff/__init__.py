@@ -7,7 +7,7 @@
     :license: MIT, see LICENSE for more details.
 """
 
-from .main import GeoDiff
+from .main import GeoDiff, shutdown
 from .geodifflib import (
     GeoDiffLibError,
     GeoDiffLibConflictError,
@@ -20,6 +20,7 @@ from .geodifflib import (
 
 __all__ = [
     "GeoDiff",
+    "shutdown",
     "GeoDiffLibError",
     "GeoDiffLibConflictError",
     "GeoDiffLibUnsupportedChangeError",
