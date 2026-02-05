@@ -220,11 +220,17 @@ class GeoDiffLib:
             func(context)
 
     def set_logger_callback(self, context, callback):
+        """
+        Set GeoDiff to call callback on every log entry.
+        This function returns a handle that MUST be kept referenced while the
+        context is alive or until a new callback is set, otherwise it might be
+        garbage-collected and crash the process.
+        See https://docs.python.org/3/library/ctypes.html#callback-functions
+        """
         func = self.lib.GEODIFF_CX_setLoggerCallback
         cFuncType = ctypes.CFUNCTYPE(None, ctypes.c_int, ctypes.c_char_p)
         func.argtypes = [ctypes.c_void_p, cFuncType]
         if callback:
-            # do not remove self, callback needs to be member
             callbackLogger = cFuncType(callback)
         else:
             callbackLogger = cFuncType()
