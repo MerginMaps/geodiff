@@ -8,7 +8,7 @@
 """
 
 import weakref
-from .geodifflib import GeoDiffLib
+from .geodifflib import GeoDiffLib, GeoDiffLibVersionError
 
 
 class GeoDiff:
@@ -16,13 +16,14 @@ class GeoDiff:
     geodiff is a module to create and apply changesets to GIS files (geopackage)
     """
 
-    # Dictionary of libname to instance of GeoDiffLib
-    _clib_cache = weakref.WeakValueDictionary()
+    # Weakref to instance of GeoDiffLib (or None initially)
+    _clib_weakref = None
 
     def __init__(self, libname=None):
         """
-        if libname is None, it tries to import c-extension from wheel
-        messages are shown in stdout/stderr. C-Library and context is lazy-loaded.
+        If libname is None, the environment variable GEODIFFLIB is used. If
+        that is not set, it tries to import c-extension from wheel.
+        Messages are shown in stdout/stderr. C-Library and context is lazy-loaded.
 
         Use environment variable GEODIFF_LOGGER_LEVEL 0(Nothing)-4(Debug) to
         set level (Errors by default)
@@ -37,12 +38,18 @@ class GeoDiff:
 
     def _lazy_load(self):
         if self.clib is None:
-            clib = GeoDiff._clib_cache.get(self.libname)
-            if clib:
-                self.clib = clib
-            else:
+            if GeoDiff._clib_weakref is None or GeoDiff._clib_weakref() is None:
                 self.clib = GeoDiffLib(self.libname)
-                GeoDiff._clib_cache[self.libname] = self.clib
+                GeoDiff._clib_weakref = weakref.ref(self.clib)
+            else:
+                if (
+                    self.libname is not None
+                    and self.libname != GeoDiff._clib_weakref().libname
+                ):
+                    raise GeoDiffLibVersionError(
+                        f"Tried to load GeoDiff library '{self.libname}', but '{GeoDiff._clib_weakref().libname}' already loaded."
+                    )
+                self.clib = GeoDiff._clib_weakref()
 
         if self.context is None:
             self.context = self.clib.create_context()

@@ -214,12 +214,7 @@ class GeoDiffTestSqlDb:
 class GeoDiffTests(unittest.TestCase):
     def setUp(self):
         # load lib
-        lib = os.environ.get("GEODIFFLIB", None)
-        if lib is None:
-            print(
-                "missing GEODIFFLIB env variable, trying to use the geodiff from wheel"
-            )
-        self.geodiff = pygeodiff.GeoDiff(lib)
+        self.geodiff = pygeodiff.GeoDiff()
         self.geodiff.set_logger_callback(logger)
         self.geodiff.set_maximum_logger_level(pygeodiff.GeoDiff.LevelDebug)
 

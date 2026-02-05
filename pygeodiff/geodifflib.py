@@ -40,13 +40,18 @@ UNSUPPORTED_CHANGE = 3
 
 class GeoDiffLib:
     def __init__(self, name):
+        """
+        If name is None, the environment variable GEODIFFLIB is used. If
+        that is not set, it tries to import c-extension from wheel.
+        """
         if name is None:
-            self.libname = self.package_libname()
-            if not os.path.exists(self.libname):
+            name = os.getenv("GEODIFFLIB")
+        if not name:
+            name = self.package_libname()
+            if not os.path.exists(name):
                 # not found, try system library
-                self.libname = find_library("geodiff")
-        else:
-            self.libname = name
+                name = find_library("geodiff")
+        self.libname = name
 
         if self.libname is None:
             raise GeoDiffLibVersionError(
