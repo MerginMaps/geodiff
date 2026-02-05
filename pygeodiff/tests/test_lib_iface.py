@@ -6,7 +6,7 @@
 
 import unittest
 
-from pygeodiff import GeoDiff
+from pygeodiff import GeoDiff, GeoDiffLibError, shutdown
 
 
 class UnitTestsLibLazyloading(unittest.TestCase):
@@ -41,3 +41,12 @@ class UnitTestsLibLazyloading(unittest.TestCase):
         self.assertIsNotNone(GeoDiff._clib_weakref())
         del geodiff2
         self.assertIsNone(GeoDiff._clib_weakref())
+
+    def test_global_shutdown(self):
+        geodiff = GeoDiff()
+        geodiff.version()
+        self.assertIsNotNone(GeoDiff._clib_weakref)
+        self.assertIsNotNone(GeoDiff._clib_weakref())
+        shutdown()
+        self.assertIsNone(GeoDiff._clib_weakref)
+        self.assertRaises(AttributeError, geodiff.version)

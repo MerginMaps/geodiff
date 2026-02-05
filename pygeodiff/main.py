@@ -55,7 +55,7 @@ class GeoDiff:
             self.context = self.clib.create_context()
 
     def shutdown(self):
-        if self.context is not None:
+        if self.context is not None and self.clib.lib is not None:
             self.clib.destroy_context(self.context)
         self.context = None
 
@@ -469,3 +469,13 @@ class GeoDiff:
         """
         self._lazy_load()
         return self.clib.create_wkb_from_gpkg_header(self.context, geometry)
+
+
+def shutdown():
+    """
+    Unloads global GeoDiffLib instance. This breaks all existing GeoDiff
+    instances!
+    """
+    if GeoDiff._clib_weakref is not None and GeoDiff._clib_weakref() is not None:
+        GeoDiff._clib_weakref().shutdown()
+        GeoDiff._clib_weakref = None
