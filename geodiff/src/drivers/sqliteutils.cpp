@@ -234,10 +234,11 @@ void register_gpkg_extensions( std::shared_ptr<Sqlite3Db> db )
     throwSqliteError( db->get(), "Failed to enable SQLite extensions loading" );
   }
 
-  rc = sqlite3_gpkg_auto_init( db->get(), NULL, NULL );
-  if ( rc )
+  const char *errmsg = "";
+  rc = sqlite3_gpkg_auto_init( db->get(), &errmsg, NULL );
+  if ( rc != SQLITE_OK )
   {
-    throwSqliteError( db->get(), "Failed to initialize GPKG extension" );
+    throw GeoDiffException( "Failed to initialize GPKG extension [" + std::to_string( rc ) + "]: " + std::string( errmsg ) );
   }
 }
 
