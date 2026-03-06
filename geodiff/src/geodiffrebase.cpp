@@ -471,7 +471,20 @@ bool _handle_update( const ChangesetEntry &entry, const RebaseMapping &mapping,
   {
     int newPk = mapping.getNewPkey( entry.table->name, pk );
     if ( newPk == RebaseMapping::INVALID_FID )
+    {
+      // our UPDATE conflicts with their DELETE: record as conflict, delete wins
+      ConflictFeature conflictFeature( pk, entry.table->name );
+      for ( size_t i = 0; i < numColumns; i++ )
+      {
+        if ( entry.newValues[i].type() != Value::TypeUndefined )
+        {
+          _addConflictItem( conflictFeature, ( int ) i, entry.oldValues[i], Value(), entry.newValues[i] );
+        }
+      }
+      if ( conflictFeature.isValid() )
+        conflicts.push_back( conflictFeature );
       return false;
+    }
   }
 
   // find the previously new values (will be used as the old values in the rebased version)
