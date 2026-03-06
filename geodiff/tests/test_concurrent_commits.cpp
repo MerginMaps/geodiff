@@ -381,7 +381,7 @@ TEST( ConcurrentCommitsSqlite3Test, test_delete_update )
 {
   std::cout << "geopackage concurent DELETE (base) -> (A) and UPDATE (base) -> (B)" << std::endl;
   std::cout << "(A) deleted the feature 2 and (B) edits the geom of feature 2" << std::endl;
-  std::cout << "expected result: feature 2 is deleted" << std::endl;
+  std::cout << "expected result: feature 2 is deleted, conflict recorded for the discarded update" << std::endl;
 
   bool ret = _test(
                "base.gpkg",
@@ -392,7 +392,7 @@ TEST( ConcurrentCommitsSqlite3Test, test_delete_update )
                1,
                0,
                1,
-               0
+               1
              );
   ASSERT_TRUE( ret );
 }
