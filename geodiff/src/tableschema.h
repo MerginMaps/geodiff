@@ -225,6 +225,12 @@ struct TableSchema
   }
 };
 
+/** Information about all tables in the database. */
+struct DatabaseSchema
+{
+  std::vector<TableSchema> tables;
+};
+
 //! Converts column name to base type and returns struct with both names
 TableColumnType columnType( const Context *context, const std::string &columnType, const std::string &driverName, bool isGeometry = false );
 
