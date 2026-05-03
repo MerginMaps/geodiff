@@ -11,6 +11,7 @@
 #include "driver.h"
 #include "sqliteutils.h"
 #include "changeset.h"
+#include "tableschema.h"
 
 /**
  * Holds state that is useful to keep between entries when applying changeset.
@@ -51,6 +52,7 @@ class SqliteDriver : public Driver
     void create( const DriverParametersMap &conn, bool overwrite = false ) override;
     std::vector<std::string> listTables( bool useModified = false ) override;
     TableSchema tableSchema( const std::string &tableName, bool useModified = false ) override;
+    DatabaseSchema getSchema( bool useModified = false );
     void createChangeset( ChangesetWriter &writer ) override;
     void applyChangeset( ChangesetReader &reader ) override;
     void createTables( const std::vector<TableSchema> &tables ) override;

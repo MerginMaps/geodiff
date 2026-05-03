@@ -157,6 +157,8 @@ SET(geodiff_src
   src/driver.h
   src/tableschema.cpp
   src/tableschema.h
+  src/tableschemadiff.cpp
+  src/tableschemadiff.hpp
 
   src/drivers/sqlitedriver.cpp
   src/drivers/sqlitedriver.h
