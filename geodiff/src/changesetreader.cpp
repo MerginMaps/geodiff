@@ -260,6 +260,12 @@ ChangesetDropTableEntry ChangesetReader::readDropTableEntry()
 {
   ChangesetDropTableEntry entry;
   entry.tableName = readNullTerminatedString();
+  int columnCount = readVarint();
+  entry.columns.resize( columnCount );
+  for ( size_t i = 0; i < entry.columns.size(); i++ )
+  {
+    entry.columns[i] = readColumnInfo();
+  }
   return entry;
 }
 
@@ -275,7 +281,7 @@ ChangesetDropColumnEntry ChangesetReader::readDropColumnEntry()
 {
   ChangesetDropColumnEntry entry;
   entry.tableName = readNullTerminatedString();
-  entry.columnName = readNullTerminatedString();
+  entry.column = readColumnInfo();
   return entry;
 }
 

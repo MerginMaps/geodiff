@@ -163,6 +163,11 @@ void ChangesetWriter::writeDropTableEntry( const ChangesetDropTableEntry &entry 
 {
   writeByte( static_cast<char>( ChangesetEntryType::OpDropTable ) );
   writeNullTerminatedString( entry.tableName );
+  writeVarint( entry.columns.size() );
+  for ( const TableColumnInfo &column : entry.columns )
+  {
+    writeColumnInfo( column );
+  }
 }
 
 void ChangesetWriter::writeAddColumnEntry( const ChangesetAddColumnEntry &entry )
@@ -176,5 +181,5 @@ void ChangesetWriter::writeDropColumnEntry( const ChangesetDropColumnEntry &entr
 {
   writeByte( static_cast<char>( ChangesetEntryType::OpDropColumn ) );
   writeNullTerminatedString( entry.tableName );
-  writeNullTerminatedString( entry.columnName );
+  writeColumnInfo( entry.column );
 }

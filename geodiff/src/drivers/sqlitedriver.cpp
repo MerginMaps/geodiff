@@ -5,6 +5,7 @@
 
 #include "sqlitedriver.h"
 
+#include "changeset.h"
 #include "changesetreader.h"
 #include "changesetwriter.h"
 #include "changesetutils.h"
@@ -110,6 +111,8 @@ SqliteDriver::SqliteDriver( const Context *context )
 {
 }
 
+// Opens 'base' DB (with implicit schema called 'main') and optionally
+// 'modified' DB (with explicit schema 'modified')
 void SqliteDriver::open( const DriverParametersMap &conn )
 {
   DriverParametersMap::const_iterator connBaseIt = conn.find( "base" );
@@ -126,6 +129,8 @@ void SqliteDriver::open( const DriverParametersMap &conn )
   }
 
   mDb = std::make_shared<Sqlite3Db>();
+  mDb->open( base );
+
   if ( mHasModified )
   {
     std::string modified = connModifiedIt->second;
@@ -135,23 +140,11 @@ void SqliteDriver::open( const DriverParametersMap &conn )
       throw GeoDiffException( "Missing 'modified' file when opening sqlite driver: " + modified );
     }
 
-    mDb->open( ":memory:" );
-
-    {
-      Buffer sqlBuf;
-      sqlBuf.printf( "ATTACH '%q' AS base", base.c_str() );
-      mDb->exec( sqlBuf );
-    }
-
     {
       Buffer sqlBuf;
       sqlBuf.printf( "ATTACH '%q' AS modified", modified.c_str() );
       mDb->exec( sqlBuf );
     }
-  }
-  else
-  {
-    mDb->open( base );
   }
 
   // GeoPackage triggers require few functions like ST_IsEmpty() to be registered
@@ -191,13 +184,13 @@ std::string SqliteDriver::databaseName( bool useModified )
 {
   if ( mHasModified )
   {
-    return useModified ? "modified" : "base";
+    return useModified ? "modified" : "main";
   }
   else
   {
     if ( useModified )
       throw GeoDiffException( "'modified' table not open" );
-    return "modified";
+    return "main";
   }
 }
 
@@ -449,7 +442,7 @@ static std::string sqlColumnsStr( const TableDiffContext &diffContext, bool reve
       }
     }
     colsStr += sqlitePrintf( "\"%w\".\"%w\".\"%w\"",
-                             reverse ? "base" : "modified", tableName, c.name.c_str() );
+                             reverse ? "main" : "modified", tableName, c.name.c_str() );
   }
   return colsStr;
 }
@@ -467,15 +460,15 @@ static std::string sqlFindInserted( const TableDiffContext &diffContext, bool re
     {
       if ( !exprPk.empty() )
         exprPk += " AND ";
-      exprPk += sqlitePrintf( "\"modified\".\"%w\".\"%w\"=\"base\".\"%w\".\"%w\"",
+      exprPk += sqlitePrintf( "\"modified\".\"%w\".\"%w\"=\"main\".\"%w\".\"%w\"",
                               modifiedTableName, c.name.c_str(), baseTableName, c.name.c_str() );
     }
   }
 
   std::string sql = sqlitePrintf( "SELECT %s FROM \"%w\".\"%w\" WHERE NOT EXISTS ( SELECT 1 FROM \"%w\".\"%w\" WHERE %s)",
                                   sqlColumnsStr( diffContext, reverse ).c_str(),
-                                  reverse ? "base" : "modified", reverse ? baseTableName : modifiedTableName,
-                                  reverse ? "modified" : "base", reverse ? modifiedTableName : baseTableName, exprPk.c_str() );
+                                  reverse ? "main" : "modified", reverse ? baseTableName : modifiedTableName,
+                                  reverse ? "modified" : "main", reverse ? modifiedTableName : baseTableName, exprPk.c_str() );
   return sql;
 }
 
@@ -493,7 +486,7 @@ static std::string sqlFindModified( const TableDiffContext &diffContext )
     {
       if ( !exprPk.empty() )
         exprPk += " AND ";
-      exprPk += sqlitePrintf( "\"modified\".\"%w\".\"%w\"=\"base\".\"%w\".\"%w\"",
+      exprPk += sqlitePrintf( "\"modified\".\"%w\".\"%w\"=\"main\".\"%w\".\"%w\"",
                               modifiedTableName, c.name.c_str(), baseTableName, c.name.c_str() );
     }
     else // not a primary key column
@@ -501,7 +494,7 @@ static std::string sqlFindModified( const TableDiffContext &diffContext )
       if ( !exprOther.empty() )
         exprOther += " OR ";
 
-      exprOther += sqlitePrintf( "\"modified\".\"%w\".\"%w\" IS NOT \"base\".\"%w\".\"%w\"",
+      exprOther += sqlitePrintf( "\"modified\".\"%w\".\"%w\" IS NOT \"main\".\"%w\".\"%w\"",
                                  modifiedTableName, c.name.c_str(), baseTableName, c.name.c_str() );
     }
   }
@@ -520,12 +513,12 @@ static std::string sqlFindModified( const TableDiffContext &diffContext )
 
   if ( exprOther.empty() )
   {
-    return sqlitePrintf( "SELECT %s FROM \"modified\".\"%w\", \"base\".\"%w\" WHERE %s",
+    return sqlitePrintf( "SELECT %s FROM \"modified\".\"%w\", \"main\".\"%w\" WHERE %s",
                          colsStr.c_str(), modifiedTableName, baseTableName, exprPk.c_str() );
   }
   else
   {
-    return sqlitePrintf( "SELECT %s FROM \"modified\".\"%w\", \"base\".\"%w\" WHERE %s AND (%s)",
+    return sqlitePrintf( "SELECT %s FROM \"modified\".\"%w\", \"main\".\"%w\" WHERE %s AND (%s)",
                          colsStr.c_str(), modifiedTableName, baseTableName, exprPk.c_str(), exprOther.c_str() );
   }
 }
@@ -563,7 +556,7 @@ static void handleInserted( const Context *context, TableDiffContext &diffContex
     {
       ChangesetTable chTable = schemaToChangesetTable( diffContext.schemaModified.name, diffContext.schemaModified );
       diffContext.writer.beginTable( chTable );
-      diffContext.tableEntryWritten = false;
+      diffContext.tableEntryWritten = true;
     }
 
     ChangesetDataEntry e;
@@ -668,6 +661,109 @@ static void handleUpdated( const Context *context, TableDiffContext &diffContext
   }
 }
 
+static const TableSchema &findTableSchema( const DatabaseSchema &schema, const std::string &tableName )
+{
+  // Find the table schema
+  const TableSchema *table = nullptr;
+  for ( const TableSchema &tbl : schema.tables )
+  {
+    if ( tbl.name == tableName )
+    {
+      table = &tbl;
+      break;
+    }
+  }
+  if ( !table )
+    throw GeoDiffException( "Missing schema for table " + tableName );
+  return *table;
+}
+
+// To allow diff inversion to work, we first delete all rows when dropping a
+// table, and NULL out all rows when dropping a column.
+static void writeDataChangesForSchemaChange( std::shared_ptr<Sqlite3Db> db, const DatabaseSchema &schemaBase, ChangesetWriter &writer, const ChangesetEntry &entry )
+{
+  if ( const ChangesetDropColumnEntry *dcEntry = std::get_if<ChangesetDropColumnEntry>( &entry ) )
+  {
+    const TableSchema &table = findTableSchema( schemaBase, dcEntry->tableName );
+
+    std::string pkeyColStr;
+    for ( const TableColumnInfo &c : table.columns )
+    {
+      if ( c.isPrimaryKey )
+      {
+        if ( !pkeyColStr.empty() )
+          pkeyColStr += ", ";
+        pkeyColStr += sqlitePrintf( "\"%w\"", c.name.c_str() );
+      }
+    }
+    if ( pkeyColStr.empty() )
+      throw GeoDiffException( "Table " + table.name + " has no primary key" );
+
+    Sqlite3Stmt stmt;
+    stmt.prepare( db, "SELECT %s, \"%w\" FROM \"main\".\"%w\" WHERE \"%w\" IS NOT NULL",
+                  pkeyColStr.c_str(), dcEntry->column.name.c_str(), dcEntry->tableName.c_str(), dcEntry->column.name.c_str() );
+
+    writer.beginTable( schemaToChangesetTable( table.name, table ) );
+    int rc;
+    while ( SQLITE_ROW == ( rc = sqlite3_step( stmt.get() ) ) )
+    {
+      ChangesetDataEntry e;
+      e.op = ChangesetDataEntry::OpUpdate;
+
+      size_t idxInResult = 0;
+      for ( size_t i = 0; i < table.columns.size(); ++i )
+      {
+        bool isPkey = table.columns[i].isPrimaryKey;
+        bool isDroppedCol = ( i == table.columns.size() - 1 );
+
+        if ( isPkey || isDroppedCol )
+        {
+          Sqlite3Value v( sqlite3_column_value( stmt.get(), static_cast<int>( idxInResult ) ) );
+          e.oldValues.push_back( changesetValue( v.value() ) );
+          idxInResult++;
+        }
+        else
+          e.oldValues.push_back( Value() );
+
+        if ( isDroppedCol )
+        {
+          Value nullVal;
+          nullVal.setNull();
+          e.newValues.push_back( nullVal );
+        }
+        else
+          e.newValues.push_back( Value() );
+      }
+
+      writer.writeEntry( e );
+    }
+  }
+  else if ( const ChangesetDropTableEntry *dtEntry = std::get_if<ChangesetDropTableEntry>( &entry ) )
+  {
+    const TableSchema &table = findTableSchema( schemaBase, dtEntry->tableName );
+
+    Sqlite3Stmt stmt;
+    stmt.prepare( db, "SELECT * FROM \"main\".\"%w\"", dtEntry->tableName.c_str() );
+
+    writer.beginTable( schemaToChangesetTable( table.name, table ) );
+    int rc;
+    while ( SQLITE_ROW == ( rc = sqlite3_step( stmt.get() ) ) )
+    {
+      ChangesetDataEntry e;
+      e.op = ChangesetDataEntry::OpDelete;
+
+      size_t numColumns = table.columns.size();
+      for ( size_t i = 0; i < numColumns; ++i )
+      {
+        Sqlite3Value v( sqlite3_column_value( stmt.get(), static_cast<int>( i ) ) );
+        e.oldValues.push_back( changesetValue( v.value() ) );
+      }
+
+      writer.writeEntry( e );
+    }
+  }
+}
+
 void SqliteDriver::createChangeset( ChangesetWriter &writer )
 {
   DatabaseSchema schemaBase = getSchema( false );
@@ -676,6 +772,7 @@ void SqliteDriver::createChangeset( ChangesetWriter &writer )
   auto schemaDiffEntries = diffDatabaseSchema( schemaBase, schemaModified );
   for ( const ChangesetEntry &entry : schemaDiffEntries )
   {
+    writeDataChangesForSchemaChange( mDb, schemaBase, writer, entry );
     writer.writeEntry( entry );
   }
 
@@ -1178,13 +1275,12 @@ void SqliteDriver::createTables( const std::vector<TableSchema> &tables )
 {
   // currently we always create geopackage meta tables. Maybe in the future we can skip
   // that if there is a reason, and have that optional if none of the tables are spatial.
+
   Sqlite3Stmt stmt1;
-  stmt1.prepare( mDb, "SELECT InitSpatialMetadata('modified');" );
+  stmt1.prepare( mDb, "SELECT InitSpatialMetadata('main');" );
   int res = sqlite3_step( stmt1.get() );
   if ( res != SQLITE_ROW )
-  {
     throwSqliteError( mDb->get(), "Failure initializing spatial metadata" );
-  }
 
   for ( const TableSchema &tbl : tables )
   {
@@ -1222,7 +1318,7 @@ void SqliteDriver::createTables( const std::vector<TableSchema> &tables )
       }
     }
 
-    sql = sqlitePrintf( "CREATE TABLE \"%w\".\"%w\" (", "modified", tbl.name.c_str() );
+    sql = sqlitePrintf( "CREATE TABLE main.\"%w\" (", tbl.name.c_str() );
     if ( !columns.empty() )
     {
       sql += columns;

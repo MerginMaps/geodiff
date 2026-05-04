@@ -7,7 +7,6 @@
 #include "changeset.h"
 #include "geodiffutils.hpp"
 #include "tableschema.h"
-#include <iostream>
 #include <iterator>
 #include <unordered_map>
 
@@ -55,7 +54,7 @@ std::vector<ChangesetEntry> diffTableSchema( const TableSchema &base, const Tabl
                        std::back_inserter( deletedColNames ) );
   for ( const std::string &colName : deletedColNames )
   {
-    entries.push_back( ChangesetDropColumnEntry{base.name, colName} );
+    entries.push_back( ChangesetDropColumnEntry{base.name, *baseColumns.at( colName )} );
   }
 
   std::vector<std::string> newColNames;
@@ -73,7 +72,9 @@ std::vector<ChangesetEntry> diffTableSchema( const TableSchema &base, const Tabl
                          std::back_inserter( oldColNames ) );
   for ( const std::string &colName : oldColNames )
   {
-    if ( *baseColumns.at( colName ) != *modifiedColumns.at( colName ) )
+    // Compare column type by base type enum rather than the exact db-specific
+    // string, to avoid regression with DB pairs that use compatible types.
+    if ( !baseColumns.at(colName)->compareWithBaseTypes( *modifiedColumns.at(colName) ) )
       throw GeoDiffException( "Columns differ: " +
                               base.name + "." + colName + " and " + modified.name + "." + colName + ")" );
   }
@@ -96,7 +97,7 @@ std::vector<ChangesetEntry> diffDatabaseSchema( const DatabaseSchema &base, cons
                        std::back_inserter( deletedTableNames ) );
   for ( const std::string &name : deletedTableNames )
   {
-    entries.push_back( ChangesetDropTableEntry{name} );
+    entries.push_back( ChangesetDropTableEntry{name, baseTables.at( name )->columns} );
   }
 
   std::vector<std::string> newTableNames;
