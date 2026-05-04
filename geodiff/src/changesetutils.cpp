@@ -11,6 +11,8 @@
 #include "changesetreader.h"
 #include "changesetwriter.h"
 #include "tableschema.h"
+#include <iostream>
+#include <unordered_map>
 
 
 ChangesetTable schemaToChangesetTable( const std::string &tableName, const TableSchema &tbl )
@@ -22,55 +24,59 @@ ChangesetTable schemaToChangesetTable( const std::string &tableName, const Table
   return chTable;
 }
 
-void invertChangeset( ChangesetReader &reader, ChangesetWriter &writer )
+// Returns inverted changeset entries in reverse order
+std::tuple<std::unordered_map<std::string, std::unique_ptr<ChangesetTable>>, std::vector<ChangesetEntry>> invertChangesetReverse( ChangesetReader &reader )
 {
   std::string currentTableName;
-  std::vector<bool> currentPkeys;
+  std::unordered_map<std::string, std::unique_ptr<ChangesetTable>> tables;
+  std::vector<ChangesetEntry> invertedEntries;
   ChangesetEntry entry;
   while ( reader.nextEntry( entry ) )
   {
     if ( ChangesetDataEntry *dataEntry = std::get_if<ChangesetDataEntry>( &entry ) )
     {
-      assert( dataEntry->table );
-      if ( dataEntry->table->name != currentTableName )
+      if ( !dataEntry->table )
+        throw GeoDiffException( "ChangesetDataEntry without table data read!" );
+      if ( !tables.count( dataEntry->table->name ) )
       {
-        writer.beginTable( *dataEntry->table );
-        currentTableName = dataEntry->table->name;
-        currentPkeys = dataEntry->table->primaryKeys;
+        tables[dataEntry->table->name] = std::make_unique<ChangesetTable>( *dataEntry->table );
       }
 
       if ( dataEntry->op == ChangesetDataEntry::OpInsert )
       {
         ChangesetDataEntry out;
         out.op = ChangesetDataEntry::OpDelete;
+        out.table = tables[dataEntry->table->name].get();
         out.oldValues = dataEntry->newValues;
-        writer.writeEntry( out );
+        invertedEntries.push_back( out );
       }
       else if ( dataEntry->op == ChangesetDataEntry::OpDelete )
       {
         ChangesetDataEntry out;
         out.op = ChangesetDataEntry::OpInsert;
+        out.table = tables[dataEntry->table->name].get();
         out.newValues = dataEntry->oldValues;
-        writer.writeEntry( out );
+        invertedEntries.push_back( out );
       }
       else if ( dataEntry->op == ChangesetDataEntry::OpUpdate )
       {
         ChangesetDataEntry out;
         out.op = ChangesetDataEntry::OpUpdate;
+        out.table = tables[dataEntry->table->name].get();
         out.newValues = dataEntry->oldValues;
         out.oldValues = dataEntry->newValues;
         // if a column is a part of pkey and has not been changed,
         // the original entry has "old" value the pkey value and "new"
         // value is undefined - let's reverse "old" and "new" in that case.
-        for ( size_t i = 0; i < currentPkeys.size(); ++i )
+        for ( size_t i = 0; i < dataEntry->table->primaryKeys.size(); ++i )
         {
-          if ( currentPkeys[i] && out.oldValues[i].type() == Value::TypeUndefined )
+          if ( dataEntry->table->primaryKeys[i] && out.oldValues[i].type() == Value::TypeUndefined )
           {
             out.oldValues[i] = out.newValues[i];
             out.newValues[i].setUndefined();
           }
         }
-        writer.writeEntry( out );
+        invertedEntries.push_back( out );
       }
       else
       {
@@ -81,20 +87,56 @@ void invertChangeset( ChangesetReader &reader, ChangesetWriter &writer )
     {
       ChangesetDropTableEntry out;
       out.tableName = ctEntry->tableName;
-      writer.writeEntry( out );
+      out.columns = ctEntry->columns;
+      invertedEntries.push_back( out );
     }
     else if ( ChangesetAddColumnEntry *acEntry = std::get_if<ChangesetAddColumnEntry>( &entry ) )
     {
       ChangesetDropColumnEntry out;
       out.tableName = acEntry->tableName;
-      out.columnName = acEntry->column.name;
-      writer.writeEntry( out );
+      out.column = acEntry->column;
+      invertedEntries.push_back( out );
+    }
+    else if ( ChangesetDropTableEntry *dtEntry = std::get_if<ChangesetDropTableEntry>( &entry ) )
+    {
+      ChangesetCreateTableEntry out;
+      out.tableName = dtEntry->tableName;
+      out.columns = dtEntry->columns;
+      invertedEntries.push_back( out );
+    }
+    else if ( ChangesetDropColumnEntry *dcEntry = std::get_if<ChangesetDropColumnEntry>( &entry ) )
+    {
+      ChangesetAddColumnEntry out;
+      out.tableName = dcEntry->tableName;
+      out.column = dcEntry->column;
+      invertedEntries.push_back( out );
     }
     else
     {
-      // We can't invert DROP TABLE/COLUMN, because we don't know what's being dropped
       throw GeoDiffException( "Cannot invert changeset entry variant " + std::to_string( entry.index() ) );
     }
+  }
+  return {std::move( tables ), invertedEntries};
+}
+
+void invertChangeset( ChangesetReader &reader, ChangesetWriter &writer )
+{
+  auto result = invertChangesetReverse( reader );
+  std::vector<ChangesetEntry> &invertedReverse = std::get<1>( result );
+  ChangesetTable *currentTable = nullptr;
+  for ( size_t i = 1; i <= invertedReverse.size(); i++ )
+  {
+    const auto &entry = invertedReverse[invertedReverse.size() - i];
+    if ( const ChangesetDataEntry *dataEntry = std::get_if<ChangesetDataEntry>( &entry ) )
+    {
+      if ( dataEntry->table != currentTable )
+      {
+        writer.beginTable( *dataEntry->table );
+        currentTable = dataEntry->table;
+      }
+    }
+
+    writer.writeEntry( entry );
   }
 }
 
@@ -235,6 +277,11 @@ nlohmann::json changesetEntryToJSON( const ChangesetEntry &entry )
     nlohmann::json res;
     res["type"] = "drop_table";
     res["tableName"] = dtEntry->tableName;
+    res["columns"] = nlohmann::json::array();
+    for ( const TableColumnInfo &column : dtEntry->columns )
+    {
+      res["columns"].push_back( columnInfoToJSON( column ) );
+    }
     return res;
   }
   else if ( const ChangesetAddColumnEntry *acEntry = std::get_if<ChangesetAddColumnEntry>( &entry ) )
@@ -250,7 +297,7 @@ nlohmann::json changesetEntryToJSON( const ChangesetEntry &entry )
     nlohmann::json res;
     res["type"] = "drop_column";
     res["tableName"] = dcEntry->tableName;
-    res["columnName"] = dcEntry->columnName;
+    res["column"] = columnInfoToJSON( dcEntry->column );
     return res;
   }
   else

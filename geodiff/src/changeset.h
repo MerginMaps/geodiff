@@ -278,6 +278,7 @@ struct ChangesetCreateTableEntry
 struct ChangesetDropTableEntry
 {
   std::string tableName;
+  std::vector<TableColumnInfo> columns;
 };
 
 //! Entry for ALTER TABLE ... ADD COLUMN command
@@ -291,7 +292,7 @@ struct ChangesetAddColumnEntry
 struct ChangesetDropColumnEntry
 {
   std::string tableName;
-  std::string columnName;
+  TableColumnInfo column;
 };
 
 struct ChangesetEntry : public std::variant <
