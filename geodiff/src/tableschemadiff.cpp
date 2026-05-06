@@ -73,7 +73,7 @@ std::vector<ChangesetEntry> diffTableSchema( const TableSchema &base, const Tabl
   for ( const std::string &colName : oldColNames )
   {
     // Compare column type by base type enum rather than the exact db-specific
-    // string, to avoid regression with DB pairs that use compatible types.
+    // string to avoid regression with DB pairs that use compatible types.
     if ( !baseColumns.at(colName)->compareWithBaseTypes( *modifiedColumns.at(colName) ) )
       throw GeoDiffException( "Columns differ: " +
                               base.name + "." + colName + " and " + modified.name + "." + colName + ")" );

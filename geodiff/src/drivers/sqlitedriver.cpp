@@ -1109,7 +1109,6 @@ void SqliteDriver::applyChangeset( ChangesetReader &reader )
   std::vector<ChangesetDataEntry> conflictingEntries;
   ChangesetEntry entry;
   SqliteChangeApplyState state;
-  std::unordered_map<std::string, std::unique_ptr<ChangesetTable>> tableCopies;
   while ( reader.nextEntry( entry ) )
   {
     if ( ChangesetDataEntry *dataEntry = std::get_if<ChangesetDataEntry>( &entry ) )
@@ -1122,13 +1121,6 @@ void SqliteDriver::applyChangeset( ChangesetReader &reader )
           break; // Applied correctly, continue onward.
         case ChangeApplyResult::ConstraintConflict:
           // Ordering conflict found, handle later.
-          // Effectively copying the entry isn't simple, since ChangesetReader is
-          // happy to change entry.table under our feet. We need to copy the
-          // table object, ideally only keeping one per table.
-          if ( tableCopies.count( dataEntry->table->name ) == 0 )
-            // cppcheck-suppress stlFindInsert
-            tableCopies[dataEntry->table->name] = std::unique_ptr<ChangesetTable>( new ChangesetTable( *dataEntry->table ) );
-          dataEntry->table = tableCopies[dataEntry->table->name].get();
           conflictingEntries.push_back( *dataEntry );
           break;
         case ChangeApplyResult::NoChange:

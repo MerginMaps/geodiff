@@ -1312,8 +1312,8 @@ int GEODIFF_CE_operation( GEODIFF_ContextH /*contextHandle*/, GEODIFF_ChangesetE
 
 GEODIFF_ChangesetTableH GEODIFF_CE_table( GEODIFF_ContextH /*contextHandle*/, GEODIFF_ChangesetEntryH entryHandle )
 {
-  ChangesetTable *table = static_cast<ChangesetDataEntry *>( entryHandle )->table;
-  return table;
+  std::shared_ptr<ChangesetTable> table = static_cast<ChangesetDataEntry *>( entryHandle )->table;
+  return table.get();
 }
 
 int GEODIFF_CE_countValues( GEODIFF_ContextH /*contextHandle*/, GEODIFF_ChangesetEntryH entryHandle )

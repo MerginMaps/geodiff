@@ -904,7 +904,6 @@ void PostgresDriver::applyChangeset( ChangesetReader &reader )
   std::vector<ChangesetDataEntry> conflictingEntries;
   ChangesetEntry entry;
   PostgresChangeApplyState state;
-  std::unordered_map<std::string, std::unique_ptr<ChangesetTable>> tableCopies;
   while ( reader.nextEntry( entry ) )
   {
     if ( ChangesetDataEntry *dataEntry = std::get_if<ChangesetDataEntry>( &entry ) )
@@ -916,10 +915,6 @@ void PostgresDriver::applyChangeset( ChangesetReader &reader )
         case ChangeApplyResult::Skipped:
           break;
         case ChangeApplyResult::ConstraintConflict:
-          if ( tableCopies.count( dataEntry->table->name ) == 0 )
-            // cppcheck-suppress stlFindInsert
-            tableCopies[dataEntry->table->name] = std::unique_ptr<ChangesetTable>( new ChangesetTable( *dataEntry->table ) );
-          dataEntry->table = tableCopies[dataEntry->table->name].get();
           conflictingEntries.push_back( *dataEntry );
           break;
         case ChangeApplyResult::NoChange:

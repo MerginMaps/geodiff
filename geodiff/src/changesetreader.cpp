@@ -92,7 +92,7 @@ bool ChangesetReader::isEmpty() const
 void ChangesetReader::rewind()
 {
   mOffset = 0;
-  mCurrentTable = ChangesetTable();
+  mCurrentTable = {};
 }
 
 char ChangesetReader::readByte()
@@ -130,12 +130,12 @@ std::string ChangesetReader::readNullTerminatedString()
 void ChangesetReader::readRowValues( std::vector<Value> &values )
 {
   // let's ensure we have the right size of array
-  if ( values.size() != mCurrentTable.columnCount() )
+  if ( values.size() != mCurrentTable->columnCount() )
   {
-    values.resize( mCurrentTable.columnCount() );
+    values.resize( mCurrentTable->columnCount() );
   }
 
-  for ( size_t i = 0; i < mCurrentTable.columnCount(); ++i )
+  for ( size_t i = 0; i < mCurrentTable->columnCount(); ++i )
   {
     int type = readByte();
     if ( type == Value::TypeInt ) // 0x01
@@ -197,14 +197,15 @@ void ChangesetReader::readTableRecord()
   if ( nCol < 0 || nCol > 65536 )
     throwReaderError( "readByte: unexpected number of columns" );
 
-  mCurrentTable.primaryKeys.clear();
+   mCurrentTable = std::make_shared<ChangesetTable>();
+   mCurrentTable->primaryKeys.clear();
 
   for ( int i = 0; i < nCol; ++i )
   {
-    mCurrentTable.primaryKeys.push_back( readByte() );
+    mCurrentTable->primaryKeys.push_back( readByte() );
   }
 
-  mCurrentTable.name = readNullTerminatedString();
+  mCurrentTable->name = readNullTerminatedString();
 }
 
 ChangesetDataEntry ChangesetReader::readDataEntry( ChangesetEntryType type )
@@ -221,7 +222,7 @@ ChangesetDataEntry ChangesetReader::readDataEntry( ChangesetEntryType type )
     entry.newValues.erase( entry.newValues.begin(), entry.newValues.end() );
 
   entry.op = static_cast<ChangesetDataEntry::OperationType>( type );
-  entry.table = &mCurrentTable;
+  entry.table = mCurrentTable;
   return entry;
 }
 
