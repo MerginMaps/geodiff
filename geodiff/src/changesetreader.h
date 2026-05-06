@@ -59,7 +59,7 @@ class ChangesetReader
 
     std::unique_ptr<Buffer> mBuffer;
 
-    ChangesetTable mCurrentTable;  // currently processed table
+    std::shared_ptr<ChangesetTable> mCurrentTable;  // currently processed table
 };
 
 

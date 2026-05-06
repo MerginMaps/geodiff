@@ -4,6 +4,8 @@
 */
 
 #include "gtest/gtest.h"
+#include <memory>
+#include "changeset.h"
 #include "geodiff_testutils.hpp"
 #include "geodiff.h"
 
@@ -181,62 +183,62 @@ void testConcat( std::string testName,
 
 
 void testConcatOneTable( std::string testName,
-                         const ChangesetTable &table,
+                         const std::shared_ptr<ChangesetTable> table,
                          std::vector<ChangesetEntry> entries1,
                          std::vector<ChangesetEntry> entries2,
                          std::vector<ChangesetEntry> entriesExpected )
 {
   testConcat( testName,
-  { std::make_pair( table.name, table ) },
-  { std::make_pair( table.name, entries1 ) },
-  { std::make_pair( table.name, entries2 ) },
-  { std::make_pair( table.name, entriesExpected ) } );
+  { std::make_pair( table->name, *table ) },
+  { std::make_pair( table->name, entries1 ) },
+  { std::make_pair( table->name, entries2 ) },
+  { std::make_pair( table->name, entriesExpected ) } );
 }
 
 
 TEST( ChangesetUtils, test_concat_changesets_simple_table )
 {
   // basic table with one pkey column
-  ChangesetTable tableFoo;
-  tableFoo.name = "foo";
-  tableFoo.primaryKeys.push_back( true ); // fid (pkey)
-  tableFoo.primaryKeys.push_back( false ); // name
-  tableFoo.primaryKeys.push_back( false ); // rating
+  std::shared_ptr<ChangesetTable> tableFoo = std::make_shared<ChangesetTable>();
+  tableFoo->name = "foo";
+  tableFoo->primaryKeys.push_back( true ); // fid (pkey)
+  tableFoo->primaryKeys.push_back( false ); // name
+  tableFoo->primaryKeys.push_back( false ); // rating
 
   ChangesetDataEntry fooInsert123 = ChangesetDataEntry::make(
-  &tableFoo, ChangesetDataEntry::OpInsert, {},
+  tableFoo, ChangesetDataEntry::OpInsert, {},
   { Value::makeInt( 123 ), Value::makeText( "hello" ), Value::makeInt( 5 ) } );
 
   ChangesetDataEntry fooDelete123 = ChangesetDataEntry::make(
-                                      &tableFoo, ChangesetDataEntry::OpDelete,
+                                      tableFoo, ChangesetDataEntry::OpDelete,
   { Value::makeInt( 123 ), Value::makeText( "hello" ), Value::makeInt( 5 ) }, {} );
 
   ChangesetDataEntry fooUpdate123 = ChangesetDataEntry::make(
-                                      &tableFoo, ChangesetDataEntry::OpUpdate,
+                                      tableFoo, ChangesetDataEntry::OpUpdate,
   { Value::makeInt( 123 ), Value::makeText( "hello" ), Value::makeInt( 5 ) },
   { Value(), Value::makeText( "world" ), Value::makeInt( 4 ) } );
 
   ChangesetDataEntry fooDelete123_2 = ChangesetDataEntry::make(
-                                        &tableFoo, ChangesetDataEntry::OpDelete,
+                                        tableFoo, ChangesetDataEntry::OpDelete,
   { Value::makeInt( 123 ), Value::makeText( "world" ), Value::makeInt( 4 ) }, {} );
 
   ChangesetDataEntry fooUpdate123_2 = ChangesetDataEntry::make(
-                                        &tableFoo, ChangesetDataEntry::OpUpdate,
+                                        tableFoo, ChangesetDataEntry::OpUpdate,
   { Value::makeInt( 123 ), Value(), Value::makeInt( 4 ) },
   { Value(), Value(), Value::makeInt( 1 ) } );
 
   ChangesetDataEntry fooUpdate123_inverse = ChangesetDataEntry::make(
-      &tableFoo, ChangesetDataEntry::OpUpdate,
+      tableFoo, ChangesetDataEntry::OpUpdate,
   { Value::makeInt( 123 ), Value::makeText( "world" ), Value::makeInt( 4 ) },
   { Value(), Value::makeText( "hello" ), Value::makeInt( 5 ) } );
 
   ChangesetDataEntry fooUpdate123_pkey = ChangesetDataEntry::make(
-      &tableFoo, ChangesetDataEntry::OpUpdate,
+      tableFoo, ChangesetDataEntry::OpUpdate,
   { Value::makeInt( 123 ), Value(), Value() },
   { Value::makeInt( 124 ), Value(), Value() } );
 
   ChangesetDataEntry fooUpdate456 = ChangesetDataEntry::make(
-                                      &tableFoo, ChangesetDataEntry::OpUpdate,
+                                      tableFoo, ChangesetDataEntry::OpUpdate,
   { Value::makeInt( 456 ), Value(), Value::makeInt( 1 ) },
   { Value(), Value(), Value::makeInt( 2 ) } );
 
@@ -244,7 +246,7 @@ TEST( ChangesetUtils, test_concat_changesets_simple_table )
 
   testConcatOneTable( "foo-insert-update", tableFoo, { fooInsert123 }, { fooUpdate123 },
   {
-    ChangesetDataEntry::make( &tableFoo, ChangesetDataEntry::OpInsert, {},
+    ChangesetDataEntry::make( tableFoo, ChangesetDataEntry::OpInsert, {},
     { Value::makeInt( 123 ), Value::makeText( "world" ), Value::makeInt( 4 ) }
                             )
   } );
@@ -253,7 +255,7 @@ TEST( ChangesetUtils, test_concat_changesets_simple_table )
 
   testConcatOneTable( "foo-update-update", tableFoo, { fooUpdate123 }, { fooUpdate123_2 },
   {
-    ChangesetDataEntry::make( &tableFoo, ChangesetDataEntry::OpUpdate,
+    ChangesetDataEntry::make( tableFoo, ChangesetDataEntry::OpUpdate,
     { Value::makeInt( 123 ), Value::makeText( "hello" ), Value::makeInt( 5 ) },
     { Value(), Value::makeText( "world" ), Value::makeInt( 1 ) }
                             )
@@ -263,7 +265,7 @@ TEST( ChangesetUtils, test_concat_changesets_simple_table )
 
   testConcatOneTable( "foo-update-delete", tableFoo, { fooUpdate123 }, { fooDelete123_2 },
   {
-    ChangesetDataEntry::make( &tableFoo, ChangesetDataEntry::OpDelete,
+    ChangesetDataEntry::make( tableFoo, ChangesetDataEntry::OpDelete,
     { Value::makeInt( 123 ), Value::makeText( "hello" ), Value::makeInt( 5 ) },
     {}
                             )
@@ -271,7 +273,7 @@ TEST( ChangesetUtils, test_concat_changesets_simple_table )
 
   testConcatOneTable( "foo-delete-insert", tableFoo, { fooDelete123_2 }, { fooInsert123 },
   {
-    ChangesetDataEntry::make( &tableFoo, ChangesetDataEntry::OpUpdate,
+    ChangesetDataEntry::make( tableFoo, ChangesetDataEntry::OpUpdate,
     { Value::makeInt( 123 ), Value::makeText( "world" ), Value::makeInt( 4 ) },
     { Value(), Value::makeText( "hello" ), Value::makeInt( 5 ) }
                             )
@@ -295,17 +297,17 @@ TEST( ChangesetUtils, test_concat_changesets_simple_table )
 TEST( ChangesetUtils, test_concat_changesets_no_pkey_table )
 {
   // a table with no pkey
-  ChangesetTable tableNoPkey;
-  tableNoPkey.name = "table_no_pkey";
-  tableNoPkey.primaryKeys.push_back( false );
-  tableNoPkey.primaryKeys.push_back( false );
+  std::shared_ptr<ChangesetTable> tableNoPkey = std::make_shared<ChangesetTable>();
+  tableNoPkey->name = "table_no_pkey";
+  tableNoPkey->primaryKeys.push_back( false );
+  tableNoPkey->primaryKeys.push_back( false );
 
   ChangesetDataEntry noPkeyInsert1 = ChangesetDataEntry::make(
-  &tableNoPkey, ChangesetDataEntry::OpInsert, {},
+  tableNoPkey, ChangesetDataEntry::OpInsert, {},
   { Value::makeInt( 1 ), Value::makeText( "hey" ) } );
 
   ChangesetDataEntry noPkeyUpdate2 = ChangesetDataEntry::make(
-                                       &tableNoPkey, ChangesetDataEntry::OpUpdate,
+                                       tableNoPkey, ChangesetDataEntry::OpUpdate,
   { Value::makeInt( 2 ), Value::makeText( "huh" ) },
   { Value(), Value::makeText( "ho!" ) } );
 
@@ -316,32 +318,32 @@ TEST( ChangesetUtils, test_concat_changesets_no_pkey_table )
 
 TEST( ChangesetUtils, test_concat_changesets_multiple_tables )
 {
-  ChangesetTable tableFoo;
-  tableFoo.name = "foo";
-  tableFoo.primaryKeys.push_back( true ); // fid (pkey)
-  tableFoo.primaryKeys.push_back( false ); // name
-  tableFoo.primaryKeys.push_back( false ); // rating
+  std::shared_ptr<ChangesetTable> tableFoo = std::make_shared<ChangesetTable>();
+  tableFoo->name = "foo";
+  tableFoo->primaryKeys.push_back( true ); // fid (pkey)
+  tableFoo->primaryKeys.push_back( false ); // name
+  tableFoo->primaryKeys.push_back( false ); // rating
 
-  ChangesetTable tableBar;
-  tableBar.name = "bar";
-  tableBar.primaryKeys.push_back( true ); // fid (pkey)
-  tableBar.primaryKeys.push_back( false ); // name
+  std::shared_ptr<ChangesetTable> tableBar = std::make_shared<ChangesetTable>();
+  tableBar->name = "bar";
+  tableBar->primaryKeys.push_back( true ); // fid (pkey)
+  tableBar->primaryKeys.push_back( false ); // name
 
   ChangesetDataEntry fooInsert123 = ChangesetDataEntry::make(
-  &tableFoo, ChangesetDataEntry::OpInsert, {},
+  tableFoo, ChangesetDataEntry::OpInsert, {},
   { Value::makeInt( 123 ), Value::makeText( "hello" ), Value::makeInt( 5 ) } );
 
   ChangesetDataEntry barInsert123 = ChangesetDataEntry::make(
-  &tableBar, ChangesetDataEntry::OpInsert, {},
+  tableBar, ChangesetDataEntry::OpInsert, {},
   { Value::makeInt( 123 ), Value::makeText( "ha!" ) } );
 
   ChangesetDataEntry barUpdate123 = ChangesetDataEntry::make(
-                                      &tableFoo, ChangesetDataEntry::OpUpdate,
+                                      tableFoo, ChangesetDataEntry::OpUpdate,
   { Value::makeInt( 123 ), Value::makeText( "ha!" ) },
   { Value(), Value::makeText( ":-)" ) } );
 
   testConcat( "multi-related-insert-update",
-  { std::make_pair( "foo", tableFoo ), std::make_pair( "bar", tableBar ) },
+  { std::make_pair( "foo", *tableFoo ), std::make_pair( "bar", *tableBar ) },
   // changeset 1
   {
     std::make_pair( "foo", std::vector<ChangesetEntry>( { fooInsert123 } ) ),
@@ -352,17 +354,17 @@ TEST( ChangesetUtils, test_concat_changesets_multiple_tables )
   // expected result
   {
     std::make_pair( "foo", std::vector<ChangesetEntry>( {
-      ChangesetDataEntry::make( &tableFoo, ChangesetDataEntry::OpInsert, {},
+      ChangesetDataEntry::make( tableFoo, ChangesetDataEntry::OpInsert, {},
       { Value::makeInt( 123 ), Value::makeText( "hello" ), Value::makeInt( 5 ) }
                                                         ) } ) ),
     std::make_pair( "bar", std::vector<ChangesetEntry>( {
-      ChangesetDataEntry::make( &tableBar, ChangesetDataEntry::OpInsert, {},
+      ChangesetDataEntry::make( tableBar, ChangesetDataEntry::OpInsert, {},
       { Value::makeInt( 123 ), Value::makeText( ":-)" ) }
                                                         ) } ) )
   } );
 
   testConcat( "multi-unrelated-insert-update",
-  { std::make_pair( "foo", tableFoo ), std::make_pair( "bar", tableBar ) },
+  { std::make_pair( "foo", *tableFoo ), std::make_pair( "bar", *tableBar ) },
   // changeset 1
   { std::make_pair( "foo", std::vector<ChangesetEntry>( { fooInsert123 } ) ) },
   // changeset 2
@@ -370,11 +372,11 @@ TEST( ChangesetUtils, test_concat_changesets_multiple_tables )
   // expected result
   {
     std::make_pair( "foo", std::vector<ChangesetEntry>( {
-      ChangesetDataEntry::make( &tableFoo, ChangesetDataEntry::OpInsert, {},
+      ChangesetDataEntry::make( tableFoo, ChangesetDataEntry::OpInsert, {},
       { Value::makeInt( 123 ), Value::makeText( "hello" ), Value::makeInt( 5 ) }
                                                         ) } ) ),
     std::make_pair( "bar", std::vector<ChangesetEntry>( {
-      ChangesetDataEntry::make( &tableBar, ChangesetDataEntry::OpUpdate,
+      ChangesetDataEntry::make( tableBar, ChangesetDataEntry::OpUpdate,
       { Value::makeInt( 123 ), Value::makeText( "ha!" ) },
       { Value(), Value::makeText( ":-)" ) }
                                                         ) } ) )

@@ -248,15 +248,15 @@ struct ChangesetDataEntry
    * Optional pointer to the source table information as stored in changeset.
    *
    * When the changeset entry has been read by ChangesetReader, the table always will be set to a valid
-   * instance. Do not delete the instance - it is owned by ChangesetReader.
+   * instance.
    *
    * When the changeset entry is being passed to ChangesetWriter, the table pointer is ignored
    * and it does not need to be set (writer has an explicit beginTable() call to set table).
    */
-  ChangesetTable *table = nullptr;
+  std::shared_ptr<ChangesetTable> table;
 
   //! a quick way for tests to create a changeset entry
-  static ChangesetDataEntry make( ChangesetTable *t, OperationType o, const std::vector<Value> &oldV, const std::vector<Value> &newV )
+  static ChangesetDataEntry make( std::shared_ptr<ChangesetTable> t, OperationType o, const std::vector<Value> &oldV, const std::vector<Value> &newV )
   {
     ChangesetDataEntry e;
     e.op = o;

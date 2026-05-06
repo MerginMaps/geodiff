@@ -25,28 +25,20 @@ ChangesetTable schemaToChangesetTable( const std::string &tableName, const Table
 }
 
 // Returns inverted changeset entries in reverse order
-std::tuple<std::unordered_map<std::string, std::unique_ptr<ChangesetTable>>, std::vector<ChangesetEntry>> invertChangesetReverse( ChangesetReader &reader )
+std::vector<ChangesetEntry> invertChangesetReverse( ChangesetReader &reader )
 {
   std::string currentTableName;
-  std::unordered_map<std::string, std::unique_ptr<ChangesetTable>> tables;
   std::vector<ChangesetEntry> invertedEntries;
   ChangesetEntry entry;
   while ( reader.nextEntry( entry ) )
   {
     if ( ChangesetDataEntry *dataEntry = std::get_if<ChangesetDataEntry>( &entry ) )
     {
-      if ( !dataEntry->table )
-        throw GeoDiffException( "ChangesetDataEntry without table data read!" );
-      if ( !tables.count( dataEntry->table->name ) )
-      {
-        tables[dataEntry->table->name] = std::make_unique<ChangesetTable>( *dataEntry->table );
-      }
-
       if ( dataEntry->op == ChangesetDataEntry::OpInsert )
       {
         ChangesetDataEntry out;
         out.op = ChangesetDataEntry::OpDelete;
-        out.table = tables[dataEntry->table->name].get();
+        out.table = dataEntry->table;
         out.oldValues = dataEntry->newValues;
         invertedEntries.push_back( out );
       }
@@ -54,7 +46,7 @@ std::tuple<std::unordered_map<std::string, std::unique_ptr<ChangesetTable>>, std
       {
         ChangesetDataEntry out;
         out.op = ChangesetDataEntry::OpInsert;
-        out.table = tables[dataEntry->table->name].get();
+        out.table = dataEntry->table;
         out.newValues = dataEntry->oldValues;
         invertedEntries.push_back( out );
       }
@@ -62,7 +54,7 @@ std::tuple<std::unordered_map<std::string, std::unique_ptr<ChangesetTable>>, std
       {
         ChangesetDataEntry out;
         out.op = ChangesetDataEntry::OpUpdate;
-        out.table = tables[dataEntry->table->name].get();
+        out.table = dataEntry->table;
         out.newValues = dataEntry->oldValues;
         out.oldValues = dataEntry->newValues;
         // if a column is a part of pkey and has not been changed,
@@ -116,23 +108,22 @@ std::tuple<std::unordered_map<std::string, std::unique_ptr<ChangesetTable>>, std
       throw GeoDiffException( "Cannot invert changeset entry variant " + std::to_string( entry.index() ) );
     }
   }
-  return {std::move( tables ), invertedEntries};
+  return invertedEntries;
 }
 
 void invertChangeset( ChangesetReader &reader, ChangesetWriter &writer )
 {
-  auto result = invertChangesetReverse( reader );
-  std::vector<ChangesetEntry> &invertedReverse = std::get<1>( result );
+  std::vector<ChangesetEntry> invertedReverse = invertChangesetReverse( reader );
   ChangesetTable *currentTable = nullptr;
   for ( size_t i = 1; i <= invertedReverse.size(); i++ )
   {
     const auto &entry = invertedReverse[invertedReverse.size() - i];
     if ( const ChangesetDataEntry *dataEntry = std::get_if<ChangesetDataEntry>( &entry ) )
     {
-      if ( dataEntry->table != currentTable )
+      if ( dataEntry->table.get() != currentTable )
       {
         writer.beginTable( *dataEntry->table );
-        currentTable = dataEntry->table;
+        currentTable = dataEntry->table.get();
       }
     }
 

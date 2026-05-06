@@ -62,7 +62,7 @@ typedef std::unordered_set<ChangesetDataEntry *, HashChangesetEntryPkey, EqualTo
 //! Struct to keep information about table and its changes while concatenating
 struct TableChanges
 {
-  std::unique_ptr<ChangesetTable> table;
+  std::shared_ptr<ChangesetTable> table;
   TableEntriesSet entries;
 };
 
@@ -201,6 +201,7 @@ void concatChangesets(
   const std::string &outputChangeset )
 {
   // hashtable: table name -> ( fid -> changeset entry )
+  // TODO(dvdkon): What does this do with multiple different schemata in one diff (due to DDL entries)?
   std::unordered_map<std::string, TableChanges> result;
 
   for ( const std::string &inputFilename : filenames )
@@ -220,9 +221,9 @@ void concatChangesets(
       if ( tableIt == result.end() )
       {
         TableChanges &t = result[ entry.table->name ];   // adds new entry
-        t.table.reset( new ChangesetTable( *entry.table ) );
+        t.table = entry.table;
         ChangesetDataEntry *e = new ChangesetDataEntry( entry );
-        e->table = t.table.get();
+        e->table = t.table;
         t.entries.insert( e );
       }
       else
@@ -233,7 +234,7 @@ void concatChangesets(
         {
           // row with this pkey is not in our list yet
           ChangesetDataEntry *e = new ChangesetDataEntry( entry );
-          e->table = t.table.get();
+          e->table = t.table;
           t.entries.insert( e );
         }
         else
