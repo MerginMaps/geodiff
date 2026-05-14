@@ -534,7 +534,7 @@ int GEODIFF_createRebasedChangeset(
 static void createRebasedChangesetEx(
   Context *context,
   const char *driverName,
-  const char * /* driverExtraInfo */,
+  const char *driverExtraInfo,
   const char *base,
   const char *base2modified,
   const char *base2their,
@@ -546,11 +546,23 @@ static void createRebasedChangesetEx(
     throw GeoDiffException( "NULL arguments to GEODIFF_createRebasedChangesetEx" );
   }
 
-  // TODO: use driverName + driverExtraInfo + base when creating rebased
-  // changeset (e.g. to check whether a newly created ID is actually free)
+  // Open the base DB to get its schema
+  DatabaseSchema baseSchema;
+  {
+    DriverParametersMap conn;
+    conn["base"] = std::string( base );
+    if ( driverExtraInfo && *driverExtraInfo )
+      conn["conninfo"] = std::string( driverExtraInfo );
+    std::unique_ptr<Driver> driver( Driver::createDriver( context, std::string( driverName ) ) );
+    if ( !driver )
+      throw GeoDiffException( "Unable to use driver: " + std::string( driverName ) );
+    driver->open( conn );
+    for ( const std::string &tableName : driver->listTables() )
+      baseSchema.tables.push_back( driver->tableSchema( tableName ) );
+  }
 
   std::vector<ConflictFeature> conflicts;
-  rebase( context, base2their, rebased, base2modified, conflicts );
+  rebase( context, baseSchema, base2their, rebased, base2modified, conflicts );
 
   // output conflicts
   if ( conflicts.empty() )

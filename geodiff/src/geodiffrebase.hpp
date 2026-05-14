@@ -9,11 +9,13 @@
 #include <string>
 #include <vector>
 #include "geodiffutils.hpp"
+#include "tableschema.h"
 
 class Logger;
 
 //! throws GeoDiffException on error
 void rebase( const Context *context,
+             const DatabaseSchema &baseSchema, //in
              const std::string &changeset_BASE_THEIRS, //in
              const std::string &changeset_THEIRS_MODIFIED, // out
              const std::string &changeset_BASE_MODIFIED, //in
