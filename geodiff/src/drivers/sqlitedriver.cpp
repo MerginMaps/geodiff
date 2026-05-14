@@ -19,6 +19,7 @@
 
 #include <memory.h>
 #include <sqlite3.h>
+#include <unordered_map>
 #include <variant>
 
 
@@ -662,30 +663,16 @@ static void handleUpdated( const Context *context, TableDiffContext &diffContext
   }
 }
 
-static const TableSchema &findTableSchema( const DatabaseSchema &schema, const std::string &tableName )
-{
-  // Find the table schema
-  const TableSchema *table = nullptr;
-  for ( const TableSchema &tbl : schema.tables )
-  {
-    if ( tbl.name == tableName )
-    {
-      table = &tbl;
-      break;
-    }
-  }
-  if ( !table )
-    throw GeoDiffException( "Missing schema for table " + tableName );
-  return *table;
-}
-
 // To allow diff inversion to work, we first delete all rows when dropping a
 // table, and NULL out all rows when dropping a column.
-static void writeDataChangesForSchemaChange( std::shared_ptr<Sqlite3Db> db, const DatabaseSchema &schemaBase, ChangesetWriter &writer, const ChangesetEntry &entry )
+static void writeDataChangesForSchemaChange( std::shared_ptr<Sqlite3Db> db, const std::unordered_map<std::string, TableSchema> &currentSchemata, ChangesetWriter &writer, const ChangesetEntry &entry )
 {
   if ( const ChangesetDropColumnEntry *dcEntry = std::get_if<ChangesetDropColumnEntry>( &entry ) )
   {
-    const TableSchema &table = findTableSchema( schemaBase, dcEntry->tableName );
+    auto it = currentSchemata.find( dcEntry->tableName );
+    if ( it == currentSchemata.end() )
+      throw GeoDiffException( "Missing schema for table " + dcEntry->tableName );
+    const TableSchema &table = it->second;
 
     std::string pkeyColStr;
     for ( const TableColumnInfo &c : table.columns )
@@ -741,7 +728,10 @@ static void writeDataChangesForSchemaChange( std::shared_ptr<Sqlite3Db> db, cons
   }
   else if ( const ChangesetDropTableEntry *dtEntry = std::get_if<ChangesetDropTableEntry>( &entry ) )
   {
-    const TableSchema &table = findTableSchema( schemaBase, dtEntry->tableName );
+    auto it = currentSchemata.find( dtEntry->tableName );
+    if ( it == currentSchemata.end() )
+      throw GeoDiffException( "Missing schema for table " + dtEntry->tableName );
+    const TableSchema &table = it->second;
 
     Sqlite3Stmt stmt;
     stmt.prepare( db, "SELECT * FROM \"main\".\"%w\"", dtEntry->tableName.c_str() );
@@ -770,11 +760,23 @@ void SqliteDriver::createChangeset( ChangesetWriter &writer )
   DatabaseSchema schemaBase = getSchema( false );
   DatabaseSchema schemaModified = getSchema( true );
 
+  // We keep table schemata that have exactly the written out schema-change
+  // entries applied. They're necessary to know the intermediate database state
+  // for any data changes (e.g. row deletions before table drop).
+  std::unordered_map<std::string, TableSchema> currentSchemata;
+  for ( const TableSchema &tbl : schemaBase.tables )
+    currentSchemata[tbl.name] = tbl;
+
   auto schemaDiffEntries = diffDatabaseSchema( schemaBase, schemaModified );
   for ( const ChangesetEntry &entry : schemaDiffEntries )
   {
-    writeDataChangesForSchemaChange( mDb, schemaBase, writer, entry );
+    writeDataChangesForSchemaChange( mDb, currentSchemata, writer, entry );
     writer.writeEntry( entry );
+
+    if ( const ChangesetAddColumnEntry *acEntry = std::get_if<ChangesetAddColumnEntry>( &entry ) )
+      simulateColumnChange( currentSchemata[acEntry->tableName], entry );
+    else if ( const ChangesetDropColumnEntry *dcEntry = std::get_if<ChangesetDropColumnEntry>( &entry ) )
+      simulateColumnChange( currentSchemata[dcEntry->tableName], entry );
   }
 
   for ( const TableSchema &tblBase : schemaBase.tables )

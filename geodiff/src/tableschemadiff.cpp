@@ -7,6 +7,7 @@
 #include "changeset.h"
 #include "geodiffutils.hpp"
 #include "tableschema.h"
+#include <algorithm>
 #include <iterator>
 #include <unordered_map>
 
@@ -33,6 +34,61 @@ static std::unordered_map<std::string, const T *> byName( const std::vector<T> &
     map[item.name] = &item;
   }
   return map;
+}
+
+void simulateColumnChange( TableSchema &schema, const ChangesetEntry &entry )
+{
+  if ( const ChangesetAddColumnEntry *acEntry = std::get_if<ChangesetAddColumnEntry>( &entry ) )
+  {
+    auto it = std::find_if( schema.columns.begin(), schema.columns.end(),
+    [&]( const TableColumnInfo & c ) { return c.name == acEntry->column.name; } );
+    if ( it != schema.columns.end() )
+      throw GeoDiffException( "Tried simulating addition of already-existing column " + acEntry->column.name );
+    schema.columns.push_back( acEntry->column );
+  }
+  else if ( const ChangesetDropColumnEntry *dcEntry = std::get_if<ChangesetDropColumnEntry>( &entry ) )
+  {
+    auto it = std::find_if( schema.columns.begin(), schema.columns.end(),
+    [&]( const TableColumnInfo & c ) { return c.name == dcEntry->column.name; } );
+    if ( it == schema.columns.end() )
+      throw GeoDiffException( "Tried simulating deletion of non-existent column " + dcEntry->column.name );
+    schema.columns.erase( it );
+  }
+}
+
+void simulateSchemaChange( DatabaseSchema &schema, const ChangesetEntry &entry )
+{
+  if ( const ChangesetCreateTableEntry *ctEntry = std::get_if<ChangesetCreateTableEntry>( &entry ) )
+  {
+    if ( schema.tableByName( ctEntry->tableName ) )
+      throw GeoDiffException( "Tried simulating creation of already-existing table " + ctEntry->tableName );
+    TableSchema ts;
+    ts.name = ctEntry->tableName;
+    ts.columns = ctEntry->columns;
+    schema.tables.push_back( ts );
+  }
+  else if ( const ChangesetDropTableEntry *dtEntry = std::get_if<ChangesetDropTableEntry>( &entry ) )
+  {
+    auto it = std::find_if( schema.tables.begin(), schema.tables.end(),
+    [&]( const TableSchema & t ) { return t.name == dtEntry->tableName; } );
+    if ( it == schema.tables.end() )
+      throw GeoDiffException( "Tried simulating deletion of non-existent table " + dtEntry->tableName );
+    schema.tables.erase( it );
+  }
+  else if ( const ChangesetAddColumnEntry *acEntry = std::get_if<ChangesetAddColumnEntry>( &entry ) )
+  {
+    TableSchema *table = schema.tableByName( acEntry->tableName );
+    if ( !table )
+      throw GeoDiffException( "Tried to add column " + acEntry->column.name + " to non-existent table " + acEntry->tableName );
+    simulateColumnChange( *table, entry );
+  }
+  else if ( const ChangesetDropColumnEntry *dcEntry = std::get_if<ChangesetDropColumnEntry>( &entry ) )
+  {
+    TableSchema *table = schema.tableByName( dcEntry->tableName );
+    if ( !table )
+      throw GeoDiffException( "Tried to delete column " + dcEntry->column.name + " from non-existent table " + dcEntry->tableName );
+    simulateColumnChange( *table, entry );
+  }
 }
 
 std::vector<ChangesetEntry> diffTableSchema( const TableSchema &base, const TableSchema &modified )
@@ -74,7 +130,7 @@ std::vector<ChangesetEntry> diffTableSchema( const TableSchema &base, const Tabl
   {
     // Compare column type by base type enum rather than the exact db-specific
     // string to avoid regression with DB pairs that use compatible types.
-    if ( !baseColumns.at(colName)->compareWithBaseTypes( *modifiedColumns.at(colName) ) )
+    if ( !baseColumns.at( colName )->compareWithBaseTypes( *modifiedColumns.at( colName ) ) )
       throw GeoDiffException( "Columns differ: " +
                               base.name + "." + colName + " and " + modified.name + "." + colName + ")" );
   }

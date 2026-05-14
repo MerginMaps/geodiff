@@ -229,6 +229,9 @@ struct TableSchema
 struct DatabaseSchema
 {
   std::vector<TableSchema> tables;
+
+  //! Returns pointer to the table with the given name, or nullptr if not found
+  TableSchema *tableByName( const std::string &name );
 };
 
 //! Converts column name to base type and returns struct with both names

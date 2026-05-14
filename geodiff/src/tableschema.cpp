@@ -225,6 +225,13 @@ void baseToPostgres( TableSchema &tbl )
   }
 }
 
+TableSchema *DatabaseSchema::tableByName( const std::string &name )
+{
+  auto it = std::find_if( tables.begin(), tables.end(),
+  [&name]( const TableSchema & t ) { return t.name == name; } );
+  return it != tables.end() ? &*it : nullptr;
+}
+
 void tableSchemaConvert( const std::string &driverDstName, TableSchema &tbl )
 {
   if ( driverDstName == Driver::SQLITEDRIVERNAME )
