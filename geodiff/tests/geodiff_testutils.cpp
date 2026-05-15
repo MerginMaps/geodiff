@@ -64,6 +64,11 @@ std::string pathjoin( const std::string &dir, const std::string &dir2, const std
   return res;
 }
 
+std::string pathjoin( const std::string &dir, const std::string &dir2, const std::string &dir3, const std::string &filename )
+{
+  return pathjoin( pathjoin( dir, dir2, dir3 ), filename );
+}
+
 std::string testdir()
 {
   return TEST_DATA_DIR;

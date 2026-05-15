@@ -24,6 +24,7 @@
 std::string testdir();
 std::string pathjoin( const std::string &dir, const std::string &filename );
 std::string pathjoin( const std::string &dir, const std::string &dir2, const std::string &filename );
+std::string pathjoin( const std::string &dir, const std::string &dir2, const std::string &dir3, const std::string &filename );
 void makedir( const std::string &dir );
 
 void init_test();
