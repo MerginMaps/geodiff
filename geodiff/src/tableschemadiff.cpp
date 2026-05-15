@@ -132,7 +132,7 @@ std::vector<ChangesetEntry> diffTableSchema( const TableSchema &base, const Tabl
     // string to avoid regression with DB pairs that use compatible types.
     if ( !baseColumns.at( colName )->compareWithBaseTypes( *modifiedColumns.at( colName ) ) )
       throw GeoDiffException( "Columns differ: " +
-                              base.name + "." + colName + " and " + modified.name + "." + colName + ")" );
+                              base.name + "." + colName + " and " + modified.name + "." + colName );
   }
 
   return entries;
