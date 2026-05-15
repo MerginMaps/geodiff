@@ -779,29 +779,34 @@ void SqliteDriver::createChangeset( ChangesetWriter &writer )
       simulateColumnChange( currentSchemata[dcEntry->tableName], entry );
   }
 
-  for ( const TableSchema &tblBase : schemaBase.tables )
+  for ( const TableSchema &tblModified : schemaModified.tables )
   {
-    if ( !tblBase.hasPrimaryKey() )
+    if ( !tblModified.hasPrimaryKey() )
       continue;  // ignore tables without primary key - they can't be compared properly
 
-    // Find corresponding table in modified DB
-    const TableSchema *tblModified = nullptr;
-    for ( const TableSchema &tbl : schemaModified.tables )
+    // Find corresponding table in base DB
+    const TableSchema *tblBase = nullptr;
+    for ( const TableSchema &tbl : schemaBase.tables )
     {
-      if ( tbl.name == tblBase.name )
+      if ( tbl.name == tblModified.name )
       {
-        tblModified = &tbl;
+        tblBase = &tbl;
         break;
       }
     }
-    if ( !tblModified )
-      continue; // Table was deleted
 
-    TableDiffContext diffContext = { mDb, tblBase, *tblModified, {}, {}, writer };
-
-    for ( const TableColumnInfo &baseColumn : tblBase.columns )
+    if ( !tblBase )
     {
-      for ( const TableColumnInfo &modifiedColumn : tblModified->columns )
+      // Table was newly added, just dump data using INSERTs
+      dumpTableData( writer, tblModified, true );
+      continue;
+    }
+
+    TableDiffContext diffContext = { mDb, *tblBase, tblModified, {}, {}, writer };
+
+    for ( const TableColumnInfo &baseColumn : tblBase->columns )
+    {
+      for ( const TableColumnInfo &modifiedColumn : tblModified.columns )
       {
         if ( baseColumn.name == modifiedColumn.name )
         {
@@ -811,10 +816,10 @@ void SqliteDriver::createChangeset( ChangesetWriter &writer )
       }
     }
 
-    for ( const TableColumnInfo &modifiedColumn : tblModified->columns )
+    for ( const TableColumnInfo &modifiedColumn : tblModified.columns )
     {
       bool found = false;
-      for ( const TableColumnInfo &baseColumn : tblBase.columns )
+      for ( const TableColumnInfo &baseColumn : tblBase->columns )
       {
         if ( baseColumn.name == modifiedColumn.name )
         {
@@ -1200,6 +1205,27 @@ static void createTable( std::shared_ptr<Sqlite3Db> db, const TableSchema &tbl )
   }
 }
 
+static void removeGpkgSpatialTable( std::shared_ptr<Sqlite3Db> db, std::string tableName )
+{
+  {
+    Sqlite3Stmt stmt;
+    stmt.prepare( db, "DELETE FROM gpkg_contents WHERE table_name = '%q'",
+                  tableName.c_str() );
+    int res = sqlite3_step( stmt.get() );
+    if ( res != SQLITE_DONE )
+      throwSqliteError( db->get(), "Failed to delete table from gpkg_contents table" );
+  }
+
+  {
+    Sqlite3Stmt stmt;
+    stmt.prepare( db, "DELETE FROM gpkg_geometry_columns WHERE table_name = '%q'",
+                  tableName.c_str() );
+    int res = sqlite3_step( stmt.get() );
+    if ( res != SQLITE_DONE )
+      throwSqliteError( db->get(), "Failed to delete table from gpkg_geometry_columns table" );
+  }
+}
+
 void SqliteDriver::applySchemaChange( const ChangesetEntry &entry )
 {
   if ( const ChangesetCreateTableEntry *ctEntry = std::get_if<ChangesetCreateTableEntry>( &entry ) )
@@ -1249,6 +1275,7 @@ void SqliteDriver::applySchemaChange( const ChangesetEntry &entry )
       logApplyConflict( "drop_table_failed", entry, true );
       throwSqliteError( mDb->get(), "Failure deleting table: " + dtEntry->tableName );
     }
+    removeGpkgSpatialTable( mDb, dtEntry->tableName );
   }
   else if ( const ChangesetAddColumnEntry *acEntry = std::get_if<ChangesetAddColumnEntry>( &entry ) )
   {
@@ -1462,42 +1489,70 @@ void SqliteDriver::createTables( const std::vector<TableSchema> &tables )
   }
 }
 
+void SqliteDriver::dumpTableData( ChangesetWriter &writer, TableSchema tbl, bool useModified )
+{
+  std::string dbName = databaseName( useModified );
+  if ( !tbl.hasPrimaryKey() )
+    return;  // ignore tables without primary key - they can't be compared properly
+
+  bool first = true;
+  Sqlite3Stmt statementI;
+  statementI.prepare( mDb, "SELECT * FROM \"%w\".\"%w\"", dbName.c_str(), tbl.name.c_str() );
+  int rc;
+  while ( SQLITE_ROW == ( rc = sqlite3_step( statementI.get() ) ) )
+  {
+    if ( first )
+    {
+      writer.beginTable( schemaToChangesetTable( tbl.name, tbl ) );
+      first = false;
+    }
+
+    ChangesetDataEntry e;
+    e.op = ChangesetDataEntry::OpInsert;
+    size_t numColumns = tbl.columns.size();
+    for ( size_t i = 0; i < numColumns; ++i )
+    {
+      Sqlite3Value v( sqlite3_column_value( statementI.get(), static_cast<int>( i ) ) );
+      e.newValues.push_back( changesetValue( v.value() ) );
+    }
+    writer.writeEntry( e );
+  }
+  if ( rc != SQLITE_DONE )
+  {
+    logSqliteError( context(), mDb, "Failure dumping changeset" );
+  }
+}
 
 void SqliteDriver::dumpData( ChangesetWriter &writer, bool useModified )
 {
-  std::string dbName = databaseName( useModified );
   std::vector<std::string> tables = listTables();
   for ( const std::string &tableName : tables )
   {
     TableSchema tbl = tableSchema( tableName, useModified );
-    if ( !tbl.hasPrimaryKey() )
-      continue;  // ignore tables without primary key - they can't be compared properly
-
-    bool first = true;
-    Sqlite3Stmt statementI;
-    statementI.prepare( mDb, "SELECT * FROM \"%w\".\"%w\"", dbName.c_str(), tableName.c_str() );
-    int rc;
-    while ( SQLITE_ROW == ( rc = sqlite3_step( statementI.get() ) ) )
-    {
-      if ( first )
-      {
-        writer.beginTable( schemaToChangesetTable( tableName, tbl ) );
-        first = false;
-      }
-
-      ChangesetDataEntry e;
-      e.op = ChangesetDataEntry::OpInsert;
-      size_t numColumns = tbl.columns.size();
-      for ( size_t i = 0; i < numColumns; ++i )
-      {
-        Sqlite3Value v( sqlite3_column_value( statementI.get(), static_cast<int>( i ) ) );
-        e.newValues.push_back( changesetValue( v.value() ) );
-      }
-      writer.writeEntry( e );
-    }
-    if ( rc != SQLITE_DONE )
-    {
-      logSqliteError( context(), mDb, "Failure dumping changeset" );
-    }
+    dumpTableData( writer, tbl, useModified );
   }
+}
+
+std::vector<std::vector<std::string>> SqliteDriver::executeSql( std::string sql )
+{
+  Sqlite3Stmt stmt;
+  stmt.prepare( mDb, "%s", sql.c_str() );
+  std::vector<std::vector<std::string>> rows;
+  int rc;
+  while ( ( rc = sqlite3_step( stmt.get() ) ) == SQLITE_ROW )
+  {
+    std::vector<std::string> values;
+    values.resize( sqlite3_column_count( stmt.get() ) );
+    for ( size_t i = 0; i < values.size(); ++i )
+    {
+      const unsigned char *text = sqlite3_column_text( stmt.get(), static_cast<int>( i ) );
+      values.push_back( reinterpret_cast<const char *>( text ) );
+    }
+    rows.push_back( values );
+  }
+  if ( rc != SQLITE_DONE )
+  {
+    logSqliteError( context(), mDb, "Failure executing SQL: " + sql );
+  }
+  return rows;
 }

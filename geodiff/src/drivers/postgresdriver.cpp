@@ -1087,3 +1087,38 @@ void PostgresDriver::dumpData( ChangesetWriter &writer, bool useModified )
     }
   }
 }
+
+class SearchPathScope
+{
+  public:
+    SearchPathScope( PGconn *conn, std::string prependSchema )
+      : mConn( conn )
+    {
+      PostgresResult res = execSql( mConn, "SHOW search_path" );
+      mOldSearchPath = res.value( 0, 0 );
+      std::string newSearchPath = prependSchema + "," + mOldSearchPath;
+      execSql( mConn, "SET search_path TO " + newSearchPath );
+    }
+    ~SearchPathScope()
+    {
+      execSql( mConn, "SET search_path TO " + mOldSearchPath );
+    }
+  private:
+    std::string mOldSearchPath;
+    PGconn *mConn;
+};
+
+std::vector<std::vector<std::string>> PostgresDriver::executeSql( std::string sql )
+{
+  SearchPathScope spScope( mConn, mBaseSchema );
+  PostgresResult res = execSql( mConn, sql );
+  std::vector<std::vector<std::string>> rows;
+  rows.resize( res.rowCount() );
+  for ( size_t r = 0; r < rows.size(); ++r )
+  {
+    rows[r].resize( res.columnCount() );
+    for ( size_t i = 0; i < rows[r].size(); ++i )
+      rows[r][i] = res.value( r, i );
+  }
+  return rows;
+}
