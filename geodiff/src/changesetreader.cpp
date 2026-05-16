@@ -197,8 +197,8 @@ void ChangesetReader::readTableRecord()
   if ( nCol < 0 || nCol > 65536 )
     throwReaderError( "readByte: unexpected number of columns" );
 
-   mCurrentTable = std::make_shared<ChangesetTable>();
-   mCurrentTable->primaryKeys.clear();
+  mCurrentTable = std::make_shared<ChangesetTable>();
+  mCurrentTable->primaryKeys.clear();
 
   for ( int i = 0; i < nCol; ++i )
   {
