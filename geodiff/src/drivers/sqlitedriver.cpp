@@ -256,7 +256,7 @@ bool tableExists( std::shared_ptr<Sqlite3Db> db, const std::string &tableName, c
 {
   Sqlite3Stmt stmtHasGeomColumnsInfo;
   stmtHasGeomColumnsInfo.prepare( db, "SELECT name FROM \"%w\".sqlite_master WHERE type='table' "
-                                      "AND name='%q'", dbName.c_str(), tableName.c_str() );
+                                  "AND name='%q'", dbName.c_str(), tableName.c_str() );
   return sqlite3_step( stmtHasGeomColumnsInfo.get() ) == SQLITE_ROW;
 }
 
@@ -1130,7 +1130,7 @@ static void addGpkgSpatialTable( std::shared_ptr<Sqlite3Db> db, const TableSchem
 
   Sqlite3Stmt stmt;
   stmt.prepare( db, "INSERT INTO gpkg_contents (table_name, data_type, identifier, min_x, min_y, max_x, max_y, srs_id) "
-                    "VALUES ('%q', 'features', '%q', %f, %f, %f, %f, %d)",
+                "VALUES ('%q', 'features', '%q', %f, %f, %f, %f, %d)",
                 tbl.name.c_str(), tbl.name.c_str(), extent.minX, extent.minY, extent.maxX, extent.maxY, srsId );
   int res = sqlite3_step( stmt.get() );
   if ( res != SQLITE_DONE )

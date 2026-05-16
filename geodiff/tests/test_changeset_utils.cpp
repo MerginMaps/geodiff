@@ -228,7 +228,7 @@ TEST( ChangesetUtils, test_concat_changesets_simple_table )
   { Value(), Value(), Value::makeInt( 1 ) } );
 
   ChangesetDataEntry fooUpdate123_inverse = ChangesetDataEntry::make(
-      tableFoo, ChangesetDataEntry::OpUpdate,
+        tableFoo, ChangesetDataEntry::OpUpdate,
   { Value::makeInt( 123 ), Value::makeText( "world" ), Value::makeInt( 4 ) },
   { Value(), Value::makeText( "hello" ), Value::makeInt( 5 ) } );
 
@@ -355,12 +355,10 @@ TEST( ChangesetUtils, test_concat_changesets_multiple_tables )
   {
     std::make_pair( "foo", std::vector<ChangesetEntry>( {
       ChangesetDataEntry::make( tableFoo, ChangesetDataEntry::OpInsert, {},
-      { Value::makeInt( 123 ), Value::makeText( "hello" ), Value::makeInt( 5 ) }
-                                                        ) } ) ),
+      { Value::makeInt( 123 ), Value::makeText( "hello" ), Value::makeInt( 5 ) } ) } ) ),
     std::make_pair( "bar", std::vector<ChangesetEntry>( {
       ChangesetDataEntry::make( tableBar, ChangesetDataEntry::OpInsert, {},
-      { Value::makeInt( 123 ), Value::makeText( ":-)" ) }
-                                                        ) } ) )
+      { Value::makeInt( 123 ), Value::makeText( ":-)" ) } ) } ) )
   } );
 
   testConcat( "multi-unrelated-insert-update",
@@ -373,13 +371,11 @@ TEST( ChangesetUtils, test_concat_changesets_multiple_tables )
   {
     std::make_pair( "foo", std::vector<ChangesetEntry>( {
       ChangesetDataEntry::make( tableFoo, ChangesetDataEntry::OpInsert, {},
-      { Value::makeInt( 123 ), Value::makeText( "hello" ), Value::makeInt( 5 ) }
-                                                        ) } ) ),
+      { Value::makeInt( 123 ), Value::makeText( "hello" ), Value::makeInt( 5 ) } ) } ) ),
     std::make_pair( "bar", std::vector<ChangesetEntry>( {
       ChangesetDataEntry::make( tableBar, ChangesetDataEntry::OpUpdate,
       { Value::makeInt( 123 ), Value::makeText( "ha!" ) },
-      { Value(), Value::makeText( ":-)" ) }
-                                                        ) } ) )
+      { Value(), Value::makeText( ":-)" ) } ) } ) )
   } );
 }
 
