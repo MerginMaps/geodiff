@@ -14,6 +14,7 @@
 #include "driver.h"
 #include "geodiff.h"
 #include "geodiff_testutils.hpp"
+#include "geodiffrebase.hpp"
 #include "geodiffutils.hpp"
 #include "tableschema.h"
 
@@ -315,6 +316,179 @@ TEST( ModifiedSchemeTest, drop_table )
     modifiedDb.executeSql( "INSERT INTO tram_stops (fid, name) VALUES (4, 'Palmovka')" );
     modifiedDb.executeSql( "UPDATE tram_stops SET name = 'Pohořelec' WHERE fid = 1" );
     modifiedDb.executeSql( "DROP TABLE tram_stops" );
+  } );
+}
+
+static void testSchemaDiffRebaseWith( std::string driverName, std::string testname, int expectedConflicts, std::function<void ( Driver & )> theirs, std::function<void ( Driver & )> ours, std::function<void ( Driver & )> expected )
+{
+  // Create base and modified Dbs
+  DatabaseSchema baseSchema;
+  {
+    std::unique_ptr<Driver> baseDb = createSampleDb( driverName, testname, "base" );
+    for ( const std::string &tableName : baseDb->listTables() )
+      baseSchema.tables.push_back( baseDb->tableSchema( tableName ) );
+    std::unique_ptr<Driver> theirsDb = createSampleDb( driverName, testname, "theirs" );
+    theirs( *theirsDb );
+    std::unique_ptr<Driver> oursDb = createSampleDb( driverName, testname, "ours" );
+    ours( *oursDb );
+  }
+
+  // Create diff base->theirs
+  std::string base2TheirsPath = pathjoin( tmpdir(), testname, "base2theirs" );
+  {
+    std::unique_ptr<Driver> baseTheirsDriver = openBaseModifiedDb( driverName, testname, "base", "theirs" );
+    ChangesetWriter writer;
+    writer.open( base2TheirsPath );
+    baseTheirsDriver->createChangeset( writer );
+  }
+
+  // Create diff base->ours
+  std::string base2OursPath = pathjoin( tmpdir(), testname, "base2ours" );
+  {
+    std::unique_ptr<Driver> baseOursDriver = openBaseModifiedDb( driverName, testname, "base", "ours" );
+    ChangesetWriter writer;
+    writer.open( base2OursPath );
+    baseOursDriver->createChangeset( writer );
+  }
+
+  // Rebase base->ours diff to theirs->both
+  std::string theirs2bothPath = pathjoin( tmpdir(), testname, "theirs2both" );
+  {
+    std::vector<ConflictFeature> conflicts;
+    rebase( static_cast<Context *>( testContext() ), baseSchema, base2TheirsPath, theirs2bothPath, base2OursPath, conflicts );
+    ASSERT_EQ( conflicts.size(), 0 ) << conflicts.size() << " conflicts in rebase (more than " << expectedConflicts << "): " << conflictsToJSON( conflicts ).dump( 2 );
+  }
+
+  if ( expectedConflicts > 0 )
+    return;
+
+  // Apply both diffs to both
+  {
+    std::unique_ptr<Driver> bothDb = createSampleDb( driverName, testname, "both" );
+
+    {
+      ChangesetReader reader;
+      reader.open( base2TheirsPath );
+      bothDb->applyChangeset( reader );
+    }
+
+    {
+      ChangesetReader reader;
+      reader.open( theirs2bothPath );
+      bothDb->applyChangeset( reader );
+    }
+  }
+
+  // Check that base and both are now equal
+  std::string expected2bothPath = pathjoin( tmpdir(), testname, "expected2both" );
+  {
+    std::unique_ptr<Driver> expectedDb = createSampleDb( driverName, testname, "expected" );
+    expected( *expectedDb );
+
+    std::unique_ptr<Driver> expectedBothDriver = openBaseModifiedDb( driverName, testname, "expected", "both" );
+    ChangesetWriter writer;
+    writer.open( expected2bothPath );
+    expectedBothDriver->createChangeset( writer );
+  }
+  uintmax_t expected2bothSize = std::filesystem::file_size( expected2bothPath );
+  ASSERT_EQ( expected2bothSize, 0 );
+}
+
+TEST( ModifiedSchemeTest, rebase_redundant_drop_column )
+{
+  // TODO: Postgres support
+  std::string driverName = "sqlite";
+
+  testSchemaDiffRebaseWith( driverName, "rebase_redundant_drop_column", 0,
+                            [ = ]( Driver & db )
+  {
+    db.executeSql( "ALTER TABLE tram_stops DROP COLUMN name" );
+    db.executeSql( "INSERT INTO tram_stops (fid) VALUES (4)" );
+  },
+  [ = ]( Driver & db )
+  {
+    db.executeSql( "ALTER TABLE tram_stops DROP COLUMN name" );
+    db.executeSql( "INSERT INTO tram_stops (fid) VALUES (4)" );
+  },
+  [ = ]( Driver & db )
+  {
+    db.executeSql( "ALTER TABLE tram_stops DROP COLUMN name" );
+    db.executeSql( "INSERT INTO tram_stops (fid) VALUES (4)" );
+    db.executeSql( "INSERT INTO tram_stops (fid) VALUES (5)" );
+  } );
+}
+
+TEST( ModifiedSchemeTest, rebase_redundant_drop_table )
+{
+  // TODO: Postgres support
+  std::string driverName = "sqlite";
+
+  testSchemaDiffRebaseWith( driverName, "rebase_redundant_drop_table", 0,
+                            [ = ]( Driver & db )
+  {
+    db.executeSql( "DROP TABLE tram_stops" );
+  },
+  [ = ]( Driver & db )
+  {
+    db.executeSql( "DROP TABLE tram_stops" );
+  },
+  [ = ]( Driver & db )
+  {
+    db.executeSql( "DROP TABLE tram_stops" );
+  } );
+}
+
+TEST( ModifiedSchemeTest, rebase_redundant_add_column )
+{
+  // TODO: Postgres support
+  std::string driverName = "sqlite";
+
+  testSchemaDiffRebaseWith( driverName, "rebase_redundant_add_column", 0,
+                            [ = ]( Driver & db )
+  {
+    db.executeSql( "ALTER TABLE tram_stops ADD COLUMN bench_count integer" );
+    db.executeSql( "INSERT INTO tram_stops (fid, name, bench_count) VALUES (4, 'Palmovka', 3)" );
+    db.executeSql( "UPDATE tram_stops SET bench_count = 1 WHERE fid = 1" );
+  },
+  [ = ]( Driver & db )
+  {
+    db.executeSql( "ALTER TABLE tram_stops ADD COLUMN bench_count integer" );
+    db.executeSql( "UPDATE tram_stops SET bench_count = 1 WHERE fid = 1" );
+    db.executeSql( "INSERT INTO tram_stops (fid, name, bench_count) VALUES (5, 'Drinopol', 2)" );
+  },
+  [ = ]( Driver & db )
+  {
+    db.executeSql( "ALTER TABLE tram_stops ADD COLUMN bench_count integer" );
+    db.executeSql( "INSERT INTO tram_stops (fid, name, bench_count) VALUES (4, 'Palmovka', 3)" );
+    db.executeSql( "INSERT INTO tram_stops (fid, name, bench_count) VALUES (5, 'Drinopol', 2)" );
+    db.executeSql( "UPDATE tram_stops SET bench_count = 1 WHERE fid = 1" );
+  } );
+}
+
+TEST( ModifiedSchemeTest, rebase_redundant_create_table )
+{
+  // TODO: Postgres support
+  std::string driverName = "sqlite";
+
+  testSchemaDiffRebaseWith( driverName, "rebase_redundant_create_table", 0,
+                            [ = ]( Driver & db )
+  {
+    db.executeSql( "CREATE TABLE vehicles (fid INTEGER, name TEXT, type TEXT)" );
+    db.executeSql( "INSERT INTO vehicles VALUES (1, 'T3', 'tram')" );
+    db.executeSql( "INSERT INTO vehicles VALUES (2, 'KT8D5', 'tram')" );
+  },
+  [ = ]( Driver & db )
+  {
+    db.executeSql( "CREATE TABLE vehicles (fid INTEGER, name TEXT, type TEXT)" );
+    db.executeSql( "INSERT INTO vehicles VALUES (1, 'T3', 'tram')" );
+    db.executeSql( "INSERT INTO vehicles VALUES (2, '14T', 'tram')" );
+  },
+  [ = ]( Driver & db )
+  {
+    db.executeSql( "CREATE TABLE vehicles (fid INTEGER, name TEXT, type TEXT)" );
+    db.executeSql( "INSERT INTO vehicles VALUES (1, 'T3', 'tram')" );
+    db.executeSql( "INSERT INTO vehicles VALUES (2, 'KT8D5', 'tram')" );
+    db.executeSql( "INSERT INTO vehicles VALUES (3, '14T', 'tram')" );
   } );
 }
 
