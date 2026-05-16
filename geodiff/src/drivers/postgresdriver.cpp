@@ -1091,7 +1091,7 @@ void PostgresDriver::dumpData( ChangesetWriter &writer, bool useModified )
 class SearchPathScope
 {
   public:
-    SearchPathScope( PGconn *conn, std::string prependSchema )
+    SearchPathScope( PGconn *conn, const std::string &prependSchema )
       : mConn( conn )
     {
       PostgresResult res = execSql( mConn, "SHOW search_path" );

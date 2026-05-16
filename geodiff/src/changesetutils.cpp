@@ -27,7 +27,6 @@ ChangesetTable schemaToChangesetTable( const std::string &tableName, const Table
 // Returns inverted changeset entries in reverse order
 std::vector<ChangesetEntry> invertChangesetReverse( ChangesetReader &reader )
 {
-  std::string currentTableName;
   std::vector<ChangesetEntry> invertedEntries;
   ChangesetEntry entry;
   while ( reader.nextEntry( entry ) )
@@ -75,28 +74,28 @@ std::vector<ChangesetEntry> invertChangesetReverse( ChangesetReader &reader )
         throw GeoDiffException( "Unknown entry operation!" );
       }
     }
-    else if ( ChangesetCreateTableEntry *ctEntry = std::get_if<ChangesetCreateTableEntry>( &entry ) )
+    else if ( const ChangesetCreateTableEntry *ctEntry = std::get_if<ChangesetCreateTableEntry>( &entry ) )
     {
       ChangesetDropTableEntry out;
       out.tableName = ctEntry->tableName;
       out.columns = ctEntry->columns;
       invertedEntries.push_back( out );
     }
-    else if ( ChangesetAddColumnEntry *acEntry = std::get_if<ChangesetAddColumnEntry>( &entry ) )
+    else if ( const ChangesetAddColumnEntry *acEntry = std::get_if<ChangesetAddColumnEntry>( &entry ) )
     {
       ChangesetDropColumnEntry out;
       out.tableName = acEntry->tableName;
       out.column = acEntry->column;
       invertedEntries.push_back( out );
     }
-    else if ( ChangesetDropTableEntry *dtEntry = std::get_if<ChangesetDropTableEntry>( &entry ) )
+    else if ( const ChangesetDropTableEntry *dtEntry = std::get_if<ChangesetDropTableEntry>( &entry ) )
     {
       ChangesetCreateTableEntry out;
       out.tableName = dtEntry->tableName;
       out.columns = dtEntry->columns;
       invertedEntries.push_back( out );
     }
-    else if ( ChangesetDropColumnEntry *dcEntry = std::get_if<ChangesetDropColumnEntry>( &entry ) )
+    else if ( const ChangesetDropColumnEntry *dcEntry = std::get_if<ChangesetDropColumnEntry>( &entry ) )
     {
       ChangesetAddColumnEntry out;
       out.tableName = dcEntry->tableName;

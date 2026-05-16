@@ -386,7 +386,7 @@ TableSchema SqliteDriver::tableSchema( const std::string &tableName,
 DatabaseSchema SqliteDriver::getSchema( bool useModified )
 {
   std::vector<TableSchema> tables;
-  for ( auto &name : listTables( useModified ) )
+  for ( const std::string &name : listTables( useModified ) )
   {
     tables.push_back( tableSchema( name, useModified ) );
   }
@@ -1213,7 +1213,7 @@ static void createTable( std::shared_ptr<Sqlite3Db> db, const TableSchema &tbl )
   }
 }
 
-static void removeGpkgSpatialTable( std::shared_ptr<Sqlite3Db> db, std::string tableName )
+static void removeGpkgSpatialTable( std::shared_ptr<Sqlite3Db> db, const std::string &tableName )
 {
   {
     Sqlite3Stmt stmt;

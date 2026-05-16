@@ -314,7 +314,7 @@ int _find_mapping_for_new_changeset(
   {
     if ( !std::holds_alternative<ChangesetDataEntry>( entry ) )
       continue;
-    ChangesetDataEntry &dataEntry = std::get<ChangesetDataEntry>( entry );
+    const ChangesetDataEntry &dataEntry = std::get<ChangesetDataEntry>( entry );
 
     std::string tableName = dataEntry.table->name;
 
@@ -705,7 +705,7 @@ void _prepare_new_changeset( const Context *context,
       if ( const ChangesetCreateTableEntry *ctEntry = std::get_if<ChangesetCreateTableEntry>( &entry ) )
       {
         schemaEntryTableName = ctEntry->tableName;
-        TableSchema *existing = outputSchema.tableByName( ctEntry->tableName );
+        const TableSchema *existing = outputSchema.tableByName( ctEntry->tableName );
         if ( existing )
         {
           if ( existing->columns != ctEntry->columns )
@@ -763,13 +763,13 @@ void _prepare_new_changeset( const Context *context,
   ChangesetWriter writer;
   writer.open( changesetNew );
 
-  for ( auto &it : tableChanges )
+  for ( const auto &it : tableChanges )
   {
     const std::vector<ChangesetEntry> &changes = it.second;
     if ( changes.empty() )
       continue;
 
-    ChangesetTable *defWritten = nullptr;
+    const ChangesetTable *defWritten = nullptr;
     for ( const ChangesetEntry &writeEntry : changes )
     {
       if ( auto dataEntry = std::get_if<ChangesetDataEntry>( &writeEntry ) )
