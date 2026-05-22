@@ -123,8 +123,8 @@ void ChangesetWriter::writeRowValues( const std::vector<Value> &values )
 void ChangesetWriter::writeColumnInfo( const TableColumnInfo &column )
 {
   writeNullTerminatedString( column.name );
-  writeByte( column.type.baseType );
-  writeByte( column.isPrimaryKey
+  writeByte( static_cast<char>( column.type.baseType ) );
+  writeByte( ( column.isPrimaryKey << 0 )
              | ( column.isNotNull << 1 )
              | ( column.isAutoIncrement << 2 )
              | ( column.isGeometry << 3 )
@@ -152,7 +152,7 @@ void ChangesetWriter::writeCreateTableEntry( const ChangesetCreateTableEntry &en
 {
   writeByte( static_cast<char>( ChangesetEntryType::OpCreateTable ) );
   writeNullTerminatedString( entry.tableName );
-  writeVarint( entry.columns.size() );
+  writeVarint( static_cast<int>( entry.columns.size() ) );
   for ( const TableColumnInfo &column : entry.columns )
   {
     writeColumnInfo( column );
@@ -163,7 +163,7 @@ void ChangesetWriter::writeDropTableEntry( const ChangesetDropTableEntry &entry 
 {
   writeByte( static_cast<char>( ChangesetEntryType::OpDropTable ) );
   writeNullTerminatedString( entry.tableName );
-  writeVarint( entry.columns.size() );
+  writeVarint( static_cast<int>( entry.columns.size() ) );
   for ( const TableColumnInfo &column : entry.columns )
   {
     writeColumnInfo( column );

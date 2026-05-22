@@ -1114,10 +1114,10 @@ std::vector<std::vector<std::string>> PostgresDriver::executeSql( std::string sq
   PostgresResult res = execSql( mConn, sql );
   std::vector<std::vector<std::string>> rows;
   rows.resize( res.rowCount() );
-  for ( size_t r = 0; r < rows.size(); ++r )
+  for ( int r = 0; r < static_cast<int>( rows.size() ); ++r )
   {
     rows[r].resize( res.columnCount() );
-    for ( size_t i = 0; i < rows[r].size(); ++i )
+    for ( int i = 0; i < static_cast<int>( rows[r].size() ); ++i )
       rows[r][i] = res.value( r, i );
   }
   return rows;

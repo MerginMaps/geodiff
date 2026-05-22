@@ -118,11 +118,13 @@ static std::unique_ptr<Driver> createSampleDb( std::string driverName, std::stri
     makedir( dir );
     params["base"] = pathjoin( dir, dbname + ".gpkg" );
   }
+#ifdef HAVE_POSTGRES
   else if ( driverName == "postgres" )
   {
     params["base"] = testname + "_" + dbname;
     params["conninfo"] = pgTestConnInfo();
   }
+#endif
 
   std::unique_ptr<Driver> driver( Driver::createDriver( static_cast<Context *>( testContext() ), driverName ) );
   driver->create( params, true );
@@ -167,6 +169,7 @@ static std::unique_ptr<Driver> openBaseModifiedDb( std::string driverName, std::
     if ( modifiedName.size() )
       params["modified"] = pathjoin( dir, modifiedName + ".gpkg" );
   }
+#ifdef HAVE_POSTGRES
   else if ( driverName == "postgres" )
   {
     params["base"] = testname + "_" + baseName;
@@ -174,6 +177,7 @@ static std::unique_ptr<Driver> openBaseModifiedDb( std::string driverName, std::
       params["modified"] = testname + "_" + modifiedName;
     params["conninfo"] = pgTestConnInfo();
   }
+#endif
 
   std::unique_ptr<Driver> driver( Driver::createDriver( static_cast<Context *>( testContext() ), driverName ) );
   driver->open( params );

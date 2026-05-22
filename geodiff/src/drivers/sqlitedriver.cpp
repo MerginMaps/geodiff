@@ -1245,7 +1245,7 @@ void SqliteDriver::applySchemaChange( const ChangesetEntry &entry )
     {
       createTable( mDb, { ctEntry->tableName, ctEntry->columns, tableCrs } );
     }
-    catch ( const GeoDiffException &ex )
+    catch ( const GeoDiffException & )
     {
       // TODO: Make sure this only catches sqlite errors on CREATE TABLE
       logApplyConflict( "create_table_failed", entry, true );
