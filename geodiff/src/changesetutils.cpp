@@ -11,8 +11,6 @@
 #include "changesetreader.h"
 #include "changesetwriter.h"
 #include "tableschema.h"
-#include <iostream>
-#include <unordered_map>
 
 
 ChangesetTable schemaToChangesetTable( const std::string &tableName, const TableSchema &tbl )
@@ -364,62 +362,73 @@ nlohmann::json changesetToJSONSummary( ChangesetReader &reader )
 
 nlohmann::json conflictToJSON( const ConflictFeature &conflict )
 {
-  nlohmann::json res;
-  res[ "table" ] = std::string( conflict.tableName() );
-  res[ "type" ] = "conflict";
-  res[ "fid" ] = std::to_string( conflict.pk() );
-
-  auto entries = nlohmann::json::array();
-
-  const std::vector<ConflictItem> items = conflict.items();
-  for ( const ConflictItem &item : items )
+  if ( const DataConflictFeature *dcf = std::get_if<DataConflictFeature>( &conflict ) )
   {
-    nlohmann::json change;
-    change[ "column" ] = item.column();
+    nlohmann::json res;
+    res[ "table" ] = std::string( dcf->tableName() );
+    res[ "type" ] = "conflict";
+    res[ "fid" ] = std::to_string( dcf->pk() );
 
-    nlohmann::json valueBase = valueToJSON( item.base() );
-    nlohmann::json valueOld = valueToJSON( item.theirs() );
-    nlohmann::json valueNew = valueToJSON( item.ours() );
+    auto entries = nlohmann::json::array();
+    for ( const DataConflictItem &item : dcf->items() )
+    {
+      nlohmann::json change;
+      change[ "column" ] = item.column();
 
-    if ( !valueBase.empty() )
-    {
-      if ( valueBase == "null" )
-        change[ "base" ] = nullptr;
-      else
-        change[ "base" ] = valueBase;
-    }
-    if ( !valueOld.empty() )
-    {
-      if ( valueOld == "null" )
-        change[ "old" ] = nullptr;
-      else
-        change[ "old" ] = valueOld;
-    }
-    if ( !valueNew.empty() )
-    {
-      if ( valueNew == "null" )
-        change[ "new" ] = nullptr;
-      else
-        change[ "new" ] = valueNew;
-    }
+      nlohmann::json valueBase = valueToJSON( item.base() );
+      nlohmann::json valueOld = valueToJSON( item.theirs() );
+      nlohmann::json valueNew = valueToJSON( item.ours() );
 
-    entries.push_back( change );
+      if ( !valueBase.empty() )
+      {
+        if ( valueBase == "null" )
+          change[ "base" ] = nullptr;
+        else
+          change[ "base" ] = valueBase;
+      }
+      if ( !valueOld.empty() )
+      {
+        if ( valueOld == "null" )
+          change[ "old" ] = nullptr;
+        else
+          change[ "old" ] = valueOld;
+      }
+      if ( !valueNew.empty() )
+      {
+        if ( valueNew == "null" )
+          change[ "new" ] = nullptr;
+        else
+          change[ "new" ] = valueNew;
+      }
+
+      entries.push_back( change );
+    }
+    res[ "changes" ] = entries;
+    return res;
   }
-  res[ "changes" ] = entries;
-  return res;
+  else if ( const TableSchemaConflict *tsc = std::get_if<TableSchemaConflict>( &conflict ) )
+  {
+    nlohmann::json res;
+    res[ "type" ] = "schema_conflict_table";
+    res[ "table" ] = tsc->tableName;
+    return res;
+  }
+  else if ( const ColumnSchemaConflict *csc = std::get_if<ColumnSchemaConflict>( &conflict ) )
+  {
+    nlohmann::json res;
+    res[ "type" ] = "schema_conflict_column";
+    res[ "table" ] = csc->tableName;
+    res[ "column" ] = csc->columnName;
+    return res;
+  }
+  return {};
 }
 
 nlohmann::json conflictsToJSON( const std::vector<ConflictFeature> &conflicts )
 {
   auto entries = nlohmann::json::array();
   for ( const ConflictFeature &item : conflicts )
-  {
-    nlohmann::json msg = conflictToJSON( item );
-    if ( msg.empty() )
-      continue;
-
-    entries.push_back( msg );
-  }
+    entries.push_back( conflictToJSON( item ) );
 
   nlohmann::json res;
   res[ "geodiff" ] = entries;

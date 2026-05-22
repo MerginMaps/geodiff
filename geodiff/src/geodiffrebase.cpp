@@ -491,7 +491,7 @@ bool _handle_delete( const ChangesetDataEntry &entry, const RebaseMapping &mappi
   return true;
 }
 
-void _addConflictItem( ConflictFeature &conflictFeature, int i,
+void _addConflictItem( DataConflictFeature &conflictFeature, int i,
                        const Value &base, const Value &theirs, const Value &ours )
 {
   // 4th attribute in gpkg_contents is modified date
@@ -500,7 +500,7 @@ void _addConflictItem( ConflictFeature &conflictFeature, int i,
     return;
 
   // ok safe to add it
-  ConflictItem item( i, base, theirs, ours );
+  DataConflictItem item( i, base, theirs, ours );
   conflictFeature.addItem( item );
 }
 
@@ -523,12 +523,12 @@ bool _handle_update( const ChangesetDataEntry &entry, const RebaseMapping &mappi
     if ( newPk == RebaseMapping::INVALID_FID )
     {
       // our UPDATE conflicts with their DELETE: record as conflict, delete wins
-      ConflictFeature conflictFeature( pk, entry.table->name );
-      for ( size_t i = 0; i < numColumns; i++ )
+      DataConflictFeature conflictFeature( pk, entry.table->name );
+      for ( const auto &[inIdx, outIdx] : colMap )
       {
-        if ( entry.newValues[i].type() != Value::TypeUndefined )
+        if ( entry.newValues[inIdx].type() != Value::TypeUndefined )
         {
-          _addConflictItem( conflictFeature, ( int ) i, entry.oldValues[i], Value(), entry.newValues[i] );
+          _addConflictItem( conflictFeature, outIdx, entry.oldValues[inIdx], Value(), entry.newValues[inIdx] );
         }
       }
       if ( conflictFeature.isValid() )
@@ -543,7 +543,7 @@ bool _handle_update( const ChangesetDataEntry &entry, const RebaseMapping &mappi
   if ( a != tableInfo.updated.end() )
     patchedMap = &a->second;
 
-  ConflictFeature conflictFeature( pk, entry.table->name );
+  DataConflictFeature conflictFeature( pk, entry.table->name );
 
   bool entryHasChanges = false;
   for ( const auto &[inIdx, outIdx] : colMap )
@@ -608,6 +608,10 @@ void _prepare_new_changeset( const Context *context,
   // table schema -> (old column index -> new column index)
   // Column being absent means its index didn't change.
   std::map<ChangesetTable *, std::map<int, int>> columnIndexMap;
+  // We record conflicting tables/columns and skip them when processing further
+  // changes
+  std::set<std::string> conflictingTables;
+  std::map<std::string, std::set<std::string>> conflictingColumns;
 
   std::map<std::string, std::vector<ChangesetEntry> > tableChanges;
 
@@ -623,7 +627,7 @@ void _prepare_new_changeset( const Context *context,
       std::string tableName = dataEntry.table->name;
 
       // skip table if necessary
-      if ( context->isTableSkipped( tableName ) )
+      if ( context->isTableSkipped( tableName ) || conflictingTables.count( tableName ) )
         continue;
 
       TableSchema *tableSchema = currentSchema.tableByName( tableName );
@@ -641,9 +645,12 @@ void _prepare_new_changeset( const Context *context,
       if ( columnIndexMap.find( dataEntry.table.get() ) == columnIndexMap.end() )
       {
         std::map<int, int> colMap;
+        auto columnsToSkip = conflictingColumns[tableName];
         for ( size_t i = 0; i < tableSchema->columns.size(); i++ )
         {
           const std::string &colName = tableSchema->columns[i].name;
+          if ( columnsToSkip.count( colName ) )
+            continue;
           for ( size_t j = 0; j < outTableSchema->columns.size(); j++ )
           {
             if ( outTableSchema->columns[j].name == colName )
@@ -709,8 +716,10 @@ void _prepare_new_changeset( const Context *context,
         if ( existing )
         {
           if ( existing->columns != ctEntry->columns )
-            throw GeoDiffException( "Conflict: table " + ctEntry->tableName +
-                                    " was created by both changesets with different columns" );
+          {
+            conflicts.push_back( TableSchemaConflict { ctEntry->tableName } );
+            conflictingTables.insert( ctEntry->tableName );
+          }
           isDuplicate = true;
         }
       }
@@ -730,8 +739,10 @@ void _prepare_new_changeset( const Context *context,
           if ( it != table->columns.end() )
           {
             if ( *it != acEntry->column )
-              throw GeoDiffException( "During rebase, column " + acEntry->tableName + "." + acEntry->column.name +
-                                      " was added by both changesets with different definitions" );
+            {
+              conflicts.push_back( ColumnSchemaConflict { acEntry->tableName, acEntry->column.name } );
+              conflictingColumns[acEntry->tableName].insert( acEntry->column.name );
+            }
             isDuplicate = true;
           }
         }
