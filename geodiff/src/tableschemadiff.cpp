@@ -101,8 +101,10 @@ std::vector<ChangesetEntry> diffTableSchema( const TableSchema &base, const Tabl
 
   const std::unordered_map<std::string, const TableColumnInfo *> baseColumns = byName( base.columns );
   const std::unordered_map<std::string, const TableColumnInfo *> modifiedColumns = byName( modified.columns );
-  const std::vector<std::string> baseColNames = names( base.columns );
-  const std::vector<std::string> modifiedColNames = names( modified.columns );
+  std::vector<std::string> baseColNames = names( base.columns );
+  std::vector<std::string> modifiedColNames = names( modified.columns );
+  std::sort( baseColNames.begin(), baseColNames.end() );
+  std::sort( modifiedColNames.begin(), modifiedColNames.end() );
 
   std::vector<std::string> deletedColNames;
   std::set_difference( baseColNames.begin(), baseColNames.end(),
@@ -144,8 +146,10 @@ std::vector<ChangesetEntry> diffDatabaseSchema( const DatabaseSchema &base, cons
 
   const std::unordered_map<std::string, const TableSchema *> baseTables = byName( base.tables );
   const std::unordered_map<std::string, const TableSchema *> modifiedTables = byName( modified.tables );
-  const std::vector<std::string> baseTableNames = names( base.tables );
-  const std::vector<std::string> modifiedTableNames = names( modified.tables );
+  std::vector<std::string> baseTableNames = names( base.tables );
+  std::vector<std::string> modifiedTableNames = names( modified.tables );
+  std::sort( baseTableNames.begin(), baseTableNames.end() );
+  std::sort( modifiedTableNames.begin(), modifiedTableNames.end() );
 
   std::vector<std::string> deletedTableNames;
   std::set_difference( baseTableNames.begin(), baseTableNames.end(),
