@@ -360,7 +360,7 @@ static void testSchemaDiffRebaseWith( std::string driverName, std::string testna
   {
     std::vector<ConflictFeature> conflicts;
     rebase( static_cast<Context *>( testContext() ), baseSchema, base2TheirsPath, theirs2bothPath, base2OursPath, conflicts );
-    ASSERT_EQ( conflicts.size(), 0 ) << conflicts.size() << " conflicts in rebase (more than " << expectedConflicts << "): " << conflictsToJSON( conflicts ).dump( 2 );
+    ASSERT_EQ( static_cast<int>( conflicts.size() ), expectedConflicts ) << conflicts.size() << " conflicts in rebase (expected " << expectedConflicts << "): " << conflictsToJSON( conflicts ).dump( 2 );
   }
 
   if ( expectedConflicts > 0 )
@@ -493,6 +493,44 @@ TEST( ModifiedSchemeTest, rebase_redundant_create_table )
     db.executeSql( "INSERT INTO vehicles VALUES (1, 'T3', 'tram')" );
     db.executeSql( "INSERT INTO vehicles VALUES (2, 'KT8D5', 'tram')" );
     db.executeSql( "INSERT INTO vehicles VALUES (3, '14T', 'tram')" );
+  } );
+}
+
+TEST( ModifiedSchemeTest, rebase_conflict_create_table )
+{
+  // TODO: Postgres support
+  std::string driverName = "sqlite";
+
+  testSchemaDiffRebaseWith( driverName, "rebase_conflict_create_table", 1,
+                            [ = ]( Driver & db )
+  {
+    db.executeSql( "CREATE TABLE vehicles (fid INTEGER, name TEXT, type TEXT)" );
+  },
+  [ = ]( Driver & db )
+  {
+    db.executeSql( "CREATE TABLE vehicles (fid INTEGER, name TEXT, manufacturer TEXT)" );
+  },
+  [ = ]( Driver & db ) { } );
+}
+
+TEST( ModifiedSchemeTest, rebase_conflict_add_column )
+{
+  // TODO: Postgres support
+  std::string driverName = "sqlite";
+
+  testSchemaDiffRebaseWith( driverName, "rebase_conflict_add_column", 1,
+                            [ = ]( Driver & db )
+  {
+    db.executeSql( "ALTER TABLE tram_stops ADD COLUMN bench_count INTEGER" );
+  },
+  [ = ]( Driver & db )
+  {
+    db.executeSql( "ALTER TABLE tram_stops ADD COLUMN bench_count TEXT" );
+    db.executeSql( "INSERT INTO tram_stops (fid, name, bench_count) VALUES (4, 'Palmovka', 'three')" );
+  },
+  [ = ]( Driver & db )
+  {
+    db.executeSql( "INSERT INTO tram_stops (fid, name) VALUES (4, 'Palmovka')" );
   } );
 }
 

@@ -13,7 +13,7 @@
 
 #include "json.hpp"
 
-class ConflictFeature;
+struct ConflictFeature;
 class ChangesetReader;
 class ChangesetWriter;
 struct ChangesetDataEntry;
