@@ -14,6 +14,7 @@
 #include "changesetwriter.h"
 
 #include "geodiffutils.hpp"
+#include "tableschema.h"
 
 #include "json.hpp"
 
@@ -139,6 +140,18 @@ TEST( ChangesetUtils, test_export_json )
 
   doExportAndCompare( pathjoin( testdir(), "2_deletes", "base-deleted_A" ),
                       pathjoin( tmpdir(), "test_export_json", "delete-diff.json" ) );
+
+  doExportAndCompare( pathjoin( testdir(), "modified_scheme", "changesets", "added_attribute" ),
+                      pathjoin( tmpdir(), "test_export_json", "added_attribute.json" ) );
+
+  doExportAndCompare( pathjoin( testdir(), "modified_scheme", "changesets", "added_table" ),
+                      pathjoin( tmpdir(), "test_export_json", "added_table.json" ) );
+
+  doExportAndCompare( pathjoin( testdir(), "modified_scheme", "changesets", "delete_attribute" ),
+                      pathjoin( tmpdir(), "test_export_json", "delete_attribute.json" ) );
+
+  doExportAndCompare( pathjoin( testdir(), "modified_scheme", "changesets", "delete_table" ),
+                      pathjoin( tmpdir(), "test_export_json", "delete_table.json" ) );
 }
 
 TEST( ChangesetUtils, test_export_json_summary )
