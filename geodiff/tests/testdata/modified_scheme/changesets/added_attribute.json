@@ -1,0 +1,65 @@
+{
+  "geodiff": [
+    {
+      "column": {
+        "geomHasM": false,
+        "geomHasZ": false,
+        "geomSrsId": -1,
+        "geomType": "",
+        "isAutoIncrement": false,
+        "isGeometry": false,
+        "isNotNull": false,
+        "isPrimaryKey": false,
+        "name": "added_field",
+        "type": "integer"
+      },
+      "tableName": "simple",
+      "type": "add_column"
+    },
+    {
+      "changes": [
+        {
+          "column": 0,
+          "old": 1
+        },
+        {
+          "column": 4,
+          "new": 1,
+          "old": null
+        }
+      ],
+      "table": "simple",
+      "type": "update"
+    },
+    {
+      "changes": [
+        {
+          "column": 0,
+          "old": 2
+        },
+        {
+          "column": 4,
+          "new": 2,
+          "old": null
+        }
+      ],
+      "table": "simple",
+      "type": "update"
+    },
+    {
+      "changes": [
+        {
+          "column": 0,
+          "old": 3
+        },
+        {
+          "column": 4,
+          "new": 3,
+          "old": null
+        }
+      ],
+      "table": "simple",
+      "type": "update"
+    }
+  ]
+}
