@@ -1546,7 +1546,10 @@ std::vector<std::vector<std::string>> SqliteDriver::executeSql( std::string sql 
     for ( size_t i = 0; i < values.size(); ++i )
     {
       const unsigned char *text = sqlite3_column_text( stmt.get(), static_cast<int>( i ) );
-      values.push_back( reinterpret_cast<const char *>( text ) );
+      if ( text )
+        values[i] = reinterpret_cast<const char *>( text );
+      else
+        values[i] = "<NULL>";
     }
     rows.push_back( values );
   }
