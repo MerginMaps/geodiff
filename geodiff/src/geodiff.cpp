@@ -162,6 +162,30 @@ int GEODIFF_CX_setTablesToSkip( GEODIFF_ContextH contextHandle, int tablesCount,
   return GEODIFF_SUCCESS;
 }
 
+int GEODIFF_CX_setTablesToInclude( GEODIFF_ContextH contextHandle, int tablesCount, const char **tablesToInclude )
+{
+  Context *context = static_cast<Context *>( contextHandle );
+  if ( !context )
+  {
+    return GEODIFF_ERROR;
+  }
+
+  if ( tablesCount > 0 && !tablesToInclude )
+  {
+    setAndLogError( context, "NULL arguments to GEODIFF_CX_setTablesToInclude" );
+    return GEODIFF_ERROR;
+  }
+
+  std::vector<std::string> tables;
+  for ( int i = 0; i < tablesCount; ++i )
+  {
+    tables.push_back( tablesToInclude[i] );
+  }
+
+  context->setTablesToInclude( tables );
+  return GEODIFF_SUCCESS;
+}
+
 const char *GEODIFF_CX_lastError( GEODIFF_ContextH contextHandle )
 {
   const Context *context = static_cast<const Context *>( contextHandle );
