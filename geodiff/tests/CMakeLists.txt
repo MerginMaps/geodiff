@@ -70,6 +70,7 @@ ENDMACRO (ADD_GEODIFF_TEST)
 SET(TESTS
     test_c_api.cpp
     test_changeset_reader.cpp
+    test_context.cpp
     test_changeset_utils.cpp
     test_concurrent_commits.cpp
     test_driver_sqlite.cpp
