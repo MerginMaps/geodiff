@@ -534,6 +534,53 @@ TEST( ModifiedSchemeTest, rebase_conflict_add_column )
   } );
 }
 
+TEST( ModifiedSchemeTest, rebase_drop_column )
+{
+  // TODO: Postgres support
+  std::string driverName = "sqlite";
+
+  testSchemaDiffRebaseWith( driverName, "rebase_drop_column", 0,
+                            [ = ]( Driver & db )
+  {
+    db.executeSql( "ALTER TABLE tram_stops DROP COLUMN name" );
+    db.executeSql( "INSERT INTO tram_stops (fid) VALUES (4)" );
+  },
+  [ = ]( Driver & db )
+  {
+    db.executeSql( "INSERT INTO tram_stops (fid, name) VALUES (4, 'Palmovka')" );
+  },
+  [ = ]( Driver & db )
+  {
+    db.executeSql( "ALTER TABLE tram_stops DROP COLUMN name" );
+    db.executeSql( "INSERT INTO tram_stops (fid) VALUES (4)" );
+    db.executeSql( "INSERT INTO tram_stops (fid) VALUES (5)" );
+    // TODO: Add conflict entry for deleted 'Palmovka' value
+  } );
+}
+
+TEST( ModifiedSchemeTest, rebase_rename_column )
+{
+  // TODO: Postgres support
+  std::string driverName = "sqlite";
+
+  testSchemaDiffRebaseWith( driverName, "rebase_rename_column", 0,
+                            [ = ]( Driver & db )
+  {
+    db.executeSql( "ALTER TABLE tram_stops RENAME COLUMN name TO description" );
+    db.executeSql( "INSERT INTO tram_stops (fid, description) VALUES (4, 'Palmovka')" );
+  },
+  [ = ]( Driver & db )
+  {
+    db.executeSql( "INSERT INTO tram_stops (fid, name) VALUES (4, 'Drinopol')" );
+  },
+  [ = ]( Driver & db )
+  {
+    db.executeSql( "ALTER TABLE tram_stops RENAME COLUMN name TO description" );
+    db.executeSql( "INSERT INTO tram_stops (fid, description) VALUES (4, 'Palmovka')" );
+    db.executeSql( "INSERT INTO tram_stops (fid, description) VALUES (5, NULL)" );
+  } );
+}
+
 int main( int argc, char **argv )
 {
   testing::InitGoogleTest( &argc, argv );
