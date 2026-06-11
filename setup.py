@@ -15,10 +15,6 @@ cmake_args = [
     '-DPYGEODIFFVERSION='+str(VERSION)
 ]
 
-arch = platform.architecture()[0]  # 64bit or 32bit
-if ('Windows' in platform.system()) and ("32" in arch):
-    cmake_args.append('-AWin32')
-
 setup(
     name="pygeodiff",
     version=VERSION,
