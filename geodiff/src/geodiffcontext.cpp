@@ -30,7 +30,7 @@ void Context::setTablesToSkip( const std::vector<std::string> &tablesToSkip )
 
   if ( tablesToSkip.empty() )
   {
-    mTablesFilterMode = TablesFilterMode::Nothing;
+    mTablesFilterMode = TablesFilterMode::None;
     mTablesToSkip.clear();
   }
   else
@@ -47,7 +47,7 @@ void Context::setTablesToInclude( const std::vector<std::string> &tablesToInclud
 
   if ( tablesToInclude.empty() )
   {
-    mTablesFilterMode = TablesFilterMode::Nothing;
+    mTablesFilterMode = TablesFilterMode::None;
     mTablesToInclude.clear();
   }
   else

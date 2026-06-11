@@ -10,7 +10,7 @@
 TEST( ContextTest, defaultFilterModeIsNothing )
 {
   Context ctx;
-  EXPECT_EQ( ctx.tableFilterMode(), TablesFilterMode::Nothing );
+  EXPECT_EQ( ctx.tableFilterMode(), TablesFilterMode::None );
 }
 
 TEST( ContextTest, setTablesToSkip )
@@ -70,7 +70,7 @@ TEST( ContextTest, clearSkipByEmptyList )
   ctx.setTablesToSkip( { "lines" } );
   EXPECT_EQ( ctx.tableFilterMode(), TablesFilterMode::SkippedTables );
   ctx.setTablesToSkip( {} );
-  EXPECT_EQ( ctx.tableFilterMode(), TablesFilterMode::Nothing );
+  EXPECT_EQ( ctx.tableFilterMode(), TablesFilterMode::None );
 }
 
 TEST( ContextTest, clearIncludeByEmptyList )
@@ -79,7 +79,7 @@ TEST( ContextTest, clearIncludeByEmptyList )
   ctx.setTablesToInclude( { "points" } );
   EXPECT_EQ( ctx.tableFilterMode(), TablesFilterMode::IncludedTables );
   ctx.setTablesToInclude( {} );
-  EXPECT_EQ( ctx.tableFilterMode(), TablesFilterMode::Nothing );
+  EXPECT_EQ( ctx.tableFilterMode(), TablesFilterMode::None );
 }
 
 TEST( ContextTest, canSetIncludeAfterClearingSkip )

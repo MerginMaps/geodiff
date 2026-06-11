@@ -14,7 +14,7 @@
 
 enum class TablesFilterMode
 {
-  Nothing,
+  None,
   IncludedTables,
   SkippedTables
 };
@@ -39,7 +39,7 @@ class Context
     std::vector<std::string> mTablesToSkip;
     std::vector<std::string> mTablesToInclude;
     std::string mLastError;
-    TablesFilterMode mTablesFilterMode = TablesFilterMode::Nothing;
+    TablesFilterMode mTablesFilterMode = TablesFilterMode::None;
 };
 
 
