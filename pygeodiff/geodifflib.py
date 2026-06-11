@@ -252,6 +252,15 @@ class GeoDiffLib:
             ctypes.c_void_p(context), ctypes.c_int(len(tables)), arr
         )
 
+    def set_tables_to_include(self, context, tables):
+        arr = (ctypes.c_char_p * len(tables))()
+        for i in range(len(tables)):
+            arr[i] = tables[i].encode("utf-8")
+
+        self.lib.GEODIFF_CX_setTablesToInclude(
+            ctypes.c_void_p(context), ctypes.c_int(len(tables)), arr
+        )
+
     def version(self):
         func = self.lib.GEODIFF_version
         func.restype = ctypes.c_char_p
