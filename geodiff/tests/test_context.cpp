@@ -64,6 +64,60 @@ TEST( ContextTest, nothingModeSkipsNothing )
   EXPECT_FALSE( ctx.isTableSkipped( "lines" ) );
 }
 
+TEST( ContextTest, clearSkipByEmptyList )
+{
+  Context ctx;
+  ctx.setTablesToSkip( { "lines" } );
+  EXPECT_EQ( ctx.tableFilterMode(), TablesFilterMode::SkippedTables );
+  ctx.setTablesToSkip( {} );
+  EXPECT_EQ( ctx.tableFilterMode(), TablesFilterMode::Nothing );
+}
+
+TEST( ContextTest, clearIncludeByEmptyList )
+{
+  Context ctx;
+  ctx.setTablesToInclude( { "points" } );
+  EXPECT_EQ( ctx.tableFilterMode(), TablesFilterMode::IncludedTables );
+  ctx.setTablesToInclude( {} );
+  EXPECT_EQ( ctx.tableFilterMode(), TablesFilterMode::Nothing );
+}
+
+TEST( ContextTest, canSetIncludeAfterClearingSkip )
+{
+  Context ctx;
+  ctx.setTablesToSkip( { "lines" } );
+  ctx.setTablesToSkip( {} );
+  EXPECT_NO_THROW( ctx.setTablesToInclude( { "points" } ) );
+  EXPECT_EQ( ctx.tableFilterMode(), TablesFilterMode::IncludedTables );
+}
+
+TEST( ContextTest, canSetSkipAfterClearingInclude )
+{
+  Context ctx;
+  ctx.setTablesToInclude( { "points" } );
+  ctx.setTablesToInclude( {} );
+  EXPECT_NO_THROW( ctx.setTablesToSkip( { "lines" } ) );
+  EXPECT_EQ( ctx.tableFilterMode(), TablesFilterMode::SkippedTables );
+}
+
+TEST( ContextTest, clearSkipResetsIsTableSkipped )
+{
+  Context ctx;
+  ctx.setTablesToSkip( { "lines" } );
+  EXPECT_TRUE( ctx.isTableSkipped( "lines" ) );
+  ctx.setTablesToSkip( {} );
+  EXPECT_FALSE( ctx.isTableSkipped( "lines" ) );
+}
+
+TEST( ContextTest, clearIncludeResetsIsTableSkipped )
+{
+  Context ctx;
+  ctx.setTablesToInclude( { "points" } );
+  EXPECT_TRUE( ctx.isTableSkipped( "lines" ) );
+  ctx.setTablesToInclude( {} );
+  EXPECT_FALSE( ctx.isTableSkipped( "lines" ) );
+}
+
 int main( int argc, char **argv )
 {
   testing::InitGoogleTest( &argc, argv );

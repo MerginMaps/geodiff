@@ -28,8 +28,16 @@ void Context::setTablesToSkip( const std::vector<std::string> &tablesToSkip )
   if ( mTablesFilterMode == TablesFilterMode::IncludedTables )
     throw GeoDiffException( "Cannot set tables to skip when tables to include are already set" );
 
-  mTablesFilterMode = TablesFilterMode::SkippedTables;
-  mTablesToSkip = tablesToSkip;
+  if ( tablesToSkip.empty() )
+  {
+    mTablesFilterMode = TablesFilterMode::Nothing;
+    mTablesToSkip.clear();
+  }
+  else
+  {
+    mTablesFilterMode = TablesFilterMode::SkippedTables;
+    mTablesToSkip = tablesToSkip;
+  }
 }
 
 void Context::setTablesToInclude( const std::vector<std::string> &tablesToInclude )
@@ -37,8 +45,16 @@ void Context::setTablesToInclude( const std::vector<std::string> &tablesToInclud
   if ( mTablesFilterMode == TablesFilterMode::SkippedTables )
     throw GeoDiffException( "Cannot set tables to include when tables to skip are already set" );
 
-  mTablesFilterMode = TablesFilterMode::IncludedTables;
-  mTablesToInclude = tablesToInclude;
+  if ( tablesToInclude.empty() )
+  {
+    mTablesFilterMode = TablesFilterMode::Nothing;
+    mTablesToInclude.clear();
+  }
+  else
+  {
+    mTablesFilterMode = TablesFilterMode::IncludedTables;
+    mTablesToInclude = tablesToInclude;
+  }
 }
 
 bool Context::isTableSkipped( const std::string &tableName ) const
