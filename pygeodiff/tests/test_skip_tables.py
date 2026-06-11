@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
-    :copyright: (c) 2022 Alexander Bruy
-    :license: MIT, see LICENSE for more details.
+:copyright: (c) 2022 Alexander Bruy
+:license: MIT, see LICENSE for more details.
 """
 
 import os
@@ -103,7 +103,9 @@ class UnitTestsPythonSingleCommit(GeoDiffTests):
     def test_include_create(self):
         base = geodiff_test_dir() + "/" + "skip_tables" + "/" + "base.gpkg"
         modified = geodiff_test_dir() + "/" + "skip_tables" + "/" + "modified_all.gpkg"
-        changeset = tmpdir() + "/py" + "test_include_create" + "/" + "changeset_points.bin"
+        changeset = (
+            tmpdir() + "/py" + "test_include_create" + "/" + "changeset_points.bin"
+        )
         changeset2 = (
             tmpdir() + "/py" + "test_include_create" + "/" + "changeset_points2.bin"
         )
@@ -143,7 +145,9 @@ class UnitTestsPythonSingleCommit(GeoDiffTests):
     def test_include_apply(self):
         base = geodiff_test_dir() + "/" + "skip_tables" + "/" + "base.gpkg"
         modified = geodiff_test_dir() + "/" + "skip_tables" + "/" + "modified_all.gpkg"
-        changeset = tmpdir() + "/py" + "test_include_apply" + "/" + "changeset_points.bin"
+        changeset = (
+            tmpdir() + "/py" + "test_include_apply" + "/" + "changeset_points.bin"
+        )
         changeset2 = (
             tmpdir() + "/py" + "test_include_apply" + "/" + "changeset_points2.bin"
         )
