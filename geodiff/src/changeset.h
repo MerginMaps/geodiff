@@ -8,6 +8,7 @@
 
 #include <assert.h>
 #include <memory>
+#include <stdexcept>
 #include <string>
 #include <variant>
 #include <vector>
@@ -233,6 +234,7 @@ struct ChangesetDataEntry
 {
   enum OperationType
   {
+    // The values here must be kept in sync with values in ChangesetEntryType!
     OpInsert = 18,  //!< equal to SQLITE_INSERT
     OpUpdate = 23,  //!< equal to SQLITE_UPDATE
     OpDelete = 9,   //!< equal to SQLITE_DELETE
@@ -303,6 +305,21 @@ struct ChangesetEntry : public std::variant <
   ChangesetDropColumnEntry >
 {
   using variant::variant; // Use std::variant's constructor
+
+  ChangesetEntryType operationType() const
+  {
+    if ( const ChangesetDataEntry *e = std::get_if<ChangesetDataEntry>( this ) )
+      return static_cast<ChangesetEntryType>( e->op );
+    else if ( std::holds_alternative<ChangesetCreateTableEntry>( *this ) )
+      return ChangesetEntryType::OpCreateTable;
+    else if ( std::holds_alternative<ChangesetDropTableEntry>( *this ) )
+      return ChangesetEntryType::OpDropTable;
+    else if ( std::holds_alternative<ChangesetAddColumnEntry>( *this ) )
+      return ChangesetEntryType::OpAddColumn;
+    else if ( std::holds_alternative<ChangesetDropColumnEntry>( *this ) )
+      return ChangesetEntryType::OpDropColumn;
+    throw std::invalid_argument( "Unreachable - operationType()" );
+  }
 };
 
 #endif // CHANGESET_H
