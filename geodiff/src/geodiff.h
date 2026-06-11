@@ -505,7 +505,7 @@ GEODIFF_EXPORT void GEODIFF_CR_destroy(
 //
 
 /**
- * Reads entry's operation type - whether it is an insert, update or delete.
+ * Reads entry's operation type. See ChangesetEntryType for possible return values.
  */
 GEODIFF_EXPORT int GEODIFF_CE_operation(
   GEODIFF_ContextH contextHandle,
@@ -515,6 +515,8 @@ GEODIFF_EXPORT int GEODIFF_CE_operation(
  * Returns table-related information object of the entry. The returned object is owned
  * by geodiff and does not need to be deleted by the caller. It is only valid while
  * the changeset entry is not deleted.
+ *
+ * If the entry is not a data entry, returns NULL.
  */
 GEODIFF_EXPORT GEODIFF_ChangesetTableH GEODIFF_CE_table(
   GEODIFF_ContextH contextHandle,
@@ -522,6 +524,8 @@ GEODIFF_EXPORT GEODIFF_ChangesetTableH GEODIFF_CE_table(
 
 /**
  * Returns number of items in the list of old/new values.
+ *
+ * If the entry is not a data entry, returns NULL.
  */
 GEODIFF_EXPORT int GEODIFF_CE_countValues(
   GEODIFF_ContextH contextHandle,
@@ -531,6 +535,8 @@ GEODIFF_EXPORT int GEODIFF_CE_countValues(
  * Returns old value of an entry (only valid for UPDATE and DELETE).
  * The ownership of the value object is passed to the caller - GEODIFF_V_destroy()
  * should be called when the value object is not needed anymore.
+ *
+ * If the entry is not a data entry, returns NULL.
  */
 GEODIFF_EXPORT GEODIFF_ValueH GEODIFF_CE_oldValue(
   GEODIFF_ContextH contextHandle,
@@ -541,6 +547,8 @@ GEODIFF_EXPORT GEODIFF_ValueH GEODIFF_CE_oldValue(
  * Returns new value of an entry (only valid for UPDATE and INSERT).
  * The ownership of the value object is passed to the caller - GEODIFF_V_destroy()
  * should be called when the value object is not needed anymore.
+ *
+ * If the entry is not a data entry, returns NULL.
  */
 GEODIFF_EXPORT GEODIFF_ValueH GEODIFF_CE_newValue(
   GEODIFF_ContextH contextHandle,
