@@ -752,7 +752,7 @@ void _prepare_new_changeset( const Context *context,
           }
         }
         else
-          throw GeoDiffException( " During rebase tried to add column "  + acEntry->tableName + "." + acEntry->column.name + " to non-existent table" );
+          throw GeoDiffException( "During rebase tried to add column "  + acEntry->tableName + "." + acEntry->column.name + " to non-existent table" );
       }
       else if ( const ChangesetDropColumnEntry *dcEntry = std::get_if<ChangesetDropColumnEntry>( &entry ) )
       {
@@ -765,7 +765,7 @@ void _prepare_new_changeset( const Context *context,
           isDuplicate = it == table->columns.end();
         }
         else
-          throw GeoDiffException( " During rebase tried to drop column "  + dcEntry->tableName + "." + dcEntry->column.name + " from non-existent table" );
+          throw GeoDiffException( "During rebase tried to drop column "  + dcEntry->tableName + "." + dcEntry->column.name + " from non-existent table" );
       }
 
       if ( !isDuplicate )

@@ -268,7 +268,7 @@ int GEODIFF_createChangesetEx( GEODIFF_ContextH contextHandle, const char *drive
   {
     createChangesetEx( context, driverName, driverExtraInfo, base, modified, changeset );
   }
-  catch ( const  GeoDiffException &exc )
+  catch ( const GeoDiffException &exc )
   {
     return handleException( context, exc );
   }
