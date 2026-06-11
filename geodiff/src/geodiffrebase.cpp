@@ -428,6 +428,11 @@ bool _handle_insert( const ChangesetDataEntry &entry, const RebaseMapping &mappi
     newPk = mapping.getNewPkey( entry.table->name, pk );
   }
 
+  // NULL-out the new values vector - if a column is not present in the map, we
+  // set it to NULL.
+  for ( size_t i = 0; i < outEntry.newValues.size(); i++ )
+    outEntry.newValues[i].setNull();
+
   for ( const auto &[inIdx, outIdx] : colMap )
   {
     if ( outEntry.table->primaryKeys[outIdx] )
