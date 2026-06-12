@@ -92,6 +92,19 @@ class UnitTestsChangesetReader(GeoDiffTests):
             i += 1
         self.assertEqual(i, 1)
 
+    def test_has_schema_change_entries(self):
+        # data-only changeset
+        changeset = os.path.join(
+            geodiff_test_dir(), "1_geopackage", "base-modified_1_geom.diff"
+        )
+        self.assertFalse(self.geodiff.has_schema_change_entries(changeset))
+
+        # changeset with schema changes
+        changeset = os.path.join(
+            geodiff_test_dir(), "modified_scheme", "changesets", "added_table.diff"
+        )
+        self.assertTrue(self.geodiff.has_schema_change_entries(changeset))
+
     def test_schema_change_added_table(self):
         changeset = os.path.join(
             geodiff_test_dir(), "modified_scheme", "changesets", "added_table.diff"

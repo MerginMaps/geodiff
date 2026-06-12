@@ -653,6 +653,15 @@ GEODIFF_EXPORT int GEODIFF_createWkbFromGpkgHeader(
   const char **wkb,
   size_t *wkbLength );
 
+/**
+ * Sets schemaChangePresent to true if the changeset at the given path contains
+ * any schema-change entry (add/drop table/column).
+ */
+GEODIFF_EXPORT int GEODIFF_changesetHasSchemaChangeEntries(
+  GEODIFF_ContextH contextHandle,
+  const char *changeset,
+  bool *schemaChangePresent );
+
 
 #ifdef __cplusplus
 }

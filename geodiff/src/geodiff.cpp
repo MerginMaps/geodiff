@@ -1444,3 +1444,32 @@ int GEODIFF_createWkbFromGpkgHeader( GEODIFF_ContextH contextHandle, const char 
 
   return GEODIFF_SUCCESS;
 }
+
+int GEODIFF_changesetHasSchemaChangeEntries( GEODIFF_ContextH contextHandle, const char *changeset, bool *schemaChangePresent )
+{
+  Context *context = static_cast<Context *>( contextHandle );
+  if ( !context || !changeset )
+  {
+    return GEODIFF_ERROR;
+  }
+
+  try
+  {
+    ChangesetReader reader;
+    reader.open(changeset);
+    ChangesetEntry entry;
+    while ( reader.nextEntry(entry) ) {
+      if ( !std::holds_alternative<ChangesetDataEntry>(entry) )
+      {
+        *schemaChangePresent = true;
+        return GEODIFF_SUCCESS;
+      }
+    }
+    *schemaChangePresent = false;
+    return GEODIFF_SUCCESS;
+  }
+  catch ( const GeoDiffException &exc )
+  {
+    return handleException( context, exc );
+  }
+}
