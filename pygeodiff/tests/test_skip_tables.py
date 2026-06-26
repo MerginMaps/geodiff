@@ -194,4 +194,3 @@ class UnitTestsPythonSingleCommit(GeoDiffTests):
         with self.assertRaises(GeoDiffLibError):
             self.geodiff.set_tables_to_include(["points"])
             self.geodiff.set_tables_to_skip(["lines"])
-
