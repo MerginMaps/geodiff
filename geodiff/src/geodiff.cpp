@@ -158,7 +158,14 @@ int GEODIFF_CX_setTablesToSkip( GEODIFF_ContextH contextHandle, int tablesCount,
     tables.push_back( tableName );
   }
 
-  context->setTablesToSkip( tables );
+  try
+  {
+    context->setTablesToSkip( tables );
+  }
+  catch ( const GeoDiffException &exc )
+  {
+    return handleException( context, exc );
+  }
   return GEODIFF_SUCCESS;
 }
 
@@ -182,7 +189,14 @@ int GEODIFF_CX_setTablesToInclude( GEODIFF_ContextH contextHandle, int tablesCou
     tables.push_back( tablesToInclude[i] );
   }
 
-  context->setTablesToInclude( tables );
+  try
+  {
+    context->setTablesToInclude( tables );
+  }
+  catch ( const GeoDiffException &exc )
+  {
+    return handleException( context, exc );
+  }
   return GEODIFF_SUCCESS;
 }
 

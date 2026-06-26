@@ -13,6 +13,7 @@ from .testutils import (
     geodiff_test_dir,
     tmpdir,
 )
+from pygeodiff import GeoDiffLibError
 
 
 class UnitTestsPythonSingleCommit(GeoDiffTests):
@@ -183,3 +184,14 @@ class UnitTestsPythonSingleCommit(GeoDiffTests):
         check_nchanges(self.geodiff, changeset2, 0)
 
         self.geodiff.set_tables_to_include([])
+
+    def test_skip_and_include_raises_error(self):
+        with self.assertRaises(GeoDiffLibError):
+            self.geodiff.set_tables_to_skip(["lines"])
+            self.geodiff.set_tables_to_include(["points"])
+
+    def test_include_and_skip_raises_error(self):
+        with self.assertRaises(GeoDiffLibError):
+            self.geodiff.set_tables_to_include(["points"])
+            self.geodiff.set_tables_to_skip(["lines"])
+
