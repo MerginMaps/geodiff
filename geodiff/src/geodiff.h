@@ -108,6 +108,8 @@ GEODIFF_EXPORT int GEODIFF_CX_setMaximumLoggerLevel( GEODIFF_ContextH contextHan
  * will be excluded from the following operations: create changeset, apply changeset,
  * rebase, get database schema, dump database contents, copy database between different
  * drivers.
+ * 
+ * Cannot be used together with GEODIFF_CX_setTablesToInclude on the same context.
  *
  * If empty list is passed, list will be reset.
  */
