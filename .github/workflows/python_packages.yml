@@ -71,7 +71,7 @@ jobs:
       - uses: actions/setup-python@v3
         name: Install Python
         with:
-          python-version: '3.9'
+          python-version: '3.11'
 
       - name: Install Deps
         run: |
@@ -81,7 +81,7 @@ jobs:
           dir "C:/vcpkg/installed/x64-windows/bin"
 
       - name: Build wheels
-        uses: pypa/cibuildwheel@v3.3.1
+        uses: pypa/cibuildwheel@v4.1.0
 
       - uses: actions/upload-artifact@v4
         with:
