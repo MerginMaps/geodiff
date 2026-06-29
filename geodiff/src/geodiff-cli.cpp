@@ -893,7 +893,10 @@ Create and apply changesets (diffs):\n\
                       creation of changesets across datasets in two different drivers.\n\
       --skip-tables TABLES\n\
                       Ignore specified tables when creating a changeset. Tables are defined as\n\
-                      a semicolon separated list of names.\n\
+                      a semicolon separated list of names. Cannot be used with --include-tables.\n\
+      --include-tables TABLES\n\
+                      Only include specified tables when creating a changeset. Tables are defined\n\
+                      as a semicolon separated list of names. Cannot be used with --skip-tables.\n\
 \n\
   geodiff apply [OPTIONS...] DB CH_INPUT\n\
 \n\
@@ -906,7 +909,10 @@ Create and apply changesets (diffs):\n\
                       database. Driver-specific options are provided in CONN_OPTIONS.\n\
       --skip-tables TABLES\n\
                       Ignore specified tables when applying a changeset. Tables are defined as\n\
-                      a semicolon separated list of names.\n\
+                      a semicolon separated list of names. Cannot be used with --include-tables.\n\
+      --include-tables TABLES\n\
+                      Only include specified tables when applying a changeset. Tables are defined\n\
+                      as a semicolon separated list of names. Cannot be used with --skip-tables.\n\
 \n\
 Rebasing:\n\
 \n\
@@ -927,7 +933,10 @@ Rebasing:\n\
                       databases. Driver-specific options are provided in CONN_OPTIONS.\n\
       --skip-tables TABLES\n\
                       Ignore specified tables when creating a rebased changeset. Tables are\n\
-                      defined as a semicolon separated list of names.\n\
+                      defined as a semicolon separated list of names. Cannot be used with --include-tables.\n\
+      --include-tables TABLES\n\
+                      Only include specified tables when creating a rebased changeset. Tables are\n\
+                      defined as a semicolon separated list of names. Cannot be used with --skip-tables.\n\
 \n\
   geodiff rebase-db [OPTIONS...] DB_BASE DB_OUR CH_BASE_THEIR CONFLICT\n\
 \n\
@@ -944,7 +953,10 @@ Rebasing:\n\
                       databases. Driver-specific options are provided in CONN_OPTIONS.\n\
       --skip-tables TABLES\n\
                       Ignore specified tables when rebasing. Tables are defined as\n\
-                      a semicolon separated list of names.\n\
+                      a semicolon separated list of names. Cannot be used with --include-tables.\n\
+      --include-tables TABLES\n\
+                      Only include specified tables when rebasing. Tables are defined as\n\
+                      a semicolon separated list of names. Cannot be used with --skip-tables.\n\
 \n\
 Utilities:\n\
 \n\
@@ -986,7 +998,10 @@ Utilities:\n\
                       creation of changesets across datasets in two different drivers.\n\
       --skip-tables TABLES\n\
                       Ignore specified tables when copying the database. Tables are defined\n\
-                      as a semicolon separated list of names.\n\
+                      as a semicolon separated list of names. Cannot be used with --include-tables.\n\
+      --include-tables TABLES\n\
+                      Only include specified tables when copying the database. Tables are defined\n\
+                      as a semicolon separated list of names. Cannot be used with --skip-tables.\n\
 \n\
   geodiff schema [OPTIONS...] DB [SCHEMA_JSON]\n\
 \n\
@@ -1000,7 +1015,10 @@ Utilities:\n\
                       database. Driver-specific options are provided in CONN_OPTIONS.\n\
       --skip-tables TABLES\n\
                       Ignore specified tables when writing a schema. Tables are defined\n\
-                      as a semicolon separated list of names.\n\
+                      as a semicolon separated list of names. Cannot be used with --include-tables.\n\
+      --include-tables TABLES\n\
+                      Only include specified tables when writing a schema. Tables are defined\n\
+                      as a semicolon separated list of names. Cannot be used with --skip-tables.\n\
 \n\
   geodiff dump [OPTIONS...] DB CH_OUTPUT\n\
 \n\
@@ -1012,7 +1030,10 @@ Utilities:\n\
                       database. Driver-specific options are provided in CONN_OPTIONS.\n\
       --skip-tables TABLES\n\
                       Ignore specified tables when dumping the database content. Tables\n\
-                      are defined a semicolon separated list of names.\n\
+                      are defined as a semicolon separated list of names. Cannot be used with --include-tables.\n\
+      --include-tables TABLES\n\
+                      Only include specified tables when dumping the database content. Tables\n\
+                      are defined as a semicolon separated list of names. Cannot be used with --skip-tables.\n\
 \n\
   geodiff drivers\n\
 \n\
