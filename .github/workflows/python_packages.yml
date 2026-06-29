@@ -59,7 +59,7 @@ jobs:
     name: Build wheels on Windows
     runs-on: windows-2025
     env:
-      CMAKE_GENERATOR: "Visual Studio 18 2026"
+      CMAKE_GENERATOR: "Visual Studio 17 2022"
       SQLite3_ROOT: "C:/vcpkg/installed/x64-windows"
       CIBW_SKIP: "*-win32"
       CIBW_TEST_COMMAND: python -c "import pygeodiff; pygeodiff.GeoDiff().version()"
