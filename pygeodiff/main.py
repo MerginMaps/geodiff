@@ -81,9 +81,23 @@ class GeoDiff:
         database between different drivers.
 
         If empty list is passed, skip tables list will be reset.
+        Cannot be used together with set_tables_to_include on the same context.
         """
         self._lazy_load()
         return self.clib.set_tables_to_skip(self.context, tables)
+
+    def set_tables_to_include(self, tables):
+        """
+        Set list of tables to include in geodiff operations. Once defined, only
+        these tables will be included in the following operations: create changeset,
+        apply changeset, rebase, get database schema, dump database contents, copy
+        database between different drivers. All other tables will be ignored.
+
+        If empty list is passed, include tables list will be reset.
+        Cannot be used together with set_tables_to_skip on the same context.
+        """
+        self._lazy_load()
+        return self.clib.set_tables_to_include(self.context, tables)
 
     LevelError = 1
     LevelWarning = 2

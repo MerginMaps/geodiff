@@ -11,18 +11,13 @@ jobs:
     runs-on: windows-2025
     steps:
       - name: Checkout Geodiff
-        uses: actions/checkout@v3
+        uses: actions/checkout@v6
 
       - name: install deps
         run: |
           C:/vcpkg/vcpkg install sqlite3[rtree,fts3,json1] --triplet x64-windows
           C:/vcpkg/vcpkg integrate install
           dir "C:/vcpkg/installed/x64-windows/bin"
-
-      - name: set compiler environment
-        shell: cmd
-        run: |
-            CALL "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\Common7\Tools\VsDevCmd.bat" -arch=x86
 
       - name: build geodiff
         shell: pwsh
@@ -37,7 +32,7 @@ jobs:
           cd $env:GITHUB_WORKSPACE
           mkdir build
           cd build
-          exec { cmake -G "Visual Studio 17 2022" -DCMAKE_TOOLCHAIN_FILE=C:/vcpkg/scripts/buildsystems/vcpkg.cmake  -DENABLE_TESTS=ON  -DWITH_POSTGRESQL=FALSE ../geodiff  }
+          exec { cmake -G "Visual Studio 18 2026" -DCMAKE_TOOLCHAIN_FILE=C:/vcpkg/scripts/buildsystems/vcpkg.cmake  -DENABLE_TESTS=ON  -DWITH_POSTGRESQL=FALSE ../geodiff  }
           exec { cmake --build . --config Debug }
 
       - name: Run tests

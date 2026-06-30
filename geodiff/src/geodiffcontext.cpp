@@ -25,17 +25,51 @@ const Logger &Context::logger() const
 
 void Context::setTablesToSkip( const std::vector<std::string> &tablesToSkip )
 {
-  mTablesToSkip = tablesToSkip;
+  if ( mTablesFilterMode == TablesFilterMode::IncludedTables )
+    throw GeoDiffException( "Cannot set tables to skip when tables to include are already set" );
+
+  if ( tablesToSkip.empty() )
+  {
+    mTablesFilterMode = TablesFilterMode::None;
+    mTablesToSkip.clear();
+  }
+  else
+  {
+    mTablesFilterMode = TablesFilterMode::SkippedTables;
+    mTablesToSkip = tablesToSkip;
+  }
+}
+
+void Context::setTablesToInclude( const std::vector<std::string> &tablesToInclude )
+{
+  if ( mTablesFilterMode == TablesFilterMode::SkippedTables )
+    throw GeoDiffException( "Cannot set tables to include when tables to skip are already set" );
+
+  if ( tablesToInclude.empty() )
+  {
+    mTablesFilterMode = TablesFilterMode::None;
+    mTablesToInclude.clear();
+  }
+  else
+  {
+    mTablesFilterMode = TablesFilterMode::IncludedTables;
+    mTablesToInclude = tablesToInclude;
+  }
 }
 
 bool Context::isTableSkipped( const std::string &tableName ) const
 {
-  if ( mTablesToSkip.empty() )
+  if ( mTablesFilterMode == TablesFilterMode::IncludedTables )
   {
-    return false;
+    return std::none_of( mTablesToInclude.begin(), mTablesToInclude.end(), std::bind( std::equal_to<std::string>(), std::placeholders::_1, tableName ) );
   }
 
-  return std::any_of( mTablesToSkip.begin(), mTablesToSkip.end(), std::bind( std::equal_to< std::string >(), std::placeholders::_1, tableName ) );
+  if ( mTablesFilterMode == TablesFilterMode::SkippedTables )
+  {
+    return std::any_of( mTablesToSkip.begin(), mTablesToSkip.end(), std::bind( std::equal_to<std::string>(), std::placeholders::_1, tableName ) );
+  }
+
+  return false;
 }
 
 void Context::setLastError( const std::string &message )
@@ -46,4 +80,9 @@ void Context::setLastError( const std::string &message )
 const std::string &Context::lastError() const
 {
   return mLastError;
+}
+
+TablesFilterMode Context::tableFilterMode() const
+{
+  return mTablesFilterMode;
 }

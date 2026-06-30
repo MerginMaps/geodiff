@@ -54,7 +54,7 @@ static int handleException( Context *context, const GeoDiffException &exc )
 // use scripts/update_version.py to update the version here and in other places at once
 const char *GEODIFF_version()
 {
-  return "2.2.0";
+  return "2.3.0";
 }
 
 int GEODIFF_driverCount( GEODIFF_ContextH /*contextHandle*/ )
@@ -158,7 +158,45 @@ int GEODIFF_CX_setTablesToSkip( GEODIFF_ContextH contextHandle, int tablesCount,
     tables.push_back( tableName );
   }
 
-  context->setTablesToSkip( tables );
+  try
+  {
+    context->setTablesToSkip( tables );
+  }
+  catch ( const GeoDiffException &exc )
+  {
+    return handleException( context, exc );
+  }
+  return GEODIFF_SUCCESS;
+}
+
+int GEODIFF_CX_setTablesToInclude( GEODIFF_ContextH contextHandle, int tablesCount, const char **tablesToInclude )
+{
+  Context *context = static_cast<Context *>( contextHandle );
+  if ( !context )
+  {
+    return GEODIFF_ERROR;
+  }
+
+  if ( tablesCount > 0 && !tablesToInclude )
+  {
+    setAndLogError( context, "NULL arguments to GEODIFF_CX_setTablesToInclude" );
+    return GEODIFF_ERROR;
+  }
+
+  std::vector<std::string> tables;
+  for ( int i = 0; i < tablesCount; ++i )
+  {
+    tables.push_back( tablesToInclude[i] );
+  }
+
+  try
+  {
+    context->setTablesToInclude( tables );
+  }
+  catch ( const GeoDiffException &exc )
+  {
+    return handleException( context, exc );
+  }
   return GEODIFF_SUCCESS;
 }
 

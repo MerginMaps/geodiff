@@ -25,6 +25,8 @@ TEST( CAPITest, invalid_calls )
   ASSERT_EQ( GEODIFF_ERROR, GEODIFF_CX_setMaximumLoggerLevel( invalidContext, GEODIFF_LoggerLevel::LevelWarning ) );
   ASSERT_EQ( GEODIFF_ERROR, GEODIFF_CX_setTablesToSkip( invalidContext, 0, nullptr ) );
   ASSERT_EQ( GEODIFF_ERROR, GEODIFF_CX_setTablesToSkip( context, 1, nullptr ) );
+  ASSERT_EQ( GEODIFF_ERROR, GEODIFF_CX_setTablesToInclude( invalidContext, 0, nullptr ) );
+  ASSERT_EQ( GEODIFF_ERROR, GEODIFF_CX_setTablesToInclude( context, 1, nullptr ) );
 
   ASSERT_EQ( GEODIFF_ERROR, GEODIFF_createChangesetEx( invalidContext, "sqlite", nullptr, nullptr, nullptr, nullptr ) );
   ASSERT_EQ( GEODIFF_ERROR, GEODIFF_createChangesetEx( context, "sqlite", nullptr, nullptr, nullptr, nullptr ) );

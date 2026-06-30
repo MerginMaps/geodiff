@@ -248,9 +248,20 @@ class GeoDiffLib:
         for i in range(len(tables)):
             arr[i] = tables[i].encode("utf-8")
 
-        self.lib.GEODIFF_CX_setTablesToSkip(
-            ctypes.c_void_p(context), ctypes.c_int(len(tables)), arr
-        )
+        func = self.lib.GEODIFF_CX_setTablesToSkip
+        func.restype = ctypes.c_int
+        rc = func(ctypes.c_void_p(context), ctypes.c_int(len(tables)), arr)
+        self._parse_return_code(context, rc, "set_tables_to_skip")
+
+    def set_tables_to_include(self, context, tables):
+        arr = (ctypes.c_char_p * len(tables))()
+        for i in range(len(tables)):
+            arr[i] = tables[i].encode("utf-8")
+
+        func = self.lib.GEODIFF_CX_setTablesToInclude
+        func.restype = ctypes.c_int
+        rc = func(ctypes.c_void_p(context), ctypes.c_int(len(tables)), arr)
+        self._parse_return_code(context, rc, "set_tables_to_include")
 
     def version(self):
         func = self.lib.GEODIFF_version

@@ -1,7 +1,7 @@
 # GEODIFF (MIT License)
 # Copyright (C) 2019 Peter Petrik
 
-CMAKE_MINIMUM_REQUIRED(VERSION 3.10)
+CMAKE_MINIMUM_REQUIRED(VERSION 3.15)
 PROJECT(geodiffproject)
 SET(CMAKE_CXX_VISIBILITY_PRESET hidden)
 SET(CMAKE_VISIBILITY_INLINES_HIDDEN 1)
@@ -26,7 +26,11 @@ ENDIF()
 
 IF(SKBUILD)
   MESSAGE(STATUS "The geodiff is built using scikit-build for pygeodiff Python package")
-  FIND_PACKAGE(PythonExtensions REQUIRED)
+  # scikit-build-core provides the project version as SKBUILD_PROJECT_VERSION;
+  # allow an explicit -DPYGEODIFFVERSION override for standalone invocations.
+  IF(NOT PYGEODIFFVERSION)
+    SET(PYGEODIFFVERSION "${SKBUILD_PROJECT_VERSION}")
+  ENDIF()
   SET(GEODIFF_NAME "pygeodiff-${PYGEODIFFVERSION}-python${GEODIFF_NAME_SUFFIX}")
   IF (CMAKE_GENERATOR_PLATFORM STREQUAL "Win32")
     SET(GEODIFF_NAME "${GEODIFF_NAME}-win32")

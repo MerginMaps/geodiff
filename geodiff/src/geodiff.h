@@ -109,9 +109,23 @@ GEODIFF_EXPORT int GEODIFF_CX_setMaximumLoggerLevel( GEODIFF_ContextH contextHan
  * rebase, get database schema, dump database contents, copy database between different
  * drivers.
  *
+ * Cannot be used together with GEODIFF_CX_setTablesToInclude on the same context.
+ *
  * If empty list is passed, list will be reset.
  */
 GEODIFF_EXPORT int GEODIFF_CX_setTablesToSkip( GEODIFF_ContextH contextHandle, int tablesCount, const char **tablesToSkip );
+
+/**
+ * Set list of tables to include in geodiff operations. Once defined, only these tables
+ * will be included in the following operations: create changeset, apply changeset,
+ * rebase, get database schema, dump database contents, copy database between different
+ * drivers. All other tables will be ignored.
+ *
+ * Cannot be used together with GEODIFF_CX_setTablesToSkip on the same context.
+ *
+ * If empty list is passed, list will be reset.
+ */
+GEODIFF_EXPORT int GEODIFF_CX_setTablesToInclude( GEODIFF_ContextH contextHandle, int tablesCount, const char **tablesToInclude );
 
 /**
  * Return null-terminated message of last error that occurred using this context.

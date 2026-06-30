@@ -67,7 +67,7 @@ static bool isOption( const std::string &str )
   return str.size() > 0 && str[0] == '-';
 }
 
-static bool parseDriverOption( const std::vector<std::string> &args, size_t &i, const std::string &cmdName, std::string &driverName, std::string &driverOptions, std::string &tablesToSkip )
+static bool parseDriverOption( const std::vector<std::string> &args, size_t &i, const std::string &cmdName, std::string &driverName, std::string &driverOptions, std::string &tablesToSkip, std::string &tablesToInclude )
 {
   for ( ; i < args.size(); ++i )
   {
@@ -91,9 +91,20 @@ static bool parseDriverOption( const std::vector<std::string> &args, size_t &i, 
       if ( i + 1 >= args.size() )
       {
         std::cout << "Error: missing arguments for skip-tables option" << std::endl;
-        return 1;
+        return false;
       }
       tablesToSkip = args[i + 1];
+      i += 1;
+      continue;
+    }
+    else if ( args[i] == "--include-tables" )
+    {
+      if ( i + 1 >= args.size() )
+      {
+        std::cout << "Error: missing arguments for include-tables option" << std::endl;
+        return false;
+      }
+      tablesToInclude = args[i + 1];
       i += 1;
       continue;
     }
@@ -130,7 +141,7 @@ static int handleCmdDiff( GEODIFF_ContextH context, const std::vector<std::strin
   bool printOutput = true;
   std::string db1, db2, chOutput;
   std::string driver1Name = "sqlite", driver2Name = "sqlite", driver1Options, driver2Options;
-  std::string tablesToSkip;
+  std::string tablesToSkip, tablesToInclude;
   size_t i = 1;
 
   // parse options
@@ -180,6 +191,17 @@ static int handleCmdDiff( GEODIFF_ContextH context, const std::vector<std::strin
       i += 1;
       continue;
     }
+    else if ( args[i] == "--include-tables" )
+    {
+      if ( i + 1 >= args.size() )
+      {
+        std::cout << "Error: missing arguments for include-tables option" << std::endl;
+        return 1;
+      }
+      tablesToInclude = args[i + 1];
+      i += 1;
+      continue;
+    }
     else
     {
       std::cout << "Error: unknown option '" << args[i] << "' for 'diff' command." << std::endl;
@@ -194,10 +216,17 @@ static int handleCmdDiff( GEODIFF_ContextH context, const std::vector<std::strin
     return 1;
   }
 
-  // set tables to skip
+  if ( !tablesToSkip.empty() && !tablesToInclude.empty() )
+  {
+    std::cout << "Error: only one of --skip-tables or --include-tables can be used at a time." << std::endl;
+    return 1;
+  }
+
   Context *ctx = static_cast<Context *>( context );
-  std::vector<std::string> tables = parseIgnoredTables( tablesToSkip );
-  ctx->setTablesToSkip( tables );
+  if ( !tablesToSkip.empty() )
+    ctx->setTablesToSkip( parseIgnoredTables( tablesToSkip ) );
+  else if ( !tablesToInclude.empty() )
+    ctx->setTablesToInclude( parseIgnoredTables( tablesToInclude ) );
 
   // parse required arguments
   if ( !parseRequiredArgument( db1, args, i, "DB_1", "diff" ) )
@@ -307,10 +336,10 @@ static int handleCmdApply( GEODIFF_ContextH context, const std::vector<std::stri
   size_t i = 1;
   std::string db, changeset;
   std::string driverName = "sqlite", driverOptions;
-  std::string tablesToSkip;
+  std::string tablesToSkip, tablesToInclude;
 
   // parse options
-  if ( !parseDriverOption( args, i, "apply", driverName, driverOptions, tablesToSkip ) )
+  if ( !parseDriverOption( args, i, "apply", driverName, driverOptions, tablesToSkip, tablesToInclude ) )
     return 1;
 
   // parse required arguments
@@ -322,8 +351,10 @@ static int handleCmdApply( GEODIFF_ContextH context, const std::vector<std::stri
     return 1;
 
   Context *ctx = static_cast<Context *>( context );
-  std::vector<std::string> tables = parseIgnoredTables( tablesToSkip );
-  ctx->setTablesToSkip( tables );
+  if ( !tablesToSkip.empty() )
+    ctx->setTablesToSkip( parseIgnoredTables( tablesToSkip ) );
+  else if ( !tablesToInclude.empty() )
+    ctx->setTablesToInclude( parseIgnoredTables( tablesToInclude ) );
 
   int ret = GEODIFF_applyChangesetEx( context, driverName.data(), driverOptions.data(), db.data(), changeset.data() );
   if ( ret != GEODIFF_SUCCESS )
@@ -342,10 +373,10 @@ static int handleCmdRebaseDiff( GEODIFF_ContextH context,  const std::vector<std
   size_t i = 1;
   std::string dbBase, chBaseOur, chBaseTheir, chRebased, conflict;
   std::string driverName = "sqlite", driverOptions;
-  std::string tablesToSkip;
+  std::string tablesToSkip, tablesToInclude;
 
   // parse options
-  if ( !parseDriverOption( args, i, "rebase-diff", driverName, driverOptions, tablesToSkip ) )
+  if ( !parseDriverOption( args, i, "rebase-diff", driverName, driverOptions, tablesToSkip, tablesToInclude ) )
     return 1;
 
   if ( !parseRequiredArgument( dbBase, args, i, "DB_BASE", "rebase-diff" ) )
@@ -362,8 +393,10 @@ static int handleCmdRebaseDiff( GEODIFF_ContextH context,  const std::vector<std
     return 1;
 
   Context *ctx = static_cast<Context *>( context );
-  std::vector<std::string> tables = parseIgnoredTables( tablesToSkip );
-  ctx->setTablesToSkip( tables );
+  if ( !tablesToSkip.empty() )
+    ctx->setTablesToSkip( parseIgnoredTables( tablesToSkip ) );
+  else if ( !tablesToInclude.empty() )
+    ctx->setTablesToInclude( parseIgnoredTables( tablesToInclude ) );
 
   int ret = GEODIFF_createRebasedChangesetEx(
               context,
@@ -386,10 +419,10 @@ static int handleCmdRebaseDb( GEODIFF_ContextH context, const std::vector<std::s
   size_t i = 1;
   std::string dbBase, dbOur, chBaseTheir, conflict;
   std::string driverName = "sqlite", driverOptions;
-  std::string tablesToSkip;
+  std::string tablesToSkip, tablesToInclude;
 
   // parse options
-  if ( !parseDriverOption( args, i, "rebase-db", driverName, driverOptions, tablesToSkip ) )
+  if ( !parseDriverOption( args, i, "rebase-db", driverName, driverOptions, tablesToSkip, tablesToInclude ) )
     return 1;
 
   if ( !parseRequiredArgument( dbBase, args, i, "DB_BASE", "rebase-db" ) )
@@ -403,10 +436,11 @@ static int handleCmdRebaseDb( GEODIFF_ContextH context, const std::vector<std::s
   if ( !checkNoExtraArguments( args, i, "rebase-db" ) )
     return 1;
 
-  // set tables to skip
   Context *ctx = static_cast<Context *>( context );
-  std::vector<std::string> tables = parseIgnoredTables( tablesToSkip );
-  ctx->setTablesToSkip( tables );
+  if ( !tablesToSkip.empty() )
+    ctx->setTablesToSkip( parseIgnoredTables( tablesToSkip ) );
+  else if ( !tablesToInclude.empty() )
+    ctx->setTablesToInclude( parseIgnoredTables( tablesToInclude ) );
 
   int ret = GEODIFF_rebaseEx( context,
                               driverName.data(), driverOptions.data(), dbBase.data(), dbOur.data(),
@@ -581,7 +615,7 @@ static int handleCmdCopy( GEODIFF_ContextH context, const std::vector<std::strin
   size_t i = 1;
   std::string chInput, chOutput;
   std::string driver1Name = "sqlite", driver1Options, driver2Name = "sqlite", driver2Options;
-  std::string tablesToSkip;
+  std::string tablesToSkip, tablesToInclude;
 
   // parse options
   for ( ; i < args.size(); ++i )
@@ -618,6 +652,18 @@ static int handleCmdCopy( GEODIFF_ContextH context, const std::vector<std::strin
       }
       tablesToSkip = args[i + 1];
       i += 1;
+      continue;
+    }
+    else if ( args[i] == "--include-tables" )
+    {
+      if ( i + 1 >= args.size() )
+      {
+        std::cout << "Error: missing arguments for include-tables option" << std::endl;
+        return 1;
+      }
+      tablesToInclude = args[i + 1];
+      i += 1;
+      continue;
     }
     else
     {
@@ -634,14 +680,16 @@ static int handleCmdCopy( GEODIFF_ContextH context, const std::vector<std::strin
     return 1;
 
   Context *ctx = static_cast<Context *>( context );
-  std::vector<std::string> tables = parseIgnoredTables( tablesToSkip );
-  ctx->setTablesToSkip( tables );
+  if ( !tablesToSkip.empty() )
+    ctx->setTablesToSkip( parseIgnoredTables( tablesToSkip ) );
+  else if ( !tablesToInclude.empty() )
+    ctx->setTablesToInclude( parseIgnoredTables( tablesToInclude ) );
 
   if ( driver1Name == "sqlite" && driver2Name == "sqlite" )
   {
-    if ( !tablesToSkip.empty() )
+    if ( !tablesToSkip.empty() || !tablesToInclude.empty() )
     {
-      std::cout << "Source and destination drivers are \"sqlite\". Option \"--skip-tables\" will be ignored." << std::endl;
+      std::cout << "Source and destination drivers are \"sqlite\". Table filter options will be ignored." << std::endl;
       return 1;
     }
 
@@ -675,10 +723,10 @@ static int handleCmdSchema( GEODIFF_ContextH context, const std::vector<std::str
   bool printOutput = true;
   std::string db, schemaJson;
   std::string driverName = "sqlite", driverOptions;
-  std::string tablesToSkip;
+  std::string tablesToSkip, tablesToInclude;
 
   // parse options
-  if ( !parseDriverOption( args, i, "schema", driverName, driverOptions, tablesToSkip ) )
+  if ( !parseDriverOption( args, i, "schema", driverName, driverOptions, tablesToSkip, tablesToInclude ) )
     return 1;
 
   // parse required arguments
@@ -696,8 +744,10 @@ static int handleCmdSchema( GEODIFF_ContextH context, const std::vector<std::str
   }
 
   Context *ctx = static_cast<Context *>( context );
-  std::vector<std::string> tables = parseIgnoredTables( tablesToSkip );
-  ctx->setTablesToSkip( tables );
+  if ( !tablesToSkip.empty() )
+    ctx->setTablesToSkip( parseIgnoredTables( tablesToSkip ) );
+  else if ( !tablesToInclude.empty() )
+    ctx->setTablesToInclude( parseIgnoredTables( tablesToInclude ) );
 
   std::string json;
   TmpFile tmpJson;
@@ -735,10 +785,10 @@ static int handleCmdDump( GEODIFF_ContextH context, const std::vector<std::strin
   size_t i = 1;
   std::string db, chOutput;
   std::string driverName = "sqlite", driverOptions;
-  std::string tablesToSkip;
+  std::string tablesToSkip, tablesToInclude;
 
   // parse options
-  if ( !parseDriverOption( args, i, "dump", driverName, driverOptions, tablesToSkip ) )
+  if ( !parseDriverOption( args, i, "dump", driverName, driverOptions, tablesToSkip, tablesToInclude ) )
     return 1;
 
   if ( !parseRequiredArgument( db, args, i, "DB", "dump" ) )
@@ -749,8 +799,10 @@ static int handleCmdDump( GEODIFF_ContextH context, const std::vector<std::strin
     return 1;
 
   Context *ctx = static_cast<Context *>( context );
-  std::vector<std::string> tables = parseIgnoredTables( tablesToSkip );
-  ctx->setTablesToSkip( tables );
+  if ( !tablesToSkip.empty() )
+    ctx->setTablesToSkip( parseIgnoredTables( tablesToSkip ) );
+  else if ( !tablesToInclude.empty() )
+    ctx->setTablesToInclude( parseIgnoredTables( tablesToInclude ) );
 
   int ret = GEODIFF_dumpData( context, driverName.data(), driverOptions.data(), db.data(), chOutput.data() );
   if ( ret != GEODIFF_SUCCESS )
@@ -841,7 +893,10 @@ Create and apply changesets (diffs):\n\
                       creation of changesets across datasets in two different drivers.\n\
       --skip-tables TABLES\n\
                       Ignore specified tables when creating a changeset. Tables are defined as\n\
-                      a semicolon separated list of names.\n\
+                      a semicolon separated list of names. Cannot be used with --include-tables.\n\
+      --include-tables TABLES\n\
+                      Only include specified tables when creating a changeset. Tables are defined\n\
+                      as a semicolon separated list of names. Cannot be used with --skip-tables.\n\
 \n\
   geodiff apply [OPTIONS...] DB CH_INPUT\n\
 \n\
@@ -854,7 +909,10 @@ Create and apply changesets (diffs):\n\
                       database. Driver-specific options are provided in CONN_OPTIONS.\n\
       --skip-tables TABLES\n\
                       Ignore specified tables when applying a changeset. Tables are defined as\n\
-                      a semicolon separated list of names.\n\
+                      a semicolon separated list of names. Cannot be used with --include-tables.\n\
+      --include-tables TABLES\n\
+                      Only include specified tables when applying a changeset. Tables are defined\n\
+                      as a semicolon separated list of names. Cannot be used with --skip-tables.\n\
 \n\
 Rebasing:\n\
 \n\
@@ -875,7 +933,10 @@ Rebasing:\n\
                       databases. Driver-specific options are provided in CONN_OPTIONS.\n\
       --skip-tables TABLES\n\
                       Ignore specified tables when creating a rebased changeset. Tables are\n\
-                      defined as a semicolon separated list of names.\n\
+                      defined as a semicolon separated list of names. Cannot be used with --include-tables.\n\
+      --include-tables TABLES\n\
+                      Only include specified tables when creating a rebased changeset. Tables are\n\
+                      defined as a semicolon separated list of names. Cannot be used with --skip-tables.\n\
 \n\
   geodiff rebase-db [OPTIONS...] DB_BASE DB_OUR CH_BASE_THEIR CONFLICT\n\
 \n\
@@ -892,7 +953,10 @@ Rebasing:\n\
                       databases. Driver-specific options are provided in CONN_OPTIONS.\n\
       --skip-tables TABLES\n\
                       Ignore specified tables when rebasing. Tables are defined as\n\
-                      a semicolon separated list of names.\n\
+                      a semicolon separated list of names. Cannot be used with --include-tables.\n\
+      --include-tables TABLES\n\
+                      Only include specified tables when rebasing. Tables are defined as\n\
+                      a semicolon separated list of names. Cannot be used with --skip-tables.\n\
 \n\
 Utilities:\n\
 \n\
@@ -934,7 +998,10 @@ Utilities:\n\
                       creation of changesets across datasets in two different drivers.\n\
       --skip-tables TABLES\n\
                       Ignore specified tables when copying the database. Tables are defined\n\
-                      as a semicolon separated list of names.\n\
+                      as a semicolon separated list of names. Cannot be used with --include-tables.\n\
+      --include-tables TABLES\n\
+                      Only include specified tables when copying the database. Tables are defined\n\
+                      as a semicolon separated list of names. Cannot be used with --skip-tables.\n\
 \n\
   geodiff schema [OPTIONS...] DB [SCHEMA_JSON]\n\
 \n\
@@ -948,7 +1015,10 @@ Utilities:\n\
                       database. Driver-specific options are provided in CONN_OPTIONS.\n\
       --skip-tables TABLES\n\
                       Ignore specified tables when writing a schema. Tables are defined\n\
-                      as a semicolon separated list of names.\n\
+                      as a semicolon separated list of names. Cannot be used with --include-tables.\n\
+      --include-tables TABLES\n\
+                      Only include specified tables when writing a schema. Tables are defined\n\
+                      as a semicolon separated list of names. Cannot be used with --skip-tables.\n\
 \n\
   geodiff dump [OPTIONS...] DB CH_OUTPUT\n\
 \n\
@@ -960,7 +1030,10 @@ Utilities:\n\
                       database. Driver-specific options are provided in CONN_OPTIONS.\n\
       --skip-tables TABLES\n\
                       Ignore specified tables when dumping the database content. Tables\n\
-                      are defined a semicolon separated list of names.\n\
+                      are defined as a semicolon separated list of names. Cannot be used with --include-tables.\n\
+      --include-tables TABLES\n\
+                      Only include specified tables when dumping the database content. Tables\n\
+                      are defined as a semicolon separated list of names. Cannot be used with --skip-tables.\n\
 \n\
   geodiff drivers\n\
 \n\
