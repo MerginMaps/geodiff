@@ -64,6 +64,7 @@ jobs:
       CIBW_SKIP: "*-win32"
       CIBW_TEST_COMMAND: python -c "import pygeodiff; pygeodiff.GeoDiff().version()"
       CIBW_REPAIR_WHEEL_COMMAND_WINDOWS: "delvewheel repair --add-path C:/vcpkg/installed/x64-windows/bin --no-mangle-all -v -w {dest_dir} {wheel}"
+      MSBUILDDISABLENODEREUSE: "1"
 
     steps:
       - uses: actions/checkout@v3
