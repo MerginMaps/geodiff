@@ -11,7 +11,6 @@ jobs:
       CIBW_MANYLINUX_X86_64_IMAGE: manylinux_2_28
       CIBW_ARCHS: x86_64
       CIBW_BEFORE_ALL_LINUX: dnf makecache && dnf install --assumeyes sqlite-devel
-      CIBW_BEFORE_BUILD: pip install setuptools scikit-build wheel cmake
       CIBW_TEST_COMMAND: python -c "import pygeodiff; pygeodiff.GeoDiff().version()"
 
     steps:
@@ -36,7 +35,6 @@ jobs:
     env:
       CIBW_BUILD: "*musllinux*"
       CIBW_BEFORE_ALL_LINUX: apk add sqlite-dev
-      CIBW_BEFORE_BUILD: pip install setuptools scikit-build wheel cmake
       CIBW_TEST_COMMAND: python -c "import pygeodiff; pygeodiff.GeoDiff().version()"
 
     steps:
@@ -78,7 +76,7 @@ jobs:
         run: |
           C:/vcpkg/vcpkg install sqlite3[rtree,fts3,json1] --triplet x64-windows
           C:/vcpkg/vcpkg integrate install
-          pip install setuptools scikit-build wheel cmake delvewheel
+          pip install delvewheel
           dir "C:/vcpkg/installed/x64-windows/bin"
 
       - name: Build wheels
@@ -112,10 +110,6 @@ jobs:
         with:
           python-version: '3.9'
 
-      - name: Install Deps
-        run: |
-          pip install setuptools scikit-build wheel cmake
-
       - name: Build wheels
         uses: pypa/cibuildwheel@v3.3.1
 
@@ -146,10 +140,6 @@ jobs:
         name: Install Python
         with:
           python-version: '3.9'
-
-      - name: Install Deps
-        run: |
-          pip install setuptools scikit-build wheel cmake
 
       - name: Build wheels
         uses: pypa/cibuildwheel@v3.3.1
