@@ -642,7 +642,6 @@ class GeoDiffLib:
         wkb = copy.deepcopy(out[: out_size.value])
         return wkb
 
-
     def has_schema_change_entries(self, context, changeset):
         func = self.lib.GEODIFF_changesetHasSchemaChangeEntries
         func.argtypes = [
@@ -654,9 +653,8 @@ class GeoDiffLib:
 
         out = ctypes.c_bool()
         res = func(
-            context,
-            ctypes.c_char_p(changeset.encode("utf-8")),
-            ctypes.byref(out))
+            context, ctypes.c_char_p(changeset.encode("utf-8")), ctypes.byref(out)
+        )
         self._parse_return_code(context, res, "has_schema_change_entries")
         return out.value
 

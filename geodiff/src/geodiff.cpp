@@ -1456,10 +1456,11 @@ int GEODIFF_changesetHasSchemaChangeEntries( GEODIFF_ContextH contextHandle, con
   try
   {
     ChangesetReader reader;
-    reader.open(changeset);
+    reader.open( changeset );
     ChangesetEntry entry;
-    while ( reader.nextEntry(entry) ) {
-      if ( !std::holds_alternative<ChangesetDataEntry>(entry) )
+    while ( reader.nextEntry( entry ) )
+    {
+      if ( !std::holds_alternative<ChangesetDataEntry>( entry ) )
       {
         *schemaChangePresent = true;
         return GEODIFF_SUCCESS;
