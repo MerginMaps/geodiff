@@ -922,6 +922,8 @@ void PostgresDriver::applyChangeset( ChangesetReader &reader )
           break;
       }
     }
+    else
+      throw GeoDiffException( "Unhandled changeset entry: " + std::to_string( entry.index() ) );
   }
 
   std::vector<ChangesetDataEntry> newConflictingEntries;

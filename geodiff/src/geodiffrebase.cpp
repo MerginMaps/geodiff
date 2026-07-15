@@ -260,24 +260,29 @@ int _parse_old_changeset(
     {
       if ( context->isTableSkipped( ctEntry->tableName ) )
         continue;
+      // Create dbInfo entry to signify table is changed
+      ( void ) dbInfo.tables[ctEntry->tableName];
       simulateSchemaChange( dbInfo.theirSchema, entry );
     }
     else if ( const ChangesetDropTableEntry *dtEntry = std::get_if<ChangesetDropTableEntry>( &entry ) )
     {
       if ( context->isTableSkipped( dtEntry->tableName ) )
         continue;
+      ( void ) dbInfo.tables[dtEntry->tableName];
       simulateSchemaChange( dbInfo.theirSchema, entry );
     }
     else if ( const ChangesetAddColumnEntry *acEntry = std::get_if<ChangesetAddColumnEntry>( &entry ) )
     {
       if ( context->isTableSkipped( acEntry->tableName ) )
         continue;
+      ( void ) dbInfo.tables[acEntry->tableName];
       simulateSchemaChange( dbInfo.theirSchema, entry );
     }
     else if ( const ChangesetDropColumnEntry *dcEntry = std::get_if<ChangesetDropColumnEntry>( &entry ) )
     {
       if ( context->isTableSkipped( dcEntry->tableName ) )
         continue;
+      ( void ) dbInfo.tables[dcEntry->tableName];
       simulateSchemaChange( dbInfo.theirSchema, entry );
     }
     else
@@ -451,6 +456,8 @@ bool _handle_delete( const ChangesetDataEntry &entry, const RebaseMapping &mappi
 {
   outEntry.op = ChangesetDataEntry::OpDelete;
   outEntry.oldValues.resize( outEntry.table->columnCount() );
+  for ( Value &val : outEntry.oldValues )
+    val.setNull();
 
   // resolve primary key and patched primary key
   int pk = _get_primary_key( entry );
