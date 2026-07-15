@@ -534,6 +534,73 @@ TEST( ModifiedSchemeTest, rebase_conflict_add_column )
   } );
 }
 
+TEST( ModifiedSchemeTest, rebase_add_column )
+{
+  // TODO: Postgres support
+  std::string driverName = "sqlite";
+
+  testSchemaDiffRebaseWith( driverName, "rebase_add_column", 0,
+                            [ = ]( Driver & db )
+  {
+    db.executeSql( "ALTER TABLE tram_stops ADD COLUMN bench_count integer" );
+    db.executeSql( "INSERT INTO tram_stops (fid, name, bench_count) VALUES (4, 'Palmovka', 3)" );
+    db.executeSql( "UPDATE tram_stops SET bench_count = 1 WHERE fid = 1" );
+  },
+  [ = ]( Driver & db )
+  {
+    db.executeSql( "INSERT INTO tram_stops (fid, name) VALUES (4, 'Drinopol')" );
+  },
+  [ = ]( Driver & db )
+  {
+    db.executeSql( "ALTER TABLE tram_stops ADD COLUMN bench_count integer" );
+    db.executeSql( "INSERT INTO tram_stops (fid, name, bench_count) VALUES (4, 'Palmovka', 3)" );
+    db.executeSql( "INSERT INTO tram_stops (fid, name, bench_count) VALUES (5, 'Drinopol', NULL)" );
+    db.executeSql( "UPDATE tram_stops SET bench_count = 1 WHERE fid = 1" );
+  } );
+}
+
+TEST( ModifiedSchemeTest, rebase_add_empty_column )
+{
+  // TODO: Postgres support
+  std::string driverName = "sqlite";
+
+  testSchemaDiffRebaseWith( driverName, "rebase_add_empty_column", 0,
+                            [ = ]( Driver & db )
+  {
+    db.executeSql( "ALTER TABLE tram_stops ADD COLUMN bench_count integer" );
+  },
+  [ = ]( Driver & db )
+  {
+    db.executeSql( "INSERT INTO tram_stops (fid, name) VALUES (4, 'Drinopol')" );
+  },
+  [ = ]( Driver & db )
+  {
+    db.executeSql( "ALTER TABLE tram_stops ADD COLUMN bench_count integer" );
+    db.executeSql( "INSERT INTO tram_stops (fid, name, bench_count) VALUES (4, 'Drinopol', NULL)" );
+  } );
+}
+
+TEST( ModifiedSchemeTest, rebase_add_empty_column_and_delete )
+{
+  // TODO: Postgres support
+  std::string driverName = "sqlite";
+
+  testSchemaDiffRebaseWith( driverName, "rebase_add_empty_column_and_delete", 0,
+                            [ = ]( Driver & db )
+  {
+    db.executeSql( "ALTER TABLE tram_stops ADD COLUMN bench_count integer" );
+  },
+  [ = ]( Driver & db )
+  {
+    db.executeSql( "DELETE FROM tram_stops WHERE fid = 1" );
+  },
+  [ = ]( Driver & db )
+  {
+    db.executeSql( "ALTER TABLE tram_stops ADD COLUMN bench_count integer" );
+    db.executeSql( "DELETE FROM tram_stops WHERE fid = 1" );
+  } );
+}
+
 TEST( ModifiedSchemeTest, rebase_drop_column )
 {
   // TODO: Postgres support

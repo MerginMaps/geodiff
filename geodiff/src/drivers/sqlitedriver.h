@@ -27,7 +27,7 @@ class SqliteChangeApplyState
       Sqlite3Stmt stmtDelete;
     };
 
-    std::unordered_map<ChangesetTable *, TableState> tableState;
+    std::unordered_map<std::shared_ptr<ChangesetTable>, TableState> tableState;
 };
 
 

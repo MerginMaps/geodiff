@@ -130,6 +130,8 @@ std::string ChangesetReader::readNullTerminatedString()
 void ChangesetReader::readRowValues( std::vector<Value> &values )
 {
   // let's ensure we have the right size of array
+  if ( !mCurrentTable )
+    throwReaderError( "Tried to read row without table" );
   if ( values.size() != mCurrentTable->columnCount() )
   {
     values.resize( mCurrentTable->columnCount() );
@@ -249,6 +251,8 @@ ChangesetCreateTableEntry ChangesetReader::readCreateTableEntry()
   ChangesetCreateTableEntry entry;
   entry.tableName = readNullTerminatedString();
   int columnCount = readVarint();
+  if ( columnCount < 0 || columnCount > 65536 )
+    throwReaderError( "readCreateTableEntry: unexpected number of columns" );
   entry.columns.resize( columnCount );
   for ( size_t i = 0; i < entry.columns.size(); i++ )
   {
@@ -262,6 +266,8 @@ ChangesetDropTableEntry ChangesetReader::readDropTableEntry()
   ChangesetDropTableEntry entry;
   entry.tableName = readNullTerminatedString();
   int columnCount = readVarint();
+  if ( columnCount < 0 || columnCount > 65536 )
+    throwReaderError( "readDropTableEntry: unexpected number of columns" );
   entry.columns.resize( columnCount );
   for ( size_t i = 0; i < entry.columns.size(); i++ )
   {

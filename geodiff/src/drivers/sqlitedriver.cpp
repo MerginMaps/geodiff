@@ -674,6 +674,10 @@ static void writeDataChangesForSchemaChange( std::shared_ptr<Sqlite3Db> db, cons
       throw GeoDiffException( "Missing schema for table " + dcEntry->tableName );
     const TableSchema &table = it->second;
 
+    size_t droppedColIdx = table.columnFromName( dcEntry->column.name );
+    if ( droppedColIdx == SIZE_MAX )
+      throw GeoDiffException( "Could not find column " + dcEntry->column.name + " to delete" );
+
     std::string pkeyColStr;
     for ( const TableColumnInfo &c : table.columns )
     {
@@ -702,7 +706,7 @@ static void writeDataChangesForSchemaChange( std::shared_ptr<Sqlite3Db> db, cons
       for ( size_t i = 0; i < table.columns.size(); ++i )
       {
         bool isPkey = table.columns[i].isPrimaryKey;
-        bool isDroppedCol = ( i == table.columns.size() - 1 );
+        bool isDroppedCol = i == droppedColIdx;
 
         if ( isPkey || isDroppedCol )
         {
@@ -975,7 +979,7 @@ ChangeApplyResult SqliteDriver::applyDataChange( SqliteChangeApplyState &state, 
   if ( context()->isTableSkipped( tableName ) ) // skip table if necessary
     return ChangeApplyResult::Skipped;
 
-  if ( state.tableState.count( entry.table.get() ) == 0 )
+  if ( state.tableState.count( entry.table ) == 0 )
   {
     TableSchema schema = tableSchema( tableName );
 
@@ -991,14 +995,14 @@ ChangeApplyResult SqliteDriver::applyDataChange( SqliteChangeApplyState &state, 
         throw GeoDiffException( "Mismatch of primary keys in table: " + tableName );
     }
 
-    SqliteChangeApplyState::TableState &tbl = state.tableState[entry.table.get()];
+    SqliteChangeApplyState::TableState &tbl = state.tableState[entry.table];
     tbl.schema = schema;
 
     tbl.stmtInsert.prepare( mDb, sqlForInsert( tableName, schema ) );
     tbl.stmtUpdate.prepare( mDb, sqlForUpdate( tableName, schema ) );
     tbl.stmtDelete.prepare( mDb, sqlForDelete( tableName, schema ) );
   }
-  SqliteChangeApplyState::TableState &tbl = state.tableState[entry.table.get()];
+  SqliteChangeApplyState::TableState &tbl = state.tableState[entry.table];
 
   if ( entry.op == SQLITE_INSERT )
   {
@@ -1284,6 +1288,8 @@ void SqliteDriver::applySchemaChange( const ChangesetEntry &entry )
       throw GeoDiffException( "Adding geometry columns is not supported" );
     if ( acEntry->column.isPrimaryKey )
       throw GeoDiffException( "Adding column to primary key is not supported" );
+    if ( acEntry->column.isNotNull )
+      throw GeoDiffException( "Adding not-null column is not supported" );
 
     std::string sql = sqlitePrintf( "ALTER TABLE \"%w\" ADD COLUMN \"%w\" %s",
                                     acEntry->tableName.c_str(), acEntry->column.name.c_str(), acEntry->column.type.dbType.c_str() );
