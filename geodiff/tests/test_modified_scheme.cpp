@@ -648,6 +648,188 @@ TEST( ModifiedSchemeTest, rebase_rename_column )
   } );
 }
 
+// Helper: create a second DB by copying an existing one (SQLite only) and applying changes
+static void copySqliteDb( const std::string &srcPath, const std::string &dstPath )
+{
+  std::filesystem::copy( srcPath, dstPath, std::filesystem::copy_options::overwrite_existing );
+}
+
+// Concatenation test: verify that concat(diff(base, step1), diff(step1, step2)) equals diff(base, step2).
+static void testSchemaConcatWith( std::string driverName, std::string testname,
+                                  std::function<void ( Driver & )> step1,
+                                  std::function<void ( Driver & )> step2 )
+{
+  std::string dir = pathjoin( tmpdir(), testname );
+  makedir( dir );
+
+  // Create base, step1 (= base + step1), step2 (= step1 + step2) DBs
+  {
+    createSampleDb( driverName, testname, "base" );
+
+    createSampleDb( driverName, testname, "step1" );
+    {
+      auto db = openBaseModifiedDb( driverName, testname, "step1", "" );
+      step1( *db );
+    }
+
+    if ( driverName == "sqlite" )
+      copySqliteDb( pathjoin( dir, "step1.gpkg" ), pathjoin( dir, "step2.gpkg" ) );
+    {
+      auto db = openBaseModifiedDb( driverName, testname, "step2", "" );
+      step2( *db );
+    }
+  }
+
+  // Generate diff1 (base → step1)
+  std::string diff1 = pathjoin( dir, "diff1" );
+  {
+    auto driver = openBaseModifiedDb( driverName, testname, "base", "step1" );
+    ChangesetWriter writer;
+    writer.open( diff1 );
+    driver->createChangeset( writer );
+  }
+
+  // Generate diff2 (step1 → step2)
+  std::string diff2 = pathjoin( dir, "diff2" );
+  {
+    auto driver = openBaseModifiedDb( driverName, testname, "step1", "step2" );
+    ChangesetWriter writer;
+    writer.open( diff2 );
+    driver->createChangeset( writer );
+  }
+
+  // Concat diff1 + diff2
+  std::string concatDiff = pathjoin( dir, "concat" );
+  const char *inputs[] = { diff1.c_str(), diff2.c_str() };
+  ASSERT_EQ( GEODIFF_concatChanges( testContext(), 2, inputs, concatDiff.c_str() ), GEODIFF_SUCCESS );
+
+  // Apply concat to base
+  {
+    ChangesetReader reader;
+    reader.open( concatDiff );
+    auto db = openBaseModifiedDb( driverName, testname, "base", "" );
+    db->applyChangeset( reader );
+  }
+
+  // base should now equal step2
+  std::string verifyDiff = pathjoin( dir, "verify" );
+  {
+    auto driver = openBaseModifiedDb( driverName, testname, "base", "step2" );
+    ChangesetWriter writer;
+    writer.open( verifyDiff );
+    driver->createChangeset( writer );
+  }
+  ASSERT_EQ( std::filesystem::file_size( verifyDiff ), 0u );
+}
+
+// --- Basic: one schema change per concat ---
+
+TEST( ModifiedSchemeTest, concat_add_column )
+{
+  std::string driverName = "sqlite";
+
+  testSchemaConcatWith( driverName, "concat_add_column",
+                        [ = ]( Driver & db )
+  {
+    db.executeSql( "ALTER TABLE tram_stops ADD COLUMN bench_count integer" );
+    db.executeSql( "UPDATE tram_stops SET bench_count = 2 WHERE fid = 1" );
+    db.executeSql( "INSERT INTO tram_stops (fid, name, bench_count) VALUES (4, 'Palmovka', 3)" );
+  },
+  [ = ]( Driver & db )
+  {
+    db.executeSql( "UPDATE tram_stops SET bench_count = 5 WHERE fid = 1" );
+    db.executeSql( "UPDATE tram_stops SET name = 'Červený Vrch' WHERE fid = 2" );
+    db.executeSql( "INSERT INTO tram_stops (fid, name, bench_count) VALUES (5, 'Drinopol', 1)" );
+  } );
+}
+
+TEST( ModifiedSchemeTest, concat_drop_column )
+{
+  std::string driverName = "sqlite";
+
+  testSchemaConcatWith( driverName, "concat_drop_column",
+                        [ = ]( Driver & db )
+  {
+    db.executeSql( "INSERT INTO tram_stops (fid, name) VALUES (4, 'Palmovka')" );
+    db.executeSql( "UPDATE tram_stops SET name = 'Pohořelec' WHERE fid = 1" );
+  },
+  [ = ]( Driver & db )
+  {
+    db.executeSql( "ALTER TABLE tram_stops DROP COLUMN name" );
+    db.executeSql( "INSERT INTO tram_stops (fid) VALUES (5)" );
+  } );
+}
+
+TEST( ModifiedSchemeTest, concat_create_table )
+{
+  std::string driverName = "sqlite";
+
+  testSchemaConcatWith( driverName, "concat_create_table",
+                        [ = ]( Driver & db )
+  {
+    db.executeSql( "CREATE TABLE benches (fid INTEGER PRIMARY KEY, material TEXT)" );
+    db.executeSql( "INSERT INTO benches VALUES (1, 'wood'), (2, 'steel')" );
+    db.executeSql( "INSERT INTO tram_stops (fid, name) VALUES (4, 'Palmovka')" );
+  },
+  [ = ]( Driver & db )
+  {
+    db.executeSql( "INSERT INTO benches VALUES (3, 'concrete')" );
+    db.executeSql( "UPDATE tram_stops SET name = 'Pohořelec' WHERE fid = 1" );
+  } );
+}
+
+TEST( ModifiedSchemeTest, concat_drop_table )
+{
+  std::string driverName = "sqlite";
+
+  testSchemaConcatWith( driverName, "concat_drop_table",
+                        [ = ]( Driver & db )
+  {
+    db.executeSql( "INSERT INTO tram_stops (fid, name) VALUES (4, 'Palmovka')" );
+    db.executeSql( "UPDATE tram_stops SET name = 'Pohořelec' WHERE fid = 1" );
+  },
+  [ = ]( Driver & db )
+  {
+    db.executeSql( "DROP TABLE tram_stops" );
+  } );
+}
+
+TEST( ModifiedSchemeTest, concat_add_two_columns )
+{
+  std::string driverName = "sqlite";
+
+  testSchemaConcatWith( driverName, "concat_add_two_columns",
+                        [ = ]( Driver & db )
+  {
+    db.executeSql( "ALTER TABLE tram_stops ADD COLUMN bench_count integer" );
+    db.executeSql( "UPDATE tram_stops SET bench_count = 1 WHERE fid = 1" );
+  },
+  [ = ]( Driver & db )
+  {
+    db.executeSql( "ALTER TABLE tram_stops ADD COLUMN line_number text" );
+    db.executeSql( "UPDATE tram_stops SET line_number = 'A' WHERE fid = 2" );
+    db.executeSql( "INSERT INTO tram_stops (fid, name, bench_count, line_number) VALUES (4, 'Palmovka', 3, 'B')" );
+  } );
+}
+
+TEST( ModifiedSchemeTest, concat_add_column_then_drop_it )
+{
+  std::string driverName = "sqlite";
+
+  testSchemaConcatWith( driverName, "concat_add_column_then_drop_it",
+                        [ = ]( Driver & db )
+  {
+    db.executeSql( "ALTER TABLE tram_stops ADD COLUMN temp text" );
+    db.executeSql( "UPDATE tram_stops SET temp = 'x' WHERE fid = 1" );
+    db.executeSql( "INSERT INTO tram_stops (fid, name, temp) VALUES (4, 'Palmovka', 'y')" );
+  },
+  [ = ]( Driver & db )
+  {
+    db.executeSql( "INSERT INTO tram_stops (fid, name) VALUES (5, 'Drinopol')" );
+    db.executeSql( "ALTER TABLE tram_stops DROP COLUMN temp" );
+  } );
+}
+
 int main( int argc, char **argv )
 {
   testing::InitGoogleTest( &argc, argv );
