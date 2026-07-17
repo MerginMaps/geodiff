@@ -6,6 +6,7 @@
 #include "changesetutils.h"
 
 #include "base64utils.h"
+#include "changeset.h"
 #include "geodiffutils.hpp"
 #include "changesetreader.h"
 #include "changesetwriter.h"
@@ -21,58 +22,109 @@ ChangesetTable schemaToChangesetTable( const std::string &tableName, const Table
   return chTable;
 }
 
-void invertChangeset( ChangesetReader &reader, ChangesetWriter &writer )
+// Returns inverted changeset entries in reverse order
+std::vector<ChangesetEntry> invertChangesetReverse( ChangesetReader &reader )
 {
-  std::string currentTableName;
-  std::vector<bool> currentPkeys;
+  std::vector<ChangesetEntry> invertedEntries;
   ChangesetEntry entry;
   while ( reader.nextEntry( entry ) )
   {
-    assert( entry.table );
-    if ( entry.table->name != currentTableName )
+    if ( ChangesetDataEntry *dataEntry = std::get_if<ChangesetDataEntry>( &entry ) )
     {
-      writer.beginTable( *entry.table );
-      currentTableName = entry.table->name;
-      currentPkeys = entry.table->primaryKeys;
-    }
-
-    if ( entry.op == ChangesetEntry::OpInsert )
-    {
-      ChangesetEntry out;
-      out.op = ChangesetEntry::OpDelete;
-      out.oldValues = entry.newValues;
-      writer.writeEntry( out );
-    }
-    else if ( entry.op == ChangesetEntry::OpDelete )
-    {
-      ChangesetEntry out;
-      out.op = ChangesetEntry::OpInsert;
-      out.newValues = entry.oldValues;
-      writer.writeEntry( out );
-    }
-    else if ( entry.op == ChangesetEntry::OpUpdate )
-    {
-      ChangesetEntry out;
-      out.op = ChangesetEntry::OpUpdate;
-      out.newValues = entry.oldValues;
-      out.oldValues = entry.newValues;
-      // if a column is a part of pkey and has not been changed,
-      // the original entry has "old" value the pkey value and "new"
-      // value is undefined - let's reverse "old" and "new" in that case.
-      for ( size_t i = 0; i < currentPkeys.size(); ++i )
+      if ( dataEntry->op == ChangesetDataEntry::OpInsert )
       {
-        if ( currentPkeys[i] && out.oldValues[i].type() == Value::TypeUndefined )
-        {
-          out.oldValues[i] = out.newValues[i];
-          out.newValues[i].setUndefined();
-        }
+        ChangesetDataEntry out;
+        out.op = ChangesetDataEntry::OpDelete;
+        out.table = dataEntry->table;
+        out.oldValues = dataEntry->newValues;
+        invertedEntries.push_back( out );
       }
-      writer.writeEntry( out );
+      else if ( dataEntry->op == ChangesetDataEntry::OpDelete )
+      {
+        ChangesetDataEntry out;
+        out.op = ChangesetDataEntry::OpInsert;
+        out.table = dataEntry->table;
+        out.newValues = dataEntry->oldValues;
+        invertedEntries.push_back( out );
+      }
+      else if ( dataEntry->op == ChangesetDataEntry::OpUpdate )
+      {
+        ChangesetDataEntry out;
+        out.op = ChangesetDataEntry::OpUpdate;
+        out.table = dataEntry->table;
+        out.newValues = dataEntry->oldValues;
+        out.oldValues = dataEntry->newValues;
+        // if a column is a part of pkey and has not been changed,
+        // the original entry has "old" value the pkey value and "new"
+        // value is undefined - let's reverse "old" and "new" in that case.
+        for ( size_t i = 0; i < dataEntry->table->primaryKeys.size(); ++i )
+        {
+          if ( dataEntry->table->primaryKeys[i] && out.oldValues[i].type() == Value::TypeUndefined )
+          {
+            out.oldValues[i] = out.newValues[i];
+            out.newValues[i].setUndefined();
+          }
+        }
+        invertedEntries.push_back( out );
+      }
+      else
+      {
+        throw GeoDiffException( "Unknown entry operation!" );
+      }
+    }
+    else if ( const ChangesetCreateTableEntry *ctEntry = std::get_if<ChangesetCreateTableEntry>( &entry ) )
+    {
+      ChangesetDropTableEntry out;
+      out.tableName = ctEntry->tableName;
+      out.columns = ctEntry->columns;
+      invertedEntries.push_back( out );
+    }
+    else if ( const ChangesetAddColumnEntry *acEntry = std::get_if<ChangesetAddColumnEntry>( &entry ) )
+    {
+      ChangesetDropColumnEntry out;
+      out.tableName = acEntry->tableName;
+      out.column = acEntry->column;
+      invertedEntries.push_back( out );
+    }
+    else if ( const ChangesetDropTableEntry *dtEntry = std::get_if<ChangesetDropTableEntry>( &entry ) )
+    {
+      ChangesetCreateTableEntry out;
+      out.tableName = dtEntry->tableName;
+      out.columns = dtEntry->columns;
+      invertedEntries.push_back( out );
+    }
+    else if ( const ChangesetDropColumnEntry *dcEntry = std::get_if<ChangesetDropColumnEntry>( &entry ) )
+    {
+      ChangesetAddColumnEntry out;
+      out.tableName = dcEntry->tableName;
+      out.column = dcEntry->column;
+      invertedEntries.push_back( out );
     }
     else
     {
-      throw GeoDiffException( "Unknown entry operation!" );
+      throw GeoDiffException( "Cannot invert changeset entry variant " + std::to_string( entry.index() ) );
     }
+  }
+  return invertedEntries;
+}
+
+void invertChangeset( ChangesetReader &reader, ChangesetWriter &writer )
+{
+  std::vector<ChangesetEntry> invertedReverse = invertChangesetReverse( reader );
+  ChangesetTable *currentTable = nullptr;
+  for ( size_t i = 1; i <= invertedReverse.size(); i++ )
+  {
+    const auto &entry = invertedReverse[invertedReverse.size() - i];
+    if ( const ChangesetDataEntry *dataEntry = std::get_if<ChangesetDataEntry>( &entry ) )
+    {
+      if ( dataEntry->table.get() != currentTable )
+      {
+        writer.beginTable( *dataEntry->table );
+        currentTable = dataEntry->table.get();
+      }
+    }
+
+    writer.writeEntry( entry );
   }
 }
 
@@ -112,21 +164,21 @@ nlohmann::json valueToJSON( const Value &value )
 }
 
 
-nlohmann::json changesetEntryToJSON( const ChangesetEntry &entry )
+nlohmann::json changesetDataEntryToJSON( const ChangesetDataEntry &entry )
 {
   std::string status;
-  if ( entry.op == ChangesetEntry::OpUpdate )
+  if ( entry.op == ChangesetDataEntry::OpUpdate )
     status = "update";
-  else if ( entry.op == ChangesetEntry::OpInsert )
+  else if ( entry.op == ChangesetDataEntry::OpInsert )
     status = "insert";
-  else if ( entry.op == ChangesetEntry::OpDelete )
+  else if ( entry.op == ChangesetDataEntry::OpDelete )
     status = "delete";
 
   // Check that the table column count matches the vector sizes to prevent
   // out-of-bounds errors.
-  if ( ( ( entry.op == ChangesetEntry::OpUpdate || entry.op == ChangesetEntry::OpInsert )
+  if ( ( ( entry.op == ChangesetDataEntry::OpUpdate || entry.op == ChangesetDataEntry::OpInsert )
          && entry.table->columnCount() != entry.newValues.size() )
-       || ( ( entry.op == ChangesetEntry::OpUpdate || entry.op == ChangesetEntry::OpDelete )
+       || ( ( entry.op == ChangesetDataEntry::OpUpdate || entry.op == ChangesetDataEntry::OpDelete )
             && entry.table->columnCount() != entry.oldValues.size() ) )
     throw GeoDiffException( "Table column count doesn't match value list size" );
 
@@ -139,8 +191,8 @@ nlohmann::json changesetEntryToJSON( const ChangesetEntry &entry )
   Value valueOld, valueNew;
   for ( size_t i = 0; i < entry.table->columnCount(); ++i )
   {
-    valueNew = ( entry.op == ChangesetEntry::OpUpdate || entry.op == ChangesetEntry::OpInsert ) ? entry.newValues[i] : Value();
-    valueOld = ( entry.op == ChangesetEntry::OpUpdate || entry.op == ChangesetEntry::OpDelete ) ? entry.oldValues[i] : Value();
+    valueNew = ( entry.op == ChangesetDataEntry::OpUpdate || entry.op == ChangesetDataEntry::OpInsert ) ? entry.newValues[i] : Value();
+    valueOld = ( entry.op == ChangesetDataEntry::OpUpdate || entry.op == ChangesetDataEntry::OpDelete ) ? entry.oldValues[i] : Value();
 
     nlohmann::json change;
 
@@ -172,6 +224,74 @@ nlohmann::json changesetEntryToJSON( const ChangesetEntry &entry )
 
   res[ "changes" ] = entries;
   return res;
+}
+
+static nlohmann::json columnInfoToJSON( const TableColumnInfo &column )
+{
+  nlohmann::json res;
+  res["name"] = column.name;
+  res["type"] = column.type.dbType;
+  res["isPrimaryKey"] = column.isPrimaryKey;
+  res["isNotNull"] = column.isNotNull;
+  res["isAutoIncrement"] = column.isAutoIncrement;
+  res["isGeometry"] = column.isGeometry;
+  res["geomType"] = column.geomType;
+  res["geomSrsId"] = column.geomSrsId;
+  res["geomHasZ"] = column.geomHasZ;
+  res["geomHasM"] = column.geomHasM;
+  return res;
+}
+
+nlohmann::json changesetEntryToJSON( const ChangesetEntry &entry )
+{
+  if ( const ChangesetDataEntry *dataEntry = std::get_if<ChangesetDataEntry>( &entry ) )
+  {
+    return changesetDataEntryToJSON( *dataEntry );
+  }
+  else if ( const ChangesetCreateTableEntry *ctEntry = std::get_if<ChangesetCreateTableEntry>( &entry ) )
+  {
+    nlohmann::json res;
+    res["type"] = "create_table";
+    res["tableName"] = ctEntry->tableName;
+    res["columns"] = nlohmann::json::array();
+    for ( const TableColumnInfo &column : ctEntry->columns )
+    {
+      res["columns"].push_back( columnInfoToJSON( column ) );
+    }
+    return res;
+  }
+  else if ( const ChangesetDropTableEntry *dtEntry = std::get_if<ChangesetDropTableEntry>( &entry ) )
+  {
+    nlohmann::json res;
+    res["type"] = "drop_table";
+    res["tableName"] = dtEntry->tableName;
+    res["columns"] = nlohmann::json::array();
+    for ( const TableColumnInfo &column : dtEntry->columns )
+    {
+      res["columns"].push_back( columnInfoToJSON( column ) );
+    }
+    return res;
+  }
+  else if ( const ChangesetAddColumnEntry *acEntry = std::get_if<ChangesetAddColumnEntry>( &entry ) )
+  {
+    nlohmann::json res;
+    res["type"] = "add_column";
+    res["tableName"] = acEntry->tableName;
+    res["column"] = columnInfoToJSON( acEntry->column );
+    return res;
+  }
+  else if ( const ChangesetDropColumnEntry *dcEntry = std::get_if<ChangesetDropColumnEntry>( &entry ) )
+  {
+    nlohmann::json res;
+    res["type"] = "drop_column";
+    res["tableName"] = dcEntry->tableName;
+    res["column"] = columnInfoToJSON( dcEntry->column );
+    return res;
+  }
+  else
+  {
+    throw GeoDiffException( "Cannot convert entry variant " + std::to_string( entry.index() ) + " to JSON" );
+  }
 }
 
 nlohmann::json changesetToJSON( ChangesetReader &reader )
@@ -209,14 +329,17 @@ nlohmann::json changesetToJSONSummary( ChangesetReader &reader )
   ChangesetEntry entry;
   while ( reader.nextEntry( entry ) )
   {
-    std::string tableName = entry.table->name;
+    if ( !std::holds_alternative<ChangesetDataEntry>( entry ) )
+      continue;
+    ChangesetDataEntry &dataEntry = std::get<ChangesetDataEntry>( entry );
+    std::string tableName = dataEntry.table->name;
     TableSummary &tableSummary = summary[tableName];
 
-    if ( entry.op == ChangesetEntry::OpUpdate )
+    if ( dataEntry.op == ChangesetDataEntry::OpUpdate )
       ++tableSummary.updates;
-    else if ( entry.op == ChangesetEntry::OpInsert )
+    else if ( dataEntry.op == ChangesetDataEntry::OpInsert )
       ++tableSummary.inserts;
-    else if ( entry.op == ChangesetEntry::OpDelete )
+    else if ( dataEntry.op == ChangesetDataEntry::OpDelete )
       ++tableSummary.deletes;
   }
 
@@ -239,62 +362,73 @@ nlohmann::json changesetToJSONSummary( ChangesetReader &reader )
 
 nlohmann::json conflictToJSON( const ConflictFeature &conflict )
 {
-  nlohmann::json res;
-  res[ "table" ] = std::string( conflict.tableName() );
-  res[ "type" ] = "conflict";
-  res[ "fid" ] = std::to_string( conflict.pk() );
-
-  auto entries = nlohmann::json::array();
-
-  const std::vector<ConflictItem> items = conflict.items();
-  for ( const ConflictItem &item : items )
+  if ( const DataConflictFeature *dcf = std::get_if<DataConflictFeature>( &conflict ) )
   {
-    nlohmann::json change;
-    change[ "column" ] = item.column();
+    nlohmann::json res;
+    res[ "table" ] = std::string( dcf->tableName() );
+    res[ "type" ] = "conflict";
+    res[ "fid" ] = std::to_string( dcf->pk() );
 
-    nlohmann::json valueBase = valueToJSON( item.base() );
-    nlohmann::json valueOld = valueToJSON( item.theirs() );
-    nlohmann::json valueNew = valueToJSON( item.ours() );
+    auto entries = nlohmann::json::array();
+    for ( const DataConflictItem &item : dcf->items() )
+    {
+      nlohmann::json change;
+      change[ "column" ] = item.column();
 
-    if ( !valueBase.empty() )
-    {
-      if ( valueBase == "null" )
-        change[ "base" ] = nullptr;
-      else
-        change[ "base" ] = valueBase;
-    }
-    if ( !valueOld.empty() )
-    {
-      if ( valueOld == "null" )
-        change[ "old" ] = nullptr;
-      else
-        change[ "old" ] = valueOld;
-    }
-    if ( !valueNew.empty() )
-    {
-      if ( valueNew == "null" )
-        change[ "new" ] = nullptr;
-      else
-        change[ "new" ] = valueNew;
-    }
+      nlohmann::json valueBase = valueToJSON( item.base() );
+      nlohmann::json valueOld = valueToJSON( item.theirs() );
+      nlohmann::json valueNew = valueToJSON( item.ours() );
 
-    entries.push_back( change );
+      if ( !valueBase.empty() )
+      {
+        if ( valueBase == "null" )
+          change[ "base" ] = nullptr;
+        else
+          change[ "base" ] = valueBase;
+      }
+      if ( !valueOld.empty() )
+      {
+        if ( valueOld == "null" )
+          change[ "old" ] = nullptr;
+        else
+          change[ "old" ] = valueOld;
+      }
+      if ( !valueNew.empty() )
+      {
+        if ( valueNew == "null" )
+          change[ "new" ] = nullptr;
+        else
+          change[ "new" ] = valueNew;
+      }
+
+      entries.push_back( change );
+    }
+    res[ "changes" ] = entries;
+    return res;
   }
-  res[ "changes" ] = entries;
-  return res;
+  else if ( const TableSchemaConflict *tsc = std::get_if<TableSchemaConflict>( &conflict ) )
+  {
+    nlohmann::json res;
+    res[ "type" ] = "schema_conflict_table";
+    res[ "table" ] = tsc->tableName;
+    return res;
+  }
+  else if ( const ColumnSchemaConflict *csc = std::get_if<ColumnSchemaConflict>( &conflict ) )
+  {
+    nlohmann::json res;
+    res[ "type" ] = "schema_conflict_column";
+    res[ "table" ] = csc->tableName;
+    res[ "column" ] = csc->columnName;
+    return res;
+  }
+  return {};
 }
 
 nlohmann::json conflictsToJSON( const std::vector<ConflictFeature> &conflicts )
 {
   auto entries = nlohmann::json::array();
   for ( const ConflictFeature &item : conflicts )
-  {
-    nlohmann::json msg = conflictToJSON( item );
-    if ( msg.empty() )
-      continue;
-
-    entries.push_back( msg );
-  }
+    entries.push_back( conflictToJSON( item ) );
 
   nlohmann::json res;
   res[ "geodiff" ] = entries;

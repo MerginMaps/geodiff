@@ -5,6 +5,7 @@
 
 #include "changesetwriter.h"
 
+#include "changeset.h"
 #include "geodiffutils.hpp"
 #include "changesetputvarint.h"
 #include "portableendian.h"
@@ -13,6 +14,7 @@
 #include <memory.h>
 
 #include <sstream>
+#include <variant>
 
 void ChangesetWriter::open( const std::string &filename )
 {
@@ -29,7 +31,7 @@ void ChangesetWriter::beginTable( const ChangesetTable &table )
 {
   mCurrentTable = table;
 
-  writeByte( 'T' );
+  writeByte( ( int ) ChangesetEntryType::OpTableRecord );
   writeVarint( ( int ) table.columnCount() );
   for ( size_t i = 0; i < table.columnCount(); ++i )
     writeByte( table.primaryKeys[i] );
@@ -38,15 +40,19 @@ void ChangesetWriter::beginTable( const ChangesetTable &table )
 
 void ChangesetWriter::writeEntry( const ChangesetEntry &entry )
 {
-  if ( entry.op != ChangesetEntry::OpInsert && entry.op != ChangesetEntry::OpUpdate && entry.op != ChangesetEntry::OpDelete )
-    throw GeoDiffException( "wrong op for changeset entry" );
-  writeByte( ( char ) entry.op );
-  writeByte( 0 );  // "indirect" always false
-
-  if ( entry.op != ChangesetEntry::OpInsert )
-    writeRowValues( entry.oldValues );
-  if ( entry.op != ChangesetEntry::OpDelete )
-    writeRowValues( entry.newValues );
+  if ( const ChangesetDataEntry *dataEntry = std::get_if<ChangesetDataEntry>( &entry ) )
+    writeDataEntry( *dataEntry );
+  else if ( const ChangesetCreateTableEntry *ctEntry = std::get_if<ChangesetCreateTableEntry>( &entry ) )
+    writeCreateTableEntry( *ctEntry );
+  else if ( const ChangesetDropTableEntry *dtEntry = std::get_if<ChangesetDropTableEntry>( &entry ) )
+    writeDropTableEntry( *dtEntry );
+  else if ( const ChangesetAddColumnEntry *acEntry = std::get_if<ChangesetAddColumnEntry>( &entry ) )
+    writeAddColumnEntry( *acEntry );
+  else if ( const ChangesetDropColumnEntry *dcEntry = std::get_if<ChangesetDropColumnEntry>( &entry ) )
+    writeDropColumnEntry( *dcEntry );
+  else
+    throw GeoDiffException( "Tried to write unhandled changeset entry type! " +
+                            std::to_string( entry.index() ) );
 }
 
 void ChangesetWriter::writeByte( char c )
@@ -112,4 +118,68 @@ void ChangesetWriter::writeRowValues( const std::vector<Value> &values )
       throw GeoDiffException( "unexpected entry type" );
     }
   }
+}
+
+void ChangesetWriter::writeColumnInfo( const TableColumnInfo &column )
+{
+  writeNullTerminatedString( column.name );
+  writeByte( static_cast<char>( column.type.baseType ) );
+  writeByte( ( column.isPrimaryKey << 0 )
+             | ( column.isNotNull << 1 )
+             | ( column.isAutoIncrement << 2 )
+             | ( column.isGeometry << 3 )
+             | ( column.geomHasZ << 4 )
+             | ( column.geomHasM << 5 ) );
+  writeNullTerminatedString( column.geomType );
+  writeVarint( column.geomSrsId );
+}
+
+
+void ChangesetWriter::writeDataEntry( const ChangesetDataEntry &entry )
+{
+  if ( entry.op != ChangesetDataEntry::OpInsert && entry.op != ChangesetDataEntry::OpUpdate && entry.op != ChangesetDataEntry::OpDelete )
+    throw GeoDiffException( "wrong op for changeset entry" );
+  writeByte( ( char ) entry.op );
+  writeByte( 0 );  // "indirect" always false
+
+  if ( entry.op != ( int ) ChangesetEntryType::OpInsert )
+    writeRowValues( entry.oldValues );
+  if ( entry.op != ( int ) ChangesetEntryType::OpDelete )
+    writeRowValues( entry.newValues );
+}
+
+void ChangesetWriter::writeCreateTableEntry( const ChangesetCreateTableEntry &entry )
+{
+  writeByte( static_cast<char>( ChangesetEntryType::OpCreateTable ) );
+  writeNullTerminatedString( entry.tableName );
+  writeVarint( static_cast<int>( entry.columns.size() ) );
+  for ( const TableColumnInfo &column : entry.columns )
+  {
+    writeColumnInfo( column );
+  }
+}
+
+void ChangesetWriter::writeDropTableEntry( const ChangesetDropTableEntry &entry )
+{
+  writeByte( static_cast<char>( ChangesetEntryType::OpDropTable ) );
+  writeNullTerminatedString( entry.tableName );
+  writeVarint( static_cast<int>( entry.columns.size() ) );
+  for ( const TableColumnInfo &column : entry.columns )
+  {
+    writeColumnInfo( column );
+  }
+}
+
+void ChangesetWriter::writeAddColumnEntry( const ChangesetAddColumnEntry &entry )
+{
+  writeByte( static_cast<char>( ChangesetEntryType::OpAddColumn ) );
+  writeNullTerminatedString( entry.tableName );
+  writeColumnInfo( entry.column );
+}
+
+void ChangesetWriter::writeDropColumnEntry( const ChangesetDropColumnEntry &entry )
+{
+  writeByte( static_cast<char>( ChangesetEntryType::OpDropColumn ) );
+  writeNullTerminatedString( entry.tableName );
+  writeColumnInfo( entry.column );
 }

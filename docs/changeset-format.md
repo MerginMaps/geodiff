@@ -1,25 +1,38 @@
 
 # Changeset Format
 
-The format for changesets is borrowed from SQLite3 session extension's internal format
-and it is currently 100% compatible with it. Below are details of the format, extracted
-from SQLite3 source code.
+The format for changesets is based on the SQLite3 session extension's internal
+format. Below are details of the format:
 
 ## Summary
 
-A changeset is a collection of DELETE, UPDATE and INSERT operations on
-one or more tables. Operations on a single table are grouped together,
-but may occur in any order (i.e. deletes, updates and inserts are all
-mixed together).
+A changeset is a linear list of operations of various types, identified by a
+one-byte tag:
 
-Each group of changes begins with a table header:
+- Table record (`'T'`)
+- Data entry (`18`, `23`, `9`)
+- Create table entry (`'a'`)
+- Drop table entry (`'A'`)
+- Add column entry (`'c'`)
+- Drop column entry (`'C'`)
+
+Data operations on a single table are grouped together, preceded by a single
+table record. The operations are processed as if they were executed
+sequentially.
+
+## Table record
+
+The table record identifies the table and its columns:
 
 - 1 byte: Constant 0x54 (capital 'T')
 - Varint: Number of columns in the table.
 - nCol bytes: 0x01 for PK columns, 0x00 otherwise.
-- N bytes: Unqualified table name (encoded using UTF-8). Nul-terminated.
+- N bytes: Unqualified table name (encoded using UTF-8). Null-terminated.
 
-Followed by one or more changes to the table.
+## Data entry
+
+A data entry is a DELETE, UPDATE or INSERT operation on one table (identified
+by last table record):
 
 - 1 byte: Either SQLITE_INSERT (0x12), UPDATE (0x17) or DELETE (0x09).
 - 1 byte: The "indirect-change" flag.
@@ -48,6 +61,44 @@ with table columns modified by the UPDATE change contain the new
 values. Fields associated with table columns that are not modified
 are set to "undefined".
 
+## Create table entry
+
+This entry creates a new empty table:
+
+- 1 byte: Constant 0x61 (lowercase 'a')
+- Null-terminated string: Table name
+- Varint: Number of columns in the table.
+- nCol entries: Table column info.
+
+## Drop table entry
+
+This entry deletes an existing table by name. The table must be empty. Column
+information is kept for the purpose of rebasing and inverting the changeset.
+
+- 1 byte: Constant 0x41 (uppercase 'A')
+- Null-terminated string: Table name
+- Varint: Number of columns in the table.
+- nCol entries: Table column info.
+
+## Add column entry
+
+This entry adds a new column to an existing table. All existing rows will have
+`NULL` filled in.
+
+- 1 byte: Constant 0x63 (lowercase 'c')
+- Null-terminated string: Table name
+- Table column info.
+
+## Drop column entry
+
+This entry deletes an existing column from a table. All existing rows must have
+`NULL` values in this column. Column information is kept for the purpose of
+rebasing and inverting the changeset.
+
+- 1 byte: Constant 0x43 (uppercase 'C')
+- Null-terminated string: Table name
+- Table column info.
+
 # Record Format
 
 Unlike the SQLite database record format, each field is self-contained -
@@ -69,7 +120,7 @@ is followed by:
 - Text values:
   A varint containing the number of bytes in the value (encoded using
   UTF-8). Followed by a buffer containing the UTF-8 representation
-  of the text value. There is no nul terminator.
+  of the text value. There is no null terminator.
 
 - Blob values:
   A varint containing the number of bytes in the value, followed by
@@ -81,6 +132,19 @@ is followed by:
 - Real values:
   An 8-byte big-endian IEEE 754-2008 real value.
 
+
+# Table column info
+
+- Null-terminated string: column name
+- 1 byte: Column type (same as record)
+- 1 byte: Flags packed as bits. From LSb:
+  - is primary key
+  - is autoincrement
+  - is geometry column
+  - geometry has Z coordinate
+  - geometry has M coordinate
+- Null-terminated string: geometry type (`POINT`, `LINE`, ...)
+- Varint: SRS ID for geometry
 
 # Varint Format
 

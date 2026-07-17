@@ -5,9 +5,12 @@
 
 #include "changesetreader.h"
 
+#include "changeset.h"
 #include "geodiffutils.hpp"
 #include "changesetgetvarint.h"
 #include "portableendian.h"
+#include "sqliteutils.h"
+#include "tableschema.h"
 
 #include <assert.h>
 #include <memory.h>
@@ -42,31 +45,40 @@ bool ChangesetReader::nextEntry( ChangesetEntry &entry )
     if ( mOffset >= mBuffer->size() )
       break;   // EOF
 
-    int type = readByte();
-    if ( type == 'T' )
+    ChangesetEntryType type = static_cast<ChangesetEntryType>( readByte() );
+    if ( type == ChangesetEntryType::OpTableRecord )
     {
       readTableRecord();
       // and now continue reading, we want an entry
     }
-    else if ( type == ChangesetEntry::OpInsert || type == ChangesetEntry::OpUpdate || type == ChangesetEntry::OpDelete )
+    else if ( type == ChangesetEntryType::OpInsert || type == ChangesetEntryType::OpUpdate || type == ChangesetEntryType::OpDelete )
     {
-      readByte();
-      if ( type != ChangesetEntry::OpInsert )
-        readRowValues( entry.oldValues );
-      else
-        entry.oldValues.erase( entry.oldValues.begin(), entry.oldValues.end() );
-      if ( type != ChangesetEntry::OpDelete )
-        readRowValues( entry.newValues );
-      else
-        entry.newValues.erase( entry.newValues.begin(), entry.newValues.end() );
-
-      entry.op = static_cast<ChangesetEntry::OperationType>( type );
-      entry.table = &mCurrentTable;
+      entry = readDataEntry( type );
       return true;  // we're done!
+    }
+    else if ( type == ChangesetEntryType::OpCreateTable )
+    {
+      entry = readCreateTableEntry();
+      return true;
+    }
+    else if ( type == ChangesetEntryType::OpDropTable )
+    {
+      entry = readDropTableEntry();
+      return true;
+    }
+    else if ( type == ChangesetEntryType::OpAddColumn )
+    {
+      entry = readAddColumnEntry();
+      return true;
+    }
+    else if ( type == ChangesetEntryType::OpDropColumn )
+    {
+      entry = readDropColumnEntry();
+      return true;
     }
     else
     {
-      throwReaderError( "Unknown entry type " + std::to_string( type ) );
+      throwReaderError( "Unknown entry type " + std::to_string( static_cast<int>( type ) ) );
     }
   }
   return false;
@@ -80,7 +92,7 @@ bool ChangesetReader::isEmpty() const
 void ChangesetReader::rewind()
 {
   mOffset = 0;
-  mCurrentTable = ChangesetTable();
+  mCurrentTable = {};
 }
 
 char ChangesetReader::readByte()
@@ -118,12 +130,14 @@ std::string ChangesetReader::readNullTerminatedString()
 void ChangesetReader::readRowValues( std::vector<Value> &values )
 {
   // let's ensure we have the right size of array
-  if ( values.size() != mCurrentTable.columnCount() )
+  if ( !mCurrentTable )
+    throwReaderError( "Tried to read row without table" );
+  if ( values.size() != mCurrentTable->columnCount() )
   {
-    values.resize( mCurrentTable.columnCount() );
+    values.resize( mCurrentTable->columnCount() );
   }
 
-  for ( size_t i = 0; i < mCurrentTable.columnCount(); ++i )
+  for ( size_t i = 0; i < mCurrentTable->columnCount(); ++i )
   {
     int type = readByte();
     if ( type == Value::TypeInt ) // 0x01
@@ -185,16 +199,98 @@ void ChangesetReader::readTableRecord()
   if ( nCol < 0 || nCol > 65536 )
     throwReaderError( "readByte: unexpected number of columns" );
 
-  mCurrentTable.primaryKeys.clear();
+  mCurrentTable = std::make_shared<ChangesetTable>();
+  mCurrentTable->primaryKeys.clear();
 
   for ( int i = 0; i < nCol; ++i )
   {
-    mCurrentTable.primaryKeys.push_back( readByte() );
+    mCurrentTable->primaryKeys.push_back( readByte() );
   }
 
-  mCurrentTable.name = readNullTerminatedString();
+  mCurrentTable->name = readNullTerminatedString();
 }
 
+ChangesetDataEntry ChangesetReader::readDataEntry( ChangesetEntryType type )
+{
+  ChangesetDataEntry entry;
+  readByte();
+  if ( type != ChangesetEntryType::OpInsert )
+    readRowValues( entry.oldValues );
+  else
+    entry.oldValues.erase( entry.oldValues.begin(), entry.oldValues.end() );
+  if ( type != ChangesetEntryType::OpDelete )
+    readRowValues( entry.newValues );
+  else
+    entry.newValues.erase( entry.newValues.begin(), entry.newValues.end() );
+
+  entry.op = static_cast<ChangesetDataEntry::OperationType>( type );
+  entry.table = mCurrentTable;
+  return entry;
+}
+
+TableColumnInfo ChangesetReader::readColumnInfo()
+{
+  TableColumnInfo column;
+  column.name = readNullTerminatedString();
+  column.type.baseType = static_cast<TableColumnType::BaseType>( readByte() );
+  column.type.dbType = column.type.baseTypeToString( column.type.baseType );
+  char flags = readByte();
+  column.isPrimaryKey = flags & 1;
+  column.isNotNull = flags & ( 1 << 1 );
+  column.isAutoIncrement = flags & ( 1 << 2 );
+  column.isGeometry = flags & ( 1 << 3 );
+  column.geomHasZ = flags & ( 1 << 4 );
+  column.geomHasM = flags & ( 1 << 5 );
+  column.geomType = readNullTerminatedString();
+  column.geomSrsId = readVarint();
+  return column;
+}
+
+ChangesetCreateTableEntry ChangesetReader::readCreateTableEntry()
+{
+  ChangesetCreateTableEntry entry;
+  entry.tableName = readNullTerminatedString();
+  int columnCount = readVarint();
+  if ( columnCount < 0 || columnCount > 65536 )
+    throwReaderError( "readCreateTableEntry: unexpected number of columns" );
+  entry.columns.resize( columnCount );
+  for ( size_t i = 0; i < entry.columns.size(); i++ )
+  {
+    entry.columns[i] = readColumnInfo();
+  }
+  return entry;
+}
+
+ChangesetDropTableEntry ChangesetReader::readDropTableEntry()
+{
+  ChangesetDropTableEntry entry;
+  entry.tableName = readNullTerminatedString();
+  int columnCount = readVarint();
+  if ( columnCount < 0 || columnCount > 65536 )
+    throwReaderError( "readDropTableEntry: unexpected number of columns" );
+  entry.columns.resize( columnCount );
+  for ( size_t i = 0; i < entry.columns.size(); i++ )
+  {
+    entry.columns[i] = readColumnInfo();
+  }
+  return entry;
+}
+
+ChangesetAddColumnEntry ChangesetReader::readAddColumnEntry()
+{
+  ChangesetAddColumnEntry entry;
+  entry.tableName = readNullTerminatedString();
+  entry.column = readColumnInfo();
+  return entry;
+}
+
+ChangesetDropColumnEntry ChangesetReader::readDropColumnEntry()
+{
+  ChangesetDropColumnEntry entry;
+  entry.tableName = readNullTerminatedString();
+  entry.column = readColumnInfo();
+  return entry;
+}
 
 void ChangesetReader::throwReaderError( const std::string &message ) const
 {

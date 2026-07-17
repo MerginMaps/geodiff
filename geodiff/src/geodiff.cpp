@@ -27,6 +27,7 @@
 #include <fcntl.h>
 #include <iostream>
 #include <string>
+#include <variant>
 #include <vector>
 
 #include "json.hpp"
@@ -267,7 +268,7 @@ int GEODIFF_createChangesetEx( GEODIFF_ContextH contextHandle, const char *drive
   {
     createChangesetEx( context, driverName, driverExtraInfo, base, modified, changeset );
   }
-  catch ( const  GeoDiffException &exc )
+  catch ( const GeoDiffException &exc )
   {
     return handleException( context, exc );
   }
@@ -533,7 +534,7 @@ int GEODIFF_createRebasedChangeset(
 static void createRebasedChangesetEx(
   Context *context,
   const char *driverName,
-  const char * /* driverExtraInfo */,
+  const char *driverExtraInfo,
   const char *base,
   const char *base2modified,
   const char *base2their,
@@ -545,11 +546,23 @@ static void createRebasedChangesetEx(
     throw GeoDiffException( "NULL arguments to GEODIFF_createRebasedChangesetEx" );
   }
 
-  // TODO: use driverName + driverExtraInfo + base when creating rebased
-  // changeset (e.g. to check whether a newly created ID is actually free)
+  // Open the base DB to get its schema
+  DatabaseSchema baseSchema;
+  {
+    DriverParametersMap conn;
+    conn["base"] = std::string( base );
+    if ( driverExtraInfo && *driverExtraInfo )
+      conn["conninfo"] = std::string( driverExtraInfo );
+    std::unique_ptr<Driver> driver( Driver::createDriver( context, std::string( driverName ) ) );
+    if ( !driver )
+      throw GeoDiffException( "Unable to use driver: " + std::string( driverName ) );
+    driver->open( conn );
+    for ( const std::string &tableName : driver->listTables() )
+      baseSchema.tables.push_back( driver->tableSchema( tableName ) );
+  }
 
   std::vector<ConflictFeature> conflicts;
-  rebase( context, base2their, rebased, base2modified, conflicts );
+  rebase( context, baseSchema, base2their, rebased, base2modified, conflicts );
 
   // output conflicts
   if ( conflicts.empty() )
@@ -643,7 +656,8 @@ int GEODIFF_changesCount(
   int changesCount = 0;
   ChangesetEntry entry;
   while ( reader.nextEntry( entry ) )
-    ++changesCount;
+    if ( std::holds_alternative<ChangesetDataEntry>( entry ) )
+      ++changesCount;
 
   return changesCount;
 }
@@ -1303,32 +1317,56 @@ void GEODIFF_CR_destroy( GEODIFF_ContextH /*contextHandle*/, GEODIFF_ChangesetRe
   delete static_cast<ChangesetReader *>( readerHandle );
 }
 
-int GEODIFF_CE_operation( GEODIFF_ContextH /*contextHandle*/, GEODIFF_ChangesetEntryH entryHandle )
-{
-  return static_cast<ChangesetEntry *>( entryHandle )->op;
-}
-
-GEODIFF_ChangesetTableH GEODIFF_CE_table( GEODIFF_ContextH /*contextHandle*/, GEODIFF_ChangesetEntryH entryHandle )
-{
-  ChangesetTable *table = static_cast<ChangesetEntry *>( entryHandle )->table;
-  return table;
-}
-
-int GEODIFF_CE_countValues( GEODIFF_ContextH /*contextHandle*/, GEODIFF_ChangesetEntryH entryHandle )
+static ChangesetDataEntry *getDataEntry( Context *context, GEODIFF_ChangesetEntryH entryHandle )
 {
   ChangesetEntry *entry = static_cast<ChangesetEntry *>( entryHandle );
-  size_t ret = entry->op == ChangesetEntry::OpDelete ? entry->oldValues.size() : entry->newValues.size();
+  ChangesetDataEntry *dataEntry = std::get_if<ChangesetDataEntry>( entry );
+  if ( !dataEntry && context )
+    setAndLogError( context, "Entry is not a data entry" );
+  return dataEntry;
+}
+
+int GEODIFF_CE_operation( GEODIFF_ContextH /*contextHandle*/, GEODIFF_ChangesetEntryH entryHandle )
+{
+  const ChangesetEntry *entry = static_cast<ChangesetEntry *>( entryHandle );
+  return static_cast<int>( entry->operationType() );
+}
+
+GEODIFF_ChangesetTableH GEODIFF_CE_table( GEODIFF_ContextH contextHandle, GEODIFF_ChangesetEntryH entryHandle )
+{
+  Context *context = static_cast<Context *>( contextHandle );
+  ChangesetDataEntry *dataEntry = getDataEntry( context, entryHandle );
+  if ( !dataEntry )
+    return nullptr;
+  return dataEntry->table.get();
+}
+
+int GEODIFF_CE_countValues( GEODIFF_ContextH contextHandle, GEODIFF_ChangesetEntryH entryHandle )
+{
+  Context *context = static_cast<Context *>( contextHandle );
+  ChangesetDataEntry *dataEntry = getDataEntry( context, entryHandle );
+  if ( !dataEntry )
+    return GEODIFF_ERROR;
+  size_t ret = dataEntry->op == ChangesetDataEntry::OpDelete ? dataEntry->oldValues.size() : dataEntry->newValues.size();
   return ( int ) ret;
 }
 
-GEODIFF_ValueH GEODIFF_CE_oldValue( GEODIFF_ContextH /*contextHandle*/, GEODIFF_ChangesetEntryH entryHandle, int i )
+GEODIFF_ValueH GEODIFF_CE_oldValue( GEODIFF_ContextH contextHandle, GEODIFF_ChangesetEntryH entryHandle, int i )
 {
-  return new Value( static_cast<ChangesetEntry *>( entryHandle )->oldValues[i] );
+  Context *context = static_cast<Context *>( contextHandle );
+  const ChangesetDataEntry *dataEntry = getDataEntry( context, entryHandle );
+  if ( !dataEntry )
+    return nullptr;
+  return new Value( dataEntry->oldValues[i] );
 }
 
-GEODIFF_ValueH GEODIFF_CE_newValue( GEODIFF_ContextH /*contextHandle*/, GEODIFF_ChangesetEntryH entryHandle, int i )
+GEODIFF_ValueH GEODIFF_CE_newValue( GEODIFF_ContextH contextHandle, GEODIFF_ChangesetEntryH entryHandle, int i )
 {
-  return new Value( static_cast<ChangesetEntry *>( entryHandle )->newValues[i] );
+  Context *context = static_cast<Context *>( contextHandle );
+  const ChangesetDataEntry *dataEntry = getDataEntry( context, entryHandle );
+  if ( !dataEntry )
+    return nullptr;
+  return new Value( dataEntry->newValues[i] );
 }
 
 void GEODIFF_CE_destroy( GEODIFF_ContextH /*contextHandle*/, GEODIFF_ChangesetEntryH entryHandle )
@@ -1405,4 +1443,34 @@ int GEODIFF_createWkbFromGpkgHeader( GEODIFF_ContextH contextHandle, const char 
   *wkbLength = result_len;
 
   return GEODIFF_SUCCESS;
+}
+
+int GEODIFF_changesetHasSchemaChangeEntries( GEODIFF_ContextH contextHandle, const char *changeset, bool *schemaChangePresent )
+{
+  Context *context = static_cast<Context *>( contextHandle );
+  if ( !context || !changeset )
+  {
+    return GEODIFF_ERROR;
+  }
+
+  try
+  {
+    ChangesetReader reader;
+    reader.open( changeset );
+    ChangesetEntry entry;
+    while ( reader.nextEntry( entry ) )
+    {
+      if ( !std::holds_alternative<ChangesetDataEntry>( entry ) )
+      {
+        *schemaChangePresent = true;
+        return GEODIFF_SUCCESS;
+      }
+    }
+    *schemaChangePresent = false;
+    return GEODIFF_SUCCESS;
+  }
+  catch ( const GeoDiffException &exc )
+  {
+    return handleException( context, exc );
+  }
 }

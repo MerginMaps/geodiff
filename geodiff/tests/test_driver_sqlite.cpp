@@ -501,6 +501,17 @@ TEST( SqliteDriverTest, make_copy_sqlite_concurrent )
   ASSERT_EQ( sqlite3_column_int( stmtSafe.get(), 0 ), 2 );
 }
 
+TEST( SqliteDriverTest, execute_sql )
+{
+  std::string fileBase = pathjoin( testdir(), "base.gpkg" );
+  std::unique_ptr<Driver> driver( Driver::createDriver( static_cast<Context *>( testContext() ), "sqlite" ) );
+  driver->open( Driver::sqliteParametersSingleSource( fileBase ) );
+
+  std::vector<std::vector<std::string>> result = driver->executeSql( "SELECT fid, name FROM simple LIMIT 2" );
+  std::vector<std::vector<std::string>> expected = {{"1", "feature1"}, {"2", "feature2"}};
+  ASSERT_EQ( result, expected );
+}
+
 
 int main( int argc, char **argv )
 {

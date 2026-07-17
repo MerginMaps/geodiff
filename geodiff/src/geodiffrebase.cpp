@@ -1,9 +1,10 @@
-﻿/*
+/*
  GEODIFF - MIT License
  Copyright (C) 2019 Peter Petrik
 */
 
 #include "geodiffrebase.hpp"
+#include "changeset.h"
 #include "geodiffutils.hpp"
 #include "geodiff.h"
 #include "geodifflogger.hpp"
@@ -11,6 +12,9 @@
 
 #include "changesetreader.h"
 #include "changesetwriter.h"
+#include "changesetutils.h"
+#include "tableschema.h"
+#include "tableschemadiff.hpp"
 
 #include <memory>
 #include <stdio.h>
@@ -22,6 +26,7 @@
 #include <functional>
 #include <iostream>
 #include <string>
+#include <variant>
 #include <vector>
 #include <map>
 #include <set>
@@ -50,7 +55,7 @@ struct TableRebaseInfo
 {
   std::set<int> inserted;           //!< pkeys that were inserted
   std::set<int> deleted;            //!< pkeys that were deleted
-  std::map<int, std::vector<Value> > updated;  //!< new column values for each recorded row (identified by pkey)
+  std::map<int, std::map<std::string, Value>> updated;  //!< new column values (by name) for each updated row (identified by pkey)
 
   void dump( std::ostringstream &ret )
   {
@@ -73,6 +78,7 @@ struct TableRebaseInfo
 struct DatabaseRebaseInfo
 {
   std::map<std::string, TableRebaseInfo> tables;   //!< mapping for each table (key = table name)
+  DatabaseSchema theirSchema;
 
   void dump( const Context *context )
   {
@@ -92,7 +98,8 @@ struct DatabaseRebaseInfo
 };
 
 
-//! structure that keeps track of how we modify primary keys of the rebased changeset
+//! structure that keeps track of how we modify primary keys and column indices
+//  of the rebased changeset.
 struct RebaseMapping
 {
 
@@ -191,7 +198,7 @@ struct RebaseMapping
 ///////////////////////////////////////
 
 
-int _get_primary_key( const ChangesetEntry &entry )
+int _get_primary_key( const ChangesetDataEntry &entry )
 {
   int fid;
   int nFidColumn;
@@ -202,35 +209,85 @@ int _get_primary_key( const ChangesetEntry &entry )
 
 int _parse_old_changeset(
   const Context *context,
+  const DatabaseSchema &baseSchema,
   ChangesetReader &reader_BASE_THEIRS,
   DatabaseRebaseInfo &dbInfo )
 {
+  dbInfo.theirSchema = baseSchema;
+
   ChangesetEntry entry;
   while ( reader_BASE_THEIRS.nextEntry( entry ) )
   {
-    std::string tableName = entry.table->name;
-
-    // skip table if necessary
-    if ( context->isTableSkipped( tableName ) )
+    if ( std::holds_alternative<ChangesetDataEntry>( entry ) )
     {
-      continue;
+      ChangesetDataEntry &dataEntry = std::get<ChangesetDataEntry>( entry );
+
+      std::string tableName = dataEntry.table->name;
+
+      // skip table if necessary
+      if ( context->isTableSkipped( tableName ) )
+      {
+        continue;
+      }
+
+      int pk = _get_primary_key( dataEntry );
+
+      TableRebaseInfo &tableInfo = dbInfo.tables[tableName];
+
+      if ( dataEntry.op == ChangesetDataEntry::OpInsert )
+      {
+        tableInfo.inserted.insert( pk );
+      }
+      if ( dataEntry.op == ChangesetDataEntry::OpDelete )
+      {
+        tableInfo.deleted.insert( pk );
+      }
+      if ( dataEntry.op == ChangesetDataEntry::OpUpdate )
+      {
+        const TableSchema *ts = dbInfo.theirSchema.tableByName( tableName );
+        if ( !ts )
+          throw GeoDiffException( "Update entry for table not in schema: " + tableName );
+        std::map<std::string, Value> namedVals;
+        for ( size_t i = 0; i < dataEntry.newValues.size() && i < ts->columns.size(); i++ )
+        {
+          if ( dataEntry.newValues[i].type() != Value::TypeUndefined )
+            namedVals[ts->columns[i].name] = dataEntry.newValues[i];
+        }
+        tableInfo.updated[pk] = std::move( namedVals );
+      }
     }
-
-    int pk = _get_primary_key( entry );
-
-    TableRebaseInfo &tableInfo = dbInfo.tables[tableName];
-
-    if ( entry.op == ChangesetEntry::OpInsert )
+    else if ( const ChangesetCreateTableEntry *ctEntry = std::get_if<ChangesetCreateTableEntry>( &entry ) )
     {
-      tableInfo.inserted.insert( pk );
+      if ( context->isTableSkipped( ctEntry->tableName ) )
+        continue;
+      // Create dbInfo entry to signify table is changed
+      ( void ) dbInfo.tables[ctEntry->tableName];
+      simulateSchemaChange( dbInfo.theirSchema, entry );
     }
-    if ( entry.op == ChangesetEntry::OpDelete )
+    else if ( const ChangesetDropTableEntry *dtEntry = std::get_if<ChangesetDropTableEntry>( &entry ) )
     {
-      tableInfo.deleted.insert( pk );
+      if ( context->isTableSkipped( dtEntry->tableName ) )
+        continue;
+      ( void ) dbInfo.tables[dtEntry->tableName];
+      simulateSchemaChange( dbInfo.theirSchema, entry );
     }
-    if ( entry.op == ChangesetEntry::OpUpdate )
+    else if ( const ChangesetAddColumnEntry *acEntry = std::get_if<ChangesetAddColumnEntry>( &entry ) )
     {
-      tableInfo.updated[pk] = entry.newValues;
+      if ( context->isTableSkipped( acEntry->tableName ) )
+        continue;
+      ( void ) dbInfo.tables[acEntry->tableName];
+      simulateSchemaChange( dbInfo.theirSchema, entry );
+    }
+    else if ( const ChangesetDropColumnEntry *dcEntry = std::get_if<ChangesetDropColumnEntry>( &entry ) )
+    {
+      if ( context->isTableSkipped( dcEntry->tableName ) )
+        continue;
+      ( void ) dbInfo.tables[dcEntry->tableName];
+      simulateSchemaChange( dbInfo.theirSchema, entry );
+    }
+    else
+    {
+      throw GeoDiffException( "Unhandled entry type in rebase: " + std::to_string( entry.index() ) );
     }
   }
 
@@ -260,7 +317,11 @@ int _find_mapping_for_new_changeset(
   ChangesetEntry entry;
   while ( reader.nextEntry( entry ) )
   {
-    std::string tableName = entry.table->name;
+    if ( !std::holds_alternative<ChangesetDataEntry>( entry ) )
+      continue;
+    const ChangesetDataEntry &dataEntry = std::get<ChangesetDataEntry>( entry );
+
+    std::string tableName = dataEntry.table->name;
 
     // skip table if necessary
     if ( context->isTableSkipped( tableName ) )
@@ -274,9 +335,9 @@ int _find_mapping_for_new_changeset(
 
     const TableRebaseInfo &tableInfo = tableIt->second;
 
-    if ( entry.op == ChangesetEntry::OpInsert )
+    if ( dataEntry.op == ChangesetDataEntry::OpInsert )
     {
-      int pk = _get_primary_key( entry );
+      int pk = _get_primary_key( dataEntry );
 
       if ( tableInfo.inserted.find( pk ) != tableInfo.inserted.end() )
       {
@@ -296,9 +357,9 @@ int _find_mapping_for_new_changeset(
         mapping.unmappedInsertIds[tableName].insert( pk );
       }
     }
-    else if ( entry.op == ChangesetEntry::OpUpdate )
+    else if ( dataEntry.op == ChangesetDataEntry::OpUpdate )
     {
-      int pk = _get_primary_key( entry );
+      int pk = _get_primary_key( dataEntry );
 
       if ( tableInfo.deleted.find( pk ) != tableInfo.deleted.end() )
       {
@@ -306,9 +367,9 @@ int _find_mapping_for_new_changeset(
         mapping.addPkeyMapping( tableName, pk, RebaseMapping::INVALID_FID );
       }
     }
-    else if ( entry.op == ChangesetEntry::OpDelete )
+    else if ( dataEntry.op == ChangesetDataEntry::OpDelete )
     {
-      int pk = _get_primary_key( entry );
+      int pk = _get_primary_key( dataEntry );
 
       if ( tableInfo.deleted.find( pk ) != tableInfo.deleted.end() )
       {
@@ -355,12 +416,12 @@ int _find_mapping_for_new_changeset(
 }
 
 
-bool _handle_insert( const ChangesetEntry &entry, const RebaseMapping &mapping, ChangesetEntry &outEntry )
+bool _handle_insert( const ChangesetDataEntry &entry, const RebaseMapping &mapping,
+                     const std::map<int, int> &colMap,
+                     ChangesetDataEntry &outEntry )
 {
-  size_t numColumns = entry.table->columnCount();
-
-  outEntry.op = ChangesetEntry::OpInsert;
-  outEntry.newValues.resize( numColumns );
+  outEntry.op = ChangesetDataEntry::OpInsert;
+  outEntry.newValues.resize( outEntry.table->columnCount() );
 
   // resolve primary key and patched primary key
   int pk = _get_primary_key( entry );
@@ -368,31 +429,35 @@ bool _handle_insert( const ChangesetEntry &entry, const RebaseMapping &mapping, 
 
   if ( mapping.hasOldPkey( entry.table->name, pk ) )
   {
-    // conflict 2 concurrent updates...
+    // conflict 2 concurrent inserts...
     newPk = mapping.getNewPkey( entry.table->name, pk );
   }
 
-  for ( size_t i = 0; i < numColumns; i++ )
+  // NULL-out the new values vector - if a column is not present in the map, we
+  // set it to NULL.
+  for ( size_t i = 0; i < outEntry.newValues.size(); i++ )
+    outEntry.newValues[i].setNull();
+
+  for ( const auto &[inIdx, outIdx] : colMap )
   {
-    if ( entry.table->primaryKeys[i] )
-    {
-      outEntry.newValues[i].setInt( newPk );
-    }
+    if ( outEntry.table->primaryKeys[outIdx] )
+      outEntry.newValues[outIdx].setInt( newPk );
     else
-    {
-      outEntry.newValues[i] = entry.newValues[i];
-    }
+      outEntry.newValues[outIdx] = entry.newValues[inIdx];
   }
   return true;
 }
 
-bool _handle_delete( const ChangesetEntry &entry, const RebaseMapping &mapping,
-                     const TableRebaseInfo &tableInfo, ChangesetEntry &outEntry )
+bool _handle_delete( const ChangesetDataEntry &entry, const RebaseMapping &mapping,
+                     const TableRebaseInfo &tableInfo,
+                     const std::map<int, int> &colMap,
+                     const TableSchema &inTableSchema,
+                     ChangesetDataEntry &outEntry )
 {
-  size_t numColumns = entry.table->columnCount();
-
-  outEntry.op = ChangesetEntry::OpDelete;
-  outEntry.oldValues.resize( numColumns );
+  outEntry.op = ChangesetDataEntry::OpDelete;
+  outEntry.oldValues.resize( outEntry.table->columnCount() );
+  for ( Value &val : outEntry.oldValues )
+    val.setNull();
 
   // resolve primary key and patched primary key
   int pk = _get_primary_key( entry );
@@ -400,49 +465,45 @@ bool _handle_delete( const ChangesetEntry &entry, const RebaseMapping &mapping,
 
   if ( mapping.hasOldPkey( entry.table->name, pk ) )
   {
-    // conflict 2 concurrent updates...
-    newPk = mapping.getNewPkey( entry.table->name, pk );
-
     // conflict 2 concurrent deletes...
+    newPk = mapping.getNewPkey( entry.table->name, pk );
     if ( newPk == RebaseMapping::INVALID_FID )
       return false;
   }
 
   // find the previously new values (will be used as the old values in the rebased version)
-  std::vector<Value> patchedVals;
+  const std::map<std::string, Value> *patchedMap = nullptr;
   auto a = tableInfo.updated.find( pk );
-  if ( a == tableInfo.updated.end() )
-    patchedVals.resize( static_cast<size_t>( numColumns ) );
-  else
-    patchedVals = a->second;
+  if ( a != tableInfo.updated.end() )
+    patchedMap = &a->second;
 
-  for ( size_t i = 0; i < numColumns; i++ )
+  for ( const auto &[inIdx, outIdx] : colMap )
   {
-    if ( entry.table->primaryKeys[i] )
+    if ( outEntry.table->primaryKeys[outIdx] )
     {
-      outEntry.oldValues[i].setInt( newPk );
+      outEntry.oldValues[outIdx].setInt( newPk );
     }
     else
     {
       // if the value was patched in the previous commit, use that one as base
-      Value value;
-      const Value &patchedVal = patchedVals[i];
+      Value patchedVal;
+      if ( patchedMap )
+      {
+        auto it = patchedMap->find( inTableSchema.columns[inIdx].name );
+        if ( it != patchedMap->end() )
+          patchedVal = it->second;
+      }
       if ( patchedVal.type() != Value::TypeUndefined )
-      {
-        value = patchedVal;
-      }
+        outEntry.oldValues[outIdx] = patchedVal;
       else
-      {
         // otherwise the value is same for both patched and this, so use base value
-        value = entry.oldValues[i];
-      }
-      outEntry.oldValues[i] = value;
+        outEntry.oldValues[outIdx] = entry.oldValues[inIdx];
     }
   }
   return true;
 }
 
-void _addConflictItem( ConflictFeature &conflictFeature, int i,
+void _addConflictItem( DataConflictFeature &conflictFeature, int i,
                        const Value &base, const Value &theirs, const Value &ours )
 {
   // 4th attribute in gpkg_contents is modified date
@@ -451,19 +512,20 @@ void _addConflictItem( ConflictFeature &conflictFeature, int i,
     return;
 
   // ok safe to add it
-  ConflictItem item( i, base, theirs, ours );
+  DataConflictItem item( i, base, theirs, ours );
   conflictFeature.addItem( item );
 }
 
-bool _handle_update( const ChangesetEntry &entry, const RebaseMapping &mapping,
-                     const TableRebaseInfo &tableInfo, ChangesetEntry &outEntry,
+bool _handle_update( const ChangesetDataEntry &entry, const RebaseMapping &mapping,
+                     const TableRebaseInfo &tableInfo,
+                     const std::map<int, int> &colMap,
+                     const TableSchema &inTableSchema,
+                     ChangesetDataEntry &outEntry,
                      std::vector<ConflictFeature> &conflicts )
 {
-  size_t numColumns = entry.table->columnCount();
-
-  outEntry.op = ChangesetEntry::OpUpdate;
-  outEntry.oldValues.resize( numColumns );
-  outEntry.newValues.resize( numColumns );
+  outEntry.op = ChangesetDataEntry::OpUpdate;
+  outEntry.oldValues.resize( outEntry.table->columnCount() );
+  outEntry.newValues.resize( outEntry.table->columnCount() );
 
   // get values from patched (new) master
   int pk = _get_primary_key( entry );
@@ -473,12 +535,12 @@ bool _handle_update( const ChangesetEntry &entry, const RebaseMapping &mapping,
     if ( newPk == RebaseMapping::INVALID_FID )
     {
       // our UPDATE conflicts with their DELETE: record as conflict, delete wins
-      ConflictFeature conflictFeature( pk, entry.table->name );
-      for ( size_t i = 0; i < numColumns; i++ )
+      DataConflictFeature conflictFeature( pk, entry.table->name );
+      for ( const auto &[inIdx, outIdx] : colMap )
       {
-        if ( entry.newValues[i].type() != Value::TypeUndefined )
+        if ( entry.newValues[inIdx].type() != Value::TypeUndefined )
         {
-          _addConflictItem( conflictFeature, ( int ) i, entry.oldValues[i], Value(), entry.newValues[i] );
+          _addConflictItem( conflictFeature, outIdx, entry.oldValues[inIdx], Value(), entry.newValues[inIdx] );
         }
       }
       if ( conflictFeature.isValid() )
@@ -488,128 +550,259 @@ bool _handle_update( const ChangesetEntry &entry, const RebaseMapping &mapping,
   }
 
   // find the previously new values (will be used as the old values in the rebased version)
-  std::vector<Value> patchedVals;
+  const std::map<std::string, Value> *patchedMap = nullptr;
   auto a = tableInfo.updated.find( pk );
-  if ( a == tableInfo.updated.end() )
-    patchedVals.resize( static_cast<size_t>( numColumns ) );
-  else
-    patchedVals = a->second;
+  if ( a != tableInfo.updated.end() )
+    patchedMap = &a->second;
 
-  ConflictFeature conflictFeature( pk, entry.table->name );
+  DataConflictFeature conflictFeature( pk, entry.table->name );
 
   bool entryHasChanges = false;
-  for ( size_t i = 0; i < numColumns; i++ )
+  for ( const auto &[inIdx, outIdx] : colMap )
   {
-    Value patchedVal = patchedVals[i];
-    if ( patchedVal.type() != Value::TypeUndefined && entry.newValues[i].type() != Value::TypeUndefined )
+    Value patchedVal;
+    if ( patchedMap )
     {
-      if ( patchedVal == entry.newValues[i] )
+      auto it = patchedMap->find( inTableSchema.columns[inIdx].name );
+      if ( it != patchedMap->end() )
+        patchedVal = it->second;
+    }
+
+    if ( patchedVal.type() != Value::TypeUndefined && entry.newValues[inIdx].type() != Value::TypeUndefined )
+    {
+      if ( patchedVal == entry.newValues[inIdx] )
       {
         // both "old" and "new" changeset modify the column's value to the same value - that
         // means that in our rebased changeset there's no further change and there's no conflict
-        outEntry.oldValues[i].setUndefined();
-        outEntry.newValues[i].setUndefined();
+        outEntry.oldValues[outIdx].setUndefined();
+        outEntry.newValues[outIdx].setUndefined();
       }
       else
       {
         // we have edit conflict here: both "old" changeset and the "new" changeset modify the same
         // column of the same row. Rebased changeset will get the "old" value updated to the new (patched)
         // value of the older changeset
-        outEntry.oldValues[i] = patchedVal;
-        outEntry.newValues[i] = entry.newValues[i];
+        outEntry.oldValues[outIdx] = patchedVal;
+        outEntry.newValues[outIdx] = entry.newValues[inIdx];
         entryHasChanges = true;
-        _addConflictItem( conflictFeature, ( int ) i, entry.oldValues[i], patchedVal, entry.newValues[i] );
+        _addConflictItem( conflictFeature, outIdx, entry.oldValues[inIdx], patchedVal, entry.newValues[inIdx] );
       }
     }
     else
     {
       // the "new" changeset stays as is without modifications
-      outEntry.oldValues[i] = entry.oldValues[i];
-      outEntry.newValues[i] = entry.newValues[i];
+      outEntry.oldValues[outIdx] = entry.oldValues[inIdx];
+      outEntry.newValues[outIdx] = entry.newValues[inIdx];
       // if a column is pkey, it would have "new" value undefined in the entry and that's not an actual change
-      if ( entry.newValues[i].type() != Value::TypeUndefined )
+      if ( entry.newValues[inIdx].type() != Value::TypeUndefined )
         entryHasChanges = true;
     }
   }
 
   if ( conflictFeature.isValid() )
-  {
     conflicts.push_back( conflictFeature );
-  }
   return entryHasChanges;
 }
 
 //! throws GeoDiffException on error
 void _prepare_new_changeset( const Context *context,
                              ChangesetReader &reader, const std::string &changesetNew,
-                             const RebaseMapping &mapping, const DatabaseRebaseInfo &dbInfo,
+                             RebaseMapping &mapping, const DatabaseRebaseInfo &dbInfo,
+                             const DatabaseSchema &baseSchema,
                              std::vector<ConflictFeature> &conflicts )
 {
-  ChangesetEntry entry;
-  std::map<std::string, ChangesetTable> tableDefinitions;
+  // The base DB schema with our changes from already processed entries applied
+  // on top.
+  DatabaseSchema currentSchema = baseSchema;
+  // The base DB schema with our their changes and then ourchanges from already
+  // processed entries applied on top.
+  DatabaseSchema outputSchema = dbInfo.theirSchema;
+  // table schema -> (old column index -> new column index)
+  // Column being absent means its index didn't change.
+  std::map<ChangesetTable *, std::map<int, int>> columnIndexMap;
+  // We record conflicting tables/columns and skip them when processing further
+  // changes
+  std::set<std::string> conflictingTables;
+  std::map<std::string, std::set<std::string>> conflictingColumns;
+
   std::map<std::string, std::vector<ChangesetEntry> > tableChanges;
 
+  // Cached output ChangesetTable for the current table.
+  std::shared_ptr<ChangesetTable> outChangesetTable;
+
+  ChangesetEntry entry;
   while ( reader.nextEntry( entry ) )
   {
-    std::string tableName = entry.table->name;
-
-    // skip table if necessary
-    if ( context->isTableSkipped( tableName ) )
+    if ( std::holds_alternative<ChangesetDataEntry>( entry ) )
     {
-      continue;
+      ChangesetDataEntry &dataEntry = std::get<ChangesetDataEntry>( entry );
+      std::string tableName = dataEntry.table->name;
+
+      // skip table if necessary
+      if ( context->isTableSkipped( tableName ) || conflictingTables.count( tableName ) )
+        continue;
+
+      TableSchema *tableSchema = currentSchema.tableByName( tableName );
+
+      if ( !tableSchema )
+        throw GeoDiffException( "Tried rebasing data entry for table not in schema: " + tableName );
+
+      // Get the output table schema (theirs + our schema changes so far).
+      TableSchema *outTableSchema = outputSchema.tableByName( tableName );
+      if ( !outTableSchema )
+        // Table was dropped by theirs.
+        continue;
+
+      // Compute column mapping (input index -> output index) on first encounter.
+      if ( columnIndexMap.find( dataEntry.table.get() ) == columnIndexMap.end() )
+      {
+        std::map<int, int> colMap;
+        auto columnsToSkip = conflictingColumns[tableName];
+        for ( size_t i = 0; i < tableSchema->columns.size(); i++ )
+        {
+          const std::string &colName = tableSchema->columns[i].name;
+          if ( columnsToSkip.count( colName ) )
+            continue;
+          for ( size_t j = 0; j < outTableSchema->columns.size(); j++ )
+          {
+            if ( outTableSchema->columns[j].name == colName )
+            {
+              colMap[static_cast<int>( i )] = static_cast<int>( j );
+              break;
+            }
+          }
+        }
+        columnIndexMap[dataEntry.table.get()] = std::move( colMap );
+      }
+
+      const std::map<int, int> &colMap = columnIndexMap[dataEntry.table.get()];
+
+      // Rebuild cached output ChangesetTable when the table name changes.
+      if ( !outChangesetTable || outChangesetTable->name != tableName )
+        outChangesetTable = std::make_shared<ChangesetTable>( schemaToChangesetTable( tableName, *outTableSchema ) );
+
+      auto tablesIt = dbInfo.tables.find( tableName );
+      if ( tablesIt == dbInfo.tables.end() )
+      {
+        // Table not touched by theirs data-wise - copy through as-is.
+        tableChanges[tableName].push_back( entry );
+        continue;
+      }
+
+      bool writeEntry = false;
+      ChangesetDataEntry outEntry;
+      outEntry.table = outChangesetTable;
+
+      // commits to same table -> now save the change to changeset
+      switch ( dataEntry.op )
+      {
+        case ChangesetDataEntry::OpUpdate:
+          writeEntry = _handle_update( dataEntry, mapping, tablesIt->second, colMap, *tableSchema, outEntry, conflicts );
+          break;
+
+        case ChangesetDataEntry::OpInsert:
+          writeEntry = _handle_insert( dataEntry, mapping, colMap, outEntry );
+          break;
+
+        case ChangesetDataEntry::OpDelete:
+          writeEntry = _handle_delete( dataEntry, mapping, tablesIt->second, colMap, *tableSchema, outEntry );
+          break;
+      }
+
+      if ( writeEntry )
+        tableChanges[tableName].push_back( outEntry );
     }
-
-    // Inserts table into the definitions, if it doesn't already contain it
-    tableDefinitions.insert( {tableName, *entry.table} );
-
-    auto tablesIt = dbInfo.tables.find( tableName );
-    if ( tablesIt == dbInfo.tables.end() )
+    else
     {
-      // we have change in different table that was modified in theirs modifications
-      // just copy plain the change to the output buffer
-      tableChanges[tableName].push_back( entry );
-      continue;
+      simulateSchemaChange( currentSchema, entry );
+      outChangesetTable = nullptr; // Invalidate cached schema, columns may change
+
+      // Check whether the same change is already contained in theirs. If not,
+      // add it to the output.
+      bool isDuplicate = false;
+      std::string schemaEntryTableName;
+      if ( const ChangesetCreateTableEntry *ctEntry = std::get_if<ChangesetCreateTableEntry>( &entry ) )
+      {
+        schemaEntryTableName = ctEntry->tableName;
+        const TableSchema *existing = outputSchema.tableByName( ctEntry->tableName );
+        if ( existing )
+        {
+          if ( existing->columns != ctEntry->columns )
+          {
+            conflicts.push_back( TableSchemaConflict { ctEntry->tableName } );
+            conflictingTables.insert( ctEntry->tableName );
+          }
+          isDuplicate = true;
+        }
+      }
+      else if ( const ChangesetDropTableEntry *dtEntry = std::get_if<ChangesetDropTableEntry>( &entry ) )
+      {
+        schemaEntryTableName = dtEntry->tableName;
+        isDuplicate = outputSchema.tableByName( dtEntry->tableName ) == nullptr;
+      }
+      else if ( const ChangesetAddColumnEntry *acEntry = std::get_if<ChangesetAddColumnEntry>( &entry ) )
+      {
+        schemaEntryTableName = acEntry->tableName;
+        TableSchema *table = outputSchema.tableByName( acEntry->tableName );
+        if ( table )
+        {
+          auto it = std::find_if( table->columns.begin(), table->columns.end(),
+          [&]( const TableColumnInfo & c ) { return c.name == acEntry->column.name; } );
+          if ( it != table->columns.end() )
+          {
+            if ( *it != acEntry->column )
+            {
+              conflicts.push_back( ColumnSchemaConflict { acEntry->tableName, acEntry->column.name } );
+              conflictingColumns[acEntry->tableName].insert( acEntry->column.name );
+            }
+            isDuplicate = true;
+          }
+        }
+        else
+          throw GeoDiffException( "During rebase tried to add column "  + acEntry->tableName + "." + acEntry->column.name + " to non-existent table" );
+      }
+      else if ( const ChangesetDropColumnEntry *dcEntry = std::get_if<ChangesetDropColumnEntry>( &entry ) )
+      {
+        schemaEntryTableName = dcEntry->tableName;
+        TableSchema *table = outputSchema.tableByName( dcEntry->tableName );
+        if ( table )
+        {
+          auto it = std::find_if( table->columns.begin(), table->columns.end(),
+          [&]( const TableColumnInfo & c ) { return c.name == dcEntry->column.name; } );
+          isDuplicate = it == table->columns.end();
+        }
+        else
+          throw GeoDiffException( "During rebase tried to drop column "  + dcEntry->tableName + "." + dcEntry->column.name + " from non-existent table" );
+      }
+
+      if ( !isDuplicate )
+      {
+        simulateSchemaChange( outputSchema, entry );
+        tableChanges[schemaEntryTableName].push_back( entry );
+      }
     }
-
-    bool writeEntry = false;
-    ChangesetEntry outEntry;
-
-    // commits to same table -> now save the change to changeset
-    switch ( entry.op )
-    {
-      case ChangesetEntry::OpUpdate:
-        writeEntry = _handle_update( entry, mapping, tablesIt->second, outEntry, conflicts );
-        break;
-
-      case ChangesetEntry::OpInsert:
-        writeEntry = _handle_insert( entry, mapping, outEntry );
-        break;
-
-      case ChangesetEntry::OpDelete:
-        writeEntry = _handle_delete( entry, mapping, tablesIt->second, outEntry );
-        break;
-    }
-
-    if ( writeEntry )
-      tableChanges[tableName].push_back( outEntry );
   }
 
   ChangesetWriter writer;
   writer.open( changesetNew );
 
-  for ( auto it : tableDefinitions )
+  for ( const auto &it : tableChanges )
   {
-    auto chit = tableChanges.find( it.first );
-    if ( chit == tableChanges.end() )
-      continue;
-
-    const std::vector<ChangesetEntry> &changes = chit->second;
+    const std::vector<ChangesetEntry> &changes = it.second;
     if ( changes.empty() )
       continue;
 
-    writer.beginTable( it.second );
+    const ChangesetTable *defWritten = nullptr;
     for ( const ChangesetEntry &writeEntry : changes )
     {
+      if ( auto dataEntry = std::get_if<ChangesetDataEntry>( &writeEntry ) )
+      {
+        if ( defWritten != dataEntry->table.get() )
+        {
+          writer.beginTable( *dataEntry->table );
+          defWritten = dataEntry->table.get();
+        }
+      }
       writer.writeEntry( writeEntry );
     }
   }
@@ -617,6 +810,7 @@ void _prepare_new_changeset( const Context *context,
 
 void rebase(
   const Context *context,
+  const DatabaseSchema &baseSchema,
   const std::string &changeset_BASE_THEIRS,
   const std::string &changeset_THEIRS_MODIFIED,
   const std::string &changeset_BASE_MODIFIED,
@@ -651,7 +845,7 @@ void rebase(
 
   // 1. go through the original changeset and extract data that will be needed in the second step
   DatabaseRebaseInfo dbInfo;
-  int rc = _parse_old_changeset( context, reader_BASE_THEIRS, dbInfo );
+  int rc = _parse_old_changeset( context, baseSchema, reader_BASE_THEIRS, dbInfo );
   if ( rc != GEODIFF_SUCCESS )
     throw GeoDiffException( "Could not parse changeset_BASE_THEIRS: " + changeset_BASE_THEIRS );
 
@@ -664,5 +858,5 @@ void rebase(
   reader_BASE_MODIFIED.rewind();
 
   // 3. go through the changeset to be rebased again and write it with changes determined in step 2
-  _prepare_new_changeset( context, reader_BASE_MODIFIED, changeset_THEIRS_MODIFIED, mapping, dbInfo, conflicts );
+  _prepare_new_changeset( context, reader_BASE_MODIFIED, changeset_THEIRS_MODIFIED, mapping, dbInfo, baseSchema, conflicts );
 }

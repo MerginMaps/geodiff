@@ -64,6 +64,12 @@ class PostgresResult
       return ::PQntuples( mResult );
     }
 
+    int columnCount() const
+    {
+      assert( mResult );
+      return ::PQnfields( mResult );
+    }
+
     std::string affectedRows() const
     {
       assert( mResult );

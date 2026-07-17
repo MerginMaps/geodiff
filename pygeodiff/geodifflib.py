@@ -642,6 +642,22 @@ class GeoDiffLib:
         wkb = copy.deepcopy(out[: out_size.value])
         return wkb
 
+    def has_schema_change_entries(self, context, changeset):
+        func = self.lib.GEODIFF_changesetHasSchemaChangeEntries
+        func.argtypes = [
+            ctypes.c_void_p,
+            ctypes.c_char_p,
+            ctypes.POINTER(ctypes.c_bool),
+        ]
+        func.restype = ctypes.c_int
+
+        out = ctypes.c_bool()
+        res = func(
+            context, ctypes.c_char_p(changeset.encode("utf-8")), ctypes.byref(out)
+        )
+        self._parse_return_code(context, res, "has_schema_change_entries")
+        return out.value
+
 
 class ChangesetReader(object):
     """Wrapper around GEODIFF_CR_* functions from C API"""
@@ -682,10 +698,16 @@ class ChangesetReader(object):
 class ChangesetEntry(object):
     """Wrapper around GEODIFF_CE_* functions from C API"""
 
-    # constants as defined in ChangesetEntry::OperationType enum
+    # constants as defined in ChangesetEntryType enum
     OP_INSERT = 18
     OP_UPDATE = 23
     OP_DELETE = 9
+    OP_CREATE_TABLE = ord("a")
+    OP_DROP_TABLE = ord("A")
+    OP_ADD_COLUMN = ord("c")
+    OP_DROP_COLUMN = ord("C")
+
+    _DATA_OPS = (OP_INSERT, OP_UPDATE, OP_DELETE)
 
     def __init__(self, geodiff, context, entry_ptr):
         self.geodiff = geodiff
@@ -693,6 +715,11 @@ class ChangesetEntry(object):
         self.context = context
 
         self.operation = self.geodiff._CE_operation(self.context, self.entry_ptr)
+
+        if self.operation not in self._DATA_OPS:
+            # Only data entries have associated table and values
+            return
+
         self.values_count = self.geodiff._CE_count(self.context, self.entry_ptr)
 
         if self.operation == self.OP_DELETE or self.operation == self.OP_UPDATE:

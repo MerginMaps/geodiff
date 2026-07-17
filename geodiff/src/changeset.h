@@ -8,8 +8,12 @@
 
 #include <assert.h>
 #include <memory>
+#include <stdexcept>
 #include <string>
+#include <variant>
 #include <vector>
+
+#include "tableschema.h"
 
 
 /**
@@ -200,9 +204,23 @@ struct ChangesetTable
   size_t columnCount() const { return primaryKeys.size(); }
 };
 
+/**
+ * Types of supported changeset records.
+ */
+enum class ChangesetEntryType
+{
+  OpTableRecord = 'T', //!< corresponds to ChangesetTable
+  OpInsert = 18,  //!< corresponds to ChangesetDataEntry
+  OpUpdate = 23,  //!< corresponds to ChangesetDataEntry
+  OpDelete = 9,   //!< corresponds to ChangesetDataEntry
+  OpCreateTable = 'a', //!< corresponds to ChangesetTable
+  OpDropTable = 'A',
+  OpAddColumn = 'c',
+  OpDropColumn = 'C',
+};
 
 /**
- * Details of a single change within a changeset
+ * Details of a single data change within a changeset
  *
  * Contents of old/new values array based on operation type:
  * - INSERT - new values contain data of the row to be inserted, old values array is invalid
@@ -212,10 +230,11 @@ struct ChangesetTable
  *            columns of old value are always present (but new value of pkey columns is undefined
  *            if the primary key is not being changed).
  */
-struct ChangesetEntry
+struct ChangesetDataEntry
 {
   enum OperationType
   {
+    // The values here must be kept in sync with values in ChangesetEntryType!
     OpInsert = 18,  //!< equal to SQLITE_INSERT
     OpUpdate = 23,  //!< equal to SQLITE_UPDATE
     OpDelete = 9,   //!< equal to SQLITE_DELETE
@@ -231,22 +250,75 @@ struct ChangesetEntry
    * Optional pointer to the source table information as stored in changeset.
    *
    * When the changeset entry has been read by ChangesetReader, the table always will be set to a valid
-   * instance. Do not delete the instance - it is owned by ChangesetReader.
+   * instance.
    *
    * When the changeset entry is being passed to ChangesetWriter, the table pointer is ignored
    * and it does not need to be set (writer has an explicit beginTable() call to set table).
    */
-  ChangesetTable *table = nullptr;
+  std::shared_ptr<ChangesetTable> table;
 
   //! a quick way for tests to create a changeset entry
-  static ChangesetEntry make( ChangesetTable *t, OperationType o, const std::vector<Value> &oldV, const std::vector<Value> &newV )
+  static ChangesetDataEntry make( std::shared_ptr<ChangesetTable> t, OperationType o, const std::vector<Value> &oldV, const std::vector<Value> &newV )
   {
-    ChangesetEntry e;
+    ChangesetDataEntry e;
     e.op = o;
     e.oldValues = oldV;
     e.newValues = newV;
     e.table = t;
     return e;
+  }
+};
+
+//! Entry for CREATE TABLE command
+struct ChangesetCreateTableEntry
+{
+  std::string tableName;
+  std::vector<TableColumnInfo> columns;
+};
+
+//! Entry for DROP TABLE command
+struct ChangesetDropTableEntry
+{
+  std::string tableName;
+  std::vector<TableColumnInfo> columns;
+};
+
+//! Entry for ALTER TABLE ... ADD COLUMN command
+struct ChangesetAddColumnEntry
+{
+  std::string tableName;
+  TableColumnInfo column;
+};
+
+//! Entry for ALTER TABLE ... DROP COLUMN command
+struct ChangesetDropColumnEntry
+{
+  std::string tableName;
+  TableColumnInfo column;
+};
+
+struct ChangesetEntry : public std::variant <
+  ChangesetDataEntry,
+  ChangesetCreateTableEntry,
+  ChangesetDropTableEntry,
+  ChangesetAddColumnEntry,
+  ChangesetDropColumnEntry >
+{
+  using variant::variant; // Use std::variant's constructor
+
+  ChangesetEntryType operationType() const
+  {
+    if ( const ChangesetDataEntry *e = std::get_if<ChangesetDataEntry>( this ) )
+      return static_cast<ChangesetEntryType>( e->op );
+    else if ( std::holds_alternative<ChangesetCreateTableEntry>( *this ) )
+      return ChangesetEntryType::OpCreateTable;
+    else if ( std::holds_alternative<ChangesetDropTableEntry>( *this ) )
+      return ChangesetEntryType::OpDropTable;
+    else if ( std::holds_alternative<ChangesetAddColumnEntry>( *this ) )
+      return ChangesetEntryType::OpAddColumn;
+    else if ( std::holds_alternative<ChangesetDropColumnEntry>( *this ) )
+      return ChangesetEntryType::OpDropColumn;
+    throw std::invalid_argument( "Unreachable - operationType()" );
   }
 };
 

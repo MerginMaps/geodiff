@@ -1,0 +1,65 @@
+{
+  "geodiff": [
+    {
+      "changes": [
+        {
+          "column": 0,
+          "old": 1
+        },
+        {
+          "column": 4,
+          "new": null,
+          "old": 1
+        }
+      ],
+      "table": "simple",
+      "type": "update"
+    },
+    {
+      "changes": [
+        {
+          "column": 0,
+          "old": 2
+        },
+        {
+          "column": 4,
+          "new": null,
+          "old": 2
+        }
+      ],
+      "table": "simple",
+      "type": "update"
+    },
+    {
+      "changes": [
+        {
+          "column": 0,
+          "old": 3
+        },
+        {
+          "column": 4,
+          "new": null,
+          "old": 3
+        }
+      ],
+      "table": "simple",
+      "type": "update"
+    },
+    {
+      "column": {
+        "geomHasM": false,
+        "geomHasZ": false,
+        "geomSrsId": -1,
+        "geomType": "",
+        "isAutoIncrement": false,
+        "isGeometry": false,
+        "isNotNull": false,
+        "isPrimaryKey": false,
+        "name": "added_field",
+        "type": "integer"
+      },
+      "tableName": "simple",
+      "type": "drop_column"
+    }
+  ]
+}

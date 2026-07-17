@@ -8,6 +8,7 @@
 
 #include "geodiffcontext.hpp"
 #include "geodifflogger.hpp"
+#include "geodiffutils.hpp"
 
 #include <algorithm>
 
@@ -222,6 +223,13 @@ void baseToPostgres( TableSchema &tbl )
     if ( col.type.baseType == TableColumnType::INTEGER && col.isAutoIncrement )
       col.type.dbType = "serial";
   }
+}
+
+TableSchema *DatabaseSchema::tableByName( const std::string &name )
+{
+  auto it = std::find_if( tables.begin(), tables.end(),
+  [&name]( const TableSchema & t ) { return t.name == name; } );
+  return it != tables.end() ? &*it : nullptr;
 }
 
 void tableSchemaConvert( const std::string &driverDstName, TableSchema &tbl )

@@ -43,6 +43,13 @@ class ChangesetWriter
     void writeNullTerminatedString( const std::string &str );
 
     void writeRowValues( const std::vector<Value> &values );
+    void writeColumnInfo( const TableColumnInfo &column );
+
+    void writeDataEntry( const ChangesetDataEntry &entry );
+    void writeCreateTableEntry( const ChangesetCreateTableEntry &entry );
+    void writeDropTableEntry( const ChangesetDropTableEntry &entry );
+    void writeAddColumnEntry( const ChangesetAddColumnEntry &entry );
+    void writeDropColumnEntry( const ChangesetDropColumnEntry &entry );
 
     std::ofstream mFile;
 
