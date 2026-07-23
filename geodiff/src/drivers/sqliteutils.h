@@ -18,6 +18,7 @@
 #define GPKG_NO_ENVELOPE_HEADER_SIZE 8
 #define GPKG_FLAG_BYTE_POS 3
 #define GPKG_ENVELOPE_SIZE_MASK 14
+#define GEODIFF_SQLITE_BUSY_TIMEOUT_MS 3000
 
 class Buffer;
 class Context;

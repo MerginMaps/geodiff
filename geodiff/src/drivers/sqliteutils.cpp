@@ -34,6 +34,7 @@ void Sqlite3Db::open( const std::string &filename )
   {
     throwSqliteError( mDb, "Unable to open " + filename + " as sqlite3 database" );
   }
+  sqlite3_busy_timeout( mDb, GEODIFF_SQLITE_BUSY_TIMEOUT_MS );
 }
 
 void Sqlite3Db::create( const std::string &filename )
@@ -50,6 +51,7 @@ void Sqlite3Db::create( const std::string &filename )
   {
     throwSqliteError( mDb, "Unable to create " + filename + " as sqlite3 database" );
   }
+  sqlite3_busy_timeout( mDb, GEODIFF_SQLITE_BUSY_TIMEOUT_MS );
 }
 
 void Sqlite3Db::exec( const Buffer &buf )
