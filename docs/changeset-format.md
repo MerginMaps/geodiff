@@ -87,6 +87,7 @@ This entry adds a new column to an existing table. All existing rows will have
 
 - 1 byte: Constant 0x63 (lowercase 'c')
 - Null-terminated string: Table name
+- Varint: Zero-based index the column has after being added.
 - Table column info.
 
 ## Drop column entry
@@ -97,6 +98,7 @@ rebasing and inverting the changeset.
 
 - 1 byte: Constant 0x43 (uppercase 'C')
 - Null-terminated string: Table name
+- Varint: Zero-based index the column has before being dropped.
 - Table column info.
 
 # Record Format

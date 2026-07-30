@@ -740,7 +740,7 @@ void _prepare_new_changeset( const Context *context,
         schemaEntryTableName = dtEntry->tableName;
         isDuplicate = outputSchema.tableByName( dtEntry->tableName ) == nullptr;
       }
-      else if ( const ChangesetAddColumnEntry *acEntry = std::get_if<ChangesetAddColumnEntry>( &entry ) )
+      else if ( ChangesetAddColumnEntry *acEntry = std::get_if<ChangesetAddColumnEntry>( &entry ) )
       {
         schemaEntryTableName = acEntry->tableName;
         TableSchema *table = outputSchema.tableByName( acEntry->tableName );
@@ -757,11 +757,30 @@ void _prepare_new_changeset( const Context *context,
             }
             isDuplicate = true;
           }
+
+          if ( !isDuplicate )
+          {
+            // Find at which index to insert by walking through the columns to
+            // the right of the newly inserted, and inserting in front of the
+            // first same-named column in the output.
+            acEntry->columnIdx = table->columns.size();
+            TableSchema *currentTable = outputSchema.tableByName( acEntry->tableName );
+            if ( !currentTable )
+              throw GeoDiffException( "Table data strangely missing during rebase!" );
+
+            for ( size_t i = acEntry->columnIdx; i < currentTable->columns.size(); i++ )
+            {
+              auto itInOutput = std::find_if( table->columns.begin(), table->columns.end(),
+              [&]( const TableColumnInfo & c ) { return c.name == currentTable->columns[i].name; } );
+              if ( itInOutput != table->columns.end() )
+                acEntry->columnIdx = std::distance( table->columns.begin(), itInOutput );
+            }
+          }
         }
         else
           throw GeoDiffException( "During rebase tried to add column "  + acEntry->tableName + "." + acEntry->column.name + " to non-existent table" );
       }
-      else if ( const ChangesetDropColumnEntry *dcEntry = std::get_if<ChangesetDropColumnEntry>( &entry ) )
+      else if ( ChangesetDropColumnEntry *dcEntry = std::get_if<ChangesetDropColumnEntry>( &entry ) )
       {
         schemaEntryTableName = dcEntry->tableName;
         TableSchema *table = outputSchema.tableByName( dcEntry->tableName );
@@ -770,6 +789,12 @@ void _prepare_new_changeset( const Context *context,
           auto it = std::find_if( table->columns.begin(), table->columns.end(),
           [&]( const TableColumnInfo & c ) { return c.name == dcEntry->column.name; } );
           isDuplicate = it == table->columns.end();
+
+          if ( !isDuplicate )
+          {
+            // Set index to index in output table by name
+            dcEntry->columnIdx = std::distance( table->columns.begin(), it );
+          }
         }
         else
           throw GeoDiffException( "During rebase tried to drop column "  + dcEntry->tableName + "." + dcEntry->column.name + " from non-existent table" );

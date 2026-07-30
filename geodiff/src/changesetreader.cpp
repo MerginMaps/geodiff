@@ -280,6 +280,7 @@ ChangesetAddColumnEntry ChangesetReader::readAddColumnEntry()
 {
   ChangesetAddColumnEntry entry;
   entry.tableName = readNullTerminatedString();
+  entry.columnIdx = readVarint();
   entry.column = readColumnInfo();
   return entry;
 }
@@ -288,6 +289,7 @@ ChangesetDropColumnEntry ChangesetReader::readDropColumnEntry()
 {
   ChangesetDropColumnEntry entry;
   entry.tableName = readNullTerminatedString();
+  entry.columnIdx = readVarint();
   entry.column = readColumnInfo();
   return entry;
 }

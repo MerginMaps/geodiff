@@ -44,15 +44,19 @@ void simulateColumnChange( TableSchema &schema, const ChangesetEntry &entry )
     [&]( const TableColumnInfo & c ) { return c.name == acEntry->column.name; } );
     if ( it != schema.columns.end() )
       throw GeoDiffException( "Tried simulating addition of already-existing column " + acEntry->column.name );
-    schema.columns.push_back( acEntry->column );
+    // The new column may be appended, so the index may be one past the end
+    if ( acEntry->columnIdx > schema.columns.size() )
+      throw GeoDiffException( "Tried simulating addition of column beyond end of table: " + acEntry->column.name + ", idx=" + std::to_string( acEntry->columnIdx ) );
+    schema.columns.insert( schema.columns.begin() + acEntry->columnIdx, acEntry->column );
   }
   else if ( const ChangesetDropColumnEntry *dcEntry = std::get_if<ChangesetDropColumnEntry>( &entry ) )
   {
-    auto it = std::find_if( schema.columns.begin(), schema.columns.end(),
-    [&]( const TableColumnInfo & c ) { return c.name == dcEntry->column.name; } );
-    if ( it == schema.columns.end() )
-      throw GeoDiffException( "Tried simulating deletion of non-existent column " + dcEntry->column.name );
-    schema.columns.erase( it );
+    if ( dcEntry->columnIdx >= schema.columns.size() )
+      throw GeoDiffException( "Tried simulating deletion of column beyond end of table: " + dcEntry->column.name + ", idx=" + std::to_string( dcEntry->columnIdx ) );
+    const TableColumnInfo &column = schema.columns[dcEntry->columnIdx];
+    if ( column.name != dcEntry->column.name )
+      throw GeoDiffException( "Tried simulating deletion of column not matching name: is " + column.name + ", requested " + dcEntry->column.name );
+    schema.columns.erase( schema.columns.begin() + dcEntry->columnIdx );
   }
 }
 
@@ -97,44 +101,74 @@ std::vector<ChangesetEntry> diffTableSchema( const TableSchema &base, const Tabl
     throw GeoDiffException( "Tried to compare tables with different CRSs (named" +
                             base.name + " and " + modified.name + ")" );
 
+  auto modifiedColsByName = byName( modified.columns );
+
   std::vector<ChangesetEntry> entries;
 
-  const std::unordered_map<std::string, const TableColumnInfo *> baseColumns = byName( base.columns );
-  const std::unordered_map<std::string, const TableColumnInfo *> modifiedColumns = byName( modified.columns );
-  std::vector<std::string> baseColNames = names( base.columns );
-  std::vector<std::string> modifiedColNames = names( modified.columns );
-  std::sort( baseColNames.begin(), baseColNames.end() );
-  std::sort( modifiedColNames.begin(), modifiedColNames.end() );
-
-  std::vector<std::string> deletedColNames;
-  std::set_difference( baseColNames.begin(), baseColNames.end(),
-                       modifiedColNames.begin(), modifiedColNames.end(),
-                       std::back_inserter( deletedColNames ) );
-  for ( const std::string &colName : deletedColNames )
+  // This basic loop finds some list of column schema changes to transform
+  // base's column list to modified's, indexes included. The result won't
+  // necessarily be optimal WRT number of operations (we'd need some edit
+  // distance algorithm).
+  // Column indexes in the entries are relative to the intermediate schema, i.e.
+  // the one produced by applying the entries emitted so far.
+  size_t baseIdx = 0;
+  size_t modifiedIdx = 0;
+  while ( true )
   {
-    entries.push_back( ChangesetDropColumnEntry{base.name, *baseColumns.at( colName )} );
-  }
+    if ( baseIdx == base.columns.size() && modifiedIdx == modified.columns.size() )
+      break; // Processed all columns
 
-  std::vector<std::string> newColNames;
-  std::set_difference( modifiedColNames.begin(), modifiedColNames.end(),
-                       baseColNames.begin(), baseColNames.end(),
-                       std::back_inserter( newColNames ) );
-  for ( const std::string &colName : newColNames )
-  {
-    entries.push_back( ChangesetAddColumnEntry{base.name, *modifiedColumns.at( colName )} );
-  }
+    if ( baseIdx == base.columns.size() )
+    {
+      // Processed all base columns, every column now is a new one from modified.
+      const TableColumnInfo &modifiedCol = modified.columns[modifiedIdx];
+      entries.push_back( ChangesetAddColumnEntry{base.name, modifiedIdx, modifiedCol} );
+      modifiedIdx++;
+      continue;
+    }
 
-  std::vector<std::string> oldColNames;
-  std::set_intersection( modifiedColNames.begin(), modifiedColNames.end(),
-                         baseColNames.begin(), baseColNames.end(),
-                         std::back_inserter( oldColNames ) );
-  for ( const std::string &colName : oldColNames )
-  {
-    // Compare column type by base type enum rather than the exact db-specific
-    // string to avoid regression with DB pairs that use compatible types.
-    if ( !baseColumns.at( colName )->compareWithBaseTypes( *modifiedColumns.at( colName ) ) )
-      throw GeoDiffException( "Columns differ: " +
-                              base.name + "." + colName + " and " + modified.name + "." + colName );
+    if ( modifiedIdx == modified.columns.size() )
+    {
+      // Processed all modified columns, every column now was deleted in modified.
+      const TableColumnInfo &baseCol = base.columns[baseIdx];
+      entries.push_back( ChangesetDropColumnEntry{base.name, modifiedIdx, baseCol} );
+      baseIdx++;
+      continue;
+    }
+
+    const TableColumnInfo &baseCol = base.columns[baseIdx];
+    const TableColumnInfo &modifiedCol = modified.columns[modifiedIdx];
+    if ( baseCol.name == modifiedCol.name )
+    {
+      if ( baseCol.compareWithBaseTypes( modifiedCol ) )
+      {
+        // Columns match, skip over them
+        baseIdx++;
+        modifiedIdx++;
+        continue;
+      }
+      else
+        // Columns share a name, but differ in type. We can't do anything about that.
+        throw GeoDiffException( "Columns differ: " +
+                                base.name + "." + baseCol.name + " and " + modified.name + "." + modifiedCol.name );
+    }
+    else
+    {
+      if ( modifiedColsByName.count( baseCol.name ) )
+      {
+        // Modified has some new column, add it
+        entries.push_back( ChangesetAddColumnEntry{base.name, modifiedIdx, modifiedCol} );
+        modifiedIdx++;
+        continue;
+      }
+      else
+      {
+        // Modified deleted this column, drop it
+        entries.push_back( ChangesetDropColumnEntry{base.name, modifiedIdx, baseCol} );
+        baseIdx++;
+        continue;
+      }
+    }
   }
 
   return entries;

@@ -83,6 +83,9 @@ std::vector<ChangesetEntry> invertChangesetReverse( ChangesetReader &reader )
     {
       ChangesetDropColumnEntry out;
       out.tableName = acEntry->tableName;
+      // The index of the added column before its deletion is the same as after
+      // its addition, so it can be carried over as-is.
+      out.columnIdx = acEntry->columnIdx;
       out.column = acEntry->column;
       invertedEntries.push_back( out );
     }
@@ -97,6 +100,7 @@ std::vector<ChangesetEntry> invertChangesetReverse( ChangesetReader &reader )
     {
       ChangesetAddColumnEntry out;
       out.tableName = dcEntry->tableName;
+      out.columnIdx = dcEntry->columnIdx;
       out.column = dcEntry->column;
       invertedEntries.push_back( out );
     }
@@ -277,6 +281,7 @@ nlohmann::json changesetEntryToJSON( const ChangesetEntry &entry )
     nlohmann::json res;
     res["type"] = "add_column";
     res["tableName"] = acEntry->tableName;
+    res["columnIdx"] = acEntry->columnIdx;
     res["column"] = columnInfoToJSON( acEntry->column );
     return res;
   }
@@ -285,6 +290,7 @@ nlohmann::json changesetEntryToJSON( const ChangesetEntry &entry )
     nlohmann::json res;
     res["type"] = "drop_column";
     res["tableName"] = dcEntry->tableName;
+    res["columnIdx"] = dcEntry->columnIdx;
     res["column"] = columnInfoToJSON( dcEntry->column );
     return res;
   }

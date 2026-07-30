@@ -3,6 +3,10 @@
 Geodiff supports diffing databases with different schemata. It identifies table
 and column additions/deletions.
 
+Columns are identified by their index as well as their name, and are added and
+dropped at a specific index, so that applying a diff reproduces the column order
+of the modified database.
+
 Tables and columns are always created empty and any data present in the
 database is recreated manually via `INSERT`/`UPDATE` entries, written after the
 schema change entry. Likewise, deletion entries expect the table/column to be
@@ -24,3 +28,8 @@ be moved. Same with renaming tables.
 
 The intermediate states created by applying the resulting diff (e.g. "nulling
 out" column before dropping it) may conflict with database constraints.
+
+Adding a column somewhere else than at the end of the column list is not always
+possible without modifying the database around it (e.g. dropping constraints).
+We currently don't do that and just fail if a column addition is not easily
+possible.

@@ -58,6 +58,7 @@
         "name": "added_field",
         "type": "integer"
       },
+      "columnIdx": 4,
       "tableName": "simple",
       "type": "drop_column"
     }
