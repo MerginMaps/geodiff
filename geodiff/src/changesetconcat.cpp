@@ -246,9 +246,9 @@ void concatChangesets(
       }
       else if ( ChangesetDropColumnEntry *dcEntry = std::get_if<ChangesetDropColumnEntry>( &fullEntry ) )
       {
-        // This entry only contains the column's name, not its index, so we
-        // can't apply its effects to the existing entries. The best we can do
-        // is just forward this entry.
+        // Short-circuting column removals is hard, since we can't just prepend
+        // it to other entries (the column needs to be NULLed out first). So
+        // for now we treat it as a barrier.
         phase[dcEntry->tableName].entries.push_back( *dcEntry );
         // We also need to start a new phase, since we can't merge entries
         // anymore.
@@ -273,9 +273,9 @@ void concatChangesets(
             newColumnCount = existingDEntry->table->columnCount() + 1;
           if ( existingDEntry->table->columnCount() != newColumnCount )
             existingDEntry->table->primaryKeys.push_back( false );
-          if ( existingDEntry->oldValues.size() != newColumnCount )
+          if ( existingDEntry->oldValues.size() != 0 && existingDEntry->oldValues.size() != newColumnCount )
             existingDEntry->oldValues.push_back( Value::makeNull() );
-          if ( existingDEntry->newValues.size() != newColumnCount )
+          if ( existingDEntry->newValues.size() != 0 && existingDEntry->newValues.size() != newColumnCount )
             existingDEntry->newValues.push_back( Value::makeNull() );
         }
       }

@@ -17,6 +17,7 @@
 #include "tableschema.h"
 #include "tableschemadiff.hpp"
 
+#include <algorithm>
 #include <memory.h>
 #include <sqlite3.h>
 #include <unordered_map>
@@ -260,47 +261,36 @@ bool tableExists( std::shared_ptr<Sqlite3Db> db, const std::string &tableName, c
   return sqlite3_step( stmtHasGeomColumnsInfo.get() ) == SQLITE_ROW;
 }
 
-TableSchema SqliteDriver::tableSchema( const std::string &tableName,
-                                       bool useModified )
+std::tuple<std::vector<SqliteColumnInfo>, CrsDefinition> SqliteDriver::sqliteColumns( const std::string &dbName, const std::string &tableName )
 {
-  std::string dbName = databaseName( useModified );
+  std::vector<SqliteColumnInfo> defs;
+  CrsDefinition crs;
 
-  if ( !tableExists( mDb, tableName, dbName ) )
-    throw GeoDiffException( "Table does not exist: " + tableName );
-
-  TableSchema tbl;
-  tbl.name = tableName;
-  std::map<std::string, std::string> columnTypes;
-
-  Sqlite3Stmt statement;
-  statement.prepare( mDb, "PRAGMA '%q'.table_info('%q')", dbName.c_str(), tableName.c_str() );
+  Sqlite3Stmt stmt;
+  stmt.prepare( mDb, "PRAGMA '%q'.table_xinfo('%q')", dbName.c_str(), tableName.c_str() );
   int rc;
-  while ( SQLITE_ROW == ( rc = sqlite3_step( statement.get() ) ) )
+  while ( SQLITE_ROW == ( rc = sqlite3_step( stmt.get() ) ) )
   {
-    const unsigned char *zName = sqlite3_column_text( statement.get(), 1 );
-    if ( zName == nullptr )
+    const unsigned char *name = sqlite3_column_text( stmt.get(), 1 );
+    if ( name == nullptr )
       throw GeoDiffException( "NULL column name in table schema: " + tableName );
+    const unsigned char *type = sqlite3_column_text( stmt.get(), 2 );
+    const unsigned char *defaultValue = sqlite3_column_text( stmt.get(), 4 );
 
-    TableColumnInfo columnInfo;
-    columnInfo.name = reinterpret_cast<const char *>( zName );
-    columnInfo.isNotNull = sqlite3_column_int( statement.get(), 3 );
-    columnInfo.isPrimaryKey = sqlite3_column_int( statement.get(), 5 );
-    columnTypes[columnInfo.name] = reinterpret_cast<const char *>( sqlite3_column_text( statement.get(), 2 ) );
-
-    tbl.columns.push_back( columnInfo );
+    SqliteColumnInfo def;
+    def.column.name = reinterpret_cast<const char *>( name );
+    def.column.type.dbType = type ? reinterpret_cast<const char *>( type ) : "";
+    def.column.isNotNull = sqlite3_column_int( stmt.get(), 3 );
+    def.column.isPrimaryKey = sqlite3_column_int( stmt.get(), 5 );
+    def.defaultValue = defaultValue ? reinterpret_cast<const char *>( defaultValue ) : "";
+    def.hidden = sqlite3_column_int( stmt.get(), 6 );
+    defs.push_back( def );
   }
   if ( rc != SQLITE_DONE )
-  {
-    logSqliteError( context(), mDb, "Failed to get list columns for table " + tableName );
-  }
+    throwSqliteError( mDb->get(), "Failed to get list of columns for table " + tableName );
 
-  // check if the geometry columns table is present (it may not be if this is a "pure" sqlite file)
   if ( tableExists( mDb, "gpkg_geometry_columns", dbName ) )
   {
-    //
-    // get geometry column details (geometry type, whether it has Z/M values, CRS id)
-    //
-
     int srsId = -1;
     Sqlite3Stmt stmtGeomCol;
     stmtGeomCol.prepare( mDb, "SELECT * FROM \"%w\".gpkg_geometry_columns WHERE table_name = '%q'", dbName.c_str(), tableName.c_str() );
@@ -319,21 +309,23 @@ TableSchema SqliteDriver::tableSchema( const std::string &tableName,
       bool hasZ = sqlite3_column_int( stmtGeomCol.get(), 4 );
       bool hasM = sqlite3_column_int( stmtGeomCol.get(), 5 );
 
-      size_t i = tbl.columnFromName( geomColName );
-      if ( i == SIZE_MAX )
+      bool found = false;
+      for ( SqliteColumnInfo &def : defs )
+      {
+        if ( def.column.name == geomColName )
+        {
+          def.column.setGeometry( geomTypeName, srsId, hasM, hasZ );
+          found = true;
+          break;
+        }
+      }
+      if ( !found )
         throw GeoDiffException( "Inconsistent entry in gpkg_geometry_columns - geometry column not found: " + geomColName );
-
-      TableColumnInfo &col = tbl.columns[i];
-      col.setGeometry( geomTypeName, srsId, hasM, hasZ );
     }
     if ( rc != SQLITE_DONE )
     {
       logSqliteError( context(), mDb, "Failed to get geometry column info for table " + tableName );
     }
-
-    //
-    // get CRS information
-    //
 
     if ( srsId != -1 )
     {
@@ -351,19 +343,43 @@ TableSchema SqliteDriver::tableSchema( const std::string &tableName,
       if ( chrWkt == nullptr )
         throw GeoDiffException( "NULL definition in gpkg_spatial_ref_sys: " + tableName );
 
-      tbl.crs.srsId = srsId;
-      tbl.crs.authName = reinterpret_cast<const char *>( chrAuthName );
-      tbl.crs.authCode = sqlite3_column_int( stmtCrs.get(), 3 );
-      tbl.crs.wkt = reinterpret_cast<const char *>( chrWkt );
+      crs.srsId = srsId;
+      crs.authName = reinterpret_cast<const char *>( chrAuthName );
+      crs.authCode = sqlite3_column_int( stmtCrs.get(), 3 );
+      crs.wkt = reinterpret_cast<const char *>( chrWkt );
     }
   }
 
-  // update column types
-  for ( auto const &it : columnTypes )
+  return {defs, crs};
+}
+
+TableSchema SqliteDriver::tableSchema( const std::string &tableName,
+                                       bool useModified )
+{
+  std::string dbName = databaseName( useModified );
+
+  if ( !tableExists( mDb, tableName, dbName ) )
+    throw GeoDiffException( "Table does not exist: " + tableName );
+
+  TableSchema tbl;
+  tbl.name = tableName;
+
+  const auto [defs, crs] = sqliteColumns( dbName, tableName );
+  tbl.crs = crs;
+  for ( const SqliteColumnInfo &def : defs )
   {
-    size_t i = tbl.columnFromName( it.first );
-    TableColumnInfo &col = tbl.columns[i];
-    tbl.columns[i].type = columnType( context(), it.second, Driver::SQLITEDRIVERNAME, col.isGeometry );
+    if ( def.hidden )
+      continue;
+
+    tbl.columns.push_back( def.column );
+  }
+
+  // The declared type only maps to a base type once we know whether the column
+  // holds geometries, which we have just found out above.
+  for ( TableColumnInfo &col : tbl.columns )
+  {
+    const std::string declaredType = col.type.dbType;
+    col.type = columnType( context(), declaredType, Driver::SQLITEDRIVERNAME, col.isGeometry );
 
     if ( col.isPrimaryKey && ( lowercaseString( col.type.dbType ) == "integer" ) )
     {
@@ -1230,8 +1246,126 @@ static void removeGpkgSpatialTable( std::shared_ptr<Sqlite3Db> db, const std::st
   }
 }
 
-void SqliteDriver::applySchemaChange( const ChangesetEntry &entry )
+//! Returns wantedName, with a numeric suffix added if it is already taken
+static std::string unusedName( const std::vector<std::string> &usedNames, const std::string &wantedName )
 {
+  std::string name = wantedName;
+  int suffix = 0;
+  while ( std::find( usedNames.begin(), usedNames.end(), name ) != usedNames.end() )
+    name = wantedName + "_" + std::to_string( ++suffix );
+  return name;
+}
+
+//! Builds the column definition for an ALTER TABLE ... ADD COLUMN of a copy of an existing column
+static std::string addColumnDefinition( const std::string &name, const SqliteColumnInfo &def )
+{
+  std::string sql = sqlitePrintf( "\"%w\" %s", name.c_str(), def.column.type.dbType.c_str() );
+  if ( def.column.isNotNull )
+    sql += " NOT NULL";
+  if ( !def.defaultValue.empty() )
+    sql += " DEFAULT " + def.defaultValue;
+  return sql;
+}
+
+/**
+ * Adds a column to a table at a given index.
+ */
+void SqliteDriver::addColumnAtIndex( const TableSchema &table, size_t columnIdx, const TableColumnInfo &column )
+{
+  // SQLite's ADD COLUMN can only append, and there is no way to reorder
+  // columns, so to get the new column to columnIdx we append it and then for
+  // every column that should be to its right: append a copy of the column,
+  // copy the values over, drop the original, and rename the copies back.
+  if ( columnIdx > table.columns.size() )
+    throw GeoDiffException( "Tried to add column " + table.name + "." + column.name + " at index " +
+                            std::to_string( columnIdx ) + ", which is past the end of the table" );
+
+  const std::string cannotAdd = "Cannot add column " + table.name + "." + column.name +
+                                " at index " + std::to_string( columnIdx ) + ": ";
+
+  const auto [defs, unusedCrs] = sqliteColumns( databaseName(), table.name );
+  // Sanity checks for supported scenarios
+  for ( const SqliteColumnInfo &def : defs )
+  {
+    if ( def.hidden )
+      throw GeoDiffException( cannotAdd + "table has a generated or hidden column (" + def.column.name + ")" );
+  }
+  if ( defs.size() != table.columns.size() )
+    throw GeoDiffException( "SQLite reports " + std::to_string( defs.size() ) + " columns in table " + table.name +
+                            ", but we counted " + std::to_string( table.columns.size() ) );
+  for ( size_t i = columnIdx; i < defs.size(); ++i )
+  {
+    if ( defs[i].column.name != table.columns[i].name )
+      throw GeoDiffException( "SQLite reports column " + std::to_string( i ) + " of table " + table.name + " as " +
+                              defs[i].column.name + ", but we expect " + table.columns[i].name );
+
+    // Throw on unsupported columns with a nicer error message than SQLite would give us.
+    const std::string wouldMove = cannotAdd + "column " + defs[i].column.name + " would have to be moved, but ";
+    if ( defs[i].column.isPrimaryKey )
+      throw GeoDiffException( wouldMove + "it is part of the primary key" );
+    if ( table.columns[i].isGeometry )
+      throw GeoDiffException( wouldMove + "it is a geometry column" );
+    if ( defs[i].column.isNotNull && defs[i].defaultValue.empty() )
+      throw GeoDiffException( wouldMove + "it is NOT NULL and has no default value" );
+  }
+
+  executeSql( sqlitePrintf( "ALTER TABLE \"%w\" ADD COLUMN \"%w\" %s",
+                            table.name.c_str(), column.name.c_str(), column.type.dbType.c_str() ) );
+  if ( columnIdx == table.columns.size() )
+    return;
+
+  // Append a copy of every column that has to move
+  std::vector<std::string> usedNames;
+  for ( const SqliteColumnInfo &def : defs )
+    usedNames.push_back( def.column.name );
+  usedNames.push_back( column.name );
+
+  std::vector<std::string> copyNames;
+  for ( size_t i = columnIdx; i < defs.size(); ++i )
+  {
+    std::string copyName = unusedName( usedNames, "geodiff_moved_" + defs[i].column.name );
+    usedNames.push_back( copyName );
+    copyNames.push_back( copyName );
+
+    executeSql( sqlitePrintf( "ALTER TABLE \"%w\" ADD COLUMN %s",
+                              table.name.c_str(), addColumnDefinition( copyName, defs[i] ).c_str() ) );
+  }
+
+  // Copy the values of the moved columns over in one pass
+  std::string assignments;
+  for ( size_t i = 0; i < copyNames.size(); ++i )
+  {
+    if ( !assignments.empty() )
+      assignments += ", ";
+    assignments += sqlitePrintf( "\"%w\" = \"%w\"", copyNames[i].c_str(), defs[columnIdx + i].column.name.c_str() );
+  }
+  executeSql( sqlitePrintf( "UPDATE \"%w\" SET %s", table.name.c_str(), assignments.c_str() ) );
+
+  for ( size_t i = 0; i < copyNames.size(); ++i )
+  {
+    const std::string &originalName = defs[columnIdx + i].column.name;
+    executeSql( sqlitePrintf( "ALTER TABLE \"%w\" DROP COLUMN \"%w\"", table.name.c_str(), originalName.c_str() ) );
+  }
+  for ( size_t i = 0; i < copyNames.size(); ++i )
+  {
+    const std::string &originalName = defs[columnIdx + i].column.name;
+    executeSql( sqlitePrintf( "ALTER TABLE \"%w\" RENAME COLUMN \"%w\" TO \"%w\"",
+                              table.name.c_str(), copyNames[i].c_str(), originalName.c_str() ) );
+  }
+}
+
+void SqliteDriver::applySchemaChange( SqliteChangeApplyState &state, const ChangesetEntry &entry )
+{
+  // Clear table state to force recompute with new schema.
+  const std::string changedTableName = entry.schemaChangeTableName();
+  for ( auto it = state.tableState.begin(); it != state.tableState.end(); )
+  {
+    if ( it->first->name == changedTableName )
+      it = state.tableState.erase( it );
+    else
+      ++it;
+  }
+
   if ( const ChangesetCreateTableEntry *ctEntry = std::get_if<ChangesetCreateTableEntry>( &entry ) )
   {
     // TODO: Also save full CRS definition inside diff? It's pretty large and
@@ -1291,18 +1425,28 @@ void SqliteDriver::applySchemaChange( const ChangesetEntry &entry )
     if ( acEntry->column.isNotNull )
       throw GeoDiffException( "Adding not-null column is not supported" );
 
-    std::string sql = sqlitePrintf( "ALTER TABLE \"%w\" ADD COLUMN \"%w\" %s",
-                                    acEntry->tableName.c_str(), acEntry->column.name.c_str(), acEntry->column.type.dbType.c_str() );
-
-    if ( acEntry->column.isNotNull )
-      sql += " NOT NULL";
-    Sqlite3Stmt stmt;
-    stmt.prepare( mDb, "%s", sql.c_str() );
-    if ( sqlite3_step( stmt.get() ) != SQLITE_DONE )
+    TableSchema table = tableSchema( acEntry->tableName );
+    if ( acEntry->columnIdx > table.columns.size() )
     {
-      logApplyConflict( "drop_column_failed", entry, true );
-      throwSqliteError( mDb->get(), "Failure adding column: " + acEntry->tableName + "." + acEntry->column.name );
+      logApplyConflict( "add_column_bad_index", entry );
+      throw GeoDiffException( "Tried to add column " + acEntry->tableName + "." + acEntry->column.name +
+                              " at index " + std::to_string( acEntry->columnIdx ) + ", but the table has only " +
+                              std::to_string( table.columns.size() ) + " columns" );
     }
+
+    // Moving columns around takes several statements, so keep it atomic even if
+    // the caller decides to carry on after the exception.
+    Sqlite3SavepointTransaction transaction( context(), mDb );
+    try
+    {
+      addColumnAtIndex( table, acEntry->columnIdx, acEntry->column );
+    }
+    catch ( const GeoDiffException & )
+    {
+      logApplyConflict( "add_column_failed", entry );
+      throw;
+    }
+    transaction.commitChanges();
   }
   else if ( const ChangesetDropColumnEntry *dcEntry = std::get_if<ChangesetDropColumnEntry>( &entry ) )
   {
@@ -1310,6 +1454,18 @@ void SqliteDriver::applySchemaChange( const ChangesetEntry &entry )
       throw GeoDiffException( "Dropping geometry columns is not supported" );
     if ( dcEntry->column.isPrimaryKey )
       throw GeoDiffException( "Dropping column from primary key is not supported" );
+
+    TableSchema table = tableSchema( dcEntry->tableName );
+    if ( dcEntry->columnIdx >= table.columns.size() ||
+         table.columns[dcEntry->columnIdx].name != dcEntry->column.name )
+    {
+      logApplyConflict( "drop_column_index_mismatch", entry );
+      throw GeoDiffException( "Tried to drop column " + dcEntry->tableName + "." + dcEntry->column.name +
+                              " at index " + std::to_string( dcEntry->columnIdx ) + ", where the table has " +
+                              ( dcEntry->columnIdx < table.columns.size()
+                                ? table.columns[dcEntry->columnIdx].name
+                                : "no column" ) );
+    }
 
     // Check there's no data in the column (all NULLs)
     {
@@ -1451,7 +1607,7 @@ void SqliteDriver::applyChangeset( ChangesetReader &reader )
     }
     else
     {
-      applySchemaChange( entry );
+      applySchemaChange( state, entry );
     }
   }
 
@@ -1561,7 +1717,7 @@ std::vector<std::vector<std::string>> SqliteDriver::executeSql( std::string sql 
   }
   if ( rc != SQLITE_DONE )
   {
-    logSqliteError( context(), mDb, "Failure executing SQL: " + sql );
+    throwSqliteError( mDb->get(), "Failure executing SQL: " + sql );
   }
   return rows;
 }

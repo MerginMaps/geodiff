@@ -6,6 +6,7 @@
 #ifndef SQLITEDRIVER_H
 #define SQLITEDRIVER_H
 
+#include <tuple>
 #include <unordered_map>
 
 #include "driver.h"
@@ -28,6 +29,17 @@ class SqliteChangeApplyState
     };
 
     std::unordered_map<std::shared_ptr<ChangesetTable>, TableState> tableState;
+};
+
+
+/**
+ * Sqlite column definition with extra info compared to TableColumnInfo
+ */
+struct SqliteColumnInfo
+{
+  TableColumnInfo column;
+  std::string defaultValue;
+  int hidden = 0;
 };
 
 
@@ -62,9 +74,11 @@ class SqliteDriver : public Driver
   private:
     void logApplyConflict( const std::string &type, const ChangesetEntry &entry, bool isDbErr = false ) const;
     ChangeApplyResult applyDataChange( SqliteChangeApplyState &state, const ChangesetDataEntry &entry );
-    void applySchemaChange( const ChangesetEntry &entry );
+    void applySchemaChange( SqliteChangeApplyState &state, const ChangesetEntry &entry );
+    void addColumnAtIndex( const TableSchema &table, size_t columnIdx, const TableColumnInfo &column );
     std::string databaseName( bool useModified = false );
     void dumpTableData( ChangesetWriter &writer, TableSchema tbl, bool useModified );
+    std::tuple<std::vector<SqliteColumnInfo>, CrsDefinition> sqliteColumns( const std::string &dbName, const std::string &tableName );
 
     std::shared_ptr<Sqlite3Db> mDb;
     bool mHasModified = false;  // whether there is also a second file attached

@@ -287,6 +287,8 @@ struct ChangesetDropTableEntry
 struct ChangesetAddColumnEntry
 {
   std::string tableName;
+  //! Zero-based index of new column after creation
+  size_t columnIdx;
   TableColumnInfo column;
 };
 
@@ -294,6 +296,8 @@ struct ChangesetAddColumnEntry
 struct ChangesetDropColumnEntry
 {
   std::string tableName;
+  //! Zero-based index of column before deletion
+  size_t columnIdx;
   TableColumnInfo column;
 };
 
@@ -319,6 +323,19 @@ struct ChangesetEntry : public std::variant <
     else if ( std::holds_alternative<ChangesetDropColumnEntry>( *this ) )
       return ChangesetEntryType::OpDropColumn;
     throw std::invalid_argument( "Unreachable - operationType()" );
+  }
+
+  std::string schemaChangeTableName() const
+  {
+    if ( const ChangesetCreateTableEntry *ctEntry = std::get_if<ChangesetCreateTableEntry>( this ) )
+      return ctEntry->tableName;
+    else if ( const ChangesetDropTableEntry *dtEntry = std::get_if<ChangesetDropTableEntry>( this ) )
+      return dtEntry->tableName;
+    else if ( const ChangesetAddColumnEntry *acEntry = std::get_if<ChangesetAddColumnEntry>( this ) )
+      return acEntry->tableName;
+    else if ( const ChangesetDropColumnEntry *dcEntry = std::get_if<ChangesetDropColumnEntry>( this ) )
+      return dcEntry->tableName;
+    return "";
   }
 };
 

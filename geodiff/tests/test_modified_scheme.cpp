@@ -184,12 +184,24 @@ static std::unique_ptr<Driver> openBaseModifiedDb( std::string driverName, std::
   return driver;
 }
 
-static void testSchemaDiffWith( std::string driverName, std::string testname, std::function<void ( Driver & )> modification )
+// Runs the diff/apply/invert round trip on the sample DB with "modification"
+// applied to the modified DB. "setup" (if given) is applied to every copy of the
+// sample DB, i.e. it changes what the base looks like.
+static void testSchemaDiffWith( std::string driverName, std::string testname, std::function<void ( Driver & )> modification,
+                                std::function<void ( Driver & )> setup = {} )
 {
+  auto createDb = [&]( std::string dbname )
+  {
+    std::unique_ptr<Driver> db = createSampleDb( driverName, testname, dbname );
+    if ( setup )
+      setup( *db );
+    return db;
+  };
+
   // Create base and modified DB
   {
-    std::unique_ptr<Driver> baseDb = createSampleDb( driverName, testname, "base" );
-    std::unique_ptr<Driver> modifiedDb = createSampleDb( driverName, testname, "modified" );
+    std::unique_ptr<Driver> baseDb = createDb( "base" );
+    std::unique_ptr<Driver> modifiedDb = createDb( "modified" );
     modification( *modifiedDb );
   }
 
@@ -240,9 +252,9 @@ static void testSchemaDiffWith( std::string driverName, std::string testname, st
   }
 
   // Check that base and original base are now equal
-  std::string diff3Path = pathjoin( tmpdir(), testname, "diff2" );
+  std::string diff3Path = pathjoin( tmpdir(), testname, "diff3" );
   {
-    createSampleDb( driverName, testname, "base2" );
+    createDb( "base2" );
     std::unique_ptr<Driver> baseModifiedDriver = openBaseModifiedDb( driverName, testname, "base2", "base" );
     ChangesetWriter writer;
     writer.open( diff3Path );
@@ -308,6 +320,111 @@ TEST( ModifiedSchemeTest, drop_column )
     modifiedDb.executeSql( "ALTER TABLE tram_stops DROP COLUMN name" );
     modifiedDb.executeSql( "INSERT INTO tram_stops (fid) VALUES (5)" );
   } );
+}
+
+// Gives the sample table two more columns after "name", so that tests can touch
+// a column that is not the last one
+static void addTrailingColumns( Driver &db )
+{
+  db.executeSql( "ALTER TABLE tram_stops ADD COLUMN bench_count integer" );
+  db.executeSql( "ALTER TABLE tram_stops ADD COLUMN shelter text" );
+  db.executeSql( "UPDATE tram_stops SET bench_count = 2, shelter = 'glass' WHERE fid = 1" );
+  db.executeSql( "UPDATE tram_stops SET bench_count = 5 WHERE fid = 3" );
+}
+
+TEST( ModifiedSchemeTest, drop_column_in_middle )
+{
+  // TODO: Postgres support
+  std::string driverName = "sqlite";
+
+  // Inverting this drop adds the column back in the middle of the table, which
+  // needs the columns after it to be moved out of the way.
+  testSchemaDiffWith( driverName, "drop_column_in_middle", [ = ]( Driver & modifiedDb )
+  {
+    modifiedDb.executeSql( "UPDATE tram_stops SET name = 'Pohořelec' WHERE fid = 1" );
+    modifiedDb.executeSql( "ALTER TABLE tram_stops DROP COLUMN name" );
+    modifiedDb.executeSql( "INSERT INTO tram_stops (fid, bench_count) VALUES (4, 1)" );
+  }, addTrailingColumns );
+}
+
+TEST( ModifiedSchemeTest, drop_two_columns )
+{
+  // TODO: Postgres support
+  std::string driverName = "sqlite";
+
+  // The second drop has to be indexed against the table as the first drop left
+  // it, and inverting them adds both columns back in the middle.
+  testSchemaDiffWith( driverName, "drop_two_columns", [ = ]( Driver & modifiedDb )
+  {
+    modifiedDb.executeSql( "ALTER TABLE tram_stops DROP COLUMN name" );
+    modifiedDb.executeSql( "ALTER TABLE tram_stops DROP COLUMN bench_count" );
+    modifiedDb.executeSql( "UPDATE tram_stops SET shelter = 'wood' WHERE fid = 2" );
+  }, addTrailingColumns );
+}
+
+TEST( ModifiedSchemeTest, add_column_in_middle )
+{
+  // TODO: Postgres support
+  std::string driverName = "sqlite";
+
+  testSchemaDiffWith( driverName, "add_column_in_middle", [ = ]( Driver & modifiedDb )
+  {
+    // Recreate the table with bench_count between geometry and name - something
+    // ALTER TABLE cannot do, so the diff of this is what the apply code has to
+    // reproduce by moving "name" out of the way.
+    modifiedDb.executeSql( "CREATE TABLE tram_stops_new "
+                           "(fid INTEGER, geometry POINT, bench_count INTEGER, name TEXT, PRIMARY KEY (fid))" );
+    modifiedDb.executeSql( "INSERT INTO tram_stops_new (fid, geometry, name) "
+                           "SELECT fid, geometry, name FROM tram_stops" );
+    modifiedDb.executeSql( "DROP TABLE tram_stops" );
+    modifiedDb.executeSql( "ALTER TABLE tram_stops_new RENAME TO tram_stops" );
+    modifiedDb.executeSql( "UPDATE tram_stops SET bench_count = 4 WHERE fid = 2" );
+  } );
+}
+
+TEST( ModifiedSchemeTest, add_column_before_geometry )
+{
+  // TODO: Postgres support
+  std::string driverName = "sqlite";
+  std::string testname = "add_column_before_geometry";
+
+  // Moving a geometry column is refused, so a diff that would need it cannot be
+  // applied - but it has to fail cleanly rather than mangle the table.
+  {
+    std::unique_ptr<Driver> baseDb = createSampleDb( driverName, testname, "base" );
+    std::unique_ptr<Driver> modifiedDb = createSampleDb( driverName, testname, "modified" );
+    modifiedDb->executeSql( "CREATE TABLE tram_stops_new "
+                            "(fid INTEGER, bench_count INTEGER, geometry POINT, name TEXT, PRIMARY KEY (fid))" );
+    modifiedDb->executeSql( "INSERT INTO tram_stops_new (fid, geometry, name) "
+                            "SELECT fid, geometry, name FROM tram_stops" );
+    modifiedDb->executeSql( "DROP TABLE tram_stops" );
+    modifiedDb->executeSql( "ALTER TABLE tram_stops_new RENAME TO tram_stops" );
+  }
+
+  std::string diffPath = pathjoin( tmpdir(), testname, "diff" );
+  {
+    std::unique_ptr<Driver> baseModifiedDriver = openBaseModifiedDb( driverName, testname, "base", "modified" );
+    ChangesetWriter writer;
+    writer.open( diffPath );
+    baseModifiedDriver->createChangeset( writer );
+  }
+
+  {
+    ChangesetReader reader;
+    reader.open( diffPath );
+    std::unique_ptr<Driver> baseDb = openBaseModifiedDb( driverName, testname, "base", "" );
+    EXPECT_THROW( baseDb->applyChangeset( reader ), GeoDiffException );
+  }
+
+  // The failed apply must have left the base table as it was
+  {
+    std::unique_ptr<Driver> baseDb = openBaseModifiedDb( driverName, testname, "base", "" );
+    TableSchema table = baseDb->tableSchema( "tram_stops" );
+    ASSERT_EQ( table.columns.size(), static_cast<size_t>( 3 ) );
+    EXPECT_EQ( table.columns[0].name, "fid" );
+    EXPECT_EQ( table.columns[1].name, "geometry" );
+    EXPECT_EQ( table.columns[2].name, "name" );
+  }
 }
 
 TEST( ModifiedSchemeTest, drop_table )
@@ -622,6 +739,122 @@ TEST( ModifiedSchemeTest, rebase_drop_column )
     db.executeSql( "INSERT INTO tram_stops (fid) VALUES (4)" );
     db.executeSql( "INSERT INTO tram_stops (fid) VALUES (5)" );
     // TODO: Add conflict entry for deleted 'Palmovka' value
+  } );
+}
+
+TEST( ModifiedSchemeTest, rebase_both_add_different_columns )
+{
+  // TODO: Postgres support
+  std::string driverName = "sqlite";
+
+  testSchemaDiffRebaseWith( driverName, "rebase_both_add_different_columns", 0,
+                            [ = ]( Driver & db )
+  {
+    db.executeSql( "ALTER TABLE tram_stops ADD COLUMN bench_count integer" );
+    db.executeSql( "UPDATE tram_stops SET bench_count = 1 WHERE fid = 1" );
+  },
+  [ = ]( Driver & db )
+  {
+    db.executeSql( "ALTER TABLE tram_stops ADD COLUMN shelter_count integer" );
+    db.executeSql( "UPDATE tram_stops SET shelter_count = 2 WHERE fid = 1" );
+  },
+  [ = ]( Driver & db )
+  {
+    db.executeSql( "ALTER TABLE tram_stops ADD COLUMN bench_count integer" );
+    db.executeSql( "ALTER TABLE tram_stops ADD COLUMN shelter_count integer" );
+    db.executeSql( "UPDATE tram_stops SET bench_count = 1 WHERE fid = 1" );
+    db.executeSql( "UPDATE tram_stops SET shelter_count = 2 WHERE fid = 1" );
+  } );
+}
+
+TEST( ModifiedSchemeTest, rebase_add_column_conflicting_type_column_exists_on_both_sides )
+{
+  // TODO: Postgres support
+  std::string driverName = "sqlite";
+
+  testSchemaDiffRebaseWith( driverName, "rebase_conflict_add_column_exists", 1,
+                            [ = ]( Driver & db )
+  {
+    db.executeSql( "ALTER TABLE tram_stops ADD COLUMN bench_count INTEGER" );
+  },
+  [ = ]( Driver & db )
+  {
+    db.executeSql( "ALTER TABLE tram_stops ADD COLUMN bench_count TEXT" );
+  },
+  [ = ]( Driver & db ) { } );
+}
+
+TEST( ModifiedSchemeTest, rebase_add_column_theirs_inserts_before_ours )
+{
+  // TODO: Postgres support
+  std::string driverName = "sqlite";
+
+  testSchemaDiffRebaseWith( driverName, "rebase_add_column_theirs_inserts_before_ours", 0,
+                            [ = ]( Driver & db )
+  {
+    // Base [fid, geometry, name]. Insert "age" at index 3.
+    db.executeSql( "ALTER TABLE tram_stops ADD COLUMN age integer" );
+    db.executeSql( "UPDATE tram_stops SET age = 30 WHERE fid = 1" );
+  },
+  [ = ]( Driver & db )
+  {
+    // Insert "height" at the end (index 3 in the base).
+    db.executeSql( "ALTER TABLE tram_stops ADD COLUMN height real" );
+    db.executeSql( "UPDATE tram_stops SET height = 1.80 WHERE fid = 1" );
+  },
+  [ = ]( Driver & db )
+  {
+    // Expected: theirs first (age), then ours (height)
+    db.executeSql( "ALTER TABLE tram_stops ADD COLUMN age integer" );
+    db.executeSql( "UPDATE tram_stops SET age = 30 WHERE fid = 1" );
+    db.executeSql( "ALTER TABLE tram_stops ADD COLUMN height real" );
+    db.executeSql( "UPDATE tram_stops SET height = 1.80 WHERE fid = 1" );
+  } );
+}
+
+TEST( ModifiedSchemeTest, rebase_drop_column_with_their_insert_before )
+{
+  // TODO: Postgres support
+  std::string driverName = "sqlite";
+
+  testSchemaDiffRebaseWith( driverName, "rebase_drop_column_with_their_add", 0,
+                            [ = ]( Driver & db )
+  {
+    db.executeSql( "ALTER TABLE tram_stops ADD COLUMN extra text" );
+    db.executeSql( "UPDATE tram_stops SET extra = 'foo' WHERE fid = 1" );
+  },
+  [ = ]( Driver & db )
+  {
+    db.executeSql( "ALTER TABLE tram_stops DROP COLUMN name" );
+  },
+  [ = ]( Driver & db )
+  {
+    db.executeSql( "ALTER TABLE tram_stops ADD COLUMN extra text" );
+    db.executeSql( "UPDATE tram_stops SET extra = 'foo' WHERE fid = 1" );
+    db.executeSql( "ALTER TABLE tram_stops DROP COLUMN name" );
+  } );
+}
+
+TEST( ModifiedSchemeTest, rebase_drop_column_after_their_insert_shifts_index )
+{
+  // TODO: Postgres support
+  std::string driverName = "sqlite";
+
+  testSchemaDiffRebaseWith( driverName, "rebase_drop_column_after_their_insert_shifts_index", 0,
+                            [ = ]( Driver & db )
+  {
+    db.executeSql( "ALTER TABLE tram_stops DROP COLUMN name" );
+    db.executeSql( "DELETE FROM tram_stops WHERE fid = 1" );
+  },
+  [ = ]( Driver & db )
+  {
+    db.executeSql( "ALTER TABLE tram_stops ADD COLUMN extra text" );
+  },
+  [ = ]( Driver & db )
+  {
+    db.executeSql( "ALTER TABLE tram_stops DROP COLUMN name" );
+    db.executeSql( "DELETE FROM tram_stops WHERE fid = 1" );
+    db.executeSql( "ALTER TABLE tram_stops ADD COLUMN extra text" );
   } );
 }
 
