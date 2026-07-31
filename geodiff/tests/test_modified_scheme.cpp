@@ -1063,6 +1063,22 @@ TEST( ModifiedSchemeTest, concat_add_column_then_drop_it )
   } );
 }
 
+TEST( ModifiedSchemeTest, concat_drop_table_then_add_it )
+{
+  std::string driverName = "sqlite";
+
+  testSchemaConcatWith( driverName, "concat_drop_table_then_add_it",
+                        [ = ]( Driver & db )
+  {
+    db.executeSql( "DROP TABLE tram_stops" );
+  },
+  [ = ]( Driver & db )
+  {
+    db.executeSql( "CREATE TABLE tram_stops "
+                   "(fid INTEGER, geometry POINT, bench_count INTEGER, name TEXT, PRIMARY KEY (fid))" );
+  } );
+}
+
 int main( int argc, char **argv )
 {
   testing::InitGoogleTest( &argc, argv );

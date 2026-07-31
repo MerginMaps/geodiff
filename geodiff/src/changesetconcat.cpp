@@ -56,12 +56,6 @@ struct TableChanges
   TableEntriesMap dataEntries;
 };
 
-// Output of concatenation is divided into phases, where entries can be freely
-// merged.
-// Indexed by table name.
-typedef std::unordered_map<std::string, TableChanges> OutputPhase;
-
-
 //! This is a helper function used by mergeUpdate().
 static Value mergeValue( const Value &vOne, const Value &vTwo )
 {
@@ -195,7 +189,18 @@ void concatChangesets(
   const std::vector<std::string> &filenames,
   const std::string &outputChangeset )
 {
-  std::vector<OutputPhase> outputPhases = {{}};
+  // Output of concatenation is divided into phases, where entries can be freely
+  // merged.
+  // Indexed by table name, each table has its own separate phases.
+  std::unordered_map<std::string, std::vector<TableChanges>> output = {};
+
+  auto currentPhase = [&]( const std::string & tableName ) -> TableChanges &
+  {
+    std::vector<TableChanges> &phases = output[tableName];
+    if ( phases.size() == 0 )
+      phases.push_back( {} );
+    return phases.back();
+  };
 
   for ( const std::string &inputFilename : filenames )
   {
@@ -206,11 +211,9 @@ void concatChangesets(
     ChangesetEntry fullEntry;
     while ( reader.nextEntry( fullEntry ) )
     {
-      OutputPhase &phase = outputPhases.back();
-
       if ( ChangesetDataEntry *dEntry = std::get_if<ChangesetDataEntry>( &fullEntry ) )
       {
-        TableChanges &t = phase[dEntry->table->name];
+        TableChanges &t = currentPhase( dEntry->table->name );
         auto entriesIt = t.dataEntries.find( entryPkey( *dEntry ) );
         if ( entriesIt == t.dataEntries.end() )
         {
@@ -242,29 +245,34 @@ void concatChangesets(
       }
       else if ( ChangesetDropTableEntry *dtEntry = std::get_if<ChangesetDropTableEntry>( &fullEntry ) )
       {
-        phase[dtEntry->tableName].entries.push_back( *dtEntry );
+        currentPhase( dtEntry->tableName ).entries.push_back( *dtEntry );
+        // Any later re-addition should be in a new phase, since we don't
+        // currently short-circuit addition-deletion pairs.
+        output[dtEntry->tableName].push_back( {} );
       }
       else if ( ChangesetDropColumnEntry *dcEntry = std::get_if<ChangesetDropColumnEntry>( &fullEntry ) )
       {
         // Short-circuting column removals is hard, since we can't just prepend
         // it to other entries (the column needs to be NULLed out first). So
         // for now we treat it as a barrier.
-        phase[dcEntry->tableName].entries.push_back( *dcEntry );
+        currentPhase( dcEntry->tableName ).entries.push_back( *dcEntry );
         // We also need to start a new phase, since we can't merge entries
         // anymore.
-        outputPhases.push_back( {{}} );
+        output[ dcEntry->tableName ].push_back( {} );
       }
       else if ( ChangesetCreateTableEntry *ctEntry = std::get_if<ChangesetCreateTableEntry>( &fullEntry ) )
       {
-        phase[ctEntry->tableName].entries = { *ctEntry };
+        TableChanges newPhase;
+        newPhase.entries = { *ctEntry };
+        output[ctEntry->tableName].push_back( newPhase );
       }
       else if ( ChangesetAddColumnEntry *acEntry = std::get_if<ChangesetAddColumnEntry>( &fullEntry ) )
       {
-        phase[acEntry->tableName].prefixEntries.push_back( *acEntry );
+        currentPhase( acEntry->tableName ).prefixEntries.push_back( *acEntry );
         // Add the column to all existing entries, since we pushed the column
         // addition in front of them.
         size_t newColumnCount = SIZE_MAX;
-        for ( auto &existingEntry : phase[acEntry->tableName].entries )
+        for ( auto &existingEntry : currentPhase( acEntry->tableName ).entries )
         {
           if ( !existingEntry ) continue;
           ChangesetDataEntry *existingDEntry = std::get_if<ChangesetDataEntry>( &*existingEntry );
@@ -288,19 +296,17 @@ void concatChangesets(
   writer.open( outputChangeset );
 
   // output all we have captured
-  for ( const OutputPhase &outPhase : outputPhases )
+  for ( const auto &[tableName, phases] : output )
   {
-    for ( auto it = outPhase.begin(); it != outPhase.end(); ++it )
+    for ( const auto &phase : phases )
     {
-      const TableChanges &t = it->second;
-
-      for ( const ChangesetEntry &e : t.prefixEntries )
+      for ( const ChangesetEntry &e : phase.prefixEntries )
       {
         writer.writeEntry( e );
       }
 
       std::shared_ptr<ChangesetTable> writtenSchema;
-      for ( const std::optional<ChangesetEntry> &e : t.entries )
+      for ( const std::optional<ChangesetEntry> &e : phase.entries )
       {
         if ( e )
         {
