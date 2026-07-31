@@ -91,3 +91,33 @@ class UnitTestsChangesetReader(GeoDiffTests):
                 )  # with DELETE the "new_values" attribute is not set
             i += 1
         self.assertEqual(i, 1)
+
+    def test_has_schema_change_entries(self):
+        # data-only changeset
+        changeset = os.path.join(
+            geodiff_test_dir(), "1_geopackage", "base-modified_1_geom.diff"
+        )
+        self.assertFalse(self.geodiff.has_schema_change_entries(changeset))
+
+        # changeset with schema changes
+        changeset = os.path.join(
+            geodiff_test_dir(), "modified_scheme", "changesets", "added_table.diff"
+        )
+        self.assertTrue(self.geodiff.has_schema_change_entries(changeset))
+
+    def test_schema_change_added_table(self):
+        changeset = os.path.join(
+            geodiff_test_dir(), "modified_scheme", "changesets", "added_table.diff"
+        )
+        entries = list(self.geodiff.read_changeset(changeset))
+        self.assertEqual(len(entries), 2)
+
+        # first entry: CREATE TABLE (schema change, no table/values attributes)
+        self.assertEqual(entries[0].operation, ChangesetEntry.OP_CREATE_TABLE)
+        self.assertFalse(hasattr(entries[0], "table"))
+        self.assertFalse(hasattr(entries[0], "old_values"))
+        self.assertFalse(hasattr(entries[0], "new_values"))
+
+        # second entry: INSERT (data entry for the new table)
+        self.assertEqual(entries[1].operation, ChangesetEntry.OP_INSERT)
+        self.assertEqual(entries[1].table.name, "added_table")

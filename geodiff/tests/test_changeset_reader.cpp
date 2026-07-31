@@ -4,6 +4,8 @@
 */
 
 #include "gtest/gtest.h"
+#include <variant>
+#include "changeset.h"
 #include "geodiff_testutils.hpp"
 #include "geodiff.h"
 
@@ -26,17 +28,19 @@ TEST( ChangesetReaderTest, test_read_insert )
 
   ChangesetEntry entry;
   EXPECT_TRUE( reader.nextEntry( entry ) );
-  EXPECT_EQ( entry.op, ChangesetEntry::OpInsert );
-  EXPECT_EQ( entry.table->name, "simple" );
-  EXPECT_EQ( entry.table->primaryKeys.size(), 4 );
-  EXPECT_EQ( entry.table->primaryKeys[0], true );
-  EXPECT_EQ( entry.table->primaryKeys[1], false );
-  EXPECT_EQ( entry.newValues.size(), 4 );
-  EXPECT_EQ( entry.newValues[0].type(), Value::TypeInt );
-  EXPECT_EQ( entry.newValues[0].getInt(), 4 );
-  EXPECT_EQ( entry.newValues[1].type(), Value::TypeBlob );
-  EXPECT_EQ( entry.newValues[2].type(), Value::TypeText );
-  EXPECT_EQ( entry.newValues[2].getString(), "my new point A" );
+  EXPECT_TRUE( std::holds_alternative<ChangesetDataEntry>( entry ) );
+  ChangesetDataEntry &dataEntry = std::get<ChangesetDataEntry>( entry );
+  EXPECT_EQ( dataEntry.op, ChangesetDataEntry::OpInsert );
+  EXPECT_EQ( dataEntry.table->name, "simple" );
+  EXPECT_EQ( dataEntry.table->primaryKeys.size(), 4 );
+  EXPECT_EQ( dataEntry.table->primaryKeys[0], true );
+  EXPECT_EQ( dataEntry.table->primaryKeys[1], false );
+  EXPECT_EQ( dataEntry.newValues.size(), 4 );
+  EXPECT_EQ( dataEntry.newValues[0].type(), Value::TypeInt );
+  EXPECT_EQ( dataEntry.newValues[0].getInt(), 4 );
+  EXPECT_EQ( dataEntry.newValues[1].type(), Value::TypeBlob );
+  EXPECT_EQ( dataEntry.newValues[2].type(), Value::TypeText );
+  EXPECT_EQ( dataEntry.newValues[2].getString(), "my new point A" );
 
   EXPECT_FALSE( reader.nextEntry( entry ) );
   EXPECT_FALSE( reader.nextEntry( entry ) );
@@ -51,26 +55,29 @@ TEST( ChangesetReaderTest, test_read_update )
 
   ChangesetEntry entry;
   EXPECT_TRUE( reader.nextEntry( entry ) );
-  EXPECT_EQ( entry.op, ChangesetEntry::OpUpdate );
-  EXPECT_EQ( entry.table->name, "simple" );
+  EXPECT_TRUE( std::holds_alternative<ChangesetDataEntry>( entry ) );
+  ChangesetDataEntry &dataEntry = std::get<ChangesetDataEntry>( entry );
 
-  EXPECT_EQ( entry.oldValues.size(), 4 );
-  EXPECT_EQ( entry.newValues.size(), 4 );
+  EXPECT_EQ( dataEntry.op, ChangesetDataEntry::OpUpdate );
+  EXPECT_EQ( dataEntry.table->name, "simple" );
+
+  EXPECT_EQ( dataEntry.oldValues.size(), 4 );
+  EXPECT_EQ( dataEntry.newValues.size(), 4 );
   // pkey - unchanged
-  EXPECT_EQ( entry.oldValues[0].type(), Value::TypeInt );
-  EXPECT_EQ( entry.oldValues[0].getInt(), 2 );
-  EXPECT_EQ( entry.newValues[0].type(), Value::TypeUndefined );
+  EXPECT_EQ( dataEntry.oldValues[0].type(), Value::TypeInt );
+  EXPECT_EQ( dataEntry.oldValues[0].getInt(), 2 );
+  EXPECT_EQ( dataEntry.newValues[0].type(), Value::TypeUndefined );
   // geometry - changed
-  EXPECT_EQ( entry.oldValues[1].type(), Value::TypeBlob );
-  EXPECT_EQ( entry.newValues[1].type(), Value::TypeBlob );
+  EXPECT_EQ( dataEntry.oldValues[1].type(), Value::TypeBlob );
+  EXPECT_EQ( dataEntry.newValues[1].type(), Value::TypeBlob );
   // unchanged
-  EXPECT_EQ( entry.oldValues[2].type(), Value::TypeUndefined );
-  EXPECT_EQ( entry.newValues[2].type(), Value::TypeUndefined );
+  EXPECT_EQ( dataEntry.oldValues[2].type(), Value::TypeUndefined );
+  EXPECT_EQ( dataEntry.newValues[2].type(), Value::TypeUndefined );
   // changed
-  EXPECT_EQ( entry.oldValues[3].type(), Value::TypeInt );
-  EXPECT_EQ( entry.oldValues[3].getInt(), 2 );
-  EXPECT_EQ( entry.newValues[3].type(), Value::TypeInt );
-  EXPECT_EQ( entry.newValues[3].getInt(), 9999 );
+  EXPECT_EQ( dataEntry.oldValues[3].type(), Value::TypeInt );
+  EXPECT_EQ( dataEntry.oldValues[3].getInt(), 2 );
+  EXPECT_EQ( dataEntry.newValues[3].type(), Value::TypeInt );
+  EXPECT_EQ( dataEntry.newValues[3].getInt(), 9999 );
 
   EXPECT_FALSE( reader.nextEntry( entry ) );
 }
@@ -84,17 +91,20 @@ TEST( ChangesetReaderTest, test_read_delete )
 
   ChangesetEntry entry;
   EXPECT_TRUE( reader.nextEntry( entry ) );
-  EXPECT_EQ( entry.op, ChangesetEntry::OpDelete );
-  EXPECT_EQ( entry.table->name, "simple" );
+  EXPECT_TRUE( std::holds_alternative<ChangesetDataEntry>( entry ) );
+  ChangesetDataEntry &dataEntry = std::get<ChangesetDataEntry>( entry );
 
-  EXPECT_EQ( entry.oldValues.size(), 4 );
-  EXPECT_EQ( entry.oldValues[0].type(), Value::TypeInt );
-  EXPECT_EQ( entry.oldValues[0].getInt(), 2 );
-  EXPECT_EQ( entry.oldValues[1].type(), Value::TypeBlob );
-  EXPECT_EQ( entry.oldValues[2].type(), Value::TypeText );
-  EXPECT_EQ( entry.oldValues[2].getString(), "feature2" );
-  EXPECT_EQ( entry.oldValues[3].type(), Value::TypeInt );
-  EXPECT_EQ( entry.oldValues[3].getInt(), 2 );
+  EXPECT_EQ( dataEntry.op, ChangesetDataEntry::OpDelete );
+  EXPECT_EQ( dataEntry.table->name, "simple" );
+
+  EXPECT_EQ( dataEntry.oldValues.size(), 4 );
+  EXPECT_EQ( dataEntry.oldValues[0].type(), Value::TypeInt );
+  EXPECT_EQ( dataEntry.oldValues[0].getInt(), 2 );
+  EXPECT_EQ( dataEntry.oldValues[1].type(), Value::TypeBlob );
+  EXPECT_EQ( dataEntry.oldValues[2].type(), Value::TypeText );
+  EXPECT_EQ( dataEntry.oldValues[2].getString(), "feature2" );
+  EXPECT_EQ( dataEntry.oldValues[3].type(), Value::TypeInt );
+  EXPECT_EQ( dataEntry.oldValues[3].getInt(), 2 );
 
   EXPECT_FALSE( reader.nextEntry( entry ) );
   EXPECT_FALSE( reader.nextEntry( entry ) );

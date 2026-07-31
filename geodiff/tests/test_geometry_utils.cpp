@@ -4,6 +4,8 @@
 */
 
 #include "gtest/gtest.h"
+#include <variant>
+#include "changeset.h"
 #include "geodiff_testutils.hpp"
 #include "geodiff.h"
 
@@ -20,12 +22,17 @@ TEST( GeometryUtilsTest, test_wkb_from_geometry )
 
   ChangesetEntry entry;
   EXPECT_TRUE( reader.nextEntry( entry ) );
-  EXPECT_EQ( entry.table->name, "gpkg_contents" );
+  EXPECT_TRUE( std::holds_alternative<ChangesetDataEntry>( entry ) );
+  ChangesetDataEntry &dataEntry = std::get<ChangesetDataEntry>( entry );
+  EXPECT_EQ( dataEntry.table->name, "gpkg_contents" );
 
   EXPECT_TRUE( reader.nextEntry( entry ) );
-  EXPECT_EQ( entry.table->name, "simple" );
-  EXPECT_EQ( entry.oldValues[1].type(), Value::TypeBlob );
-  std::string gpkgWkb = entry.oldValues[1].getString();
+  EXPECT_TRUE( std::holds_alternative<ChangesetDataEntry>( entry ) );
+  dataEntry = std::get<ChangesetDataEntry>( entry );
+
+  EXPECT_EQ( dataEntry.table->name, "simple" );
+  EXPECT_EQ( dataEntry.oldValues[1].type(), Value::TypeBlob );
+  std::string gpkgWkb = dataEntry.oldValues[1].getString();
   const char *c_gpkgWkb = gpkgWkb.c_str();
   size_t length = gpkgWkb.length();
 

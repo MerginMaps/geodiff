@@ -434,7 +434,7 @@ void sqliteTables( const Context *context,
 std::vector<std::string> sqliteColumnNames(
   const Context *context,
   std::shared_ptr<Sqlite3Db> db,
-  const std::string &zDb,                /* Database ("main" or "aux") to query */
+  const std::string &zDb,                /* Database ("main" or "modified") to query */
   const std::string &tableName   /* Name of table to return details of */
 )
 {

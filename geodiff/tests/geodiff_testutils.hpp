@@ -10,6 +10,7 @@
 #include <vector>
 #include <unordered_map>
 
+#include "changeset.h"
 #include "geodiff.h"
 
 #include "geodiff_config.hpp"
@@ -23,6 +24,7 @@
 std::string testdir();
 std::string pathjoin( const std::string &dir, const std::string &filename );
 std::string pathjoin( const std::string &dir, const std::string &dir2, const std::string &filename );
+std::string pathjoin( const std::string &dir, const std::string &dir2, const std::string &dir3, const std::string &filename );
 void makedir( const std::string &dir );
 
 void init_test();
@@ -53,7 +55,7 @@ bool fileContentEquals( const std::string &file1, const std::string &file2 );
 bool isFileEmpty( const std::string &filepath );
 
 struct ChangesetTable;
-struct ChangesetEntry;
+struct ChangesetDataEntry;
 
 //! Helper function to write a diff file for a couple of tables
 void writeChangeset( std::string filename, const std::unordered_map<std::string, ChangesetTable> &tables,
