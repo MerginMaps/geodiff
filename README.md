@@ -49,6 +49,8 @@ The library nowadays comes with support for two drivers:
 
 ## Using command line interface
 
+### GeoPackage
+
 To get changes between two GeoPackage files and write them to `a-to-b.diff` (a binary diff file):
 ```bash
 geodiff diff data-a.gpkg data-b.gpkg a-to-b.diff
@@ -70,6 +72,23 @@ geodiff invert a-to-b.diff b-to-a.diff
 geodiff apply data-a.gpkg b-to-a.diff
 ```
 
+### PostGIS
+
+The same commands work with PostGIS databases. Instead of file paths, pass **schema names** and use `--driver postgres` with a [libpq connection string](https://www.postgresql.org/docs/current/libpq-connect.html#LIBPQ-CONNSTRING):
+```bash
+geodiff diff --driver postgres "host=localhost dbname=mydb user=myuser password=mypass" schema_a schema_b a-to-b.diff
+```
+
+```bash
+geodiff diff --json --driver postgres "host=localhost dbname=mydb user=myuser password=mypass" schema_a schema_b
+```
+
+```bash
+geodiff apply --driver postgres "host=localhost dbname=mydb user=myuser password=mypass" schema_a a-to-b.diff
+```
+
+Both schemas must be in the same database and have identical table structure. You can check which drivers are available with `geodiff drivers`.
+
 The `geodiff` tool supports other various commands, use `geodiff help` for the full list.
 
 ## Using Python module
@@ -81,6 +100,8 @@ pip3 install pygeodiff
 
 If you get error `ModuleNotFoundError: No module named 'skbuild'` try to update pip with command
 `python -m pip install --upgrade pip`
+
+### GeoPackage
 
 Sample usage of the Python module:
 
@@ -94,6 +115,37 @@ geodiff.create_changeset('data-a.gpkg', 'data-b.gpkg', 'a-to-b.diff')
 
 # apply changes from a-to-b.diff to the GeoPackage file data-a.gpkg
 geodiff.apply_changeset('data-a.gpkg', 'a-to-b.diff')
+
+# export changes from the binary diff format to JSON
+geodiff.list_changes('a-to-b.diff', 'a-to-b.json')
+```
+
+### PostGIS
+
+To perform the same actions against a PostGIS database, use the `_ex` methods with a driver name and connection string. The `base` and `modified` arguments are schema names:
+
+```python
+import pygeodiff
+
+geodiff = pygeodiff.GeoDiff()
+conninfo = "host=localhost dbname=mydb user=myuser password=mypass"
+
+# create a diff between two PostGIS schemas
+geodiff.create_changeset_ex(
+    driver="postgres",
+    driver_info=conninfo,
+    base="schema_a",
+    modified="schema_b",
+    changeset="a-to-b.diff"
+)
+
+# apply changes from a-to-b.diff to a PostGIS schema
+geodiff.apply_changeset_ex(
+    driver="postgres",
+    driver_info=conninfo,
+    base="schema_a",
+    changeset="a-to-b.diff"
+)
 
 # export changes from the binary diff format to JSON
 geodiff.list_changes('a-to-b.diff', 'a-to-b.json')
