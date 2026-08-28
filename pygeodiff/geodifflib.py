@@ -74,11 +74,16 @@ class GeoDiffLib:
         self.shutdown()
 
     def shutdown(self):
-        if self.lib is not None:
+        lib = getattr(self, "lib", None)
+        if lib is not None:
             if platform.system() == "Windows":
                 from _ctypes import FreeLibrary
 
-                FreeLibrary(self.lib._handle)
+                FreeLibrary(lib._handle)
+            else:
+                from _ctypes import dlclose
+
+                dlclose(lib._handle)
             self.lib = None
 
     def _register_functions(self):
