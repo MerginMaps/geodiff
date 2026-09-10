@@ -44,6 +44,7 @@ class GeoDiffLib:
         If name is None, the environment variable GEODIFFLIB is used. If
         that is not set, it tries to import c-extension from wheel.
         """
+        self.lib = None
         if name is None:
             name = os.getenv("GEODIFFLIB")
         if not name:
@@ -74,16 +75,15 @@ class GeoDiffLib:
         self.shutdown()
 
     def shutdown(self):
-        lib = getattr(self, "lib", None)
-        if lib is not None:
+        if self.lib is not None:
             if platform.system() == "Windows":
                 from _ctypes import FreeLibrary
 
-                FreeLibrary(lib._handle)
+                FreeLibrary(self.lib._handle)
             else:
                 from _ctypes import dlclose
 
-                dlclose(lib._handle)
+                dlclose(self.lib._handle)
             self.lib = None
 
     def _register_functions(self):
