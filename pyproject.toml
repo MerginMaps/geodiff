@@ -4,7 +4,7 @@ build-backend = "scikit_build_core.build"
 
 [project]
 name = "pygeodiff"
-version = "2.3.0"
+version = "2.3.1"
 description = "Python wrapper around GeoDiff library"
 readme = "README.md"
 authors = [{ name = "Lutra Consulting Ltd.", email = "info@merginmaps.com" }]
