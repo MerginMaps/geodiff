@@ -12,6 +12,7 @@
 #include <sstream>
 #include <memory>
 #include <exception>
+#include <variant>
 #include <vector>
 #include <map>
 
@@ -20,7 +21,7 @@
 #include "geodiffcontext.hpp"
 
 class Buffer;
-struct ChangesetEntry;
+struct ChangesetDataEntry;
 
 class GeoDiffException: public std::exception
 {
@@ -138,7 +139,7 @@ int indexOf( const std::vector<std::string> &arr, const std::string &val );
 
 std::string concatNames( const std::vector<std::string> &names );
 
-void get_primary_key( const ChangesetEntry &entry, int &fid, int &nColumn );
+void get_primary_key( const ChangesetDataEntry &entry, int &fid, int &nColumn );
 
 
 //! Returns value of an environment variable - or returns default value if it is not set
@@ -201,10 +202,10 @@ class TmpFile
 };
 
 
-class ConflictItem
+class DataConflictItem
 {
   public:
-    ConflictItem(
+    DataConflictItem(
       int column,
       const Value &base,
       const Value &theirs,
@@ -222,19 +223,39 @@ class ConflictItem
     Value mOurs;
 };
 
-class ConflictFeature
+class DataConflictFeature
 {
   public:
-    ConflictFeature( int pk, const std::string &tableName );
+    DataConflictFeature( int pk, const std::string &tableName );
     bool isValid() const;
-    void addItem( const ConflictItem &item );
+    void addItem( const DataConflictItem &item );
     const std::string &tableName() const;
     int pk() const;
-    const std::vector<ConflictItem> &items() const;
+    const std::vector<DataConflictItem> &items() const;
   private:
     int mPk;
     std::string mTableName;
-    std::vector<ConflictItem> mItems;
+    std::vector<DataConflictItem> mItems;
+};
+
+//! Schema conflict: two changesets created or modified the same table with
+//different definitions
+struct TableSchemaConflict
+{
+  std::string tableName;
+};
+
+//! Schema conflict: two changesets added the same column with different
+//definitions
+struct ColumnSchemaConflict
+{
+  std::string tableName;
+  std::string columnName;
+};
+
+struct ConflictFeature : public std::variant<DataConflictFeature, TableSchemaConflict, ColumnSchemaConflict>
+{
+  using variant::variant;
 };
 
 

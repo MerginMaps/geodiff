@@ -11,6 +11,7 @@
 #include <vector>
 #include <string>
 
+#include "changeset.h"
 #include "geodiff.h"
 #include "tableschema.h"
 
@@ -125,6 +126,13 @@ class Driver
      * Writes all rows of the specified table to a changeset (it will output only INSERT operations)
      */
     virtual void dumpData( ChangesetWriter &writer, bool useModified = false ) = 0;
+
+    /**
+     * Executes SQL statement on 'base' database. Returns list of rows, which
+     * are lists of values in columns, in the database's native string
+     * representation.
+     */
+    virtual std::vector<std::vector<std::string>> executeSql( std::string sql ) = 0;
 
     static const std::string SQLITEDRIVERNAME;
     static const std::string POSTGRESDRIVERNAME;

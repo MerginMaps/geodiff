@@ -1,0 +1,64 @@
+{
+  "geodiff": [
+    {
+      "changes": [
+        {
+          "column": 0,
+          "old": 1
+        },
+        {
+          "column": 1,
+          "old": "R1AAA+YQAADwIZt/aSztvyhTjE5mN9u/MjKhWTE40z8KvmmFKQnlPwEDAAAAAQAAAAUAAACMGhYhZuPqv2eg8/JZ2OE/8CGbf2ks7b/WaZRh4P7TPyhTjE5mN9u/MjKhWTE40z+QaI2BBKXjvwq+aYUpCeU/jBoWIWbj6r9noPPyWdjhPw=="
+        },
+        {
+          "column": 2,
+          "old": "hello"
+        }
+      ],
+      "table": "added_table",
+      "type": "delete"
+    },
+    {
+      "columns": [
+        {
+          "geomHasM": false,
+          "geomHasZ": false,
+          "geomSrsId": -1,
+          "geomType": "",
+          "isAutoIncrement": true,
+          "isGeometry": false,
+          "isNotNull": true,
+          "isPrimaryKey": true,
+          "name": "fid",
+          "type": "integer"
+        },
+        {
+          "geomHasM": false,
+          "geomHasZ": false,
+          "geomSrsId": 4326,
+          "geomType": "POLYGON",
+          "isAutoIncrement": false,
+          "isGeometry": true,
+          "isNotNull": false,
+          "isPrimaryKey": false,
+          "name": "geometry",
+          "type": "geometry"
+        },
+        {
+          "geomHasM": false,
+          "geomHasZ": false,
+          "geomSrsId": -1,
+          "geomType": "",
+          "isAutoIncrement": false,
+          "isGeometry": false,
+          "isNotNull": false,
+          "isPrimaryKey": false,
+          "name": "myfield",
+          "type": "text"
+        }
+      ],
+      "tableName": "added_table",
+      "type": "drop_table"
+    }
+  ]
+}

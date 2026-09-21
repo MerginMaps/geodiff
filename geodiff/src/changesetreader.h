@@ -10,6 +10,7 @@
 #include "geodiff.h"
 
 #include "changeset.h"
+#include "tableschema.h"
 
 
 class Buffer;
@@ -45,6 +46,12 @@ class ChangesetReader
     std::string readNullTerminatedString();
     void readRowValues( std::vector<Value> &values );
     void readTableRecord();
+    ChangesetDataEntry readDataEntry( ChangesetEntryType type );
+    TableColumnInfo readColumnInfo();
+    ChangesetCreateTableEntry readCreateTableEntry();
+    ChangesetDropTableEntry readDropTableEntry();
+    ChangesetAddColumnEntry readAddColumnEntry();
+    ChangesetDropColumnEntry readDropColumnEntry();
 
     void throwReaderError( const std::string &message ) const;
 
@@ -52,7 +59,7 @@ class ChangesetReader
 
     std::unique_ptr<Buffer> mBuffer;
 
-    ChangesetTable mCurrentTable;  // currently processed table
+    std::shared_ptr<ChangesetTable> mCurrentTable;  // currently processed table
 };
 
 

@@ -346,7 +346,7 @@ bool isLayerTable( const std::string &tableName )
 
 ////
 
-void get_primary_key( const ChangesetEntry &entry, int &fid, int &nColumn )
+void get_primary_key( const ChangesetDataEntry &entry, int &fid, int &nColumn )
 {
   const std::vector<bool> &tablePkeys = entry.table->primaryKeys;
 
@@ -375,11 +375,11 @@ void get_primary_key( const ChangesetEntry &entry, int &fid, int &nColumn )
 
   // now get the value
   Value pkeyValue;
-  if ( entry.op == ChangesetEntry::OpInsert )
+  if ( entry.op == ChangesetDataEntry::OpInsert )
   {
     pkeyValue = entry.newValues[pk_column_number];
   }
-  else if ( entry.op == ChangesetEntry::OpDelete || entry.op == ChangesetEntry::OpUpdate )
+  else if ( entry.op == ChangesetDataEntry::OpDelete || entry.op == ChangesetDataEntry::OpUpdate )
   {
     pkeyValue = entry.oldValues[pk_column_number];
   }
@@ -556,40 +556,40 @@ void TmpFile::setPath( const std::string &path )
   mPath = path;
 }
 
-ConflictFeature::ConflictFeature( int pk,
-                                  const std::string &tableName )
+DataConflictFeature::DataConflictFeature( int pk,
+    const std::string &tableName )
   : mPk( pk )
   , mTableName( tableName )
 {
 }
 
-bool ConflictFeature::isValid() const
+bool DataConflictFeature::isValid() const
 {
   return !mItems.empty();
 }
 
-void ConflictFeature::addItem( const ConflictItem &item )
+void DataConflictFeature::addItem( const DataConflictItem &item )
 {
   mItems.push_back( item );
 }
 
-const std::string &ConflictFeature::tableName() const
+const std::string &DataConflictFeature::tableName() const
 {
   return mTableName;
 }
 
-int ConflictFeature::pk() const
+int DataConflictFeature::pk() const
 {
   return mPk;
 }
 
-const std::vector<ConflictItem> &ConflictFeature::items() const
+const std::vector<DataConflictItem> &DataConflictFeature::items() const
 {
   return mItems;
 }
 
-ConflictItem::ConflictItem( int column, const Value &base,
-                            const Value &theirs, const Value &ours )
+DataConflictItem::DataConflictItem( int column, const Value &base,
+                                    const Value &theirs, const Value &ours )
   : mColumn( column )
   , mBase( base )
   , mTheirs( theirs )
@@ -598,22 +598,22 @@ ConflictItem::ConflictItem( int column, const Value &base,
 
 }
 
-Value ConflictItem::base() const
+Value DataConflictItem::base() const
 {
   return mBase;
 }
 
-Value ConflictItem::theirs() const
+Value DataConflictItem::theirs() const
 {
   return mTheirs;
 }
 
-Value ConflictItem::ours() const
+Value DataConflictItem::ours() const
 {
   return mOurs;
 }
 
-int ConflictItem::column() const
+int DataConflictItem::column() const
 {
   return mColumn;
 }

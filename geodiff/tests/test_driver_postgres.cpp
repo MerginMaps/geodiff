@@ -1100,6 +1100,24 @@ TEST( PostgresDriverTest, test_timestamp_miliseconds )
   PQfinish( c );
 }
 
+TEST( PostgresDriverTest, execute_sql )
+{
+  std::string conninfo = pgTestConnInfo();
+  execSqlCommands( conninfo, pathjoin( testdir(), "postgres", "base.sql" ) );
+
+  DriverParametersMap params;
+  params["conninfo"] = conninfo;
+  params["base"] = "gd_base";
+
+  std::unique_ptr<Driver> driver( Driver::createDriver( static_cast<Context *>( testContext() ), "postgres" ) );
+  ASSERT_TRUE( driver );
+  driver->open( params );
+
+  std::vector<std::vector<std::string>> result = driver->executeSql( "SELECT fid, name FROM simple LIMIT 2" );
+  std::vector<std::vector<std::string>> expected = {{"1", "feature1"}, {"2", "feature2"}};
+  ASSERT_EQ( result, expected );
+}
+
 
 int main( int argc, char **argv )
 {

@@ -10,7 +10,7 @@
 #include <vector>
 #include <algorithm>
 
-#include "geodiffutils.hpp"
+#include "geodiffcontext.hpp"
 
 /* Information about column type, converted to base type */
 struct TableColumnType
@@ -223,6 +223,15 @@ struct TableSchema
   {
     return !( *this == other );
   }
+};
+
+/** Information about all tables in the database. */
+struct DatabaseSchema
+{
+  std::vector<TableSchema> tables;
+
+  //! Returns pointer to the table with the given name, or nullptr if not found
+  TableSchema *tableByName( const std::string &name );
 };
 
 //! Converts column name to base type and returns struct with both names
