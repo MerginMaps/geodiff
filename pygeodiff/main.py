@@ -460,6 +460,24 @@ class GeoDiff:
         self._lazy_load()
         return self.clib.schema(self.context, driver, driver_info, src, json)
 
+    def has_equal_schema(self, driver, driver_info, base, modified, json=None):
+        """
+        Compares table schemas of two data sources of the same driver, as understood by geodiff,
+        without comparing data. Schemas are equal if they have the same tables with the same
+        columns in the same order, with equal normalized types and attributes.
+        For PostgreSQL, base and modified are schema names within the connection in driver_info.
+
+        :param json: optional file to write all differences to, otherwise comparison
+            stops at the first difference. It must not be one of the compared databases.
+            See GEODIFF_hasEqualSchema() for the format.
+        :returns: whether the schemas are equal
+        :raises GeoDiffLibError: raised on error
+        """
+        self._lazy_load()
+        return self.clib.has_equal_schema(
+            self.context, driver, driver_info, base, modified, json
+        )
+
     def read_changeset(self, changeset):
         """
         Opens a changeset file.

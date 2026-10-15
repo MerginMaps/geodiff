@@ -615,6 +615,24 @@ class GeoDiffLib:
         )
         self._parse_return_code(context, res, "schema")
 
+    def has_equal_schema(self, context, driver, driver_info, base, modified, json):
+        func = self.lib.GEODIFF_hasEqualSchema
+        func.argtypes = [ctypes.c_void_p] + [ctypes.c_char_p] * 5
+        func.restype = ctypes.c_int
+
+        res = func(
+            context,
+            driver.encode("utf-8"),
+            driver_info.encode("utf-8"),
+            base.encode("utf-8"),
+            modified.encode("utf-8"),
+            None if json is None else json.encode("utf-8"),
+        )
+        if res < 0:
+            # 1 means equal schemas, so only a negative value is an error
+            self._parse_return_code(context, ERROR, "has_equal_schema")
+        return res == 1
+
     def read_changeset(self, context, changeset):
         b_string1 = changeset.encode("utf-8")
 
