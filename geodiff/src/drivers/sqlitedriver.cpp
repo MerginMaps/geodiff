@@ -239,7 +239,7 @@ std::vector<std::string> SqliteDriver::listTables( bool useModified )
   }
   if ( rc != SQLITE_DONE )
   {
-    logSqliteError( context(), mDb, "Failed to list SQLite tables" );
+    throwSqliteError( mDb->get(), "Failed to list SQLite tables" );
   }
 
   // result is ordered by name
@@ -285,7 +285,7 @@ TableSchema SqliteDriver::tableSchema( const std::string &tableName,
   }
   if ( rc != SQLITE_DONE )
   {
-    logSqliteError( context(), mDb, "Failed to get list columns for table " + tableName );
+    throwSqliteError( mDb->get(), "Failed to get list columns for table " + tableName );
   }
 
   // check if the geometry columns table is present (it may not be if this is a "pure" sqlite file)
@@ -322,7 +322,7 @@ TableSchema SqliteDriver::tableSchema( const std::string &tableName,
     }
     if ( rc != SQLITE_DONE )
     {
-      logSqliteError( context(), mDb, "Failed to get geometry column info for table " + tableName );
+      throwSqliteError( mDb->get(), "Failed to get geometry column info for table " + tableName );
     }
 
     //

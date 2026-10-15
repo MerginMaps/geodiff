@@ -24,6 +24,27 @@ static void execSql( const std::string &dbPath, const std::string &sql )
   sqlite3_close( db );
 }
 
+//! Overwrites the root page of the geometry columns table, so that reading rows from it fails
+static void damageGeometryColumns( const std::string &dbPath )
+{
+  sqlite3 *db = nullptr;
+  ASSERT_EQ( SQLITE_OK, sqlite3_open( dbPath.c_str(), &db ) );
+  const char *sql = "SELECT (rootpage - 1) * page_size, page_size FROM sqlite_master, pragma_page_size "
+                    "WHERE name = 'gpkg_geometry_columns'";
+  sqlite3_stmt *stmt = nullptr;
+  ASSERT_EQ( SQLITE_OK, sqlite3_prepare_v2( db, sql, -1, &stmt, nullptr ) );
+  ASSERT_EQ( SQLITE_ROW, sqlite3_step( stmt ) );
+  const sqlite3_int64 offset = sqlite3_column_int64( stmt, 0 );
+  const std::string garbage( sqlite3_column_int( stmt, 1 ), '\xff' );
+  sqlite3_finalize( stmt );
+  sqlite3_close( db );
+
+  std::fstream file( dbPath, std::ios::in | std::ios::out | std::ios::binary );
+  file.seekp( offset );
+  file.write( garbage.data(), garbage.size() );
+  ASSERT_TRUE( file.good() );
+}
+
 static nlohmann::json readJson( const std::string &path )
 {
   std::ifstream in( path );
@@ -144,6 +165,12 @@ TEST( CAPITest, invalid_calls )
     ASSERT_EQ( -1, GEODIFF_hasEqualSchema( context, "sqlite", "", copyBase.c_str(), copyModified.c_str(), respelledBase.c_str() ) );
     ASSERT_TRUE( fileContentEquals( copyBase, base ) );
     ASSERT_TRUE( fileContentEquals( copyModified, base ) );
+
+    // failing in the middle of reading a schema must not be taken for a partial schema
+    const std::string damaged = pathjoin( dir, "damaged.gpkg" );
+    ASSERT_TRUE( filecopy( damaged, base ) );
+    damageGeometryColumns( damaged );
+    ASSERT_EQ( -1, GEODIFF_hasEqualSchema( context, "sqlite", "", damaged.c_str(), damaged.c_str(), nullptr ) );
   }
 
   ASSERT_EQ( nullptr, GEODIFF_readChangeset( invalidContext, nullptr ) );
