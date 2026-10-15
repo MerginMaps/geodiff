@@ -326,6 +326,33 @@ TEST( PostgresDriverTest, test_create_changeset )
   testCreateChangeset( "test_postgres_delete", conninfo, "gd_base", "gd_deleted_a", "deleted_a.diff" );
 }
 
+TEST( PostgresDriverTest, test_has_equal_schema )
+{
+  std::string conninfo = pgTestConnInfo();
+  execSqlCommands( conninfo, pathjoin( testdir(), "postgres", "base.sql" ) );
+
+  // same table as in gd_base, but without any data; own schema as other tests reuse the fixture schemas
+  execSqlCommandsFromString( conninfo, "DROP SCHEMA IF EXISTS gd_equal_schema CASCADE;"
+                             "CREATE SCHEMA gd_equal_schema;"
+                             "CREATE TABLE gd_equal_schema.simple ( \"fid\" SERIAL PRIMARY KEY, \"geometry\" GEOMETRY(POINT, 4326), \"name\" TEXT, \"rating\" INTEGER );" );
+
+  EXPECT_EQ( 1, GEODIFF_hasEqualSchema( testContext(), "postgres", conninfo.c_str(), "gd_base", "gd_equal_schema", nullptr ) );
+
+  execSqlCommandsFromString( conninfo, "ALTER TABLE gd_equal_schema.simple ADD COLUMN added_field TEXT;" );
+
+  std::string tmpdirectory( pathjoin( tmpdir(), "test_has_equal_schema" ) );
+  makedir( tmpdirectory );
+  std::string report = pathjoin( tmpdirectory, "report.json" );
+  EXPECT_EQ( 0, GEODIFF_hasEqualSchema( testContext(), "postgres", conninfo.c_str(), "gd_base", "gd_equal_schema", report.c_str() ) );
+
+  std::ifstream in( report );
+  EXPECT_EQ( nlohmann::json::parse( R"({"geodiff_schema_diff": [
+    {"table": "simple", "column": "added_field", "property": "column", "old": null, "new": "added_field"}]})" ),
+             nlohmann::json::parse( in ) );
+
+  execSqlCommandsFromString( conninfo, "DROP SCHEMA gd_equal_schema CASCADE;" );
+}
+
 bool schemasEqual( const std::string &conninfo, const std::string &schema1, const std::string &schema2, const std::string &changesetComparePath )
 {
   std::string changesetCompare = pathjoin( changesetComparePath, "compare.diff" );
