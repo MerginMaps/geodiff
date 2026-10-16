@@ -183,6 +183,10 @@ IF (POSTGRES_FOUND)
   )
 ENDIF()
 
+IF (WIN32)
+  SET_SOURCE_FILES_PROPERTIES(${geodiff_src} PROPERTIES COMPILE_FLAGS "-DWIN32_LEAN_AND_MEAN")
+ENDIF (WIN32)
+
 IF (ENABLE_TESTS OR BUILD_TOOLS)
   # tests need statically built library in order to use symbols that are not exported
   SET ( BUILD_STATIC TRUE )

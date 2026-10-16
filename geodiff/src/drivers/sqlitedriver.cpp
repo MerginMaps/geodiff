@@ -134,6 +134,10 @@ void SqliteDriver::open( const DriverParametersMap &conn )
 
     mDb->open( modified );
 
+#ifdef WIN32
+    base = wstringToString( pathToExtended( base ) );
+#endif
+
     Buffer sqlBuf;
     sqlBuf.printf( "ATTACH '%q' AS aux", base.c_str() );
     mDb->exec( sqlBuf );

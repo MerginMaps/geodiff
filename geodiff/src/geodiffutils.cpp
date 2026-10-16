@@ -213,12 +213,22 @@ FILE *openFile( const std::string &path, const std::string &mode )
 #ifdef WIN32
   // convert string path to wstring
   FILE *fh;
-  errno_t err = _wfopen_s( &fh, stringToWString( path ).c_str(), stringToWString( mode ).c_str() );
+  errno_t err = _wfopen_s( &fh, pathToExtended( path ).c_str(), stringToWString( mode ).c_str() );
   if ( err )
     return nullptr;
   return fh;
 #else
   return fopen( path.c_str(), mode.c_str() );
+#endif
+}
+
+std::ifstream openIfstream( const std::string &path, std::ios_base::openmode mode )
+{
+#ifdef WIN32
+  std::wstring pathWstr = pathToExtended( path );
+  return std::ifstream( pathWstr, mode );
+#else
+  return std::ifstream( path, mode );
 #endif
 }
 
@@ -229,8 +239,8 @@ bool filecopy( const std::string &to, const std::string &from )
 #ifdef WIN32
   try
   {
-    std::wstring wFrom = stringToWString( from );
-    std::wstring wTo = stringToWString( to );
+    std::wstring wFrom = pathToExtended( from );
+    std::wstring wTo = pathToExtended( to );
     CopyFile( wFrom.c_str(), wTo.c_str(), false );
   }
   catch ( GeoDiffException & )
@@ -254,7 +264,7 @@ bool fileremove( const std::string &path )
     int res = 0;
     try
     {
-      res = _wremove( stringToWString( path ).c_str() );
+      res = _wremove( pathToExtended( path ).c_str() );
     }
     catch ( GeoDiffException & )
     {
@@ -273,7 +283,7 @@ bool fileexists( const std::string &path )
 #ifdef WIN32
   try
   {
-    std::wstring wPath = stringToWString( path );
+    std::wstring wPath = pathToExtended( path );
     if ( wPath.empty() )
       return false;
 
@@ -416,7 +426,7 @@ bool flushString( const std::string &filename, const std::string &str )
 #ifdef WIN32
   try
   {
-    std::wstring wFilename = stringToWString( filename );
+    std::wstring wFilename = pathToExtended( filename );
     std::ofstream out( wFilename );
     out << str;
     out.close();
@@ -522,6 +532,22 @@ std::string wstringToString( const std::wstring &wStr )
   {
     throw GeoDiffException( "Unable to convert UTF-8 to UTF-16." );
   }
+}
+
+std::wstring pathToExtended( const std::string &path )
+{
+  std::wstring wpath = stringToWString( path );
+  if ( wpath.size() >= 4 && wpath[0] == L'\\' && wpath[1] == L'\\' && wpath[2] == L'?' && wpath[3] == L'\\' )
+  {
+    // Path already has \\?\ prefix
+    return wpath;
+  }
+  wchar_t *fullpath = _wfullpath( NULL, wpath.c_str(), 32767 );
+  if ( !fullpath )
+    return L"";
+  std::wstring fullpath_s( fullpath );
+  free( fullpath );
+  return std::wstring( L"\\\\?\\" ) + fullpath_s;
 }
 #endif
 

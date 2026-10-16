@@ -28,8 +28,14 @@ Sqlite3Db::~Sqlite3Db()
 
 void Sqlite3Db::open( const std::string &filename )
 {
+#ifdef WIN32
+  std::string filename2 = wstringToString( pathToExtended( filename ) );
+#else
+  std::string filename2 = filename;
+#endif
+
   close();
-  int rc = sqlite3_open_v2( filename.c_str(), &mDb, SQLITE_OPEN_READWRITE, nullptr );
+  int rc = sqlite3_open_v2( filename2.c_str(), &mDb, SQLITE_OPEN_READWRITE, nullptr );
   if ( rc )
   {
     throwSqliteError( mDb, "Unable to open " + filename + " as sqlite3 database" );
@@ -38,6 +44,12 @@ void Sqlite3Db::open( const std::string &filename )
 
 void Sqlite3Db::create( const std::string &filename )
 {
+#ifdef WIN32
+  std::string filename2 = wstringToString( pathToExtended( filename ) );
+#else
+  std::string filename2 = filename;
+#endif
+
   close();
 
   if ( fileexists( filename ) )
@@ -45,7 +57,7 @@ void Sqlite3Db::create( const std::string &filename )
     throw GeoDiffException( "Unable to create sqlite3 database - already exists: " + filename );
   }
 
-  int rc = sqlite3_open_v2( filename.c_str(), &mDb, SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE, nullptr );
+  int rc = sqlite3_open_v2( filename2.c_str(), &mDb, SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE, nullptr );
   if ( rc )
   {
     throwSqliteError( mDb, "Unable to create " + filename + " as sqlite3 database" );

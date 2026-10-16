@@ -51,6 +51,10 @@ extern "C" {
 typedef void *GEODIFF_ContextH;
 
 /**
+ * On Windows, all strings representing file paths are assumed to be UTF-8 encoded.
+ */
+
+/**
  * Initialize session context
  *
  * The default logger is set, where all the messages printed are printed to stdout/stderr

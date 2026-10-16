@@ -593,3 +593,25 @@ class UnitTestsCliCalls(GeoDiffCliTests):
         print("-- help")
         self.run_command(["help"], check_in_output="Lutra Consulting")
         self.run_command(["help", "extra_arg"], expect_fail=True)
+
+    def test_long_paths(self):
+        """
+        Test paths over 255 characters long, since they can cause trouble
+        on Windows.
+        Requires HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\FileSystem\LongPathsEnabled=1
+        """
+
+        longdir = create_dir("long_name_directory_" + "a" * 230)
+
+        self.run_command(
+            ["copy", geodiff_test_dir() + "/base.gpkg", longdir + "/base.gpkg"]
+        )
+        self.run_command(
+            [
+                "diff",
+                longdir + "/base.gpkg",
+                geodiff_test_dir() + "/1_geopackage/modified_1_geom.gpkg",
+                longdir + "/base-modified_1_geom.diff",
+            ]
+        )
+        self.run_command(["as-json", longdir + "/base-modified_1_geom.diff"])
