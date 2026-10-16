@@ -174,7 +174,7 @@ void ChangesetWriter::writeAddColumnEntry( const ChangesetAddColumnEntry &entry 
 {
   writeByte( static_cast<char>( ChangesetEntryType::OpAddColumn ) );
   writeNullTerminatedString( entry.tableName );
-  writeVarint( entry.columnIdx );
+  writeVarint( static_cast<int>( entry.columnIdx ) );
   writeColumnInfo( entry.column );
 }
 
@@ -182,6 +182,6 @@ void ChangesetWriter::writeDropColumnEntry( const ChangesetDropColumnEntry &entr
 {
   writeByte( static_cast<char>( ChangesetEntryType::OpDropColumn ) );
   writeNullTerminatedString( entry.tableName );
-  writeVarint( entry.columnIdx );
+  writeVarint( static_cast<int>( entry.columnIdx ) );
   writeColumnInfo( entry.column );
 }
