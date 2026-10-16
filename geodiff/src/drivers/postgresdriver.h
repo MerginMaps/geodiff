@@ -7,6 +7,7 @@
 #define POSTGRESDRIVER_H
 
 #include "driver.h"
+#include "changeset.h"
 
 extern "C"
 {
@@ -43,14 +44,15 @@ class PostgresDriver : public Driver
     void applyChangeset( ChangesetReader &reader ) override;
     void createTables( const std::vector<TableSchema> &tables ) override;
     void dumpData( ChangesetWriter &writer, bool useModified = false ) override;
+    std::vector<std::vector<std::string>> executeSql( std::string sql ) override;
 
   private:
-    void logApplyConflict( const std::string &type, const ChangesetEntry &entry ) const;
+    void logApplyConflict( const std::string &type, const ChangesetDataEntry &entry ) const;
     void openPrivate( const DriverParametersMap &conn );
     void close();
     std::string getSequenceObjectName( const TableSchema &tbl, int &autoIncrementPkeyIndex );
     void updateSequenceObject( const std::string &seqName, int64_t maxValue );
-    ChangeApplyResult applyChange( PostgresChangeApplyState &state, const ChangesetEntry &entry );
+    ChangeApplyResult applyChange( PostgresChangeApplyState &state, const ChangesetDataEntry &entry );
 
     PGconn *mConn = nullptr;
     std::string mBaseSchema;

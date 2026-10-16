@@ -255,6 +255,14 @@ class GeoDiff:
         self._lazy_load()
         return self.clib.list_changes_summary(self.context, changeset, json)
 
+    def has_schema_change_entries(self, changeset):
+        """
+        :returns: whether changeset contains at least one schema change entry
+        :raises GeoDiffLibError: raised on error
+        """
+        self._lazy_load()
+        return self.clib.has_schema_change_entries(self.context, changeset)
+
     def has_changes(self, changeset):
         """
         :returns: whether changeset contains at least one change

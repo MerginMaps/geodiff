@@ -3,12 +3,12 @@
  Copyright (C) 2021 Martin Dobias
 */
 
-#include "sqlite3.h"
+#include "changeset.h"
 
+#include <optional>
 #include <string>
-#include <map>
 #include <unordered_map>
-#include <unordered_set>
+#include <variant>
 
 #include "geodifflogger.hpp"
 #include "geodiffcontext.hpp"
@@ -17,53 +17,44 @@
 #include "changesetwriter.h"
 
 
-//! Hash value generator based on primary keys to have ChangesetEntry used in std::unordered_set
-struct HashChangesetEntryPkey
+struct ValueVectorHash
 {
-  size_t operator()( const ChangesetEntry *pentry ) const
+  size_t operator()( const std::vector<Value> &values ) const
   {
     size_t h = 0;
-    const ChangesetEntry &entry = *pentry;
-    const std::vector<bool> &pkeys = entry.table->primaryKeys;
-    const std::vector<Value> &values = entry.op == ChangesetEntry::OpInsert ? entry.newValues : entry.oldValues;
-    for ( size_t i = 0; i < pkeys.size(); ++i )
-    {
-      if ( pkeys[i] )
-        h ^= std::hash<Value> {}( values[i] );
-    }
+    for ( size_t i = 0; i < values.size(); ++i )
+      h ^= std::hash<Value> {}( values[i] );
     return h;
   }
 };
 
-
-//! Exact equality check based on primary keys to have ChangesetEntry used in std::unordered_set
-struct EqualToChangesetEntryPkey
+static std::vector<Value> entryPkey( const ChangesetDataEntry &entry )
 {
-  bool operator()( const ChangesetEntry *plhs, const ChangesetEntry *prhs ) const
+  const std::vector<bool> &pkeys = entry.table->primaryKeys;
+  const std::vector<Value> &values = entry.op == ChangesetDataEntry::OpInsert ? entry.newValues : entry.oldValues;
+  std::vector<Value> pkeyValues;
+  for ( size_t i = 0; i < values.size(); ++i )
   {
-    const ChangesetEntry &lhs = *plhs;
-    const ChangesetEntry &rhs = *prhs;
-    const std::vector<bool> &pkeys = lhs.table->primaryKeys;
-    const std::vector<Value> &lhsValues = lhs.op == ChangesetEntry::OpInsert ? lhs.newValues : lhs.oldValues;
-    const std::vector<Value> &rhsValues = rhs.op == ChangesetEntry::OpInsert ? rhs.newValues : rhs.oldValues;
-    for ( size_t i = 0; i < pkeys.size(); ++i )
-    {
-      if ( pkeys[i] && lhsValues[i] != rhsValues[i] )
-        return false;
-    }
-    return true;
+    if ( pkeys[i] )
+      pkeyValues.push_back( values[i] );
   }
-};
+  return pkeyValues;
+}
 
-typedef std::unordered_set<ChangesetEntry *, HashChangesetEntryPkey, EqualToChangesetEntryPkey> TableEntriesSet;
+
+// primary key values -> data entry index in entries list
+typedef std::unordered_map<std::vector<Value>, size_t, ValueVectorHash> TableEntriesMap;
 
 //! Struct to keep information about table and its changes while concatenating
 struct TableChanges
 {
-  std::unique_ptr<ChangesetTable> table;
-  TableEntriesSet entries;
+  // List of entries affecting this table. Wrapped in optional so we can do
+  // in-place O(1) deletions.
+  std::vector<std::optional<ChangesetEntry>> entries;
+  // Entries output at the start. Used for column additions.
+  std::vector<ChangesetEntry> prefixEntries;
+  TableEntriesMap dataEntries;
 };
-
 
 //! This is a helper function used by mergeUpdate().
 static Value mergeValue( const Value &vOne, const Value &vTwo )
@@ -127,62 +118,62 @@ enum MergeEntriesResult
 
 //! Takes two changeset entries e1 and e2 and merges their changes to e1 if possible.
 //! It is also possible that merging results in no change at all, or the change is not allowed
-static MergeEntriesResult mergeEntriesForRow( ChangesetEntry *e1, ChangesetEntry *e2 )
+static MergeEntriesResult mergeEntriesForRow( ChangesetDataEntry &e1, const ChangesetDataEntry &e2 )
 {
   // all these changes make no sense really, if they happen most likely something got broken
   // (e.g. adding a row with the same pkey twice)
-  if ( ( e1->op == ChangesetEntry::OpInsert && e2->op == ChangesetEntry::OpInsert ) ||
-       ( e1->op == ChangesetEntry::OpUpdate && e2->op == ChangesetEntry::OpInsert ) ||
-       ( e1->op == ChangesetEntry::OpDelete && e2->op == ChangesetEntry::OpUpdate ) ||
-       ( e1->op == ChangesetEntry::OpDelete && e2->op == ChangesetEntry::OpDelete ) )
+  if ( ( e1.op == ChangesetDataEntry::OpInsert && e2.op == ChangesetDataEntry::OpInsert ) ||
+       ( e1.op == ChangesetDataEntry::OpUpdate && e2.op == ChangesetDataEntry::OpInsert ) ||
+       ( e1.op == ChangesetDataEntry::OpDelete && e2.op == ChangesetDataEntry::OpUpdate ) ||
+       ( e1.op == ChangesetDataEntry::OpDelete && e2.op == ChangesetDataEntry::OpDelete ) )
     return Unsupported;
 
-  if ( e1->op == ChangesetEntry::OpInsert && e2->op == ChangesetEntry::OpDelete )
+  if ( e1.op == ChangesetDataEntry::OpInsert && e2.op == ChangesetDataEntry::OpDelete )
     return EntryRemoved;
 
-  if ( e1->op == ChangesetEntry::OpInsert && e2->op == ChangesetEntry::OpUpdate )
+  if ( e1.op == ChangesetDataEntry::OpInsert && e2.op == ChangesetDataEntry::OpUpdate )
   {
     // modify INSERT - update its values wherever the update has a newer value
-    for ( size_t i = 0; i < e1->table->columnCount(); ++i )
+    for ( size_t i = 0; i < e1.table->columnCount(); ++i )
     {
-      if ( e2->newValues[i].type() != Value::TypeUndefined )
-        e1->newValues[i] = e2->newValues[i];
+      if ( e2.newValues[i].type() != Value::TypeUndefined )
+        e1.newValues[i] = e2.newValues[i];
     }
     return EntryModified;
   }
 
-  if ( e1->op == ChangesetEntry::OpUpdate && e2->op == ChangesetEntry::OpUpdate )
+  if ( e1.op == ChangesetDataEntry::OpUpdate && e2.op == ChangesetDataEntry::OpUpdate )
   {
     // modify UPDATE
     std::vector<Value> oldVals, newVals;
-    if ( !mergeUpdate( *e1->table, e2->oldValues, e1->oldValues, e1->newValues, e2->newValues, oldVals, newVals ) )
+    if ( !mergeUpdate( *e1.table, e2.oldValues, e1.oldValues, e1.newValues, e2.newValues, oldVals, newVals ) )
       return EntryRemoved;
-    e1->oldValues = oldVals;
-    e1->newValues = newVals;
+    e1.oldValues = oldVals;
+    e1.newValues = newVals;
     return EntryModified;
   }
 
-  if ( e1->op == ChangesetEntry::OpUpdate && e2->op == ChangesetEntry::OpDelete )
+  if ( e1.op == ChangesetDataEntry::OpUpdate && e2.op == ChangesetDataEntry::OpDelete )
   {
     // turn into DELETE, use old values from delete when update does not list them
-    e1->op = ChangesetEntry::OpDelete;
-    for ( size_t i = 0; i < e1->table->columnCount(); ++i )
+    e1.op = ChangesetDataEntry::OpDelete;
+    for ( size_t i = 0; i < e1.table->columnCount(); ++i )
     {
-      if ( e1->oldValues[i].type() == Value::TypeUndefined )
-        e1->oldValues[i] = e2->oldValues[i];
+      if ( e1.oldValues[i].type() == Value::TypeUndefined )
+        e1.oldValues[i] = e2.oldValues[i];
     }
     return EntryModified;
   }
 
-  if ( e1->op == ChangesetEntry::OpDelete && e2->op == ChangesetEntry::OpInsert )
+  if ( e1.op == ChangesetDataEntry::OpDelete && e2.op == ChangesetDataEntry::OpInsert )
   {
     // turn into UPDATE
     std::vector<Value> oldVals, newVals;
-    if ( !mergeUpdate( *e1->table, e1->oldValues, {}, e2->newValues, {}, oldVals, newVals ) )
+    if ( !mergeUpdate( *e1.table, e1.oldValues, {}, e2.newValues, {}, oldVals, newVals ) )
       return EntryRemoved;
-    e1->op = ChangesetEntry::OpUpdate;
-    e1->oldValues = oldVals;
-    e1->newValues = newVals;
+    e1.op = ChangesetDataEntry::OpUpdate;
+    e1.oldValues = oldVals;
+    e1.newValues = newVals;
     return EntryModified;
   }
 
@@ -198,8 +189,18 @@ void concatChangesets(
   const std::vector<std::string> &filenames,
   const std::string &outputChangeset )
 {
-  // hashtable: table name -> ( fid -> changeset entry )
-  std::unordered_map<std::string, TableChanges> result;
+  // Output of concatenation is divided into phases, where entries can be freely
+  // merged.
+  // Indexed by table name, each table has its own separate phases.
+  std::unordered_map<std::string, std::vector<TableChanges>> output = {};
+
+  auto currentPhase = [&]( const std::string & tableName ) -> TableChanges &
+  {
+    std::vector<TableChanges> &phases = output[tableName];
+    if ( phases.size() == 0 )
+      phases.push_back( {} );
+    return phases.back();
+  };
 
   for ( const std::string &inputFilename : filenames )
   {
@@ -207,51 +208,87 @@ void concatChangesets(
     if ( !reader.open( inputFilename ) )
       throw GeoDiffException( "concatChangesets: unable to open input file: " + inputFilename );
 
-    ChangesetEntry entry;
-    while ( reader.nextEntry( entry ) )
+    ChangesetEntry fullEntry;
+    while ( reader.nextEntry( fullEntry ) )
     {
-      auto tableIt = result.find( entry.table->name );
-      if ( tableIt == result.end() )
+      if ( ChangesetDataEntry *dEntry = std::get_if<ChangesetDataEntry>( &fullEntry ) )
       {
-        TableChanges &t = result[ entry.table->name ];   // adds new entry
-        t.table.reset( new ChangesetTable( *entry.table ) );
-        ChangesetEntry *e = new ChangesetEntry( entry );
-        e->table = t.table.get();
-        t.entries.insert( e );
-      }
-      else
-      {
-        TableChanges &t = tableIt->second;
-        auto entriesIt = t.entries.find( &entry );
-        if ( entriesIt == t.entries.end() )
+        TableChanges &t = currentPhase( dEntry->table->name );
+        auto entriesIt = t.dataEntries.find( entryPkey( *dEntry ) );
+        if ( entriesIt == t.dataEntries.end() )
         {
           // row with this pkey is not in our list yet
-          ChangesetEntry *e = new ChangesetEntry( entry );
-          e->table = t.table.get();
-          t.entries.insert( e );
+          t.entries.push_back( *dEntry );
+          t.dataEntries[entryPkey( *dEntry )] = t.entries.size() - 1;
         }
         else
         {
           // we need to merge the recorded entry with the new one
-          ChangesetEntry *entry0 = *entriesIt;
-          MergeEntriesResult mergeRes = mergeEntriesForRow( entry0, &entry );
+          ChangesetDataEntry &entry0 = std::get<ChangesetDataEntry>( *t.entries[entriesIt->second] );
+          MergeEntriesResult mergeRes = mergeEntriesForRow( entry0, *dEntry );
           switch ( mergeRes )
           {
             case EntryModified:
               break;   // nothing else to do - the original entry got updated in place
             case EntryRemoved:
-              t.entries.erase( entriesIt );
-              delete entry0;
+              t.entries[ entriesIt->second ] = std::nullopt;
+              t.dataEntries.erase( entriesIt );
               break;
             case Unsupported:
               // we are discarding the new entry (there's no sensible way to integrate it)
               context->logger().warn( "concatChangesets: unsupported sequence of entries for a single row - discarding newer entry" );
-              t.entries.erase( entriesIt );
-              delete entry0;
+              t.entries[ entriesIt->second ] = std::nullopt;
+              t.dataEntries.erase( entriesIt );
               break;
           }
         }
       }
+      else if ( ChangesetDropTableEntry *dtEntry = std::get_if<ChangesetDropTableEntry>( &fullEntry ) )
+      {
+        currentPhase( dtEntry->tableName ).entries.push_back( *dtEntry );
+        // Any later re-addition should be in a new phase, since we don't
+        // currently short-circuit addition-deletion pairs.
+        output[dtEntry->tableName].push_back( {} );
+      }
+      else if ( ChangesetDropColumnEntry *dcEntry = std::get_if<ChangesetDropColumnEntry>( &fullEntry ) )
+      {
+        // Short-circuting column removals is hard, since we can't just prepend
+        // it to other entries (the column needs to be NULLed out first). So
+        // for now we treat it as a barrier.
+        currentPhase( dcEntry->tableName ).entries.push_back( *dcEntry );
+        // We also need to start a new phase, since we can't merge entries
+        // anymore.
+        output[ dcEntry->tableName ].push_back( {} );
+      }
+      else if ( ChangesetCreateTableEntry *ctEntry = std::get_if<ChangesetCreateTableEntry>( &fullEntry ) )
+      {
+        TableChanges newPhase;
+        newPhase.entries = { *ctEntry };
+        output[ctEntry->tableName].push_back( newPhase );
+      }
+      else if ( ChangesetAddColumnEntry *acEntry = std::get_if<ChangesetAddColumnEntry>( &fullEntry ) )
+      {
+        currentPhase( acEntry->tableName ).prefixEntries.push_back( *acEntry );
+        // Add the column to all existing entries, since we pushed the column
+        // addition in front of them.
+        size_t newColumnCount = SIZE_MAX;
+        for ( auto &existingEntry : currentPhase( acEntry->tableName ).entries )
+        {
+          if ( !existingEntry ) continue;
+          ChangesetDataEntry *existingDEntry = std::get_if<ChangesetDataEntry>( &*existingEntry );
+          if ( !existingDEntry ) continue;
+          if ( newColumnCount == SIZE_MAX )
+            newColumnCount = existingDEntry->table->columnCount() + 1;
+          if ( existingDEntry->table->columnCount() != newColumnCount )
+            existingDEntry->table->primaryKeys.push_back( false );
+          if ( existingDEntry->oldValues.size() != 0 && existingDEntry->oldValues.size() != newColumnCount )
+            existingDEntry->oldValues.push_back( Value::makeNull() );
+          if ( existingDEntry->newValues.size() != 0 && existingDEntry->newValues.size() != newColumnCount )
+            existingDEntry->newValues.push_back( Value::makeNull() );
+        }
+      }
+      else
+        throw GeoDiffException( "concatChanges: unhandled entry " + std::to_string( fullEntry.index() ) );
     }
   }
 
@@ -259,17 +296,31 @@ void concatChangesets(
   writer.open( outputChangeset );
 
   // output all we have captured
-  for ( auto it = result.begin(); it != result.end(); ++it )
+  for ( const auto &[tableName, phases] : output )
   {
-    const TableChanges &t = it->second;
-    if ( t.entries.size() == 0 )
-      continue;
-
-    writer.beginTable( *t.table );
-    for ( ChangesetEntry *e : t.entries )
+    for ( const auto &phase : phases )
     {
-      writer.writeEntry( *e );
-      delete e;
+      for ( const ChangesetEntry &e : phase.prefixEntries )
+      {
+        writer.writeEntry( e );
+      }
+
+      std::shared_ptr<ChangesetTable> writtenSchema;
+      for ( const std::optional<ChangesetEntry> &e : phase.entries )
+      {
+        if ( e )
+        {
+          if ( const ChangesetDataEntry *dEntry = std::get_if<ChangesetDataEntry>( &*e ) )
+          {
+            if ( dEntry->table != writtenSchema )
+            {
+              writer.beginTable( *dEntry->table );
+              writtenSchema = dEntry->table;
+            }
+          }
+          writer.writeEntry( *e );
+        }
+      }
     }
   }
 }

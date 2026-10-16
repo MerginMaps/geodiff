@@ -20,7 +20,7 @@ class UnitTestsPythonErrors(GeoDiffTests):
         create_dir("unsupported_change")
 
         base = geodiff_test_dir() + "/base.gpkg"
-        modified = geodiff_test_dir() + "/modified_scheme/added_attribute.gpkg"
+        modified = geodiff_test_dir() + "/modified_scheme/changed_attribute_type.gpkg"
         changeset = tmpdir() + "/pyunsupported_change/changeset.bin"
 
         try:
