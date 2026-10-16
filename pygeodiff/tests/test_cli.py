@@ -598,20 +598,20 @@ class UnitTestsCliCalls(GeoDiffCliTests):
         """
         Test paths over 255 characters long, since they can cause trouble
         on Windows.
-        Requires HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\FileSystem\LongPathsEnabled=1
         """
 
-        longdir = create_dir("long_name_directory_" + "a" * 230)
+        longdir = create_dir("long_name_directory_" + "a" * 150)
+        filler = "b" * 100
 
         self.run_command(
-            ["copy", geodiff_test_dir() + "/base.gpkg", longdir + "/base.gpkg"]
+            ["copy", geodiff_test_dir() + "/base.gpkg", f"{longdir}/{filler}_base.gpkg"]
         )
         self.run_command(
             [
                 "diff",
-                longdir + "/base.gpkg",
+                f"{longdir}/{filler}_base.gpkg",
                 geodiff_test_dir() + "/1_geopackage/modified_1_geom.gpkg",
-                longdir + "/base-modified_1_geom.diff",
+                f"{longdir}/{filler}_base-modified_1_geom.diff",
             ]
         )
-        self.run_command(["as-json", longdir + "/base-modified_1_geom.diff"])
+        self.run_command(["as-json", f"{longdir}/{filler}_base-modified_1_geom.diff"])
