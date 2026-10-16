@@ -18,24 +18,20 @@
 
 static bool fileToStdout( const std::string &filepath )
 {
-#ifdef WIN32
-  std::ifstream f;
   try
   {
-    f.open( stringToWString( filepath ) );
+    std::ifstream f = openIfstream( filepath );
+
+    if ( !f.is_open() )
+      return false;
+
+    std::cout << f.rdbuf();
+    return true;
   }
   catch ( GeoDiffException & )
   {
     return false;
   }
-#else
-  std::ifstream f( filepath );
-#endif
-  if ( !f.is_open() )
-    return false;
-
-  std::cout << f.rdbuf();
-  return true;
 }
 
 static bool parseRequiredArgument( std::string &value, const std::vector<std::string> &args, size_t &i, const std::string &argName, const std::string &cmdName )

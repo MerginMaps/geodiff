@@ -166,23 +166,35 @@ std::string randomTmpFilename( );
 
 #ifdef WIN32
 /**
- *  Converts std::string to std::wstring
- *  throws GeoDiffException if conversion is not possible
+ * Converts std::string to std::wstring
+ * \throws GeoDiffException if conversion is not possible
  */
 std::wstring stringToWString( const std::string &str );
 
 /**
  * Converts std::wstring to std::string
- *  throws GeoDiffException if conversion is not possible
+ * \throws GeoDiffException if conversion is not possible
  */
 std::string wstringToString( const std::wstring &wStr );
+
+/**
+ * Returns absolute path prefixed with \\?\ for long path handling.
+ * \throws GeoDiffException if path can't be converted/resolved
+ */
+std::wstring pathToExtended( const std::string &path );
 #endif
 
 /**
- *  Opens file with specific function for windows
- *  throws GeoDiffException on error
+ * Opens file with specific function for windows
+ * \throws GeoDiffException on error
  */
 FILE *openFile( const std::string &path, const std::string &mode );
+
+/**
+ * Opens file as std::ifstream with specific function for windows
+ * \throws GeoDiffException on error
+ */
+std::ifstream openIfstream( const std::string &path, std::ios_base::openmode mode = std::ios_base::in );
 
 class TmpFile
 {

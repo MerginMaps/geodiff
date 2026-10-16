@@ -17,7 +17,7 @@
 void ChangesetWriter::open( const std::string &filename )
 {
 #ifdef WIN32
-  mFile.open( stringToWString( filename ), std::ios::out | std::ios::binary );
+  mFile.open( pathToExtended( filename ), std::ios::out | std::ios::binary );
 #else
   mFile.open( filename, std::ios::out | std::ios::binary );
 #endif
