@@ -615,3 +615,24 @@ class UnitTestsCliCalls(GeoDiffCliTests):
             ]
         )
         self.run_command(["as-json", f"{longdir}/{filler}_base-modified_1_geom.diff"])
+
+    def test_unicode(self):
+        """
+        Test paths with non-ASCII characters
+        """
+
+        dir = create_dir("unicode_dir\u2014\u0d9e\U0001f30f\u2696")
+        print(dir)
+
+        self.run_command(
+            ["copy", geodiff_test_dir() + "/base.gpkg", f"{dir}/base.gpkg"]
+        )
+        self.run_command(
+            [
+                "diff",
+                f"{dir}/base.gpkg",
+                geodiff_test_dir() + "/1_geopackage/modified_1_geom.gpkg",
+                f"{dir}/base-modified_1_geom.diff",
+            ]
+        )
+        self.run_command(["as-json", f"{dir}/base-modified_1_geom.diff"])
