@@ -26,8 +26,18 @@
 
 #include <fcntl.h>
 #include <iostream>
+#include <set>
 #include <string>
 #include <vector>
+
+#ifdef WIN32
+#ifndef NOMINMAX
+#define NOMINMAX
+#endif
+#include <windows.h>
+#else
+#include <sys/stat.h>
+#endif
 
 #include "json.hpp"
 
@@ -1232,6 +1242,237 @@ int GEODIFF_schema( GEODIFF_ContextH contextHandle, const char *driverName, cons
   }
 
   return GEODIFF_SUCCESS;
+}
+
+
+// ordered_json keeps the keys of report entries in the order they are added
+using ordered_json = nlohmann::ordered_json;
+using SchemaProperties = std::vector<std::pair<const char *, ordered_json>>;
+
+//! Returns whether both paths point to the same existing file, whichever way they are spelled
+static bool isSameFile( const std::string &path1, const std::string &path2 )
+{
+#ifdef WIN32
+  const auto identify = []( const std::string & path, BY_HANDLE_FILE_INFORMATION & info )
+  {
+    HANDLE handle = CreateFileW( stringToWString( path ).c_str(), 0, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
+                                 nullptr, OPEN_EXISTING, FILE_FLAG_BACKUP_SEMANTICS, nullptr );
+    if ( handle == INVALID_HANDLE_VALUE )
+      return false;
+    const bool ok = GetFileInformationByHandle( handle, &info ) != 0;
+    CloseHandle( handle );
+    return ok;
+  };
+  BY_HANDLE_FILE_INFORMATION info1 = {}, info2 = {};
+  return identify( path1, info1 ) && identify( path2, info2 ) &&
+         info1.dwVolumeSerialNumber == info2.dwVolumeSerialNumber &&
+         info1.nFileIndexHigh == info2.nFileIndexHigh && info1.nFileIndexLow == info2.nFileIndexLow;
+#else
+  struct stat stat1, stat2;
+  return stat( path1.c_str(), &stat1 ) == 0 && stat( path2.c_str(), &stat2 ) == 0 &&
+         stat1.st_dev == stat2.st_dev && stat1.st_ino == stat2.st_ino;
+#endif
+}
+
+//! Creates a report entry. A null column means that the entry is about the whole table.
+static ordered_json schemaDifference( const std::string &table, const ordered_json &column, const std::string &property,
+                                      const ordered_json &oldValue, const ordered_json &newValue )
+{
+  ordered_json entry;
+  entry["table"] = table;
+  if ( !column.is_null() )
+    entry["column"] = column;
+  entry["property"] = property;
+  entry["old"] = oldValue;
+  entry["new"] = newValue;
+  return entry;
+}
+
+//! Column properties compared one by one, in the order they are reported
+static SchemaProperties columnProperties( const TableColumnInfo &column )
+{
+  // geometry details are null for columns that are not geometries
+  const auto geometry = [&column]( const ordered_json & value ) { return column.isGeometry ? value : ordered_json( nullptr ); };
+  return
+  {
+    { "type", TableColumnType::baseTypeToString( column.type.baseType ) },
+    { "primary_key", column.isPrimaryKey },
+    { "not_null", column.isNotNull },
+    { "auto_increment", column.isAutoIncrement },
+    { "geometry.type", geometry( column.geomType ) },
+    { "geometry.srs_id", geometry( column.geomSrsId ) },
+    { "geometry.has_z", geometry( column.geomHasZ ) },
+    { "geometry.has_m", geometry( column.geomHasM ) },
+  };
+}
+
+//! CRS properties compared one by one, in the order they are reported (CRS WKT is not compared)
+static SchemaProperties crsProperties( const CrsDefinition &crs )
+{
+  return
+  {
+    { "crs.srs_id", crs.srsId },
+    { "crs.auth_name", crs.authName },
+    { "crs.auth_code", crs.authCode },
+  };
+}
+
+//! Adds an entry for each property with a different value. Both lists have the same properties in the same order.
+static void addPropertyDifferences( const std::string &table, const ordered_json &column,
+                                    const SchemaProperties &base, const SchemaProperties &modified,
+                                    ordered_json &differences )
+{
+  for ( size_t i = 0; i < base.size(); ++i )
+  {
+    if ( base[i].second != modified[i].second )
+      differences.push_back( schemaDifference( table, column, base[i].first, base[i].second, modified[i].second ) );
+  }
+}
+
+//! Describes how two schemas of a table differ: table properties first, then columns by their position
+static void describeTableDifferences( const TableSchema &base, const TableSchema &modified, ordered_json &differences )
+{
+  const std::string &table = base.name;
+
+  // order of the columns present in both tables, added and removed columns are reported separately
+  const auto commonColumns = []( const TableSchema & tbl, const TableSchema & other )
+  {
+    ordered_json names = ordered_json::array();
+    for ( const TableColumnInfo &column : tbl.columns )
+    {
+      if ( other.columnFromName( column.name ) != SIZE_MAX )
+        names.push_back( column.name );
+    }
+    return names;
+  };
+  const ordered_json baseOrder = commonColumns( base, modified );
+  const ordered_json modifiedOrder = commonColumns( modified, base );
+  if ( baseOrder != modifiedOrder )
+    differences.push_back( schemaDifference( table, nullptr, "column_order", baseOrder, modifiedOrder ) );
+
+  addPropertyDifferences( table, nullptr, crsProperties( base.crs ), crsProperties( modified.crs ), differences );
+
+  for ( const TableColumnInfo &column : base.columns )
+  {
+    const size_t i = modified.columnFromName( column.name );
+    if ( i == SIZE_MAX )
+      differences.push_back( schemaDifference( table, column.name, "column", column.name, nullptr ) );
+    else
+      addPropertyDifferences( table, column.name, columnProperties( column ), columnProperties( modified.columns[i] ), differences );
+  }
+  for ( const TableColumnInfo &column : modified.columns )
+  {
+    if ( base.columnFromName( column.name ) == SIZE_MAX )
+      differences.push_back( schemaDifference( table, column.name, "column", nullptr, column.name ) );
+  }
+}
+
+/**
+ * Compares tables of the base and modified source opened by the driver. Whether the schemas are
+ * equal is decided by TableSchema::compareWithBaseTypes(), like when creating a changeset.
+ * If \a differences is null, the comparison ends with the first difference, otherwise all
+ * differences are described there, ordered by table name.
+ */
+static bool compareSchemas( Driver &driver, ordered_json *differences )
+{
+  const std::vector<std::string> baseList = driver.listTables( false );
+  const std::vector<std::string> modifiedList = driver.listTables( true );
+  const std::set<std::string> baseTables( baseList.begin(), baseList.end() );
+  const std::set<std::string> modifiedTables( modifiedList.begin(), modifiedList.end() );
+  std::set<std::string> allTables( baseTables );
+  allTables.insert( modifiedTables.begin(), modifiedTables.end() );
+
+  bool equal = true;
+  for ( const std::string &table : allTables )
+  {
+    const bool inBase = baseTables.count( table ) > 0;
+    const bool inModified = modifiedTables.count( table ) > 0;
+    if ( inBase && inModified )
+    {
+      const TableSchema baseSchema = driver.tableSchema( table, false );
+      const TableSchema modifiedSchema = driver.tableSchema( table, true );
+      if ( baseSchema.compareWithBaseTypes( modifiedSchema ) )
+        continue;
+
+      if ( differences )
+        describeTableDifferences( baseSchema, modifiedSchema, *differences );
+    }
+    else if ( differences )
+    {
+      differences->push_back( schemaDifference( table, nullptr, "table",
+                              inBase ? ordered_json( table ) : ordered_json( nullptr ),
+                              inModified ? ordered_json( table ) : ordered_json( nullptr ) ) );
+    }
+
+    if ( !differences )
+      return false;
+    equal = false;
+  }
+  return equal;
+}
+
+//! Writes the report, throws GeoDiffException when it cannot be fully written
+static void writeSchemaReport( const std::string &path, const ordered_json &differences )
+{
+  ordered_json report;
+  report["geodiff_schema_diff"] = differences;
+  const std::string content = report.dump( 2, ' ', false, ordered_json::error_handler_t::replace );
+
+  FILE *file = openFile( path, "wb" );
+  if ( !file )
+    throw GeoDiffException( "Unable to open schema report for writing: " + path );
+
+  const bool written = fwrite( content.data(), 1, content.size(), file ) == content.size();
+  const bool closed = fclose( file ) == 0;
+  if ( !written || !closed )
+    throw GeoDiffException( "Unable to write schema report: " + path );
+}
+
+int GEODIFF_hasEqualSchema( GEODIFF_ContextH contextHandle, const char *driverName, const char *driverExtraInfo,
+                            const char *base, const char *modified, const char *jsonfile )
+{
+  Context *context = static_cast<Context *>( contextHandle );
+  if ( !context )
+  {
+    return -1;
+  }
+
+  if ( !driverName || !base || !modified )
+  {
+    setAndLogError( context, "NULL arguments to GEODIFF_hasEqualSchema" );
+    return -1;
+  }
+
+  // -1 is returned for errors, as handleException() would return 1 - the value for equal schemas
+  try
+  {
+    std::unique_ptr<Driver> driver( Driver::createDriver( context, std::string( driverName ) ) );
+    if ( !driver )
+      throw GeoDiffException( "Unable to use driver: " + std::string( driverName ) );
+
+    if ( jsonfile && driverName == Driver::SQLITEDRIVERNAME &&
+         ( isSameFile( jsonfile, base ) || isSameFile( jsonfile, modified ) ) )
+      throw GeoDiffException( "Schema report would overwrite one of the compared databases: " + std::string( jsonfile ) );
+
+    std::map<std::string, std::string> conn;
+    conn["base"] = std::string( base );
+    conn["modified"] = std::string( modified );
+    if ( driverExtraInfo )
+      conn["conninfo"] = std::string( driverExtraInfo );
+    driver->open( conn );
+
+    ordered_json differences = ordered_json::array();
+    const bool equal = compareSchemas( *driver, jsonfile ? &differences : nullptr );
+    if ( jsonfile )
+      writeSchemaReport( jsonfile, differences );
+
+    return equal ? 1 : 0;
+  }
+  catch ( const GeoDiffException &exc )
+  {
+    handleException( context, exc );
+    return -1;
+  }
 }
 
 

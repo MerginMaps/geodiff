@@ -460,6 +460,33 @@ GEODIFF_EXPORT int GEODIFF_schema(
   const char *src,
   const char *json );
 
+/**
+ * Compares table schemas of the base and modified data sources opened by the same driver, without
+ * comparing data. Tables excluded by the context's table filters are ignored.
+ *
+ * Schemas are equal when both sources have the same tables and each table has the same columns in the
+ * same order, with equal normalized types (e.g. "INT" and "INTEGER" match), primary key, not-null and
+ * auto-increment flags, geometry details and CRS identifiers (CRS WKT is not compared).
+ *
+ * See documentation of GEODIFF_makeCopy() for details about supported drivers.
+ *
+ * \param jsonfile [input] optional file to write all differences to (overwritten), which must not be
+ *        one of the compared databases. If nullptr, no report is written and the comparison stops
+ *        at the first difference. The report is {"geodiff_schema_diff": [...]} with entries
+ *        {"table", "column" (if any), "property", "old", "new"} where old/new are the base/modified
+ *        values, or null when the table or column is missing there. Properties are "table", "column",
+ *        "column_order" (names of the common columns), "type", "primary_key", "not_null",
+ *        "auto_increment", "geometry.type|srs_id|has_z|has_m" and "crs.srs_id|auth_name|auth_code".
+ * \returns 1 if the schemas are equal, 0 if they differ, -1 on error (differing schemas are not an error)
+ */
+GEODIFF_EXPORT int GEODIFF_hasEqualSchema(
+  GEODIFF_ContextH contextHandle,
+  const char *driverName,
+  const char *driverExtraInfo,
+  const char *base,
+  const char *modified,
+  const char *jsonfile );
+
 
 typedef void *GEODIFF_ChangesetReaderH;
 typedef void *GEODIFF_ChangesetEntryH;

@@ -4,6 +4,10 @@
     :license: MIT, see LICENSE for more details.
 """
 
+import json
+
+import pygeodiff
+
 from .testutils import (
     GeoDiffTests,
     TestError,
@@ -142,3 +146,41 @@ class UnitTestsPythonApiCalls(GeoDiffTests):
         self.geodiff.schema(
             "sqlite", "", geodiff_test_dir() + "/base.gpkg", outdir + "/schema.json"
         )
+
+    def test_has_equal_schema(self):
+        outdir = create_dir("has-equal-schema")
+        base = geodiff_test_dir() + "/base.gpkg"
+        report = outdir + "/report.json"
+
+        self.assertIs(
+            True,
+            self.geodiff.has_equal_schema(
+                "sqlite", "", base, geodiff_test_dir() + "/2_updates/updated_A.gpkg"
+            ),
+        )
+
+        added_attribute = geodiff_test_dir() + "/modified_scheme/added_attribute.gpkg"
+        self.assertIs(
+            False,
+            self.geodiff.has_equal_schema(
+                "sqlite", "", base, added_attribute, json=report
+            ),
+        )
+        with open(report) as f:
+            self.assertEqual(
+                {
+                    "geodiff_schema_diff": [
+                        {
+                            "table": "simple",
+                            "column": "added_field",
+                            "property": "column",
+                            "old": None,
+                            "new": "added_field",
+                        }
+                    ]
+                },
+                json.load(f),
+            )
+
+        with self.assertRaises(pygeodiff.GeoDiffLibError):
+            self.geodiff.has_equal_schema("sqlite", "", base, outdir + "/missing.gpkg")

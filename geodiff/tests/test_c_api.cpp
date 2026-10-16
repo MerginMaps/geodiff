@@ -8,7 +8,53 @@
 #include "geodiff.h"
 #include "geodiffutils.hpp"
 
+#include "json.hpp"
+
+#include <fstream>
 #include <string>
+#include <vector>
+
+#include <sqlite3.h>
+
+static void execSql( const std::string &dbPath, const std::string &sql )
+{
+  sqlite3 *db = nullptr;
+  ASSERT_EQ( SQLITE_OK, sqlite3_open( dbPath.c_str(), &db ) );
+  ASSERT_EQ( SQLITE_OK, sqlite3_exec( db, sql.c_str(), nullptr, nullptr, nullptr ) );
+  sqlite3_close( db );
+}
+
+//! Overwrites the root page of the geometry columns table, so that reading rows from it fails
+static void damageGeometryColumns( const std::string &dbPath )
+{
+  sqlite3 *db = nullptr;
+  ASSERT_EQ( SQLITE_OK, sqlite3_open( dbPath.c_str(), &db ) );
+  const char *sql = "SELECT (rootpage - 1) * page_size, page_size FROM sqlite_master, pragma_page_size "
+                    "WHERE name = 'gpkg_geometry_columns'";
+  sqlite3_stmt *stmt = nullptr;
+  ASSERT_EQ( SQLITE_OK, sqlite3_prepare_v2( db, sql, -1, &stmt, nullptr ) );
+  ASSERT_EQ( SQLITE_ROW, sqlite3_step( stmt ) );
+  const sqlite3_int64 offset = sqlite3_column_int64( stmt, 0 );
+  const std::string garbage( sqlite3_column_int( stmt, 1 ), '\xff' );
+  sqlite3_finalize( stmt );
+  sqlite3_close( db );
+
+  std::fstream file( dbPath, std::ios::in | std::ios::out | std::ios::binary );
+  file.seekp( offset );
+  file.write( garbage.data(), garbage.size() );
+  ASSERT_TRUE( file.good() );
+}
+
+static nlohmann::json readJson( const std::string &path )
+{
+  std::ifstream in( path );
+  if ( !in.is_open() )
+  {
+    ADD_FAILURE() << "Cannot open " << path;
+    return nullptr;
+  }
+  return nlohmann::json::parse( in );
+}
 
 TEST( CAPITest, invalid_calls )
 {
@@ -88,6 +134,45 @@ TEST( CAPITest, invalid_calls )
   ASSERT_EQ( GEODIFF_ERROR, GEODIFF_schema( invalidContext, nullptr, nullptr, nullptr, nullptr ) );
   ASSERT_EQ( GEODIFF_ERROR, GEODIFF_schema( context, nullptr, nullptr, nullptr, nullptr ) );
 
+  // errors are -1 because 1 means that the schemas are equal
+  {
+    const std::string base = pathjoin( testdir(), "base.gpkg" );
+    const std::string notDatabase = pathjoin( testdir(), "schema", "base-schema.json" );
+    const std::string dir = pathjoin( tmpdir(), "invalid_calls" );
+    makedir( dir );
+
+    ASSERT_EQ( -1, GEODIFF_hasEqualSchema( invalidContext, "sqlite", "", base.c_str(), base.c_str(), nullptr ) );
+    ASSERT_EQ( -1, GEODIFF_hasEqualSchema( context, nullptr, "", base.c_str(), base.c_str(), nullptr ) );
+    ASSERT_EQ( -1, GEODIFF_hasEqualSchema( context, "sqlite", "", nullptr, base.c_str(), nullptr ) );
+    ASSERT_EQ( -1, GEODIFF_hasEqualSchema( context, "sqlite", "", base.c_str(), nullptr, nullptr ) );
+    ASSERT_EQ( -1, GEODIFF_hasEqualSchema( context, "invalid driver", "", base.c_str(), base.c_str(), nullptr ) );
+    ASSERT_EQ( -1, GEODIFF_hasEqualSchema( context, "sqlite", "", "bad file", base.c_str(), nullptr ) );
+    ASSERT_EQ( -1, GEODIFF_hasEqualSchema( context, "sqlite", "", base.c_str(), "bad file", nullptr ) );
+    ASSERT_EQ( -1, GEODIFF_hasEqualSchema( context, "sqlite", "", notDatabase.c_str(), base.c_str(), nullptr ) );
+    ASSERT_EQ( -1, GEODIFF_hasEqualSchema( context, "sqlite", "", base.c_str(), notDatabase.c_str(), nullptr ) );
+
+    const std::string unwritable = pathjoin( dir, "no_such_dir", "report.json" );
+    ASSERT_EQ( -1, GEODIFF_hasEqualSchema( context, "sqlite", "", base.c_str(), base.c_str(), unwritable.c_str() ) );
+
+    // a report must never overwrite one of the compared databases, however its path is spelled
+    const std::string copyBase = pathjoin( dir, "copy_base.gpkg" );
+    const std::string copyModified = pathjoin( dir, "copy_modified.gpkg" );
+    ASSERT_TRUE( filecopy( copyBase, base ) );
+    ASSERT_TRUE( filecopy( copyModified, base ) );
+    const std::string respelledBase = pathjoin( dir, ".", "copy_base.gpkg" );
+    ASSERT_EQ( -1, GEODIFF_hasEqualSchema( context, "sqlite", "", copyBase.c_str(), copyModified.c_str(), copyBase.c_str() ) );
+    ASSERT_EQ( -1, GEODIFF_hasEqualSchema( context, "sqlite", "", copyBase.c_str(), copyModified.c_str(), copyModified.c_str() ) );
+    ASSERT_EQ( -1, GEODIFF_hasEqualSchema( context, "sqlite", "", copyBase.c_str(), copyModified.c_str(), respelledBase.c_str() ) );
+    ASSERT_TRUE( fileContentEquals( copyBase, base ) );
+    ASSERT_TRUE( fileContentEquals( copyModified, base ) );
+
+    // failing in the middle of reading a schema must not be taken for a partial schema
+    const std::string damaged = pathjoin( dir, "damaged.gpkg" );
+    ASSERT_TRUE( filecopy( damaged, base ) );
+    damageGeometryColumns( damaged );
+    ASSERT_EQ( -1, GEODIFF_hasEqualSchema( context, "sqlite", "", damaged.c_str(), damaged.c_str(), nullptr ) );
+  }
+
   ASSERT_EQ( nullptr, GEODIFF_readChangeset( invalidContext, nullptr ) );
   ASSERT_EQ( nullptr, GEODIFF_readChangeset( context, nullptr ) );
 
@@ -101,6 +186,143 @@ TEST( CAPITest, invalid_calls )
   size_t size;
   const char *wkb;
   ASSERT_EQ( GEODIFF_ERROR, GEODIFF_createWkbFromGpkgHeader( invalidContext, " ", size_t( 0 ), &wkb, &size ) );
+
+  GEODIFF_CX_destroy( context );
+}
+
+TEST( CAPITest, has_equal_schema )
+{
+  GEODIFF_ContextH context = GEODIFF_createContext();
+  const std::string dir = pathjoin( tmpdir(), "has_equal_schema" );
+  makedir( dir );
+  const std::string report = pathjoin( dir, "report.json" );
+  const std::string base = pathjoin( testdir(), "base.gpkg" );
+  const std::string modifiedScheme = pathjoin( testdir(), "modified_scheme" );
+
+  // same schema, different data
+  const std::string updated = pathjoin( testdir(), "2_updates", "updated_A.gpkg" );
+  ASSERT_EQ( 1, GEODIFF_hasEqualSchema( context, "sqlite", "", base.c_str(), updated.c_str(), nullptr ) );
+  ASSERT_EQ( 1, GEODIFF_hasEqualSchema( context, "sqlite", "", base.c_str(), updated.c_str(), report.c_str() ) );
+  ASSERT_EQ( nlohmann::json::parse( R"({"geodiff_schema_diff": []})" ), readJson( report ) );
+
+  // different spellings of the same normalized types
+  const std::string aliasA = pathjoin( dir, "alias_a.sqlite" );
+  const std::string aliasB = pathjoin( dir, "alias_b.sqlite" );
+  fileremove( aliasA );
+  fileremove( aliasB );
+  execSql( aliasA, "CREATE TABLE t ( fid INTEGER PRIMARY KEY, a VARCHAR(20), b INT, c REAL );" );
+  execSql( aliasB, "CREATE TABLE t ( fid INTEGER PRIMARY KEY, a TEXT, b INTEGER, c DOUBLE );" );
+  fileremove( report );
+  ASSERT_EQ( 1, GEODIFF_hasEqualSchema( context, "sqlite", "", aliasA.c_str(), aliasB.c_str(), report.c_str() ) );
+  ASSERT_EQ( nlohmann::json::parse( R"({"geodiff_schema_diff": []})" ), readJson( report ) );
+
+  const std::string orderBase = pathjoin( dir, "order_base.sqlite" );
+  const std::string orderModified = pathjoin( dir, "order_modified.sqlite" );
+  fileremove( orderBase );
+  fileremove( orderModified );
+  execSql( orderBase, "CREATE TABLE features ( fid INTEGER PRIMARY KEY, crop_type TEXT, area REAL );" );
+  execSql( orderModified, "CREATE TABLE archive ( id INTEGER PRIMARY KEY );"
+           "CREATE TABLE features ( fid INTEGER PRIMARY KEY, area REAL, crop_type INTEGER );" );
+
+  const std::string flagsBase = pathjoin( dir, "flags_base.sqlite" );
+  const std::string flagsModified = pathjoin( dir, "flags_modified.sqlite" );
+  fileremove( flagsBase );
+  fileremove( flagsModified );
+  execSql( flagsBase, "CREATE TABLE t ( id INTEGER PRIMARY KEY NOT NULL, v TEXT );" );
+  execSql( flagsModified, "CREATE TABLE t ( id INTEGER, v TEXT );" );
+
+  const std::string crs = pathjoin( dir, "crs.gpkg" );
+  ASSERT_TRUE( filecopy( crs, base ) );
+  execSql( crs, "INSERT INTO gpkg_spatial_ref_sys ( srs_name, srs_id, organization, organization_coordsys_id, definition )"
+           " VALUES ( 'OSGB36 / British National Grid', 27700, 'EPSG', 27700, 'undefined' );"
+           "UPDATE gpkg_geometry_columns SET srs_id = 27700, z = 1;" );
+
+  struct Mismatch
+  {
+    std::string base;
+    std::string modified;
+    std::string expected;
+  };
+  const std::vector<Mismatch> mismatches =
+  {
+    {
+      // added column
+      base, pathjoin( modifiedScheme, "added_attribute.gpkg" ),
+      R"([{"table": "simple", "column": "added_field", "property": "column", "old": null, "new": "added_field"}])"
+    },
+    {
+      // added table
+      base, pathjoin( modifiedScheme, "added_table.gpkg" ),
+      R"([{"table": "added_table", "property": "table", "old": null, "new": "added_table"}])"
+    },
+    {
+      // removed table
+      pathjoin( modifiedScheme, "added_table.gpkg" ), base,
+      R"([{"table": "added_table", "property": "table", "old": "added_table", "new": null}])"
+    },
+    {
+      // tables ordered by name; column order reported separately from the type change of a column
+      orderBase, orderModified,
+      R"([{"table": "archive", "property": "table", "old": null, "new": "archive"},
+          {"table": "features", "property": "column_order", "old": ["fid", "crop_type", "area"], "new": ["fid", "area", "crop_type"]},
+          {"table": "features", "column": "crop_type", "property": "type", "old": "text", "new": "integer"}])"
+    },
+    {
+      // type of an existing column
+      pathjoin( modifiedScheme, "added_attribute.gpkg" ), pathjoin( modifiedScheme, "added_attribute_different_type.gpkg" ),
+      R"([{"table": "simple", "column": "added_field", "property": "type", "old": "integer", "new": "text"}])"
+    },
+    {
+      // column attributes, in a fixed order
+      flagsBase, flagsModified,
+      R"([{"table": "t", "column": "id", "property": "primary_key", "old": true, "new": false},
+          {"table": "t", "column": "id", "property": "not_null", "old": true, "new": false},
+          {"table": "t", "column": "id", "property": "auto_increment", "old": true, "new": false}])"
+    },
+    {
+      // CRS of the table, then geometry details of the column
+      base, crs,
+      R"([{"table": "simple", "property": "crs.srs_id", "old": 4326, "new": 27700},
+          {"table": "simple", "property": "crs.auth_code", "old": 4326, "new": 27700},
+          {"table": "simple", "column": "geometry", "property": "geometry.srs_id", "old": 4326, "new": 27700},
+          {"table": "simple", "column": "geometry", "property": "geometry.has_z", "old": false, "new": true}])"
+    },
+  };
+
+  for ( const Mismatch &m : mismatches )
+  {
+    SCOPED_TRACE( m.base + " -> " + m.modified );
+    ASSERT_EQ( 0, GEODIFF_hasEqualSchema( context, "sqlite", "", m.base.c_str(), m.modified.c_str(), nullptr ) );
+
+    fileremove( report );
+    ASSERT_EQ( 0, GEODIFF_hasEqualSchema( context, "sqlite", "", m.base.c_str(), m.modified.c_str(), report.c_str() ) );
+    ASSERT_EQ( nlohmann::json::parse( m.expected ), readJson( report )["geodiff_schema_diff"] );
+  }
+
+  // a difference is not an error, a failure is
+  ASSERT_STREQ( "", GEODIFF_CX_lastError( context ) );
+  ASSERT_EQ( -1, GEODIFF_hasEqualSchema( context, "sqlite", "", base.c_str(), "bad file", nullptr ) );
+  ASSERT_STRNE( "", GEODIFF_CX_lastError( context ) );
+
+  GEODIFF_CX_destroy( context );
+}
+
+TEST( CAPITest, has_equal_schema_table_filters )
+{
+  GEODIFF_ContextH context = GEODIFF_createContext();
+  const std::string base = pathjoin( testdir(), "base.gpkg" );
+  const std::string modified = pathjoin( testdir(), "modified_scheme", "added_table.gpkg" );
+
+  ASSERT_EQ( 0, GEODIFF_hasEqualSchema( context, "sqlite", "", base.c_str(), modified.c_str(), nullptr ) );
+
+  const char *skipped[] = { "added_table" };
+  ASSERT_EQ( GEODIFF_SUCCESS, GEODIFF_CX_setTablesToSkip( context, 1, skipped ) );
+  ASSERT_EQ( 1, GEODIFF_hasEqualSchema( context, "sqlite", "", base.c_str(), modified.c_str(), nullptr ) );
+  ASSERT_EQ( GEODIFF_SUCCESS, GEODIFF_CX_setTablesToSkip( context, 0, nullptr ) );
+
+  const char *included[] = { "simple" };
+  ASSERT_EQ( GEODIFF_SUCCESS, GEODIFF_CX_setTablesToInclude( context, 1, included ) );
+  ASSERT_EQ( 1, GEODIFF_hasEqualSchema( context, "sqlite", "", base.c_str(), modified.c_str(), nullptr ) );
 
   GEODIFF_CX_destroy( context );
 }
