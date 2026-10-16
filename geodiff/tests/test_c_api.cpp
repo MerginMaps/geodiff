@@ -212,6 +212,35 @@ TEST( CAPITest, test_rebases )
   GEODIFF_CX_destroy( context );
 }
 
+TEST( CAPITest, test_long_paths )
+{
+  GEODIFF_ContextH context = GEODIFF_createContext();
+
+  std::string filler1( 150, 'a' );
+  std::string filler2( 100, 'b' );
+
+  std::string longdir = pathjoin( tmpdir(), std::string( "test_long_paths" ) + filler1 );
+  makedir( longdir );
+
+  std::string baseInput = pathjoin( testdir(), "base.gpkg" );
+  std::string baseLong = pathjoin( longdir, filler2 + "_base.gpkg" );
+  std::string diffLong = pathjoin( longdir, filler2 + "_base-modified_1_geom.diff" );
+  std::string jsonLong = pathjoin( longdir, filler2 + "_base-modified_1_geom.json" );
+
+  ASSERT_EQ( GEODIFF_SUCCESS, GEODIFF_makeCopySqlite(
+               context,
+               baseInput.c_str(),
+               baseLong.c_str() ) );
+
+  ASSERT_FALSE( fileContentEquals( baseLong, baseInput ) );
+
+  ASSERT_EQ( GEODIFF_SUCCESS, GEODIFF_createChangeset( context, baseLong.c_str(), pathjoin( testdir(), "1_geopackage", "modified_1_geom.gpkg" ).c_str(), diffLong.c_str() ) );
+
+  ASSERT_EQ( GEODIFF_SUCCESS, GEODIFF_listChanges( context, diffLong.c_str(), jsonLong.c_str() ) );
+
+  GEODIFF_CX_destroy( context );
+}
+
 int main( int argc, char **argv )
 {
   testing::InitGoogleTest( &argc, argv );
