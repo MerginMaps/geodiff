@@ -1076,7 +1076,7 @@ class GeodiffContext
 };
 
 
-int main( int argc, char *argv[] )
+int mainInner( int argc, char *argv[] )
 {
   GeodiffContext context;
 
@@ -1153,3 +1153,22 @@ int main( int argc, char *argv[] )
     return 1;
   }
 }
+
+#ifdef WIN32
+int wmain( int argc, wchar_t **argvw )
+{
+  std::vector<std::string> argsUtf8( argc ); // vector that owns UTF-8 versions of args
+  std::vector<char *> argv( argc );
+  for ( int i = 0; i < argc; i++ )
+  {
+    argsUtf8[i] = wstringToString( std::wstring( argvw[i] ) );
+    argv[i] = argsUtf8[i].data();
+  }
+  return mainInner( argc, argv.data() );
+}
+#else
+int main( int argc, char **argv )
+{
+  return mainInner( argc, argv );
+}
+#endif
