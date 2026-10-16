@@ -53,8 +53,6 @@ PostgresResult execSql( PGconn *c, const std::string &sql )
   {
     throw GeoDiffException( "postgres error: out of memory" );
   }
-
-  return PostgresResult( nullptr );
 }
 
 std::string quotedIdentifier( const std::string &ident )
