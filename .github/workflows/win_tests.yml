@@ -48,3 +48,11 @@ jobs:
             $env:PATH="C:\vcpkg\installed\x64-windows\bin;$env:GITHUB_WORKSPACE\build\tool\Debug\;$env:GITHUB_WORKSPACE\build\geodiff\Debug;$env:PATH"
             cd $env:GITHUB_WORKSPACE\build
             exec { ctest -VV -C Debug }
+
+      - name: Run Python tests
+        shell: pwsh
+        run: |
+          $env:GEODIFFLIB = "$env:GITHUB_WORKSPACE\build\Debug\geodiff.dll"
+          $env:GEODIFFCLI = "$env:GITHUB_WORKSPACE\build\Debug\geodiff.exe"
+          python3 -m pip install pytest
+          python3 -m pytest pygeodiff/
