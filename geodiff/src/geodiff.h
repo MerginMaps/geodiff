@@ -206,7 +206,7 @@ GEODIFF_EXPORT int GEODIFF_invertChangeset(
  * \param base [input] BASE sqlite3/geopackage file
  * \param modified [input] MODIFIED sqlite3/geopackage file
  * \param changeset_their [input] changeset between BASE -> MODIFIED_THEIR
- * \param changeset [output] changeset between MODIFIED_THEIR -> MODIFIED_THEIR_PLUS_MINE . If CHANGESET_THEIR is empty changeset, file is not created. If BASE == MODIFIED, file is not created
+ * \param changeset [output] changeset between MODIFIED_THEIR -> MODIFIED_THEIR_PLUS_MINE.
  * \param conflictfile [output] json file containing all the automaticly resolved conflicts. If there are no conflicts, file is not created
  * \returns GEODIFF_SUCCESS on success
  */
@@ -413,7 +413,8 @@ GEODIFF_EXPORT int GEODIFF_applyChangesetEx(
 
 /**
  * This function takes an existing changeset "base2modified" and rebases it on top of changes in
- * "base2their" and writes output to a new changeset "rebased"
+ * "base2their" and writes output to a new changeset "rebased".
+ * The input changesets are not modified.
  */
 GEODIFF_EXPORT int GEODIFF_createRebasedChangesetEx(
   GEODIFF_ContextH contextHandle,

@@ -633,7 +633,7 @@ void rebase(
   if ( reader_BASE_THEIRS.isEmpty() )
   {
     context->logger().info( " -- no rebase needed! (empty base2theirs) --\n" );
-    filecopy( changeset_BASE_MODIFIED, changeset_THEIRS_MODIFIED );
+    filecopy( changeset_THEIRS_MODIFIED, changeset_BASE_MODIFIED );
     return;
   }
 
@@ -645,7 +645,8 @@ void rebase(
   if ( reader_BASE_MODIFIED.isEmpty() )
   {
     context->logger().info( " -- no rebase needed! (empty base2modified) --\n" );
-    filecopy( changeset_BASE_THEIRS, changeset_THEIRS_MODIFIED );
+    ChangesetWriter writer;
+    writer.open( changeset_THEIRS_MODIFIED );
     return;
   }
 

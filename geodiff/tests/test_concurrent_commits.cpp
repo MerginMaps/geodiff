@@ -660,24 +660,24 @@ TEST( ConcurrentCommitsSqlite3Test, test_no_rebase_needed )
 {
   std::cout << "test when rebase is not needed" << std::endl;
 
-  std::cout << "expected result: BASE == OUR, no changeset created" << std::endl;
+  std::cout << "expected result: our changeset copied" << std::endl;
   ASSERT_TRUE( _test_no_rebase_needed(
                  pathjoin( testdir(), "base.gpkg" ),
                  pathjoin( testdir(), "base.gpkg" ),
                  pathjoin( testdir(), "2_updates", "updated_A.gpkg" ),
                  "no_rebase_BASE_eq_OURS",
                  0,
-                 true // no changeset created
+                 false // expecting our changeset
                ) );
 
-  std::cout << "expected result: BASE == THEIR, no changeset created" << std::endl;
+  std::cout << "expected result: empty changeset created" << std::endl;
   ASSERT_TRUE( _test_no_rebase_needed(
                  pathjoin( testdir(), "base.gpkg" ),
                  pathjoin( testdir(), "2_updates", "updated_A.gpkg" ),
                  pathjoin( testdir(), "base.gpkg" ),
                  "no_rebase_BASE_eq_THEIRS",
                  1,
-                 true // no changeset created
+                 false // expecting empty changeset
                ) );
 
   std::cout << "expected result: THEIR == OUR, empty changeset created" << std::endl;
