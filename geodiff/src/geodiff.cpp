@@ -641,9 +641,17 @@ int GEODIFF_changesCount(
   }
 
   int changesCount = 0;
-  ChangesetEntry entry;
-  while ( reader.nextEntry( entry ) )
-    ++changesCount;
+  try
+  {
+    ChangesetEntry entry;
+    while ( reader.nextEntry( entry ) )
+      ++changesCount;
+  }
+  catch ( const GeoDiffException &exc )
+  {
+    handleException( context, exc );
+    return -1;
+  }
 
   return changesCount;
 }

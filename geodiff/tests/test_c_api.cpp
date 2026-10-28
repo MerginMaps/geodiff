@@ -7,6 +7,7 @@
 #include "geodiff_testutils.hpp"
 #include "geodiff.h"
 #include "geodiffutils.hpp"
+#include "changeset.h"
 
 #include <string>
 
@@ -102,6 +103,29 @@ TEST( CAPITest, invalid_calls )
   const char *wkb;
   ASSERT_EQ( GEODIFF_ERROR, GEODIFF_createWkbFromGpkgHeader( invalidContext, " ", size_t( 0 ), &wkb, &size ) );
 
+  GEODIFF_CX_destroy( context );
+}
+
+TEST( CAPITest, test_changes_count_truncated_changeset )
+{
+  makedir( pathjoin( tmpdir(), "test_changes_count_truncated_changeset" ) );
+  std::string changeset = pathjoin( tmpdir(), "test_changes_count_truncated_changeset", "changes.diff" );
+  ChangesetTable table = { "t", { true } };
+  ChangesetEntry first = ChangesetEntry::make( &table, ChangesetEntry::OpInsert, {}, { Value::makeText( "abc" ) } );
+  ChangesetEntry second = ChangesetEntry::make( &table, ChangesetEntry::OpInsert, {}, { Value::makeText( "xyz" ) } );
+  writeSingleTableChangeset( changeset, table, { first, second } );
+  ASSERT_EQ( 2, GEODIFF_changesCount( testContext(), changeset.c_str() ) );
+
+  // Leave a complete first entry and truncate the text value in the second.
+  Buffer buffer;
+  buffer.read( changeset );
+  ASSERT_TRUE( flushString( changeset, std::string( buffer.c_buf(), buffer.size() - 1 ) ) );
+
+  GEODIFF_ContextH context = GEODIFF_createContext();
+  int count = 0;
+  EXPECT_NO_THROW( count = GEODIFF_changesCount( context, changeset.c_str() ) );
+  EXPECT_EQ( -1, count );
+  EXPECT_NE( std::string::npos, std::string( GEODIFF_CX_lastError( context ) ).find( "Reader error" ) );
   GEODIFF_CX_destroy( context );
 }
 
